@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { dispatchSMS } from '@/lib/services/twilioService';
 
 /**
  * POST /api/cadence/stage-trigger
@@ -13,17 +13,18 @@ import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
 
-// Outcome → sequence tag mapping
+// Outcome → sequence tag mapping (stageUpdate values must match the lead_stage
+// enum exactly: 'New Lead' | 'Contacted' | 'Interested' | 'Proposal Sent' | 'Under Contract' | 'Live' | 'Not a Fit')
 const OUTCOME_SEQUENCE_MAP: Record<string, { tag: string; stageUpdate: string; label: string }> = {
-  interested:            { tag: 'follow_up',   stageUpdate: 'interested',    label: 'Follow-Up Sequence' },
-  follow_up_scheduled:   { tag: 'follow_up',   stageUpdate: 'interested',    label: 'Follow-Up Sequence' },
-  questionnaire_sent:    { tag: 'follow_up',   stageUpdate: 'interested',    label: 'Follow-Up Sequence' },
-  no_answer:             { tag: 'retry',        stageUpdate: 'nurturing',     label: 'Retry Sequence' },
-  voicemail:             { tag: 'retry',        stageUpdate: 'nurturing',     label: 'Retry Sequence' },
-  busy:                  { tag: 'retry',        stageUpdate: 'nurturing',     label: 'Retry Sequence' },
-  callback:              { tag: 'schedule',     stageUpdate: 'interested',    label: 'Callback Schedule Sequence' },
-  proposal_conversation: { tag: 'schedule',     stageUpdate: 'proposal_sent', label: 'Proposal Sequence' },
-  not_interested:        { tag: 'closed_dead',  stageUpdate: 'closed_dead',   label: 'Closed Dead' },
+  interested:            { tag: 'follow_up',   stageUpdate: 'Interested',     label: 'Follow-Up Sequence' },
+  follow_up_scheduled:   { tag: 'follow_up',   stageUpdate: 'Interested',     label: 'Follow-Up Sequence' },
+  questionnaire_sent:    { tag: 'follow_up',   stageUpdate: 'Interested',     label: 'Follow-Up Sequence' },
+  no_answer:             { tag: 'retry',        stageUpdate: 'Contacted',     label: 'Retry Sequence' },
+  voicemail:             { tag: 'retry',        stageUpdate: 'Contacted',     label: 'Retry Sequence' },
+  busy:                  { tag: 'retry',        stageUpdate: 'Contacted',     label: 'Retry Sequence' },
+  callback:              { tag: 'schedule',     stageUpdate: 'Interested',    label: 'Callback Schedule Sequence' },
+  proposal_conversation: { tag: 'schedule',     stageUpdate: 'Proposal Sent', label: 'Proposal Sequence' },
+  not_interested:        { tag: 'closed_dead',  stageUpdate: 'Not a Fit',     label: 'Closed Dead' },
 };
 
 export async function POST(req: NextRequest) {
@@ -46,9 +47,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ skipped: true, reason: 'No cadence mapping for this outcome' });
   }
 
+  // Trusted server-to-server route — use the service role key so RLS doesn't block
+  // lead updates / cadence enrollment / questionnaire creation. Falls back to anon
+  // key only if the service role key hasn't been configured (placeholder value).
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const hasRealServiceRoleKey = Boolean(serviceRoleKey && !serviceRoleKey.includes('your-supabase-service-role-key'));
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    hasRealServiceRoleKey ? serviceRoleKey! : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
   const result = {
@@ -63,10 +69,11 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    // 1. Load lead
+    // 1. Load lead — leads has no first_name/last_name/phone/email/do_not_contact columns;
+    // use the real contact_name/contact_phone fields and check DNC via lead_enrichments.
     const { data: lead, error: leadErr } = await supabase
       .from('leads')
-      .select('id, first_name, last_name, email, phone, sms_opt_in, email_opt_in, do_not_contact, stage, address')
+      .select('id, contact_name, contact_phone, city, state, sms_opt_in, email_opt_in, stage, address')
       .eq('id', leadId)
       .single();
 
@@ -74,7 +81,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 
-    if (lead.do_not_contact) {
+    const { data: enrichment } = await supabase
+      .from('lead_enrichments')
+      .select('do_not_contact')
+      .eq('lead_id', leadId)
+      .maybeSingle();
+
+    if (enrichment?.do_not_contact) {
       return NextResponse.json({ skipped: true, reason: 'Lead is do_not_contact' });
     }
 
@@ -126,44 +139,91 @@ export async function POST(req: NextRequest) {
       targetSeq = defaultSeq ?? undefined;
     }
 
+    // 5. Enroll lead (upsert — won't duplicate). No active sequence configured yet is not
+    // fatal — the stage update and any direct notification (e.g. questionnaire SMS) below
+    // must still happen regardless of whether cadence enrollment is available.
     if (!targetSeq) {
       result.errors.push('No matching active sequence found');
-      return NextResponse.json(result);
-    }
-
-    // 5. Enroll lead (upsert — won't duplicate)
-    const steps: Array<{ delay_days: number; delay_hours: number }> = Array.isArray(targetSeq.steps) ? targetSeq.steps : [];
-    const firstStep = steps[0];
-    const nextSendAt = firstStep
-      ? new Date(Date.now() + (firstStep.delay_days * 86400000) + (firstStep.delay_hours * 3600000)).toISOString()
-      : new Date(Date.now() + 3600000).toISOString(); // 1 hour default
-
-    const { error: enrollErr } = await supabase
-      .from('cadence_enrollments')
-      .upsert({
-        lead_id: leadId,
-        sequence_id: targetSeq.id,
-        current_step: 0,
-        status: 'active',
-        next_send_at: nextSendAt,
-        enrolled_at: new Date().toISOString(),
-      }, { onConflict: 'lead_id,sequence_id', ignoreDuplicates: false });
-
-    if (enrollErr) {
-      result.errors.push(`Enrollment failed: ${enrollErr.message}`);
     } else {
-      result.enrolled = true;
-      // Update lead's next scheduled touch
-      await supabase
-        .from('leads')
-        .update({ next_scheduled_touch_at: nextSendAt })
-        .eq('id', leadId);
+      const steps: Array<{ delay_days: number; delay_hours: number }> = Array.isArray(targetSeq.steps) ? targetSeq.steps : [];
+      const firstStep = steps[0];
+      const nextSendAt = firstStep
+        ? new Date(Date.now() + (firstStep.delay_days * 86400000) + (firstStep.delay_hours * 3600000)).toISOString()
+        : new Date(Date.now() + 3600000).toISOString(); // 1 hour default
+
+      const { error: enrollErr } = await supabase
+        .from('cadence_enrollments')
+        .upsert({
+          lead_id: leadId,
+          sequence_id: targetSeq.id,
+          current_step: 0,
+          status: 'active',
+          next_send_at: nextSendAt,
+          enrolled_at: new Date().toISOString(),
+        }, { onConflict: 'lead_id,sequence_id', ignoreDuplicates: false });
+
+      if (enrollErr) {
+        result.errors.push(`Enrollment failed: ${enrollErr.message}`);
+      } else {
+        result.enrolled = true;
+        // Update lead's next scheduled touch
+        await supabase
+          .from('leads')
+          .update({ next_scheduled_touch_at: nextSendAt })
+          .eq('id', leadId);
+      }
     }
 
-    // 6. Send immediate notification email for high-priority outcomes
+
+    // 6. questionnaire_sent — actually create and text the homeowner their real questionnaire link
+    // (previously this outcome only enrolled a generic cadence and never sent anything).
+    if (callOutcome === 'questionnaire_sent' && lead.contact_phone && lead.sms_opt_in !== false) {
+      try {
+        const { data: existingQ } = await supabase
+          .from('homeowner_questionnaires')
+          .select('unique_token')
+          .eq('lead_id', leadId)
+          .maybeSingle();
+
+        let token = existingQ?.unique_token;
+        if (!token) {
+          const { data: newQ, error: qErr } = await supabase
+            .from('homeowner_questionnaires')
+            .insert({
+              lead_id: leadId,
+              questionnaire_status: 'not_started',
+              prefilled_address: lead.address,
+              prefilled_city: lead.city,
+              prefilled_state: lead.state,
+              homeowner_name: lead.contact_name,
+              confirmed_address: lead.address,
+            })
+            .select('unique_token')
+            .single();
+          if (qErr) result.errors.push(`Questionnaire creation failed: ${qErr.message}`);
+          token = newQ?.unique_token;
+        }
+
+        if (token) {
+          const questionnaireUrl = `${SITE_URL}/questionnaire?token=${token}`;
+          const smsResult = await dispatchSMS({
+            to: lead.contact_phone,
+            body: `Hi ${lead.contact_name || 'there'} — here's the quick questionnaire we discussed for ${lead.address || 'your property'}: ${questionnaireUrl}`,
+            leadId,
+          });
+          result.notificationSent = smsResult.success;
+          if (!smsResult.success) result.errors.push(smsResult.error || 'Questionnaire SMS failed to send');
+        }
+      } catch (qSendErr) {
+        result.errors.push(qSendErr instanceof Error ? qSendErr.message : 'Failed to send questionnaire');
+      }
+    }
+
+    // 7. Send immediate notification SMS for other high-priority outcomes
+    // (leads has no real email column, so this uses the same reliable SMS channel as above).
     const highPriorityOutcomes = ['interested', 'callback', 'proposal_conversation', 'follow_up_scheduled'];
-    if (highPriorityOutcomes.includes(callOutcome) && lead.email && lead.email_opt_in) {
-      const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'there';
+    if (highPriorityOutcomes.includes(callOutcome) && lead.contact_phone && lead.sms_opt_in !== false) {
+      const leadName = lead.contact_name || 'there';
       const outcomeLabels: Record<string, string> = {
         interested: 'expressed interest',
         callback: 'requested a callback',
@@ -173,20 +233,19 @@ export async function POST(req: NextRequest) {
       const outcomeLabel = outcomeLabels[callOutcome] || callOutcome;
 
       try {
-        const resend = getResendClient();
-        await resend.emails.send({
-          from: getResendFrom(),
-          to: [lead.email],
-          subject: `Great news — next steps for your property`,
-          html: buildFollowUpEmail(leadName, outcomeLabel, lead.address || '', agentName || 'TRAVLR Team', notes || ''),
+        const smsResult = await dispatchSMS({
+          to: lead.contact_phone,
+          body: `Hi ${leadName}, thanks for speaking with ${agentName || 'our team'} today — glad you ${outcomeLabel}! We'll follow up shortly with next steps for ${lead.address || 'your property'}.`,
+          leadId,
         });
-        result.notificationSent = true;
-      } catch (emailErr) {
-        result.errors.push(`Email notification failed: ${emailErr instanceof Error ? emailErr.message : 'Unknown'}`);
+        result.notificationSent = smsResult.success;
+        if (!smsResult.success) result.errors.push(smsResult.error || 'Follow-up SMS failed to send');
+      } catch (smsErr) {
+        result.errors.push(`SMS notification failed: ${smsErr instanceof Error ? smsErr.message : 'Unknown'}`);
       }
     }
 
-    // 7. Log the stage trigger event
+    // 8. Log the stage trigger event
     try {
       await supabase.from('admin_event_log').insert({
         event_type: 'cadence_stage_triggered',
@@ -222,29 +281,3 @@ export async function GET() {
   });
 }
 
-// ─── Email template ───────────────────────────────────────────────────────────
-
-function buildFollowUpEmail(
-  leadName: string,
-  outcomeLabel: string,
-  address: string,
-  agentName: string,
-  notes: string
-): string {
-  return `<!DOCTYPE html>
-<html>
-<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
-  <p>Hi ${leadName},</p>
-  <p>Thank you for speaking with ${agentName} today — we're glad you ${outcomeLabel}!</p>
-  ${address ? `<p>We're excited about the potential for your property at <strong>${address}</strong>.</p>` : ''}
-  ${notes ? `<p><em>${notes}</em></p>` : ''}
-  <p>Our team will be in touch shortly with your personalized rental estimate and next steps.</p>
-  <p style="margin-top:24px">Best,<br><strong>TRAVLR Team</strong></p>
-  <hr style="margin-top:32px;border:none;border-top:1px solid #eee">
-  <p style="font-size:11px;color:#999;margin-top:12px">
-    You're receiving this because you spoke with a TRAVLR agent.
-    <a href="${SITE_URL}/api/cadence/unsubscribe" style="color:#999">Unsubscribe</a>
-  </p>
-</body>
-</html>`;
-}

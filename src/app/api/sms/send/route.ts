@@ -18,16 +18,18 @@ export async function POST(req: NextRequest) {
     );
 
     // ── TCPA / Do-Not-Contact compliance guard ────────────────────────────────
-    // Block SMS dispatch if the lead has do_not_contact set, or if the
-    // enrichment record marks them as do_not_contact. This guard runs before
-    // any Twilio call so no SMS is ever sent to a blocked contact.
+    // Block SMS dispatch if the enrichment record marks this lead as do_not_contact,
+    // or if the lead has explicitly opted out of SMS. This guard runs before any
+    // Twilio call so no SMS is ever sent to a blocked contact.
+    // NOTE: leads.do_not_contact does not exist as a column — do not query it directly,
+    // it silently fails and returns null, which previously made this guard a no-op.
     const { data: leadRow } = await supabase
       .from('leads')
-      .select('do_not_contact, address')
+      .select('address, sms_opt_in')
       .eq('id', leadId)
       .single();
 
-    if (leadRow?.do_not_contact === true) {
+    if (leadRow?.sms_opt_in === false) {
       // Log the blocked attempt for audit purposes
       await supabase.from('outreach_history').insert({
         lead_id: leadId,
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
         sent_at: new Date().toISOString(),
         metadata: {
           to,
-          block_reason: 'do_not_contact flag is set on this lead',
+          block_reason: 'sms_opt_in is explicitly false for this lead',
           bulk_batch: bulkBatch ?? false,
         },
       });
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           status: 'blocked_dnc',
-          error: 'SMS blocked: this lead has Do Not Contact set. Remove the flag before sending outreach.',
+          error: 'SMS blocked: this lead has opted out of SMS. Remove the flag before sending outreach.',
           twilioConfigured: isTwilioConfigured(),
         },
         { status: 422 }

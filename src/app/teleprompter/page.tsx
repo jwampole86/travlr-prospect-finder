@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Mic, MicOff, PhoneOff, Phone, AlertTriangle, CheckCircle, Clock, User, Home, ChevronRight, Loader2, Volume2, RefreshCw, FileText, Headphones, Settings, WifiOff, Radio, AlertCircle, ChevronDown, CheckSquare, Square, BookOpen, Zap, AlertOctagon, ThumbsUp, ThumbsDown, BarChart2, Hash, X, List, PhoneCall, PhoneMissed, PhoneIncoming, Delete, Briefcase, Brain, PanelRightOpen, Shield } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Phone, AlertTriangle, CheckCircle, Clock, User, Home, ChevronRight, Loader2, Volume2, RefreshCw, FileText, Headphones, Settings, WifiOff, Radio, AlertCircle, ChevronDown, CheckSquare, Square, BookOpen, Zap, AlertOctagon, ThumbsUp, ThumbsDown, BarChart2, Hash, X, List, PhoneCall, PhoneMissed, PhoneIncoming, Delete, Briefcase, Brain, PanelRightOpen, Shield, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { resolveVariables, applyVariables, devicePreferences } from '@/lib/services/variableResolutionService';
 import { CALL_SCRIPTS, SCRIPT_OPTIONS, buildScriptText, ScriptId, CallScript, ScriptLine } from '@/lib/callScripts';
@@ -17,6 +17,7 @@ import { OUTCOME_LABELS, OUTCOME_COLORS } from '@/lib/services/outreachCallServi
 import AIEnrichmentPanel from './components/AIEnrichmentPanel';
 import EnrichmentSidebar from './components/EnrichmentSidebar';
 import TeleprompterRegulationPanel from './components/TeleprompterRegulationPanel';
+import PropertyEstimatePanel from './components/PropertyEstimatePanel';
 import { PORTFOLIO_STATES } from '@/lib/localBlurbs';
 import { placeOutboundCall } from '@/lib/services/twilioVoiceService';
 
@@ -1662,7 +1663,7 @@ function TeleprompterPageInner() {
   const [headsetConnected, setHeadsetConnected] = useState(true);
   const [showDialpad, setShowDialpad] = useState(false);
   const [showCallLog, setShowCallLog] = useState(false);
-  const [rightPanelTab, setRightPanelTab] = useState<'suggestion' | 'ai-prep'>('suggestion');
+  const [rightPanelTab, setRightPanelTab] = useState<'suggestion' | 'ai-prep' | 'estimate'>('suggestion');
   const [showEnrichmentSidebar, setShowEnrichmentSidebar] = useState(true);
 
   // Reliability state
@@ -2259,6 +2260,15 @@ function TeleprompterPageInner() {
               <Brain className="w-3.5 h-3.5" />
               AI Prep
             </button>
+            <button
+              onClick={() => setRightPanelTab('estimate')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
+                rightPanelTab === 'estimate' ?'text-primary border-b-2 border-primary' :'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <DollarSign className="w-3.5 h-3.5" />
+              Estimate
+            </button>
           </div>
 
           {rightPanelTab === 'suggestion' ? (
@@ -2283,7 +2293,7 @@ function TeleprompterPageInner() {
                 />
               </div>
             </>
-          ) : (
+          ) : rightPanelTab === 'ai-prep' ? (
             <div className="flex-1 overflow-y-auto p-3">
               <AIEnrichmentPanel
                 leadContext={{
@@ -2294,6 +2304,18 @@ function TeleprompterPageInner() {
                   scriptId,
                 }}
                 isCallActive={phase === 'active'}
+              />
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto">
+              <PropertyEstimatePanel
+                address={lead?.address}
+                city={lead?.city}
+                state={lead?.state}
+                contactName={lead?.contactName}
+                contactPhone={lead?.phone}
+                leadId={lead?.leadId}
+                agentId={userId}
               />
             </div>
           )}

@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
 
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const hasRealServiceRoleKey = Boolean(serviceRoleKey && !serviceRoleKey.includes('your-supabase-service-role-key'));
+
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  hasRealServiceRoleKey ? serviceRoleKey! : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 /**
@@ -20,19 +23,29 @@ export async function GET(req: NextRequest) {
     // Verify auth. Prefer Supabase SSR cookies, but keep bearer-token support for callers that pass it explicitly.
     const authHeader = req.headers.get('authorization');
     let user = cookieUser;
+    let authedClient = supabase; // cookie client already carries this user's session for RLS
 
     if (!user && authHeader) {
       const token = authHeader.replace('Bearer ', '');
       const { data: { user: bearerUser }, error: authErr } = await supabaseAdmin.auth.getUser(token);
-      if (!authErr && bearerUser) user = bearerUser;
+      if (!authErr && bearerUser) {
+        user = bearerUser;
+        // Bare anon-key clients carry no JWT, so RLS would block this user's own profile row.
+        // Attach the bearer token so auth.uid() resolves correctly server-side.
+        authedClient = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { global: { headers: { Authorization: `Bearer ${token}` } } }
+        );
+      }
     }
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify role
-    const { data: profile } = await supabaseAdmin
+    // Verify role — use the authenticated client so RLS (own-row-only) actually matches this user.
+    const { data: profile } = await authedClient
       .from('user_profiles')
       .select('app_role, role, is_active')
       .eq('id', user.id)
@@ -68,10 +81,10 @@ export async function GET(req: NextRequest) {
     let query = supabaseAdmin
       .from('leads')
       .select(`
-        id, owner_name, contact_name, property_address, address, city, state, phone, contact_phone,
+        id, owner_name, contact_name, address, city, state, contact_phone,
         is_high_priority, priority_tier, luxury, verified_owner, verified_address, verified_number,
-        lead_status, stage, prospect_score, next_follow_up_at,
-        last_contacted_at, created_at, do_not_contact, estimated_net_monthly,
+        lead_status, stage, prospect_score, next_followup_due,
+        last_contacted_at, created_at, estimated_net_monthly,
         notes, primary_agent_id
       `)
       .order('is_high_priority', { ascending: false })
@@ -94,7 +107,7 @@ export async function GET(req: NextRequest) {
 
     if (followUpDue) {
       const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      query = query.lte('next_follow_up_at', tomorrow).not('next_follow_up_at', 'is', null);
+      query = query.lte('next_followup_due', tomorrow).not('next_followup_due', 'is', null);
     }
 
     if (verifiedWithNumbers) {
@@ -107,7 +120,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (search) {
-      query = query.or(`owner_name.ilike.%${search}%,property_address.ilike.%${search}%,city.ilike.%${search}%`);
+      query = query.or(`owner_name.ilike.%${search}%,address.ilike.%${search}%,city.ilike.%${search}%`);
     }
 
     const { data: leads, error: leadsErr } = await query;
@@ -119,8 +132,8 @@ export async function GET(req: NextRequest) {
     const normalizedLeads = (leads || []).map((lead) => ({
       ...lead,
       owner_name: lead.owner_name || lead.contact_name || '',
-      property_address: lead.property_address || lead.address || '',
-      phone: lead.phone || lead.contact_phone || '',
+      property_address: lead.address || '',
+      phone: lead.contact_phone || '',
     }));
 
     const visibleLeads = verifiedWithNumbers
