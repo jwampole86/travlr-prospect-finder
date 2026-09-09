@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 const templateSubjects: Record<string, string> = {
   payout_alert: 'Test: Your payout of $3,240 is on the way',
@@ -59,8 +57,8 @@ export async function POST(req: NextRequest) {
     const subject = templateSubjects[type] ?? 'Test Homeowner Notification';
     const html = templateBodies[type] ?? '<p>Test notification</p>';
 
-    const { data, error } = await resend.emails.send({
-      from: 'TravlrPro <notifications@resend.dev>',
+    const { data, error } = await getResendClient().emails.send({
+      from: getResendFrom(),
       to: [email],
       subject,
       html,

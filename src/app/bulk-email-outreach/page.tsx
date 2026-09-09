@@ -7,6 +7,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Mail, Send, Filter, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Eye, Shield, BarChart2, Users, Loader2, Search, Tag, TrendingUp, AlertCircle, CheckSquare, Square, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { PORTFOLIOS } from '@/contexts/PortfolioContext';
+import { resolveVariables } from '@/lib/services/variableResolutionService';
+import { LEGACY_DEFAULT_TEMPLATE_NAMES } from '@/lib/emailTemplateSeeds';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -128,7 +130,7 @@ export default function BulkEmailOutreachPage() {
       .from('email_templates')
       .select('id, name, subject, body, category, portfolio')
       .order('name', { ascending: true });
-    setTemplates((data || []) as EmailTemplate[]);
+    setTemplates(((data || []) as EmailTemplate[]).filter((tpl) => !LEGACY_DEFAULT_TEMPLATE_NAMES.includes(tpl.name)));
     setLoadingTemplates(false);
   }, [supabase]);
 
@@ -280,13 +282,29 @@ export default function BulkEmailOutreachPage() {
 
   function fillPreview(text: string, lead: Lead | null, senderName: string): string {
     if (!lead) return text;
-    return text
-      .replace(/\{\{contactName\}\}/g, lead.contact_name || 'there')
-      .replace(/\{\{senderName\}\}/g, senderName)
-      .replace(/\{\{address\}\}/g, lead.address || '[address]')
+    const resolved = resolveVariables(
+      { contactName: lead.contact_name || '', address: lead.address || '', city: lead.city || '', state: lead.state || '' },
+      { senderName }
+    );
+    return extractTemplateText(text)
+      .replace(/\{\{contactName\}\}/g, resolved.contactName)
+      .replace(/\{\{senderName\}\}/g, resolved.senderName || senderName)
+      .replace(/\{\{address\}\}/g, resolved.address || '[address]')
       .replace(/\{\{city\}\}/g, lead.city || '[city]')
+      .replace(/\{\{state\}\}/g, lead.state || '[state]')
+      .replace(/\{\{localBlurb\}\}/g, resolved.localBlurb)
       .replace(/\{\{price\}\}/g, lead.prospect_score ? `$${(lead.prospect_score * 20).toLocaleString()}` : '[price]')
       .replace(/\{\{[^}]+\}\}/g, '[variable]');
+  }
+
+  function extractTemplateText(body: string): string {
+    try {
+      const parsed = JSON.parse(body);
+      if (Array.isArray(parsed)) {
+        return parsed.map((block: { content?: string }) => block.content || '').filter(Boolean).join('\n\n');
+      }
+    } catch { /* plain text */ }
+    return body || '';
   }
 
   const senderName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'TRAVLR Team';

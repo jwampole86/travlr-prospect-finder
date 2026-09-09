@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Plus, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { sortByCadence } from '@/lib/cadenceSteps';
+import { ALL_TEMPLATE_SEEDS, LEGACY_DEFAULT_TEMPLATE_NAMES, seedBodyToBlocks } from '@/lib/emailTemplateSeeds';
 
 export interface EmailTemplate {
   id: string;
@@ -31,7 +32,10 @@ export default function EmailTemplatesPage() {
     setLoading(true);
     try {
       const { data } = await supabase.from('email_templates').select('*').order('category');
-      if (data) setTemplates(sortByCadence(data as EmailTemplate[]));
+      if (data) {
+        const visibleTemplates = (data as EmailTemplate[]).filter((tpl) => !LEGACY_DEFAULT_TEMPLATE_NAMES.includes(tpl.name));
+        setTemplates(sortByCadence(visibleTemplates));
+      }
     } catch {
       // silent
     } finally {
@@ -71,6 +75,49 @@ export default function EmailTemplatesPage() {
       loadTemplates();
     } catch {
       toast.error('Failed to save template');
+    }
+  }
+
+  async function handleRefreshDefaults() {
+    try {
+      const { data: existing } = await supabase
+        .from('email_templates')
+        .select('id, name, portfolio');
+
+      const existingByKey = new Map(
+        ((existing || []) as Pick<EmailTemplate, 'id' | 'name' | 'portfolio'>[]).map((tpl) => [
+          `${tpl.name}::${tpl.portfolio || 'MASTER'}`,
+          tpl.id,
+        ])
+      );
+
+      for (const seed of ALL_TEMPLATE_SEEDS) {
+        const payload = {
+          name: seed.name,
+          subject: seed.subject,
+          body: seedBodyToBlocks(seed.body),
+          category: seed.category,
+          portfolio: seed.portfolio,
+        };
+        const existingId = existingByKey.get(`${seed.name}::${seed.portfolio}`);
+        if (existingId) {
+          const { error } = await supabase.from('email_templates').update(payload).eq('id', existingId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from('email_templates').insert(payload);
+          if (error) throw error;
+        }
+      }
+
+      await supabase
+        .from('email_templates')
+        .delete()
+        .in('name', LEGACY_DEFAULT_TEMPLATE_NAMES);
+
+      toast.success(`Refreshed ${ALL_TEMPLATE_SEEDS.length} outreach templates`);
+      loadTemplates();
+    } catch {
+      toast.error('Failed to refresh default templates');
     }
   }
 
@@ -122,6 +169,7 @@ export default function EmailTemplatesPage() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onNew={handleNew}
+              onRefreshDefaults={handleRefreshDefaults}
             />
           )}
         </div>

@@ -230,7 +230,7 @@ export default function NurtureCadencePage() {
   async function runCadenceJob() {
     setRunningJob(true);
     try {
-      const res = await fetch('/api/cadence/run', { method: 'POST', headers: { 'x-job-secret': process.env.NEXT_PUBLIC_SEQUENCE_JOB_SECRET || '' } });
+      const res = await fetch('/api/cadence/run', { method: 'POST' });
       const data = await res.json();
       if (data.error) toast.error(data.error);
       else toast.success(`Cadence job complete: ${data.sendsDispatched || 0} sends dispatched, ${data.escalations || 0} escalations`);

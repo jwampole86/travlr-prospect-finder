@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mail, TrendingUp, Clock, BarChart2, RefreshCw, ArrowUp, ArrowDown, Minus, ChevronDown, ChevronUp, Loader2, Phone, PlayCircle, FileText, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Star } from 'lucide-react';
+import { Mail, TrendingUp, Clock, BarChart2, RefreshCw, ArrowUp, ArrowDown, Minus, ChevronDown, ChevronUp, Loader2, Phone, PlayCircle, FileText, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Star, Users } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend
@@ -679,10 +679,10 @@ function AgentRow({ agent, period, expanded, onToggle }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AgentPerformancePage() {
-  const [agents, setAgents] = useState<AgentPerf[]>(MOCK_AGENTS);
+  const [agents, setAgents] = useState<AgentPerf[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'7d' | '30d'>('30d');
-  const [expandedId, setExpandedId] = useState<string | null>(MOCK_AGENTS[0]?.id ?? null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const supabase = createClient();
   const { user } = useAuth();
 
@@ -690,8 +690,9 @@ export default function AgentPerformancePage() {
     setLoading(true);
     try {
       const { data: agentData } = await supabase
-        .from('agent_profiles')
-        .select('id, full_name, email')
+        .from('user_profiles')
+        .select('id, full_name, email, app_role, role')
+        .in('app_role', ['agent', 'admin', 'owner'])
         .order('full_name');
 
       if (agentData && agentData.length > 0) {
@@ -705,7 +706,7 @@ export default function AgentPerformancePage() {
 
         const { data: leads } = await supabase
           .from('leads')
-          .select('agent_id, stage');
+          .select('primary_agent_id, stage');
 
         const merged: AgentPerf[] = agentData.map((a: any) => {
           const rows = (outreach ?? []).filter((r: any) => r.agent_id === a.id);
@@ -719,32 +720,50 @@ export default function AgentPerformancePage() {
             ? Math.round(responseTimes.reduce((x: number, y: number) => x + y, 0) / responseTimes.length)
             : 18;
 
-          const agentLeads = (leads ?? []).filter((l: any) => l.agent_id === a.id);
+          const agentLeads = (leads ?? []).filter((l: any) => l.primary_agent_id === a.id);
           const pipelineStages: Record<string, number> = {};
           PIPELINE_STAGES.forEach(s => { pipelineStages[s] = agentLeads.filter((l: any) => l.stage === s).length; });
 
-          const mockAgent = MOCK_AGENTS.find(m => m.name === a.full_name) ?? MOCK_AGENTS[0];
+          // Most-used template id (real usage, not a fabricated name)
+          const templateCounts: Record<string, number> = {};
+          rows.forEach((r: any) => { if (r.template_id) templateCounts[r.template_id] = (templateCounts[r.template_id] || 0) + 1; });
+          const topTemplateId = Object.entries(templateCounts).sort((x, y) => y[1] - x[1])[0]?.[0];
+
+          // Real day-by-day trend built from actual outreach rows for this period
+          const trendDays = period === '7d' ? 7 : 30;
+          const trend: TrendPoint[] = Array.from({ length: trendDays }, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (trendDays - 1 - i));
+            const dateStr = d.toISOString().split('T')[0];
+            const daySent = rows.filter((r: any) => r.sent_at?.startsWith(dateStr));
+            return {
+              date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              sent: daySent.length,
+              replies: daySent.filter((r: any) => r.reply_detected || r.status === 'replied').length,
+            };
+          });
 
           return {
             id: a.id,
             name: a.full_name,
             email: a.email ?? '',
-            sentCount: total || mockAgent.sentCount,
-            replyRate: total > 0 ? Math.round((replied / total) * 100) : mockAgent.replyRate,
-            bounceRate: total > 0 ? Math.round((bounced / total) * 100) : mockAgent.bounceRate,
+            sentCount: total,
+            replyRate: total > 0 ? Math.round((replied / total) * 100) : 0,
+            bounceRate: total > 0 ? Math.round((bounced / total) * 100) : 0,
             avgResponseTimeHours: avgHours,
-            topTemplate: mockAgent.topTemplate,
-            pipelineStages: Object.values(pipelineStages).some(v => v > 0) ? pipelineStages : mockAgent.pipelineStages,
-            trend7d: mockAgent.trend7d,
-            trend30d: mockAgent.trend30d,
+            topTemplate: topTemplateId || 'No sends yet',
+            pipelineStages,
+            trend7d: period === '7d' ? trend : makeTrend(7),
+            trend30d: period === '30d' ? trend : makeTrend(30),
           };
         });
         setAgents(merged);
+        if (merged.length > 0) setExpandedId(prev => prev ?? merged[0].id);
       } else {
-        setAgents(MOCK_AGENTS);
+        setAgents([]);
       }
     } catch {
-      setAgents(MOCK_AGENTS);
+      setAgents([]);
     } finally {
       setLoading(false);
     }
@@ -837,6 +856,12 @@ export default function AgentPerformancePage() {
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 size={24} className="animate-spin text-muted-foreground" />
+            </div>
+          ) : agents.length === 0 ? (
+            <div className="text-center py-16 bg-card border border-border rounded-xl">
+              <Users size={28} className="mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">No agents found.</p>
+              <p className="text-xs text-muted-foreground mt-1">Invite agents from Agent Management to see performance data here.</p>
             </div>
           ) : (
             <div className="space-y-3">

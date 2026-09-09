@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, List, Phone, CheckCircle2, ChevronRight, ChevronLeft, ArrowRight, Loader2, X, Star, PhoneCall, FileText, CheckSquare, Zap, Home } from 'lucide-react';
+import { LayoutDashboard, List, Phone, CheckCircle2, ChevronRight, ChevronLeft, ArrowRight, Loader2, X, Star, PhoneCall, FileText, CheckSquare, Zap, Home, Clock } from 'lucide-react';
 
 // ─── Tour Step Definitions ────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'dashboard',
     title: 'Your Agent Dashboard',
-    subtitle: 'Step 2 of 8 — Your Personal Workspace',
+    subtitle: 'Step 2 of 9 — Your Personal Workspace',
     icon: LayoutDashboard,
     iconColor: 'text-blue-500',
     content: 'This is your personal TRAVLR workspace. It shows the leads assigned to you, the leads that need attention, upcoming follow-ups, and your recent activity. Everything here is scoped to your assigned leads only.',
@@ -54,7 +54,7 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'my-leads',
     title: 'My Leads Queue',
-    subtitle: 'Step 3 of 8 — Your Assigned Opportunities',
+    subtitle: 'Step 3 of 9 — Your Assigned Opportunities',
     icon: List,
     iconColor: 'text-violet-500',
     content: 'These are homeowner opportunities assigned to you by the TRAVLR team. Focus on the leads in your queue and work them according to priority. Your queue is automatically sorted to surface the most important leads first.',
@@ -69,7 +69,7 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'lead-indicators',
     title: 'Lead Priority Indicators',
-    subtitle: 'Step 4 of 8 — Understanding Lead Badges',
+    subtitle: 'Step 4 of 9 — Understanding Lead Badges',
     icon: Star,
     iconColor: 'text-amber-500',
     content: 'Each lead has indicators that tell you what you need to know before making contact. Understanding these badges helps you prioritize your outreach effectively.',
@@ -85,7 +85,7 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'lead-profile',
     title: 'Lead Profile',
-    subtitle: 'Step 5 of 8 — Reviewing a Lead Before You Call',
+    subtitle: 'Step 5 of 9 — Reviewing a Lead Before You Call',
     icon: FileText,
     iconColor: 'text-emerald-500',
     content: 'Before calling, review the lead profile to understand the homeowner and property. This gives you the context you need for a confident, informed conversation.',
@@ -101,7 +101,7 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'call-workspace',
     title: 'Call Workspace & Teleprompter',
-    subtitle: 'Step 6 of 8 — Your Most Important Tool',
+    subtitle: 'Step 6 of 9 — Your Most Important Tool',
     icon: PhoneCall,
     iconColor: 'text-emerald-500',
     content: 'When you\'re ready to contact a homeowner, open the Call Workspace. TRAVLR will give you the information and guided script you need for the conversation. The teleprompter guides you through the conversation while keeping the property and homeowner information visible.',
@@ -119,7 +119,7 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'call-outcomes',
     title: 'Recording Call Outcomes',
-    subtitle: 'Step 7 of 8 — After Every Call',
+    subtitle: 'Step 7 of 9 — After Every Call',
     icon: CheckSquare,
     iconColor: 'text-blue-500',
     content: 'After every call, you must record an outcome. This keeps the TRAVLR team informed and ensures leads are followed up correctly. Always add notes with useful context for the next conversation.',
@@ -136,20 +136,37 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
     tip: 'Always add a note after recording an outcome — even a brief one helps the team.',
   },
   {
+    id: 'time-clock',
+    title: 'Clocking In & Tracking Breaks',
+    subtitle: 'Step 8 of 9 — Track Your Shift',
+    icon: Clock,
+    iconColor: 'text-primary',
+    content: 'TRAVLR tracks your work shift with a simple Clock In / Clock Out system. A live timer appears in the top bar next to your profile menu the moment you clock in, so you always know how long you\'ve been working.',
+    highlights: [
+      'Clock In from the top bar or the Time Clock page as soon as you start your shift',
+      'Start Break / End Break pauses the visible timer without ending your shift',
+      'Clock Out at the end of your shift — this locks in your total worked time',
+      'Visit /time-clock anytime to see your 14-day shift history and this-week total',
+      'Staying idle 8+ minutes while clocked in triggers a check-in prompt, then an automatic break so tracked hours stay accurate',
+    ],
+    tip: 'Always clock out at the end of your day — an open shift keeps counting until you do.',
+  },
+  {
     id: 'complete',
     title: "You're Ready to Start",
-    subtitle: 'Step 8 of 8 — Your Daily Workflow',
+    subtitle: 'Step 9 of 9 — Your Daily Workflow',
     icon: CheckCircle2,
     iconColor: 'text-emerald-500',
     content: 'You now know everything you need to work your assigned leads effectively. Follow this workflow for every lead in your queue.',
     highlights: [
-      '1. Check My Leads — review your assigned queue',
+      '1. Clock in for your shift — check My Leads for your assigned queue',
       '2. Start with Priority leads — work highest-value first',
       '3. Review the lead profile — know the property and homeowner',
       '4. Open the Call Workspace — use the teleprompter',
       '5. Record the outcome — every call, every time',
       '6. Add notes — context for the next conversation',
       '7. Schedule follow-up — keep the pipeline moving',
+      '8. Take breaks and clock out through the Time Clock widget',
     ],
     tip: 'You can replay this tour anytime from Help → Take Platform Tour Again.',
   },
@@ -185,11 +202,12 @@ export default function AgentOnboardingTour({ onComplete, forceShow = false }: A
     // Check onboarding completion status
     supabase
       .from('user_profiles')
-      .select('app_role, agent_onboarding_completed_at')
+      .select('app_role, role, agent_onboarding_completed_at')
       .eq('id', user.id)
       .single()
       .then(({ data }) => {
-        if (data?.app_role === 'agent' && !data?.agent_onboarding_completed_at) {
+        const effectiveRole = data?.app_role || data?.role;
+        if (effectiveRole === 'agent' && !data?.agent_onboarding_completed_at) {
           setVisible(true);
           // Mark as started
           if (session?.access_token) {
@@ -237,6 +255,7 @@ export default function AgentOnboardingTour({ onComplete, forceShow = false }: A
   const step = AGENT_TOUR_STEPS[currentStep];
   const isFirst = currentStep === 0;
   const isLast = currentStep === AGENT_TOUR_STEPS.length - 1;
+  const isMandatory = !forceShow;
   const progress = ((currentStep + 1) / AGENT_TOUR_STEPS.length) * 100;
   const StepIcon = step.icon;
 
@@ -262,13 +281,15 @@ export default function AgentOnboardingTour({ onComplete, forceShow = false }: A
               {isFirst ? 'Agent Orientation' : `Step ${currentStep} of ${AGENT_TOUR_STEPS.length - 1}`}
             </span>
           </div>
-          <button
-            onClick={handleSkip}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            title="Skip tour"
-          >
-            <X size={16} />
-          </button>
+          {!isMandatory && (
+            <button
+              onClick={handleSkip}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Close tour"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
 
         {/* Content */}
@@ -308,11 +329,14 @@ export default function AgentOnboardingTour({ onComplete, forceShow = false }: A
           {AGENT_TOUR_STEPS.map((_, i) => (
             <button
               key={i}
-              onClick={() => setCurrentStep(i)}
+              onClick={() => {
+                if (isMandatory && i > currentStep) return;
+                setCurrentStep(i);
+              }}
               className={`rounded-full transition-all ${
                 i === currentStep
                   ? 'w-4 h-1.5 bg-primary' :'w-1.5 h-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50'
-              }`}
+              } ${isMandatory && i > currentStep ? 'cursor-not-allowed opacity-40' : ''}`}
             />
           ))}
         </div>

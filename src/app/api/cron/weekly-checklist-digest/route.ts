@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { verifyJobRequest } from '@/lib/jobAuth';
 
 /**
  * POST /api/cron/weekly-checklist-digest
  * Sends weekly digest emails to homeowners listing pending/under-review checklist steps
- * and documents. Protected by SEQUENCE_JOB_SECRET header.
+ * and documents. Protected by SEQUENCE_JOB_SECRET header (cron) or an authenticated admin session (UI).
  * Designed to run weekly via an external cron scheduler.
  */
-
-function authCheck(req: NextRequest): boolean {
-  const secret = process.env.SEQUENCE_JOB_SECRET;
-  if (!secret) return true;
-  return req.headers.get('x-job-secret') === secret;
-}
 
 const STEP_LABELS: Record<number, string> = {
   1: 'Assessment & Prep',
@@ -148,11 +144,6 @@ export async function POST(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'RESEND_API_KEY not configured' }, { status: 500 });
-  }
-
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.staytrvlr.com';
   const portalUrl = `${siteUrl}/homeowner/str-checklist`;
 
@@ -164,6 +155,9 @@ export async function POST(req: NextRequest) {
   };
 
   try {
+    const resend = getResendClient();
+    const from = getResendFrom();
+
     // Load all homeowner-property links with user email
     const { data: links, error: linksErr } = await supabase
       .from('property_homeowners')
@@ -245,24 +239,15 @@ export async function POST(req: NextRequest) {
         const pendingCount = pendingSteps.length + pendingDocs.length;
         const subject = `Action needed: ${pendingCount} item${pendingCount !== 1 ? 's' : ''} pending on your STR checklist`;
 
-        const resendRes = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: 'onboarding@resend.dev',
-            to: [email],
-            subject,
-            html,
-          }),
+        const { data: resendData, error: resendError } = await resend.emails.send({
+          from,
+          to: [email],
+          subject,
+          html,
         });
 
-        const resendData = await resendRes.json();
-
-        if (!resendRes.ok) {
-          results.errors.push(`${email}: ${resendData.message || 'Resend error'}`);
+        if (resendError) {
+          results.errors.push(`${email}: ${resendError.message || 'Resend error'}`);
           continue;
         }
 
@@ -277,7 +262,7 @@ export async function POST(req: NextRequest) {
           detail: `${pendingSteps.length} pending step(s), ${pendingDocs.length} doc(s) under review`,
           source: 'cron_weekly_digest',
           metadata: {
-            resend_id: resendData.id,
+            resend_id: resendData?.id,
             pending_steps: pendingSteps.length,
             pending_docs: pendingDocs.length,
             digest_type: 'weekly_checklist',

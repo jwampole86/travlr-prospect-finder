@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 // Use service role key to bypass RLS for admin server-side operations.
 // SUPABASE_SERVICE_ROLE_KEY must be set in .env — never expose it client-side.
@@ -69,8 +67,8 @@ export async function POST(req: NextRequest) {
     const fullName = `${firstName} ${lastName}`;
 
     // Send invite email
-    const { error: emailErr } = await resend.emails.send({
-      from: 'TRAVLR Pro <info@staytrvlr.com>',
+    const { error: emailErr } = await getResendClient().emails.send({
+      from: getResendFrom(),
       to: invite.email,
       subject: `You've been invited to join TRAVLR Pro`,
       html: `

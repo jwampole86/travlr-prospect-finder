@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyJobRequest } from '@/lib/jobAuth';
 
 /**
  * POST /api/cron/checklist-auto-advance
@@ -7,15 +8,9 @@ import { createClient } from '@supabase/supabase-js';
  * after a configurable delay (default: 7 days). Logs auto-advance events to
  * the Activity Timeline and inserts agent reminder notifications.
  *
- * Protected by SEQUENCE_JOB_SECRET header.
+ * Protected by SEQUENCE_JOB_SECRET header (cron) or an authenticated admin session (UI).
  * Designed to run daily via an external cron scheduler.
  */
-
-function authCheck(req: NextRequest): boolean {
-  const secret = process.env.SEQUENCE_JOB_SECRET;
-  if (!secret) return true;
-  return req.headers.get('x-job-secret') === secret;
-}
 
 const STEP_LABELS: Record<number, string> = {
   1: 'Assessment & Prep',
@@ -27,8 +22,9 @@ const STEP_LABELS: Record<number, string> = {
 };
 
 export async function POST(req: NextRequest) {
-  if (!authCheck(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await verifyJobRequest(req);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.reason || 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = createClient(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyJobRequest } from '@/lib/jobAuth';
 
 /**
  * POST /api/sequence-job
@@ -10,14 +11,12 @@ import { createClient } from '@supabase/supabase-js';
  * 4. Schedules pending sends for enrolled leads per sequence timing rules
  *
  * Designed to be called by a cron job or scheduled task (e.g., every 15 minutes).
- * Can also be triggered manually from the Follow-Up Sequences UI.
+ * Can also be triggered manually from the Follow-Up Sequences UI by an authenticated admin.
  */
 export async function POST(req: NextRequest) {
-  // Simple auth check — require a job secret header in production
-  const authHeader = req.headers.get('x-job-secret');
-  const jobSecret = process.env.SEQUENCE_JOB_SECRET;
-  if (jobSecret && authHeader !== jobSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await verifyJobRequest(req);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.reason || 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = createClient(

@@ -11,6 +11,7 @@ interface Props {
   onEdit: (tpl: EmailTemplate) => void;
   onDelete: (id: string) => void;
   onNew: () => void;
+  onRefreshDefaults: () => void;
 }
 
 const categoryColors: Record<string, string> = {
@@ -49,7 +50,7 @@ function getCadenceStep(category: string): number {
   return step?.step ?? 0;
 }
 
-export default function EmailTemplateList({ templates, loading, onEdit, onDelete, onNew }: Props) {
+export default function EmailTemplateList({ templates, loading, onEdit, onDelete, onNew, onRefreshDefaults }: Props) {
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState<string>('all');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -110,6 +111,12 @@ export default function EmailTemplateList({ templates, loading, onEdit, onDelete
           ))}
         </div>
         <span className="text-xs text-muted-foreground ml-auto">{filtered.length} template{filtered.length !== 1 ? 's' : ''}</span>
+        <button
+          onClick={onRefreshDefaults}
+          className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-foreground hover:bg-muted transition-colors min-h-[32px]"
+        >
+          Refresh Defaults
+        </button>
       </div>
 
       {/* Template grid */}

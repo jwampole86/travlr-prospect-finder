@@ -65,10 +65,8 @@ Generate the JSON response now.`;
       ],
       stream: false,
       api_key: apiKey,
-      parameters: {
-        max_tokens: 1200,
-        temperature: 0.7,
-      },
+      max_tokens: 1200,
+      temperature: 0.7,
     });
 
     const content = response?.choices?.[0]?.message?.content || '';

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,8 +19,8 @@ export async function POST(req: NextRequest) {
     const inviteLink = `${siteUrl}/login?invite=1&email=${encodeURIComponent(email)}`;
     const roleLabel = { agent: 'Agent', manager: 'Manager', admin: 'Admin', viewer: 'Viewer' }[role as string] || 'Team Member';
 
-    const { data, error } = await resend.emails.send({
-      from: 'TRAVLR Pro <onboarding@resend.dev>',
+    const { data, error } = await getResendClient().emails.send({
+      from: getResendFrom(),
       to: email,
       subject: `You've been invited to TRAVLR Pro as ${roleLabel}`,
       html: `

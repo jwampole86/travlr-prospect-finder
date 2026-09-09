@@ -106,6 +106,15 @@ export const SHARED_COMPENSATION_LANGUAGE =
   `earnings scale with the size and performance of the home, not just a flat per-call rate. It's ` +
   `uncapped, and every lead you call is warm and pre-qualified — no cold prospecting.`;
 
+export const SHARED_TRAVLR_COMPANY_POSITIONING =
+  `TRAVLR Vacation Homes has spent the past 10 years as a premier partner for homeowners of ultra-luxury ` +
+  `California properties, managing multi-million-dollar vacation homes with high-touch care. The California ` +
+  `desert portfolio has shown that TRAVLR can protect and elevate property value while producing substantial ` +
+  `passive income for owners. TRAVLR is now bringing that approach to Aspen, Vail, Las Vegas, Miami, and Seattle. ` +
+  `The operating model combines full-service property management, 5-star guest hospitality, dynamic revenue ` +
+  `optimization, smart-home technology, compliance and permit support, robust marketing, weekly inspections, ` +
+  `and transparent owner-portal reporting.`;
+
 export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
   homeowner_outreach_agent: {
     roleId: 'homeowner_outreach_agent',
@@ -114,6 +123,19 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
     description: 'Front-line outreach to prospective homeowner partners',
     totalDuration: '45–60 min',
     sections: [
+      {
+        id: 'company-positioning',
+        title: 'TRAVLR Company Positioning',
+        duration: 'Reference',
+        questions: [
+          {
+            id: 'company-positioning-1',
+            category: 'Company Context',
+            question: SHARED_TRAVLR_COMPANY_POSITIONING,
+            notes: 'Use this as interviewer context when asking candidates how they would explain TRAVLR to ultra-luxury homeowners.',
+          },
+        ],
+      },
       {
         id: 'intro',
         title: 'Introduction & Overview',

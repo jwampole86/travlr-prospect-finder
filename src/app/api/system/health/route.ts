@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getResendConfigStatus } from '@/lib/email/resend';
+import { getTwilioConfigStatus } from '@/lib/services/twilioService';
 
 type HealthStatus = 'operational' | 'degraded' | 'outage' | 'maintenance';
 
@@ -30,18 +32,22 @@ export async function GET() {
 
   checks.api = { status: 'operational', responseTime: 0, detail: 'Health endpoint responding' };
 
-  const twilioReady = configured(process.env.TWILIO_ACCOUNT_SID) && configured(process.env.TWILIO_AUTH_TOKEN) && configured(process.env.TWILIO_FROM_NUMBER);
+  const twilioStatus = getTwilioConfigStatus();
+  const twilioReady = twilioStatus.smsConfigured;
   checks.sms = {
     status: twilioReady ? 'operational' : 'maintenance',
     responseTime: null,
-    detail: twilioReady ? 'Twilio credentials configured' : 'Twilio credentials are not configured',
+    detail: twilioReady ? `Twilio SMS configured via ${twilioStatus.authMode}` : `Twilio incomplete: ${twilioStatus.missing.join(', ')}`,
   };
 
-  const emailReady = configured(process.env.RESEND_API_KEY);
+  const resendStatus = getResendConfigStatus();
+  const emailReady = resendStatus.apiKeyConfigured && resendStatus.senderConfigured;
   checks.email = {
     status: emailReady ? 'operational' : 'maintenance',
     responseTime: null,
-    detail: emailReady ? 'Resend credentials configured' : 'Resend credentials are not configured',
+    detail: emailReady
+      ? `Resend configured for ${resendStatus.senderDomain}`
+      : 'Resend API key or sender email is not configured',
   };
 
   const enrichmentReady = configured(process.env.BATCHDATA_API_KEY) || configured(process.env.PROPERTYREACH_API_KEY);

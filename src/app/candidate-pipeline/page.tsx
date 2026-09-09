@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Users, RefreshCw, Plus, LayoutGrid, List, Search, Filter, User, Calendar, TrendingUp, ArrowRight, GripVertical, CheckCircle, XCircle, Clock, AlertCircle, FileText, BarChart2, ArrowUpDown, Eye, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PipelineStatus = 'READY_TO_INTERVIEW' | 'INTERVIEWED' | 'FOLLOW_UP' | 'HOLD' | 'MOVE_FORWARD' | 'NOT_MOVING_FORWARD';
+type PipelineStatus = 'READY_TO_INTERVIEW' | 'INTERVIEWED' | 'FOLLOW_UP' | 'HOLD' | 'MOVE_FORWARD' | 'HIRED' | 'NOT_MOVING_FORWARD';
 
 interface PipelineCandidate {
   id: string;
@@ -49,6 +50,7 @@ interface PipelineCounts {
   FOLLOW_UP: number;
   HOLD: number;
   MOVE_FORWARD: number;
+  HIRED: number;
   NOT_MOVING_FORWARD: number;
 }
 
@@ -68,6 +70,7 @@ const PIPELINE_STAGES: Array<{
   { id: 'FOLLOW_UP', label: 'Follow-Up', color: 'bg-amber-50 border-amber-200', headerBg: 'bg-amber-100', headerText: 'text-amber-700', dotColor: 'bg-amber-500', icon: ArrowRight },
   { id: 'HOLD', label: 'Hold', color: 'bg-gray-50 border-gray-200', headerBg: 'bg-gray-100', headerText: 'text-gray-600', dotColor: 'bg-gray-400', icon: AlertCircle },
   { id: 'MOVE_FORWARD', label: 'Move Forward', color: 'bg-green-50 border-green-200', headerBg: 'bg-green-100', headerText: 'text-green-700', dotColor: 'bg-green-500', icon: TrendingUp },
+  { id: 'HIRED', label: 'Hired', color: 'bg-emerald-50 border-emerald-200', headerBg: 'bg-emerald-100', headerText: 'text-emerald-700', dotColor: 'bg-emerald-500', icon: CheckCircle },
   { id: 'NOT_MOVING_FORWARD', label: 'Not Moving Forward', color: 'bg-red-50 border-red-200', headerBg: 'bg-red-100', headerText: 'text-red-700', dotColor: 'bg-red-400', icon: XCircle },
 ];
 
@@ -357,8 +360,9 @@ function TableView({
 
 export default function CandidatePipelinePage() {
   const supabase = createClient();
+  const router = useRouter();
   const [candidates, setCandidates] = useState<PipelineCandidate[]>([]);
-  const [counts, setCounts] = useState<PipelineCounts>({ total: 0, READY_TO_INTERVIEW: 0, INTERVIEWED: 0, FOLLOW_UP: 0, HOLD: 0, MOVE_FORWARD: 0, NOT_MOVING_FORWARD: 0 });
+  const [counts, setCounts] = useState<PipelineCounts>({ total: 0, READY_TO_INTERVIEW: 0, INTERVIEWED: 0, FOLLOW_UP: 0, HOLD: 0, MOVE_FORWARD: 0, HIRED: 0, NOT_MOVING_FORWARD: 0 });
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [search, setSearch] = useState('');
@@ -406,11 +410,17 @@ export default function CandidatePipelinePage() {
     setStageOverrides(prev => ({ ...prev, [id]: newStatus }));
     setCandidates(prev => prev.map(c => c.id === id ? { ...c, pipeline_status: newStatus } : c));
 
-    await fetch('/api/candidates/pipeline', {
+    const res = await fetch('/api/candidates/pipeline', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ candidateId: id, newStatus }),
     });
+    const data = await res.json().catch(() => null);
+
+    if (newStatus === 'HIRED') {
+      const url = data?.offerDraftUrl || `/offer-letters?candidateId=${encodeURIComponent(id)}&source=hired`;
+      router.push(url);
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {

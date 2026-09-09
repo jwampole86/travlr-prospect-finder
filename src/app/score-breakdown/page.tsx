@@ -4,9 +4,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Brain, TrendingUp, Users, Database, ChevronDown, ChevronUp, Search, Loader2, RefreshCw, Phone, Mail, Info, Building2, Zap, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Brain, TrendingUp, Users, Database, ChevronDown, ChevronUp, Search, Loader2, RefreshCw, Phone, Mail, Info, Building2, Zap, ArrowUp, ArrowDown, Minus, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import Icon from '@/components/ui/AppIcon';
+import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
 
 
 interface Lead {
@@ -20,24 +21,34 @@ interface Lead {
   contact_phone?: string;
   contact_email?: string;
   estimated_net_monthly?: number;
+  estimated_gross_monthly?: number;
+  estimated_adr?: number;
+  regulation_status?: string;
   enrichment_status?: string;
   dnc_flagged?: boolean;
+  do_not_contact?: boolean;
   tcpa_risk?: string;
   property_type?: string;
   bedrooms?: number;
   bathrooms?: number;
   square_feet?: number;
   year_built?: number;
+  verified_owner?: boolean;
+  verified_number?: boolean;
+  verified_address?: string | boolean | null;
+  luxury?: boolean;
   assigned_agent_id?: string;
   created_at?: string;
 }
 
 interface ScoreBreakdown {
   total: number;
-  propertyFundamentals: { score: number; max: number; factors: ScoreFactor[] };
-  marketConditions: { score: number; max: number; factors: ScoreFactor[] };
-  agentFit: { score: number; max: number; factors: ScoreFactor[] };
-  enrichmentQuality: { score: number; max: number; factors: ScoreFactor[] };
+  calculatedTotal: number;
+  revenuePotential: { score: number; max: number; factors: ScoreFactor[] };
+  propertyFit: { score: number; max: number; factors: ScoreFactor[] };
+  regulatoryFeasibility: { score: number; max: number; factors: ScoreFactor[] };
+  leadQuality: { score: number; max: number; factors: ScoreFactor[] };
+  engagement: { score: number; max: number; factors: ScoreFactor[] };
 }
 
 interface ScoreFactor {
@@ -49,129 +60,60 @@ interface ScoreFactor {
   explanation: string;
 }
 
+function toImpact(score: number): ScoreFactor['impact'] {
+  if (score >= 70) return 'positive';
+  if (score >= 40) return 'neutral';
+  return 'negative';
+}
+
+function toScoreFactor(factor: ReturnType<typeof calculateProspectScore>['factors'][number]): ScoreFactor {
+  return {
+    label: factor.label,
+    value: `${factor.score}/100 raw`,
+    impact: toImpact(factor.score),
+    points: factor.weightedPoints,
+    maxPoints: factor.weight,
+    explanation: factor.explanation,
+  };
+}
+
 function generateBreakdown(lead: Lead): ScoreBreakdown {
-  const total = lead.prospect_score || 0;
+  const result = calculateProspectScore({
+    estimatedNetMonthly: lead.estimated_net_monthly,
+    estimatedGrossMonthly: lead.estimated_gross_monthly,
+    estimatedADR: lead.estimated_adr,
+    beds: lead.bedrooms,
+    baths: lead.bathrooms,
+    propertyType: lead.property_type,
+    regulationStatus: lead.regulation_status,
+    verifiedOwner: lead.verified_owner,
+    verifiedNumber: lead.verified_number,
+    verifiedAddress: lead.verified_address,
+    contactPhone: lead.contact_phone,
+    contactEmail: lead.contact_email,
+    doNotContact: lead.do_not_contact || lead.dnc_flagged,
+    stage: lead.stage,
+    luxury: lead.luxury,
+  });
 
-  // Property fundamentals (0–30 pts)
-  const propFactors: ScoreFactor[] = [
-    {
-      label: 'Property Type',
-      value: lead.property_type || 'Single Family',
-      impact: 'positive',
-      points: lead.property_type === 'Multi-Family' ? 10 : 8,
-      maxPoints: 10,
-      explanation: 'Single-family and multi-family homes score highest for rental conversion potential.',
-    },
-    {
-      label: 'Year Built',
-      value: lead.year_built ? String(lead.year_built) : 'Unknown',
-      impact: lead.year_built && lead.year_built > 1990 ? 'positive' : lead.year_built ? 'neutral' : 'negative',
-      points: lead.year_built ? (lead.year_built > 2000 ? 8 : lead.year_built > 1980 ? 6 : 4) : 2,
-      maxPoints: 8,
-      explanation: 'Newer properties require less maintenance and attract higher-quality tenants.',
-    },
-    {
-      label: 'Estimated Monthly Revenue',
-      value: lead.estimated_net_monthly ? `$${lead.estimated_net_monthly.toLocaleString()}` : '—',
-      impact: lead.estimated_net_monthly && lead.estimated_net_monthly > 2000 ? 'positive' : lead.estimated_net_monthly ? 'neutral' : 'negative',
-      points: lead.estimated_net_monthly ? Math.min(12, Math.floor(lead.estimated_net_monthly / 200)) : 3,
-      maxPoints: 12,
-      explanation: 'Higher estimated monthly revenue directly correlates with owner motivation to list.',
-    },
-  ];
-
-  // Market conditions (0–25 pts)
-  const marketFactors: ScoreFactor[] = [
-    {
-      label: 'City Demand',
-      value: lead.city || 'Unknown',
-      impact: 'positive',
-      points: 8,
-      maxPoints: 10,
-      explanation: `${lead.city || 'This area'} shows above-average rental demand based on vacancy rate data.`,
-    },
-    {
-      label: 'State Regulatory Climate',
-      value: lead.state || 'Unknown',
-      impact: ['CA', 'NY', 'OR'].includes(lead.state || '') ? 'negative' : 'positive',
-      points: ['CA', 'NY', 'OR'].includes(lead.state || '') ? 5 : 9,
-      maxPoints: 10,
-      explanation: ['CA', 'NY', 'OR'].includes(lead.state || '')
-        ? 'High-regulation state — additional compliance steps required for rental conversion.' :'Landlord-friendly state with streamlined rental regulations.',
-    },
-    {
-      label: 'Lead Source Timing',
-      value: lead.created_at ? `${Math.floor((Date.now() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60 * 24))} days ago` : '—',
-      impact: lead.created_at && (Date.now() - new Date(lead.created_at).getTime()) < 30 * 24 * 60 * 60 * 1000 ? 'positive' : 'neutral',
-      points: lead.created_at && (Date.now() - new Date(lead.created_at).getTime()) < 30 * 24 * 60 * 60 * 1000 ? 5 : 3,
-      maxPoints: 5,
-      explanation: 'Fresher leads have higher conversion rates — owners are more receptive within 30 days.',
-    },
-  ];
-
-  // Agent fit (0–25 pts)
-  const agentFactors: ScoreFactor[] = [
-    {
-      label: 'Contact Info Quality',
-      value: lead.contact_phone && lead.contact_email ? 'Full' : lead.contact_phone ? 'Phone only' : 'Incomplete',
-      impact: lead.contact_phone && lead.contact_email ? 'positive' : lead.contact_phone ? 'neutral' : 'negative',
-      points: lead.contact_phone && lead.contact_email ? 10 : lead.contact_phone ? 6 : 2,
-      maxPoints: 10,
-      explanation: 'Leads with both phone and email allow multi-channel outreach, increasing contact rate by 3×.',
-    },
-    {
-      label: 'Stage Progression',
-      value: lead.stage || 'New',
-      impact: ['Qualified', 'Proposal', 'Negotiation'].includes(lead.stage || '') ? 'positive' : lead.stage === 'Closed' ? 'neutral' : 'neutral',
-      points: lead.stage === 'Negotiation' ? 10 : lead.stage === 'Proposal' ? 8 : lead.stage === 'Qualified' ? 7 : lead.stage === 'Contacted' ? 5 : 3,
-      maxPoints: 10,
-      explanation: 'Leads further in the pipeline require less effort to convert and have demonstrated intent.',
-    },
-    {
-      label: 'DNC / Compliance',
-      value: lead.dnc_flagged ? 'DNC Flagged' : 'Clean',
-      impact: lead.dnc_flagged ? 'negative' : 'positive',
-      points: lead.dnc_flagged ? 0 : 5,
-      maxPoints: 5,
-      explanation: lead.dnc_flagged
-        ? 'This number is on the Do Not Call registry — outreach requires written consent first.' :'No DNC flags — standard outreach protocols apply.',
-    },
-  ];
-
-  // Enrichment quality (0–20 pts)
-  const enrichFactors: ScoreFactor[] = [
-    {
-      label: 'Enrichment Stage',
-      value: lead.enrichment_status || 'None',
-      impact: lead.enrichment_status === 'completed' ? 'positive' : lead.enrichment_status === 'partial' ? 'neutral' : 'negative',
-      points: lead.enrichment_status === 'completed' ? 10 : lead.enrichment_status === 'partial' ? 6 : 2,
-      maxPoints: 10,
-      explanation: 'Fully enriched leads have verified owner contact info, property details, and skip-trace data.',
-    },
-    {
-      label: 'Property Data Completeness',
-      value: [lead.bedrooms, lead.bathrooms, lead.square_feet].filter(Boolean).length + '/3 fields',
-      impact: [lead.bedrooms, lead.bathrooms, lead.square_feet].filter(Boolean).length >= 2 ? 'positive' : 'neutral',
-      points: [lead.bedrooms, lead.bathrooms, lead.square_feet].filter(Boolean).length * 2,
-      maxPoints: 6,
-      explanation: 'Complete property data enables accurate revenue estimation and better owner conversations.',
-    },
-    {
-      label: 'TCPA Risk Level',
-      value: lead.tcpa_risk || 'Unknown',
-      impact: !lead.tcpa_risk || lead.tcpa_risk === 'low' ? 'positive' : lead.tcpa_risk === 'medium' ? 'neutral' : 'negative',
-      points: !lead.tcpa_risk || lead.tcpa_risk === 'low' ? 4 : lead.tcpa_risk === 'medium' ? 2 : 0,
-      maxPoints: 4,
-      explanation: 'Lower TCPA risk means fewer compliance barriers to outreach and lower legal exposure.',
-    },
-  ];
+  const factorMap = new Map(result.factors.map((factor) => [factor.key, toScoreFactor(factor)]));
+  const blockerFactors: ScoreFactor[] = result.blockers.map((blocker) => ({
+    label: 'Blocking Factor',
+    value: 'Blocked',
+    impact: 'negative',
+    points: 0,
+    maxPoints: 0,
+    explanation: blocker,
+  }));
 
   return {
-    total,
-    propertyFundamentals: { score: propFactors.reduce((s, f) => s + f.points, 0), max: 30, factors: propFactors },
-    marketConditions: { score: marketFactors.reduce((s, f) => s + f.points, 0), max: 25, factors: marketFactors },
-    agentFit: { score: agentFactors.reduce((s, f) => s + f.points, 0), max: 25, factors: agentFactors },
-    enrichmentQuality: { score: enrichFactors.reduce((s, f) => s + f.points, 0), max: 20, factors: enrichFactors },
+    total: lead.prospect_score || result.score,
+    calculatedTotal: result.score,
+    revenuePotential: { score: factorMap.get('revenuePotential')?.points ?? 0, max: factorMap.get('revenuePotential')?.maxPoints ?? 25, factors: [factorMap.get('revenuePotential')!].filter(Boolean) },
+    propertyFit: { score: factorMap.get('propertyFit')?.points ?? 0, max: factorMap.get('propertyFit')?.maxPoints ?? 25, factors: [factorMap.get('propertyFit')!].filter(Boolean) },
+    regulatoryFeasibility: { score: factorMap.get('regulatoryFeasibility')?.points ?? 0, max: factorMap.get('regulatoryFeasibility')?.maxPoints ?? 25, factors: [factorMap.get('regulatoryFeasibility')!].filter(Boolean).concat(blockerFactors) },
+    leadQuality: { score: factorMap.get('leadQuality')?.points ?? 0, max: factorMap.get('leadQuality')?.maxPoints ?? 15, factors: [factorMap.get('leadQuality')!].filter(Boolean) },
+    engagement: { score: factorMap.get('engagement')?.points ?? 0, max: factorMap.get('engagement')?.maxPoints ?? 10, factors: [factorMap.get('engagement')!].filter(Boolean) },
   };
 }
 
@@ -279,7 +221,7 @@ export default function ScoreBreakdownPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['propertyFundamentals']));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['revenuePotential']));
 
   const loadLeads = useCallback(async () => {
     if (!user) return;
@@ -288,7 +230,7 @@ export default function ScoreBreakdownPage() {
       const supabase = createClient();
       const { data } = await supabase
         .from('leads')
-        .select('id, address, city, state, stage, prospect_score, contact_name, contact_phone, contact_email, estimated_net_monthly, enrichment_status, dnc_flagged, tcpa_risk, property_type, bedrooms, bathrooms, square_feet, year_built, assigned_agent_id, created_at')
+        .select('id, address, city, state, stage, prospect_score, contact_name, contact_phone, contact_email, estimated_net_monthly, estimated_gross_monthly, estimated_adr, regulation_status, enrichment_status, dnc_flagged, do_not_contact, tcpa_risk, property_type, bedrooms, bathrooms, square_feet, year_built, verified_owner, verified_number, verified_address, luxury, assigned_agent_id, created_at')
         .eq('user_id', user.id)
         .not('prospect_score', 'is', null)
         .order('prospect_score', { ascending: false })
@@ -335,10 +277,11 @@ export default function ScoreBreakdownPage() {
   }
 
   const categories = breakdown ? [
-    { key: 'propertyFundamentals', title: 'Property Fundamentals', icon: Building2, color: '#3b82f6', data: breakdown.propertyFundamentals },
-    { key: 'marketConditions', title: 'Market Conditions', icon: TrendingUp, color: '#8b5cf6', data: breakdown.marketConditions },
-    { key: 'agentFit', title: 'Agent Fit', icon: Users, color: '#f59e0b', data: breakdown.agentFit },
-    { key: 'enrichmentQuality', title: 'Enrichment Quality', icon: Database, color: '#10b981', data: breakdown.enrichmentQuality },
+    { key: 'revenuePotential', title: 'Revenue Potential', icon: TrendingUp, color: '#3b82f6', data: breakdown.revenuePotential },
+    { key: 'propertyFit', title: 'Property Fit', icon: Building2, color: '#f59e0b', data: breakdown.propertyFit },
+    { key: 'regulatoryFeasibility', title: 'Regulatory Feasibility', icon: Shield, color: '#10b981', data: breakdown.regulatoryFeasibility },
+    { key: 'leadQuality', title: 'Lead Quality', icon: Database, color: '#8b5cf6', data: breakdown.leadQuality },
+    { key: 'engagement', title: 'Engagement & Freshness', icon: Users, color: '#e11d48', data: breakdown.engagement },
   ] : [];
 
   return (
@@ -533,28 +476,28 @@ export default function ScoreBreakdownPage() {
                     <span className="text-xs font-semibold text-foreground">How to improve this score</span>
                   </div>
                   <ul className="space-y-1.5">
-                    {breakdown.enrichmentQuality.score < 15 && (
+                    {breakdown.leadQuality.score < 10 && (
                       <li className="text-xs text-muted-foreground flex items-start gap-1.5">
                         <span className="text-amber-400 mt-0.5">→</span>
-                        Run full enrichment to unlock verified contact data and property details (+{20 - breakdown.enrichmentQuality.score} pts potential)
+                        Run enrichment to improve owner, address, phone, and email readiness (+{15 - breakdown.leadQuality.score} pts potential)
                       </li>
                     )}
-                    {!selectedLead.contact_email && (
+                    {breakdown.regulatoryFeasibility.score < 15 && (
                       <li className="text-xs text-muted-foreground flex items-start gap-1.5">
                         <span className="text-amber-400 mt-0.5">→</span>
-                        Add email address to enable multi-channel outreach (+4 pts)
+                        Review local STR rules before agent outreach so compliance risk is clear
                       </li>
                     )}
-                    {selectedLead.dnc_flagged && (
+                    {selectedLead.dnc_flagged || selectedLead.do_not_contact ? (
                       <li className="text-xs text-muted-foreground flex items-start gap-1.5">
                         <span className="text-red-400 mt-0.5">⚠</span>
-                        Obtain written consent before outreach — DNC flag blocks standard calling
+                        Obtain written consent before outreach — compliance flags block standard calling
                       </li>
-                    )}
-                    {breakdown.agentFit.score < 18 && (
+                    ) : null}
+                    {breakdown.engagement.score < 6 && (
                       <li className="text-xs text-muted-foreground flex items-start gap-1.5">
                         <span className="text-amber-400 mt-0.5">→</span>
-                        Advance lead to Qualified stage after initial contact to improve agent fit score
+                        Use SMS, email clicks, callbacks, or answered calls to raise engagement priority
                       </li>
                     )}
                   </ul>

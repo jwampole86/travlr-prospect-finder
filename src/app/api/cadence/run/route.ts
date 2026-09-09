@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { dispatchSMS } from '@/lib/services/twilioService';
+import { verifyJobRequest } from '@/lib/jobAuth';
 
 /**
  * POST /api/cadence/run
@@ -12,14 +14,12 @@ import { Resend } from 'resend';
  * 5. Auto-escalates on engagement signals
  */
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get('x-job-secret');
-  const jobSecret = process.env.SEQUENCE_JOB_SECRET;
-  if (jobSecret && authHeader !== jobSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await verifyJobRequest(req);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.reason || 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = createClient(
@@ -38,6 +38,9 @@ export async function POST(req: NextRequest) {
   };
 
   try {
+    const resend = getResendClient();
+    const emailFrom = getResendFrom();
+
     // Load due enrollments
     const { data: enrollments, error: enrollErr } = await supabase
       .from('cadence_enrollments')
@@ -144,7 +147,7 @@ export async function POST(req: NextRequest) {
           const subject = resolveVars(currentStep.subject || 'A message from TRAVLR', vars);
           const html = buildEmailHtml(leadName, currentStep.template_key, vars);
           const { data: emailData, error: emailErr } = await resend.emails.send({
-            from: 'TRAVLR <onboarding@resend.dev>',
+            from: emailFrom,
             to: [lead.email],
             subject,
             html,
@@ -340,25 +343,6 @@ function getSMSTemplate(templateKey: string): string {
 }
 
 async function dispatchSMSForCadence(to: string, body: string, leadId: string): Promise<{ success: boolean; messageSid?: string; error?: string }> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
-
-  if (!accountSid || !authToken || !fromNumber || accountSid.startsWith('your-')) {
-    return { success: false, error: 'Twilio not configured — set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER' };
-  }
-
-  try {
-    const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-      method: 'POST',
-      headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ To: to, From: fromNumber, Body: body }),
-    });
-    const data = await response.json();
-    if (data.sid) return { success: true, messageSid: data.sid };
-    return { success: false, error: data.message || 'Twilio error' };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'SMS dispatch failed' };
-  }
+  const result = await dispatchSMS({ to, body, leadId });
+  return { success: result.success, messageSid: result.messageSid, error: result.error };
 }

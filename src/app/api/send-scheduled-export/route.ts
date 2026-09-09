@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 interface LeadRow {
   [key: string]: unknown;
@@ -156,8 +154,8 @@ export async function POST(req: NextRequest) {
       </div>
     `;
 
-    const { data, error } = await resend.emails.send({
-      from: 'TRAVLR <onboarding@resend.dev>',
+    const { data, error } = await getResendClient().emails.send({
+      from: getResendFrom(),
       to: recipientEmails as string[],
       subject: `[TRAVLR] ${subjectLabel} — ${dateStr}`,
       html: htmlBody,

@@ -1,6 +1,7 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getTwilioConfigStatus } from '@/lib/services/twilioService';
 
 /**
  * Twilio Voice Access Token endpoint.
@@ -17,27 +18,19 @@ import { NextRequest, NextResponse } from 'next/server';
  *   npm install twilio
  */
 
-function isTwilioVoiceConfigured(): boolean {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const appSid = process.env.TWILIO_TWIML_APP_SID;
-  return !!(
-    sid && !sid.startsWith('your-') &&
-    token && !token.startsWith('your-') &&
-    appSid && !appSid.startsWith('your-')
-  );
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const identity: string = (body as Record<string, string>).identity || 'agent';
 
-    if (!isTwilioVoiceConfigured()) {
+    const status = getTwilioConfigStatus();
+
+    if (!status.voiceTokenConfigured) {
       return NextResponse.json({
         token: null,
         configured: false,
-        message: 'Twilio Voice not yet configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_TWIML_APP_SID to your environment variables.',
+        missing: status.missing,
+        message: `Twilio Voice not yet configured. Missing: ${status.missing.join(', ')}. Voice SDK requires an SK... API Key SID, API key secret, parent AC... Account SID, and TWILIO_TWIML_APP_SID.`,
       });
     }
 
@@ -48,11 +41,12 @@ export async function POST(req: NextRequest) {
       const AccessToken = twilio.jwt.AccessToken;
       const VoiceGrant = AccessToken.VoiceGrant;
 
-      const accountSid = process.env.TWILIO_ACCOUNT_SID!;
-      const authToken = process.env.TWILIO_AUTH_TOKEN!;
+      const apiKeySid = process.env.TWILIO_ACCOUNT_SID!;
+      const apiKeySecret = process.env.TWILIO_AUTH_TOKEN!;
+      const accountSid = process.env.TWILIO_ACCOUNT_SID_MAIN!;
       const twimlAppSid = process.env.TWILIO_TWIML_APP_SID!;
 
-      const accessToken = new AccessToken(accountSid, authToken, {
+      const accessToken = new AccessToken(accountSid, apiKeySid, apiKeySecret, {
         identity,
         ttl: 3600,
       });
@@ -67,6 +61,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         token: accessToken.toJwt(),
         configured: true,
+        authMode: status.authMode,
         identity,
       });
     } catch {

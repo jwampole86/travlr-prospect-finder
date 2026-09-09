@@ -10,24 +10,28 @@ interface ProspectScoreBarProps {
 function getScoreColor(score: number): string {
   if (score >= 80) return 'bg-orange-500';
   if (score >= 60) return 'bg-warning';
-  return 'bg-blue-400';
+  if (score >= 40) return 'bg-blue-400';
+  return 'bg-muted-foreground';
 }
 
 function getScoreTextColor(score: number): string {
   if (score >= 80) return 'text-orange-500';
   if (score >= 60) return 'text-warning';
-  return 'text-blue-400';
+  if (score >= 40) return 'text-blue-400';
+  return 'text-muted-foreground';
 }
 
 function getBandIcon(score: number) {
   if (score >= 80) return <Flame size={11} className="text-orange-500" />;
   if (score >= 60) return <Thermometer size={11} className="text-amber-500" />;
-  return <Snowflake size={11} className="text-blue-400" />;
+  if (score >= 40) return <Thermometer size={11} className="text-blue-400" />;
+  return <Snowflake size={11} className="text-muted-foreground" />;
 }
 
 function getBandLabel(score: number): string {
   if (score >= 80) return 'Hot';
   if (score >= 60) return 'Warm';
+  if (score >= 40) return 'Nurture';
   return 'Cold';
 }
 

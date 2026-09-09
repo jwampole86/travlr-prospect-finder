@@ -1,9 +1,12 @@
 /**
  * TRAVLR Email Template Seeds
- * Portfolio-specific versions (CO, CA, NV, WA) + Master templates
+ * Market templates use the shared {{localBlurb}} resolver so every active state/city
+ * stays current with the lead geography in localBlurbs.ts.
  * Variables: {{senderName}}, {{contactName}}, {{address}}, {{localBlurb}},
  *            {{proposedRent}}, {{leaseTerm}}, {{proposedStartDate}}
  */
+
+import { PORTFOLIO_STATES } from './localBlurbs';
 
 export interface TemplateSeed {
   name: string;
@@ -686,14 +689,26 @@ TRAVLR Vacation Homes | staytravlr.com`,
   },
 ];
 
+export const LEGACY_DEFAULT_TEMPLATE_NAMES = ['CO', 'CA', 'NV', 'WA', 'MD'].flatMap((prefix) => [
+  `${prefix} — Initial Outreach`,
+  `${prefix} — Follow-Up #1`,
+  `${prefix} — Check-In / Re-Engage`,
+  `${prefix} — Proposal Introduction`,
+  `${prefix} — Closing / Contract`,
+]);
+
 export const ALL_TEMPLATE_SEEDS: TemplateSeed[] = [
-  ...CO_TEMPLATES,
-  ...CA_TEMPLATES,
-  ...NV_TEMPLATES,
-  ...WA_TEMPLATES,
-  ...MD_TEMPLATES,
+  ...PORTFOLIO_STATES.flatMap(({ value, label }) => buildMarketTemplates(value, label)),
   ...MASTER_TEMPLATES,
 ];
+
+function buildMarketTemplates(portfolio: string, label: string): TemplateSeed[] {
+  return MASTER_TEMPLATES.map((template) => ({
+    ...template,
+    name: template.name.replace('Master', label),
+    portfolio,
+  }));
+}
 
 /** Convert a plain-text template body to a single-block JSON array for the editor */
 export function seedBodyToBlocks(body: string): string {

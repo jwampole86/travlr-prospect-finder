@@ -31,6 +31,43 @@ export interface ScriptLine {
   hasAgentFill?: boolean;
 }
 
+const buildTravlrDifferenceSection = (prefix: string): ScriptSection => ({
+  id: `${prefix}_travlr_difference`,
+  title: 'TRAVLR Difference — If They Ask Why Us',
+  lines: [
+    {
+      id: `${prefix}-td-0`,
+      type: 'instruction',
+      text: 'Use this as proof-point language when the homeowner asks about TRAVLR, why now, or why their market. Do not read every line unless the conversation calls for it.',
+    },
+    {
+      id: `${prefix}-td-1`,
+      type: 'spoken',
+      text: 'For the past 10 years, TRAVLR Vacation Homes has partnered with homeowners of ultra-luxury properties in California, managing multi-million-dollar vacation homes with a very high-touch standard of care.',
+    },
+    {
+      id: `${prefix}-td-2`,
+      type: 'spoken',
+      text: 'Our California desert portfolio proved that the right management partner can help protect the property, elevate its value, and create meaningful passive income without putting the day-to-day burden on the homeowner.',
+    },
+    {
+      id: `${prefix}-td-3`,
+      type: 'spoken',
+      text: 'That same approach is now expanding into select markets like Aspen, Vail, Las Vegas, Miami, and Seattle — places where discerning travelers are looking for exceptional one-of-a-kind homes.',
+    },
+    {
+      id: `${prefix}-td-4`,
+      type: 'spoken',
+      text: 'What makes TRAVLR different is the combination of full-service property management, 5-star guest hospitality, dynamic revenue optimization, smart-home technology, compliance support, strong marketing, and transparent owner reporting.',
+    },
+    {
+      id: `${prefix}-td-5`,
+      type: 'spoken',
+      text: 'We handle the details — platform marketing, concierge-style guest support, cleaning, maintenance, inspections, pricing, permits, taxes, and owner-portal reporting — so the homeowner can enjoy the upside with confidence.',
+    },
+  ],
+});
+
 // ─── Script 1: Initial Outreach ───────────────────────────────────────────────
 
 const initialOutreach: CallScript = {
@@ -70,6 +107,7 @@ const initialOutreach: CallScript = {
         { id: 'io-kp-4', type: 'spoken', text: 'No cost or commitment just to learn more — next step is either a short property questionnaire or a follow-up call with more detail.' },
       ],
     },
+    buildTravlrDifferenceSection('io'),
     {
       id: 'close_interested',
       title: 'Close — If Interested',
@@ -146,6 +184,7 @@ const followUp: CallScript = {
         },
       ],
     },
+    buildTravlrDifferenceSection('fu'),
     {
       id: 'timing_not_right',
       title: 'If Timing Isn\'t Right',
@@ -216,6 +255,7 @@ const questionnaireHandoff: CallScript = {
         },
       ],
     },
+    buildTravlrDifferenceSection('qh'),
     {
       id: 'close',
       title: 'Close',
@@ -277,6 +317,7 @@ const proposal: CallScript = {
         },
       ],
     },
+    buildTravlrDifferenceSection('pr'),
     {
       id: 'close_ready',
       title: 'Close — Ready to Move Forward',
@@ -357,6 +398,7 @@ const closingContract: CallScript = {
         },
       ],
     },
+    buildTravlrDifferenceSection('cc'),
     {
       id: 'onboarding_step1',
       title: 'Step 1 — Assessment & Prep (Week 1)',
@@ -533,6 +575,7 @@ const landingPageInbound: CallScript = {
         },
       ],
     },
+    buildTravlrDifferenceSection('lpi'),
     {
       id: 'questionnaire_pivot',
       title: 'Pivot to Qualification',

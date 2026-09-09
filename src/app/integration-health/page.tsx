@@ -45,13 +45,22 @@ interface ApiIntegration {
   notes: string;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+// ─── Static metadata (cosmetic only — real status comes from /api/integration-health/status) ──
 
-const now = new Date();
-const minsAgo = (m: number) => new Date(now.getTime() - m * 60000).toISOString();
-const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600000).toISOString();
+interface IntegrationMeta {
+  id: string;
+  name: string;
+  category: string;
+  icon: React.ElementType;
+  iconColor: string;
+  iconBg: string;
+  fallbackEnabled: boolean;
+  fallbackMode: FallbackHealth['mode'];
+  endpoint: string;
+  notes: string;
+}
 
-const initialIntegrations: ApiIntegration[] = [
+const INTEGRATION_META: IntegrationMeta[] = [
   {
     id: 'batchdata',
     name: 'BatchData',
@@ -59,19 +68,8 @@ const initialIntegrations: ApiIntegration[] = [
     icon: Database,
     iconColor: 'text-blue-400',
     iconBg: 'bg-blue-500/10',
-    status: process.env.NEXT_PUBLIC_BATCHDATA_KEY_SET === 'true' ? 'operational' : 'degraded',
-    lastSyncAt: minsAgo(12),
-    lastSyncDurationMs: 340,
-    errorCount24h: 2,
-    errorCount7d: 9,
-    successRate7d: 97.4,
-    avgLatencyMs: 312,
-    recentErrors: [
-      { id: 'bd-1', timestamp: hoursAgo(3), message: 'Rate limit exceeded (429)', code: '429' },
-      { id: 'bd-2', timestamp: hoursAgo(11), message: 'Address not found — no owner record returned', code: '404' },
-    ],
-    fallback: { enabled: true, mode: 'simulation', lastFallbackAt: hoursAgo(3), fallbackCount24h: 2 },
-    envKeySet: false,
+    fallbackEnabled: true,
+    fallbackMode: 'simulation',
     endpoint: '/api/enrichment/batchdata',
     notes: 'Stage 1 owner lookup. Runs on every new lead intake. Falls back to deterministic simulation when key is unset.',
   },
@@ -82,18 +80,8 @@ const initialIntegrations: ApiIntegration[] = [
     icon: TrendingUp,
     iconColor: 'text-purple-400',
     iconBg: 'bg-purple-500/10',
-    status: 'degraded',
-    lastSyncAt: minsAgo(47),
-    lastSyncDurationMs: 820,
-    errorCount24h: 0,
-    errorCount7d: 3,
-    successRate7d: 99.1,
-    avgLatencyMs: 780,
-    recentErrors: [
-      { id: 'pdl-1', timestamp: hoursAgo(28), message: 'No contact record found for lead', code: '404' },
-    ],
-    fallback: { enabled: true, mode: 'simulation', lastFallbackAt: hoursAgo(28), fallbackCount24h: 0 },
-    envKeySet: false,
+    fallbackEnabled: true,
+    fallbackMode: 'simulation',
     endpoint: '/api/enrichment/pdl-auto-enrich',
     notes: 'Stage 2 contact enrichment for leads scoring ≥70. Requires PDL_API_KEY. Currently in simulation mode.',
   },
@@ -104,18 +92,8 @@ const initialIntegrations: ApiIntegration[] = [
     icon: Phone,
     iconColor: 'text-red-400',
     iconBg: 'bg-red-500/10',
-    status: 'operational',
-    lastSyncAt: minsAgo(3),
-    lastSyncDurationMs: 95,
-    errorCount24h: 1,
-    errorCount7d: 4,
-    successRate7d: 99.6,
-    avgLatencyMs: 88,
-    recentErrors: [
-      { id: 'tw-1', timestamp: hoursAgo(6), message: 'Invalid phone number format — E.164 required', code: '21211' },
-    ],
-    fallback: { enabled: false, mode: 'none', lastFallbackAt: null, fallbackCount24h: 0 },
-    envKeySet: false,
+    fallbackEnabled: false,
+    fallbackMode: 'none',
     endpoint: '/api/sms/send',
     notes: 'SMS outreach and voice calls. Requires TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN.',
   },
@@ -126,18 +104,8 @@ const initialIntegrations: ApiIntegration[] = [
     icon: Mail,
     iconColor: 'text-sky-400',
     iconBg: 'bg-sky-500/10',
-    status: 'operational',
-    lastSyncAt: minsAgo(1),
-    lastSyncDurationMs: 210,
-    errorCount24h: 0,
-    errorCount7d: 1,
-    successRate7d: 99.9,
-    avgLatencyMs: 195,
-    recentErrors: [
-      { id: 're-1', timestamp: hoursAgo(72), message: 'Bounce — invalid recipient address', code: 'bounce' },
-    ],
-    fallback: { enabled: false, mode: 'none', lastFallbackAt: null, fallbackCount24h: 0 },
-    envKeySet: true,
+    fallbackEnabled: false,
+    fallbackMode: 'none',
     endpoint: '/api/send-workflow-step',
     notes: 'Transactional email for cadence sequences and homeowner notifications. RESEND_API_KEY is configured.',
   },
@@ -148,6 +116,16 @@ const initialIntegrations: ApiIntegration[] = [
     icon: FileText,
     iconColor: 'text-amber-400',
     iconBg: 'bg-amber-500/10',
+    fallbackEnabled: false,
+    fallbackMode: 'none',
+    endpoint: '/api/docusign/create-envelope',
+    notes: 'Embedded signing for agreements. Requires DOCUSIGN_INTEGRATION_KEY, DOCUSIGN_ACCOUNT_ID, DOCUSIGN_USER_ID, DOCUSIGN_PRIVATE_KEY, DOCUSIGN_TEMPLATE_ID.',
+  },
+];
+
+function buildInitialIntegrations(): ApiIntegration[] {
+  return INTEGRATION_META.map(meta => ({
+    ...meta,
     status: 'unknown',
     lastSyncAt: null,
     lastSyncDurationMs: null,
@@ -156,12 +134,10 @@ const initialIntegrations: ApiIntegration[] = [
     successRate7d: 0,
     avgLatencyMs: 0,
     recentErrors: [],
-    fallback: { enabled: false, mode: 'none', lastFallbackAt: null, fallbackCount24h: 0 },
+    fallback: { enabled: meta.fallbackEnabled, mode: meta.fallbackMode, lastFallbackAt: null, fallbackCount24h: 0 },
     envKeySet: false,
-    endpoint: '/api/docusign/create-envelope',
-    notes: 'Embedded signing for agreements. Requires DOCUSIGN_INTEGRATION_KEY, DOCUSIGN_ACCOUNT_ID, DOCUSIGN_USER_ID, DOCUSIGN_PRIVATE_KEY, DOCUSIGN_TEMPLATE_ID.',
-  },
-];
+  }));
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -350,11 +326,11 @@ function IntegrationCard({ integration, onPing }: { integration: ApiIntegration;
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Endpoint</p>
             <code className="text-[11px] font-mono text-foreground bg-muted px-2 py-0.5 rounded">{integration.endpoint}</code>
           </div>
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent Errors ({integration.errorCount7d} in 7d)</p>
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Error Log</p>
           {integration.recentErrors.length === 0 ? (
-            <div className="flex items-center gap-2 text-[12px] text-emerald-500">
-              <CheckCircle2 size={13} />
-              No errors in the last 7 days
+            <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+              <AlertCircle size={13} />
+              Error-rate tracking is not implemented yet — status above reflects a live configuration/reachability check only.
             </div>
           ) : (
             <div className="space-y-2">
@@ -387,21 +363,44 @@ function IntegrationCard({ integration, onPing }: { integration: ApiIntegration;
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function IntegrationHealthPage() {
-  const [integrations, setIntegrations] = useState<ApiIntegration[]>(initialIntegrations);
-  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  const [integrations, setIntegrations] = useState<ApiIntegration[]>(buildInitialIntegrations);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<ApiStatus | 'all'>('all');
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setLastRefreshed(new Date());
-    setRefreshing(false);
+    try {
+      const res = await fetch('/api/integration-health/status', { cache: 'no-store' });
+      const data = await res.json();
+      const live = data.integrations || {};
+      const checkedAt = data.checkedAt || new Date().toISOString();
+      setIntegrations(prev => prev.map(i => {
+        const result = live[i.id];
+        if (!result) return i;
+        return {
+          ...i,
+          status: result.status as ApiStatus,
+          envKeySet: Boolean(result.configured),
+          lastSyncAt: checkedAt,
+          recentErrors: result.status === 'operational' ? [] : [
+            { id: `${i.id}-live`, timestamp: checkedAt, message: result.message },
+          ],
+        };
+      }));
+      setLastRefreshed(new Date(checkedAt));
+    } catch {
+      // leave existing state on failure
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
+  useEffect(() => { handleRefresh(); }, [handleRefresh]);
+
   const handlePing = useCallback((id: string) => {
-    setIntegrations(prev => prev.map(i => i.id === id ? { ...i, lastSyncAt: new Date().toISOString() } : i));
-  }, []);
+    handleRefresh();
+  }, [handleRefresh]);
 
   const filtered = filter === 'all' ? integrations : integrations.filter(i => i.status === filter);
 
@@ -424,12 +423,12 @@ export default function IntegrationHealthPage() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Integration Health</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Real-time API status, error counts, and fallback health for all outreach integrations.
+              Live configuration and reachability checks for outreach integrations.
             </p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-[11px] text-muted-foreground">
-              Refreshed {relativeTime(lastRefreshed.toISOString())}
+              Refreshed {lastRefreshed ? relativeTime(lastRefreshed.toISOString()) : 'Never'}
             </span>
             <button
               onClick={handleRefresh}

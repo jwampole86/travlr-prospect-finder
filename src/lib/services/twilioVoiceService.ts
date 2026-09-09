@@ -44,6 +44,16 @@ export interface FavoriteContact {
   addedAt: string;
 }
 
+export function normalizePhoneForTwilio(phone: string): string {
+  const trimmed = phone.trim();
+  if (trimmed.startsWith('+')) return trimmed.replace(/[\s().-]/g, '');
+
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return trimmed;
+}
+
 // ─── Local storage keys ───────────────────────────────────────────────────────
 
 const RECENT_CALLS_KEY = 'travlr_recent_calls';
@@ -140,12 +150,21 @@ export async function placeOutboundCall(params: OutboundCallParams): Promise<{
   error?: string;
 }> {
   try {
+    const to = normalizePhoneForTwilio(params.to);
     const res = await fetch('/api/twilio/voice/call', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify({ ...params, to }),
     });
     const data = await res.json();
+    if (!res.ok || data.error) {
+      return {
+        callSid: data.callSid || `error-${Date.now()}`,
+        status: 'error',
+        configured: data.configured ?? false,
+        error: data.error || `Twilio call failed with HTTP ${res.status}`,
+      };
+    }
     return {
       callSid: data.callSid || `placeholder-${Date.now()}`,
       status: data.status || 'placeholder',

@@ -155,11 +155,8 @@ Always respond with valid JSON only — no markdown, no explanation outside the 
       ],
       stream: false,
       api_key: apiKey,
-      parameters: {
-        temperature: 0.15,
-        max_tokens: 900,
-        reasoning_effort: 'medium',
-      },
+      temperature: 0.15,
+      max_tokens: 900,
     } as any);
 
     const content = (response as any)?.choices?.[0]?.message?.content || '';

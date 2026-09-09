@@ -10,12 +10,32 @@ import { SCRIPT_BEATS } from '@/lib/objectionLibrary';
 import { activityService } from '@/lib/services/activityService';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 import { outreachCallService } from '@/lib/services/outreachCallService';
-import type { CallOutcome as CallOutcomeType, OutreachCallRecord } from '@/lib/services/outreachCallService';
+import type { CallOutcomeType, OutreachCallRecord } from '@/lib/services/outreachCallService';
 import { OUTCOME_LABELS, OUTCOME_COLORS } from '@/lib/services/outreachCallService';
 import AIEnrichmentPanel from './components/AIEnrichmentPanel';
 import EnrichmentSidebar from './components/EnrichmentSidebar';
 import TeleprompterRegulationPanel from './components/TeleprompterRegulationPanel';
+import { PORTFOLIO_STATES } from '@/lib/localBlurbs';
+import { placeOutboundCall } from '@/lib/services/twilioVoiceService';
+
+type BrowserSpeechRecognition = typeof window extends never ? never : {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionAlternative = { transcript: string; confidence: number };
+type SpeechRecognitionResultLike = { isFinal: boolean; 0: SpeechRecognitionAlternative };
+type SpeechRecognitionEvent = { resultIndex: number; results: ArrayLike<SpeechRecognitionResultLike> };
+type SpeechRecognitionErrorEvent = { error: string };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,32 +106,39 @@ function TouchDialpad({ phone, onClose }: { phone?: string; onClose: () => void 
   const handleKey = (k: string) => setDigits(d => d + k);
   const handleDelete = () => setDigits(d => d.slice(0, -1));
 
-  const handleCall = () => {
+  const handleCall = async () => {
     if (!digits.trim()) return;
     setCalling(true);
-    // Initiate Twilio browser call via existing voice token
-    setTimeout(() => { setCalling(false); onClose(); }, 1500);
-    toast.success(`Calling ${digits}…`);
+    const result = await placeOutboundCall({ to: digits });
+    setCalling(false);
+
+    if (result.error && result.status === 'error') {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(result.configured ? `Calling ${digits}…` : `Dialer opened in placeholder mode for ${digits}`);
+    onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-card text-foreground rounded-t-3xl sm:rounded-2xl w-full sm:max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold text-gray-900">Dialpad</h3>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
-            <X className="w-4 h-4 text-gray-500" />
+          <h3 className="text-base font-bold text-foreground">Dialpad</h3>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted transition-colors">
+            <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
 
         {/* Display */}
-        <div className="flex items-center gap-2 bg-gray-50 rounded-2xl px-4 py-3 mb-5">
-          <span className="flex-1 text-2xl font-mono font-semibold text-gray-900 tracking-widest min-h-[2rem]">
-            {digits || <span className="text-gray-300 text-lg">Enter number</span>}
+        <div className="flex items-center gap-2 bg-muted rounded-2xl px-4 py-3 mb-5">
+          <span className="flex-1 text-2xl font-mono font-semibold text-foreground tracking-widest min-h-[2rem]">
+            {digits || <span className="text-muted-foreground text-lg">Enter number</span>}
           </span>
           {digits && (
-            <button onClick={handleDelete} className="p-2 rounded-xl hover:bg-gray-200 transition-colors">
-              <Delete className="w-5 h-5 text-gray-500" />
+            <button onClick={handleDelete} className="p-2 rounded-xl hover:bg-background transition-colors">
+              <Delete className="w-5 h-5 text-muted-foreground" />
             </button>
           )}
         </div>
@@ -122,10 +149,10 @@ function TouchDialpad({ phone, onClose }: { phone?: string; onClose: () => void 
             <button
               key={digit}
               onClick={() => handleKey(digit)}
-              className="flex flex-col items-center justify-center h-16 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation select-none"
+              className="flex flex-col items-center justify-center h-16 rounded-2xl bg-muted hover:bg-background active:bg-background transition-colors touch-manipulation select-none"
             >
-              <span className="text-xl font-semibold text-gray-900">{digit}</span>
-              {sub && <span className="text-[10px] font-medium text-gray-400 tracking-widest mt-0.5">{sub}</span>}
+              <span className="text-xl font-semibold text-foreground">{digit}</span>
+              {sub && <span className="text-[10px] font-medium text-muted-foreground tracking-widest mt-0.5">{sub}</span>}
             </button>
           ))}
         </div>
@@ -174,31 +201,31 @@ function CallLogSidebar({ leadId, onClose }: { leadId?: string; onClose: () => v
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
-      <div className="bg-white w-full max-w-sm h-full shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
+      <div className="bg-card text-foreground w-full max-w-sm h-full shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-4 border-b border-border">
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Call History</h3>
-            <p className="text-xs text-gray-400 mt-0.5">{calls.length} calls logged</p>
+            <h3 className="text-sm font-bold text-foreground">Call History</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{calls.length} calls logged</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
-            <X className="w-4 h-4 text-gray-500" />
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted transition-colors">
+            <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {loading && (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+              <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
             </div>
           )}
           {!loading && calls.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-              <PhoneMissed className="w-8 h-8 text-gray-200 mb-3" />
-              <p className="text-sm text-gray-400">No calls logged yet for this lead</p>
+              <PhoneMissed className="w-8 h-8 text-muted-foreground/40 mb-3" />
+              <p className="text-sm text-muted-foreground">No calls logged yet for this lead</p>
             </div>
           )}
           {!loading && calls.map(call => (
-            <div key={call.id} className="px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors">
+            <div key={call.id} className="px-4 py-3 border-b border-border hover:bg-muted transition-colors">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex-shrink-0">{outcomeIcon(call.outcome)}</div>
                 <div className="flex-1 min-w-0">
@@ -206,14 +233,14 @@ function CallLogSidebar({ leadId, onClose }: { leadId?: string; onClose: () => v
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${OUTCOME_COLORS[call.outcome]}`}>
                       {OUTCOME_LABELS[call.outcome]}
                     </span>
-                    <span className="text-xs text-gray-400 flex-shrink-0">{fmtDuration(call.duration_seconds)}</span>
+                    <span className="text-xs text-muted-foreground flex-shrink-0">{fmtDuration(call.duration_seconds)}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{fmtDate(call.called_at)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{fmtDate(call.called_at)}</p>
                   {call.disposition_notes && (
-                    <p className="text-xs text-gray-600 mt-1 line-clamp-2 italic">"{call.disposition_notes}"</p>
+                    <p className="text-xs text-foreground/80 mt-1 line-clamp-2 italic">"{call.disposition_notes}"</p>
                   )}
                   {call.agent_name && (
-                    <p className="text-xs text-gray-400 mt-0.5">by {call.agent_name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">by {call.agent_name}</p>
                   )}
                 </div>
               </div>
@@ -241,20 +268,20 @@ function MobileLeadCard({
   callCount: number;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
       {/* Lead header */}
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-gray-900 truncate">{lead.contactName}</h2>
-            <p className="text-sm text-gray-500 truncate mt-0.5">{lead.address}</p>
+            <h2 className="text-lg font-bold text-foreground truncate">{lead.contactName}</h2>
+            <p className="text-sm text-muted-foreground truncate mt-0.5">{lead.address}</p>
             {lead.city && (
-              <p className="text-xs text-gray-400 mt-0.5">{lead.city}, {lead.state}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{lead.city}, {lead.state}</p>
             )}
           </div>
           <button
             onClick={onShowCallLog}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-background transition-colors flex-shrink-0"
           >
             <List className="w-3.5 h-3.5" />
             {callCount > 0 ? `${callCount} calls` : 'Log'}
@@ -263,7 +290,7 @@ function MobileLeadCard({
 
         {lead.phone && (
           <div className="flex items-center gap-2 mt-2">
-            <span className="text-xs text-gray-400 font-mono">{lead.phone}</span>
+            <span className="text-xs text-muted-foreground font-mono">{lead.phone}</span>
           </div>
         )}
       </div>
@@ -273,7 +300,7 @@ function MobileLeadCard({
         {/* One-tap call start */}
         <button
           onClick={onStartCall}
-          className="flex-1 h-12 rounded-2xl bg-gray-900 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-800 active:bg-gray-700 transition-colors touch-manipulation"
+          className="flex-1 h-12 rounded-2xl bg-foreground text-background font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity touch-manipulation"
         >
           <Phone className="w-4 h-4" />
           Start Call
@@ -281,7 +308,7 @@ function MobileLeadCard({
         {/* Dialpad */}
         <button
           onClick={onShowDialpad}
-          className="h-12 w-12 rounded-2xl bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200 active:bg-gray-300 transition-colors touch-manipulation flex-shrink-0"
+          className="h-12 w-12 rounded-2xl bg-muted text-muted-foreground flex items-center justify-center hover:text-foreground hover:bg-background transition-colors touch-manipulation flex-shrink-0"
           title="Open dialpad"
         >
           <Hash className="w-4 h-4" />
@@ -307,11 +334,11 @@ function CallOutlineTracker({
   const relevantBeats = SCRIPT_BEATS.filter(b => b.scriptIds.includes(scriptId));
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 bg-gray-50">
-        <BookOpen className="w-3.5 h-3.5 text-gray-500" />
-        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Call Outline</span>
-        <span className="ml-auto text-xs text-gray-400">
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border bg-muted">
+        <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Call Outline</span>
+        <span className="ml-auto text-xs text-muted-foreground">
           {coveredBeats.size}/{relevantBeats.length} covered
         </span>
       </div>
@@ -324,13 +351,13 @@ function CallOutlineTracker({
               onClick={() => onToggleBeat(beat.id)}
               className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-colors touch-manipulation ${
                 covered
-                  ? 'bg-green-50 text-green-700' : 'hover:bg-gray-50 text-gray-600'
+                    ? 'bg-green-50 text-green-700' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
               }`}
               title={covered ? 'Click to unmark' : 'Click to mark as covered'}
             >
               {covered
                 ? <CheckSquare className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                : <Square className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                : <Square className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
               }
               <span className="text-xs font-medium truncate">{beat.shortLabel}</span>
               {covered && (
@@ -340,14 +367,14 @@ function CallOutlineTracker({
           );
         })}
       </div>
-      <div className="px-3 py-2 border-t border-gray-100 bg-gray-50">
-        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+      <div className="px-3 py-2 border-t border-border bg-muted">
+        <div className="h-1.5 bg-background rounded-full overflow-hidden">
           <div
             className="h-full bg-green-500 rounded-full transition-all duration-500"
             style={{ width: `${relevantBeats.length > 0 ? (coveredBeats.size / relevantBeats.length) * 100 : 0}%` }}
           />
         </div>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           {coveredBeats.size === relevantBeats.length
             ? 'All key points covered'
             : `${relevantBeats.length - coveredBeats.size} remaining`}
@@ -427,12 +454,12 @@ function SuggestionFeedback({
   lastFeedback: 'used' | 'ignored' | null;
 }) {
   return (
-    <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-      <span className="text-xs text-gray-400">Did you use this?</span>
+    <div className="flex items-center gap-2 pt-2 border-t border-border">
+      <span className="text-xs text-muted-foreground">Did you use this?</span>
       <button
         onClick={onUsed}
         className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors touch-manipulation ${
-          lastFeedback === 'used' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-700'
+          lastFeedback === 'used' ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground hover:bg-green-50 hover:text-green-700'
         }`}
       >
         <ThumbsUp className="w-3 h-3" />
@@ -441,7 +468,7 @@ function SuggestionFeedback({
       <button
         onClick={onIgnored}
         className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors touch-manipulation ${
-          lastFeedback === 'ignored' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-700'
+          lastFeedback === 'ignored' ? 'bg-red-100 text-red-700' : 'bg-muted text-muted-foreground hover:bg-red-50 hover:text-red-700'
         }`}
       >
         <ThumbsDown className="w-3 h-3" />
@@ -483,55 +510,55 @@ function PostCallSummaryPanel({
 
   const sentimentColors: Record<string, string> = {
     positive: 'text-green-700 bg-green-50 border-green-200',
-    neutral: 'text-gray-700 bg-gray-50 border-gray-200',
+    neutral: 'text-foreground bg-muted border-border',
     negative: 'text-red-700 bg-red-50 border-red-200',
     mixed: 'text-amber-700 bg-amber-50 border-amber-200',
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50">
-        <BarChart2 className="w-4 h-4 text-gray-500" />
-        <span className="text-sm font-semibold text-gray-700">Auto-Generated Call Summary</span>
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted">
+        <BarChart2 className="w-4 h-4 text-muted-foreground" />
+        <span className="text-sm font-semibold text-foreground">Auto-Generated Call Summary</span>
         <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full border ${sentimentColors[summary.homeownerSentiment] || sentimentColors.neutral}`}>
           {summary.homeownerSentiment}
         </span>
       </div>
       <div className="p-4 space-y-3">
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Summary</p>
-          <p className="text-sm text-gray-800 leading-relaxed">{summary.summary}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Summary</p>
+          <p className="text-sm text-foreground leading-relaxed">{summary.summary}</p>
         </div>
 
         {summary.objections.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Objections Raised</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Objections Raised</p>
             <div className="space-y-1">
               {summary.objections.map((obj, i) => (
                 <div key={i} className="flex items-start gap-2">
                   <AlertTriangle className="w-3 h-3 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-gray-700">{obj}</p>
+                  <p className="text-xs text-foreground/80">{obj}</p>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-1 italic">{summary.objectionHandling}</p>
+            <p className="text-xs text-muted-foreground mt-1 italic">{summary.objectionHandling}</p>
           </div>
         )}
 
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Next Step</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Next Step</p>
           <div className="flex items-start gap-2">
             <ChevronRight className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-gray-800 font-medium">{summary.nextStep}</p>
+            <p className="text-sm text-foreground font-medium">{summary.nextStep}</p>
           </div>
         </div>
 
         {summary.keyTopicsCovered.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Topics Covered</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Topics Covered</p>
             <div className="flex flex-wrap gap-1.5">
               {summary.keyTopicsCovered.map((topic, i) => (
-                <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{topic}</span>
+                <span key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{topic}</span>
               ))}
             </div>
           </div>
@@ -706,20 +733,20 @@ function HeadsetSetupPanel({
     <div className="max-w-xl mx-auto px-4 py-8">
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center">
-            <Headphones className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-xl bg-foreground flex items-center justify-center">
+            <Headphones className="w-5 h-5 text-background" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900">Headset Setup</h2>
+          <h2 className="text-xl font-bold text-foreground">Headset Setup</h2>
         </div>
-        <p className="text-sm text-gray-500">Select your audio devices and test them before starting the call session.</p>
+        <p className="text-sm text-muted-foreground">Select your audio devices and test them before starting the call session.</p>
       </div>
 
       {!state.permissionGranted && !state.permissionError && (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-4 text-center">
+        <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 mb-4 text-center">
           <Mic className="w-8 h-8 text-blue-500 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-gray-800 mb-1">Microphone Access Required</p>
-          <p className="text-xs text-gray-500 mb-4">TRAVLR needs microphone access to power live call suggestions during homeowner calls.</p>
-          <button onClick={requestPermission} className="px-5 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold hover:bg-gray-800 transition-colors touch-manipulation">Allow Microphone Access</button>
+          <p className="text-sm font-semibold text-foreground mb-1">Microphone Access Required</p>
+          <p className="text-xs text-muted-foreground mb-4">TRAVLR needs microphone access to power live call suggestions during homeowner calls.</p>
+          <button onClick={requestPermission} className="px-5 py-2.5 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity touch-manipulation">Allow Microphone Access</button>
         </div>
       )}
 
@@ -737,14 +764,14 @@ function HeadsetSetupPanel({
       )}
 
       {state.permissionGranted && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+        <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Microphone (Input)</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Microphone (Input)</label>
             <div className="relative">
-              <select value={state.selectedInputId} onChange={e => setState(s => ({ ...s, selectedInputId: e.target.value, inputConnected: true }))} className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white appearance-none pr-8 touch-manipulation">
+              <select value={state.selectedInputId} onChange={e => setState(s => ({ ...s, selectedInputId: e.target.value, inputConnected: true }))} className="w-full px-3 py-3 rounded-xl border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background appearance-none pr-8 touch-manipulation">
                 {state.inputDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             </div>
             {state.selectedInputId && isBluetoothDevice(state.inputDevices.find(d => d.deviceId === state.selectedInputId)?.label || '') && (
               <p className="mt-1.5 text-xs text-amber-600 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Wired headsets are recommended for the fastest response time. Bluetooth adds 100–300ms latency.</p>
@@ -756,40 +783,40 @@ function HeadsetSetupPanel({
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Mic Level Test</span>
-              <button onClick={state.isTestingMic ? stopMicTest : startMicTest} className={`text-xs font-semibold px-4 py-2 rounded-lg transition-colors touch-manipulation ${state.isTestingMic ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mic Level Test</span>
+              <button onClick={state.isTestingMic ? stopMicTest : startMicTest} className={`text-xs font-semibold px-4 py-2 rounded-lg transition-colors touch-manipulation ${state.isTestingMic ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-muted text-foreground hover:bg-background'}`}>
                 {state.isTestingMic ? 'Stop Test' : 'Test Mic'}
               </button>
             </div>
-            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-3 bg-muted rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-75" style={{ width: `${state.micLevel}%`, backgroundColor: state.micLevel > 70 ? '#ef4444' : state.micLevel > 30 ? '#22c55e' : '#d1d5db' }} />
             </div>
-            {state.isTestingMic && <p className="mt-1 text-xs text-gray-500 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />Speak into your mic — you should see the bar move</p>}
+            {state.isTestingMic && <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />Speak into your mic — you should see the bar move</p>}
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Speaker / Headset (Output)</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Speaker / Headset (Output)</label>
             <div className="relative">
-              <select value={state.selectedOutputId} onChange={e => setState(s => ({ ...s, selectedOutputId: e.target.value }))} className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white appearance-none pr-8 touch-manipulation">
+              <select value={state.selectedOutputId} onChange={e => setState(s => ({ ...s, selectedOutputId: e.target.value }))} className="w-full px-3 py-3 rounded-xl border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background appearance-none pr-8 touch-manipulation">
                 {state.outputDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
                 {state.outputDevices.length === 0 && <option value="">Default system output</option>}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             </div>
           </div>
 
-          <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+          <div className="flex items-center justify-between bg-muted rounded-xl px-4 py-3">
             <div>
-              <p className="text-sm font-medium text-gray-700">Test Output</p>
-              <p className="text-xs text-gray-500">Play a tone to confirm audio is routed correctly</p>
+              <p className="text-sm font-medium text-foreground">Test Output</p>
+              <p className="text-xs text-muted-foreground">Play a tone to confirm audio is routed correctly</p>
             </div>
-            <button onClick={playTestTone} disabled={state.isTestingOutput} className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60 touch-manipulation">
+            <button onClick={playTestTone} disabled={state.isTestingOutput} className="flex items-center gap-1.5 px-4 py-2.5 bg-card border border-border rounded-lg text-xs font-semibold text-foreground hover:bg-background transition-colors disabled:opacity-60 touch-manipulation">
               {state.isTestingOutput ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5" />}
               {state.isTestingOutput ? 'Playing…' : 'Play Tone'}
             </button>
           </div>
 
-          <button onClick={handleContinue} disabled={!state.inputConnected} className="w-full py-3.5 px-6 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 touch-manipulation">
+          <button onClick={handleContinue} disabled={!state.inputConnected} className="w-full py-3.5 px-6 bg-foreground text-background rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 touch-manipulation">
             <Phone className="w-4 h-4" />
             Continue to Consent
           </button>
@@ -807,34 +834,34 @@ function ConsentGate({ onAccept, lead }: { onAccept: () => void; lead: LeadConte
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-2xl mx-auto px-4">
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 sm:p-8 w-full">
+      <div className="bg-warning-bg border border-warning-border rounded-2xl p-6 sm:p-8 w-full">
         <div className="flex items-start gap-4 mb-6">
           <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
             <AlertTriangle className="w-6 h-6 text-amber-600" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-1">Recording Consent Required</h2>
-            <p className="text-sm text-amber-700 font-medium">
+            <h2 className="text-xl font-semibold text-foreground mb-1">Recording Consent Required</h2>
+            <p className="text-sm text-warning font-medium">
               {isAllPartyState
                 ? `${lead.state} requires all-party consent — both you and the homeowner must agree before recording begins.`
                 : 'Best practice requires disclosure before any recording or transcription begins.'}
             </p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-amber-200 p-5 mb-6">
-          <p className="text-sm font-semibold text-gray-700 mb-3">Required disclosure to read at call start:</p>
-          <blockquote className="text-base text-gray-800 italic border-l-4 border-amber-400 pl-4 leading-relaxed">
+        <div className="bg-card rounded-xl border border-warning-border p-5 mb-6">
+          <p className="text-sm font-semibold text-foreground mb-3">Required disclosure to read at call start:</p>
+          <blockquote className="text-base text-foreground italic border-l-4 border-warning pl-4 leading-relaxed">
             "Hi {lead.contactName}, before we get started — this call may be recorded for quality and training purposes. Is that okay with you?"
           </blockquote>
         </div>
         <div className="space-y-3 mb-6">
           <div className="flex items-start gap-3">
             <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-gray-600">Transcription begins only after homeowner confirms consent</p>
+            <p className="text-sm text-foreground/80">Transcription begins only after homeowner confirms consent</p>
           </div>
           <div className="flex items-start gap-3">
             <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-gray-600">Call transcript stored securely, accessible only to you and admins</p>
+            <p className="text-sm text-foreground/80">Call transcript stored securely, accessible only to you and admins</p>
           </div>
           {isAllPartyState && (
             <div className="flex items-start gap-3">
@@ -843,10 +870,10 @@ function ConsentGate({ onAccept, lead }: { onAccept: () => void; lead: LeadConte
             </div>
           )}
         </div>
-        <p className="text-xs text-gray-500 mb-6">
+        <p className="text-xs text-muted-foreground mb-6">
           Every teleprompter suggestion is a draft, not a locked script — you remain responsible for what you say on the call. Deviate freely when a suggestion doesn't fit the moment.
         </p>
-        <button onClick={onAccept} className="w-full py-3.5 px-6 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-gray-800 transition-colors touch-manipulation">
+        <button onClick={onAccept} className="w-full py-3.5 px-6 bg-foreground text-background rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity touch-manipulation">
           I understand — I will read the disclosure before recording begins
         </button>
       </div>
@@ -859,25 +886,25 @@ function ConsentGate({ onAccept, lead }: { onAccept: () => void; lead: LeadConte
 function ScriptReferencePanel({ script, resolvedVars }: { script: CallScript; resolvedVars: ReturnType<typeof resolveVariables> }) {
   const renderLine = (line: ScriptLine) => {
     const resolved = applyVariables(line.text, resolvedVars);
-    if (line.type === 'instruction') return <p key={line.id} className="text-xs text-gray-400 italic px-1">[{resolved}]</p>;
+    if (line.type === 'instruction') return <p key={line.id} className="text-xs text-muted-foreground italic px-1">[{resolved}]</p>;
     if (line.type === 'agent_fill') return (
-      <div key={line.id} className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
-        <p className="text-xs font-semibold text-yellow-700 mb-0.5">Agent fills in:</p>
-        <p className="text-sm text-yellow-800 font-medium">{resolved}</p>
+      <div key={line.id} className="bg-warning-bg border border-warning-border rounded-lg px-3 py-2">
+        <p className="text-xs font-semibold text-warning mb-0.5">Agent fills in:</p>
+        <p className="text-sm text-warning font-medium">{resolved}</p>
       </div>
     );
-    return <div key={line.id} className="bg-gray-50 rounded-lg px-3 py-2"><p className="text-sm text-gray-800 leading-relaxed">"{resolved}"</p></div>;
+    return <div key={line.id} className="bg-muted rounded-lg px-3 py-2"><p className="text-sm text-foreground leading-relaxed">"{resolved}"</p></div>;
   };
 
   return (
     <div className="space-y-4 overflow-y-auto max-h-full pr-1">
-      <div className="bg-blue-50 rounded-xl px-3 py-2">
-        <p className="text-xs font-semibold text-blue-700">Goal</p>
-        <p className="text-xs text-blue-600 mt-0.5">{script.goal}</p>
+      <div className="bg-primary/10 border border-primary/15 rounded-xl px-3 py-2">
+        <p className="text-xs font-semibold text-primary">Goal</p>
+        <p className="text-xs text-foreground mt-0.5">{script.goal}</p>
       </div>
       {script.sections.map(section => (
         <div key={section.id}>
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{section.title}</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{section.title}</p>
           <div className="space-y-1.5">{section.lines.map(line => renderLine(line))}</div>
         </div>
       ))}
@@ -897,8 +924,8 @@ function TranscriptPanel({ entries, isListening, currentSpeaker }: {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-700">Live Transcript</h3>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <h3 className="text-sm font-semibold text-foreground">Live Transcript</h3>
         {isListening && (
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -909,8 +936,8 @@ function TranscriptPanel({ entries, isListening, currentSpeaker }: {
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {entries.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-8">
-            <Volume2 className="w-8 h-8 text-gray-300 mb-3" />
-            <p className="text-sm text-gray-400">Transcript will appear here as the call progresses</p>
+            <Volume2 className="w-8 h-8 text-muted-foreground/50 mb-3" />
+            <p className="text-sm text-muted-foreground">Transcript will appear here as the call progresses</p>
           </div>
         )}
         {entries.map((entry) => (
@@ -920,10 +947,10 @@ function TranscriptPanel({ entries, isListening, currentSpeaker }: {
             </div>
             <div className={`max-w-[80%] ${entry.speaker === 'Agent' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
               <div className={`flex items-center gap-2 ${entry.speaker === 'Agent' ? 'flex-row-reverse' : ''}`}>
-                <span className="text-xs font-semibold text-gray-500">{entry.speaker}</span>
-                <span className="text-xs text-gray-400">{entry.timestamp}</span>
+                <span className="text-xs font-semibold text-muted-foreground">{entry.speaker}</span>
+                <span className="text-xs text-muted-foreground/80">{entry.timestamp}</span>
               </div>
-              <div className={`px-3 py-2 rounded-xl text-sm leading-relaxed ${entry.speaker === 'Agent' ? 'bg-gray-900 text-white rounded-tr-sm' : 'bg-blue-50 text-gray-800 rounded-tl-sm'}`}>
+              <div className={`px-3 py-2 rounded-xl text-sm leading-relaxed ${entry.speaker === 'Agent' ? 'bg-foreground text-background rounded-tr-sm' : 'bg-primary/10 text-foreground rounded-tl-sm'}`}>
                 {entry.text}
               </div>
             </div>
@@ -934,7 +961,7 @@ function TranscriptPanel({ entries, isListening, currentSpeaker }: {
             <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${currentSpeaker === 'Agent' ? 'bg-gray-900' : 'bg-blue-100'}`}>
               {currentSpeaker === 'Agent' ? <User className="w-3.5 h-3.5 text-white" /> : <Home className="w-3.5 h-3.5 text-blue-700" />}
             </div>
-            <div className={`px-3 py-2 rounded-xl ${currentSpeaker === 'Agent' ? 'bg-gray-700 rounded-tr-sm' : 'bg-blue-50 rounded-tl-sm'}`}>
+            <div className={`px-3 py-2 rounded-xl ${currentSpeaker === 'Agent' ? 'bg-foreground/70 rounded-tr-sm' : 'bg-primary/10 rounded-tl-sm'}`}>
               <div className="flex gap-1 items-center h-4">
                 <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -950,6 +977,82 @@ function TranscriptPanel({ entries, isListening, currentSpeaker }: {
 }
 
 // ─── Suggestion Panel ─────────────────────────────────────────────────────────
+
+const TELEPROMPTER_DISPLAY_THEMES = {
+  classic: { label: 'Classic', box: 'bg-gray-900', text: 'text-white', label_: 'text-gray-400' },
+  yellow: { label: 'Yellow', box: 'bg-black', text: 'text-yellow-300', label_: 'text-yellow-600' },
+  green: { label: 'Green', box: 'bg-black', text: 'text-green-400', label_: 'text-green-700' },
+  light: { label: 'Light', box: 'bg-white border-2 border-gray-200', text: 'text-gray-900', label_: 'text-gray-400' },
+} as const;
+type TeleprompterTheme = keyof typeof TELEPROMPTER_DISPLAY_THEMES;
+
+const TELEPROMPTER_SETTINGS_KEY = 'travlr_teleprompter_display_settings';
+
+function loadDisplaySettings(): { fontSize: number; theme: TeleprompterTheme } {
+  if (typeof window === 'undefined') return { fontSize: 18, theme: 'classic' };
+  try {
+    const raw = window.localStorage.getItem(TELEPROMPTER_SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        fontSize: typeof parsed.fontSize === 'number' ? parsed.fontSize : 18,
+        theme: TELEPROMPTER_DISPLAY_THEMES[parsed.theme as TeleprompterTheme] ? parsed.theme : 'classic',
+      };
+    }
+  } catch { /* ignore */ }
+  return { fontSize: 18, theme: 'classic' };
+}
+
+function DisplaySettingsPopover({
+  fontSize,
+  theme,
+  onFontSizeChange,
+  onThemeChange,
+  onClose,
+}: {
+  fontSize: number;
+  theme: TeleprompterTheme;
+  onFontSizeChange: (n: number) => void;
+  onThemeChange: (t: TeleprompterTheme) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="absolute right-0 top-9 z-20 w-64 bg-card border border-border rounded-xl shadow-lg p-4" onMouseLeave={onClose}>
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs font-semibold text-foreground">Text Size</label>
+          <span className="text-xs text-muted-foreground">{fontSize}px</span>
+        </div>
+        <input
+          type="range"
+          min={14}
+          max={32}
+          step={1}
+          value={fontSize}
+          onChange={(e) => onFontSizeChange(Number(e.target.value))}
+          className="w-full accent-gray-900 touch-manipulation"
+        />
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-foreground block mb-1.5">Color Theme</label>
+        <div className="grid grid-cols-2 gap-2">
+          {(Object.entries(TELEPROMPTER_DISPLAY_THEMES) as [TeleprompterTheme, typeof TELEPROMPTER_DISPLAY_THEMES[TeleprompterTheme]][]).map(([key, t]) => (
+            <button
+              key={key}
+              onClick={() => onThemeChange(key)}
+              className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${
+                theme === key ? 'border-primary ring-1 ring-primary text-foreground' : 'border-border text-muted-foreground hover:border-primary/60 hover:text-foreground'
+              }`}
+            >
+              <span className={`w-3.5 h-3.5 rounded-full ${t.box} flex-shrink-0`} />
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SuggestionPanel({
   suggestion,
@@ -969,14 +1072,39 @@ function SuggestionPanel({
   lowConfidenceCount: number;
 }) {
   const lines = suggestion.split('\n').filter(l => l.trim());
+  const [displaySettings, setDisplaySettings] = useState(loadDisplaySettings);
+  const [showSettings, setShowSettings] = useState(false);
+  const activeTheme = TELEPROMPTER_DISPLAY_THEMES[displaySettings.theme];
+
+  const updateSettings = (next: Partial<{ fontSize: number; theme: TeleprompterTheme }>) => {
+    setDisplaySettings(prev => {
+      const merged = { ...prev, ...next };
+      try { window.localStorage.setItem(TELEPROMPTER_SETTINGS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+      return merged;
+    });
+  };
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-700">AI Suggestion</h3>
-        <button onClick={onRefresh} disabled={isLoading} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 touch-manipulation" title="Refresh suggestion">
-          <RefreshCw className={`w-3.5 h-3.5 text-gray-500 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border relative">
+        <h3 className="text-sm font-semibold text-foreground">AI Suggestion</h3>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setShowSettings(v => !v)} className="p-1.5 rounded-lg hover:bg-muted transition-colors touch-manipulation" title="Display settings">
+            <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <button onClick={onRefresh} disabled={isLoading} className="p-1.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-50 touch-manipulation" title="Refresh suggestion">
+            <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+          {showSettings && (
+            <DisplaySettingsPopover
+              fontSize={displaySettings.fontSize}
+              theme={displaySettings.theme}
+              onFontSizeChange={(n) => updateSettings({ fontSize: n })}
+              onThemeChange={(t) => updateSettings({ theme: t })}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
+        </div>
       </div>
 
       {lowConfidenceCount >= 3 && (
@@ -988,16 +1116,16 @@ function SuggestionPanel({
       <div className="flex-1 p-4 overflow-y-auto">
         {isLoading && !suggestion && (
           <div className="flex flex-col items-center justify-center h-full gap-3">
-            <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
-            <p className="text-sm text-gray-400">Generating suggestion…</p>
+            <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+            <p className="text-sm text-muted-foreground">Generating suggestion…</p>
           </div>
         )}
         {!isLoading && !suggestion && (
           <div className="flex flex-col items-center justify-center h-full text-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+            <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </div>
-            <p className="text-sm text-gray-400">Suggestions will appear as the conversation progresses</p>
+            <p className="text-sm text-muted-foreground">Suggestions will appear as the conversation progresses</p>
           </div>
         )}
         {suggestion && (
@@ -1018,27 +1146,33 @@ function SuggestionPanel({
                 const colonIdx = line.indexOf(':');
                 const label = line.slice(0, colonIdx + 1);
                 const text = line.slice(colonIdx + 1).trim().replace(/^"|"$/g, '');
+                const isMain = !(isOptionA || isOptionB);
                 return (
-                  <div key={i} className={`rounded-xl p-4 ${isOptionA || isOptionB ? 'bg-gray-50 border border-gray-200' : 'bg-gray-900'}`}>
-                    <p className={`text-xs font-semibold mb-2 ${isOptionA || isOptionB ? 'text-gray-500' : 'text-gray-400'}`}>{label}</p>
-                    <p className={`text-base leading-relaxed font-medium ${isOptionA || isOptionB ? 'text-gray-800' : 'text-white'}`}>"{text}"</p>
+                  <div key={i} className={`rounded-xl p-4 ${isOptionA || isOptionB ? 'bg-muted border border-border' : activeTheme.box}`}>
+                    <p className={`text-xs font-semibold mb-2 ${isOptionA || isOptionB ? 'text-muted-foreground' : activeTheme.label_}`}>{label}</p>
+                    <p
+                      className={`leading-relaxed font-medium ${isOptionA || isOptionB ? 'text-foreground' : activeTheme.text}`}
+                      style={isMain ? { fontSize: `${displaySettings.fontSize}px` } : undefined}
+                    >
+                      "{text}"
+                    </p>
                   </div>
                 );
               }
               if (isNote) return <p key={i} className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2 italic">{line}</p>;
               if (line.startsWith('"') || line.startsWith('\u2018')) {
                 return (
-                  <div key={i} className="rounded-xl p-4 bg-gray-900">
-                    <p className="text-xs font-semibold text-gray-400 mb-2">Suggested next line:</p>
-                    <p className="text-base leading-relaxed font-medium text-white">{line}</p>
+                  <div key={i} className={`rounded-xl p-4 ${activeTheme.box}`}>
+                    <p className={`text-xs font-semibold mb-2 ${activeTheme.label_}`}>Suggested next line:</p>
+                    <p className={`leading-relaxed font-medium ${activeTheme.text}`} style={{ fontSize: `${displaySettings.fontSize}px` }}>{line}</p>
                   </div>
                 );
               }
-              return <p key={i} className="text-sm text-gray-600 leading-relaxed">{line}</p>;
+              return <p key={i} className="text-sm text-muted-foreground leading-relaxed">{line}</p>;
             })}
 
             {isLoading && (
-              <div className="flex items-center gap-2 text-xs text-gray-400 pt-1">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 Updating…
               </div>
@@ -1065,16 +1199,98 @@ interface CallSetupFormProps {
   prefill?: { contactName?: string; address?: string; city?: string; state?: string; phone?: string; agentName?: string; leadId?: string };
 }
 
+interface AssignedLeadOption {
+  id: string;
+  owner_name: string | null;
+  contact_name?: string | null;
+  property_address: string | null;
+  address?: string | null;
+  city: string | null;
+  state: string | null;
+  phone: string | null;
+  contact_phone?: string | null;
+  verified_owner?: boolean;
+  verified_number?: boolean;
+}
+
+const DEMO_LEAD_DETAILS = {
+  contactName: 'Jordan Avery',
+  address: '1287 Silver King Dr',
+  city: 'Aspen',
+  state: 'CO',
+  phone: '(970) 555-0184',
+};
+
 function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
+  const { user, session, role } = useAuth();
   const [contactName, setContactName] = useState(prefill?.contactName || '');
   const [address, setAddress] = useState(prefill?.address || '');
   const [city, setCity] = useState(prefill?.city || '');
   const [state, setState] = useState(prefill?.state || 'CO');
+  const [phone, setPhone] = useState(prefill?.phone || '');
+  const [selectedLeadId, setSelectedLeadId] = useState(prefill?.leadId);
   const [agentName, setAgentName] = useState(prefill?.agentName || '');
   const [scriptId, setScriptId] = useState<ScriptId>('initial_outreach');
   const [showDialpad, setShowDialpad] = useState(false);
   const [showCallLog, setShowCallLog] = useState(false);
   const [callCount, setCallCount] = useState(0);
+  const [assignedLeads, setAssignedLeads] = useState<AssignedLeadOption[]>([]);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+
+  // Auto-fill agent name from the logged-in user's profile
+  useEffect(() => {
+    if (agentName.trim() || !user) return;
+    const supabase = createClient();
+    supabase
+      .from('user_profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        const metadata = user.user_metadata || {};
+        const emailName = data?.email ? String(data.email).split('@')[0]?.replace(/[._-]+/g, ' ') : '';
+        const name = data?.full_name || metadata.full_name || metadata.name || emailName || '';
+        if (name) setAgentName(name);
+      });
+  }, [user, agentName]);
+
+  // Load verified, phone-ready leads for the address dropdown.
+  // Agents are scoped server-side to their assigned leads; admins receive the full verified list.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLeadOptions = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token || session?.access_token;
+      if (!accessToken) return;
+
+      const pageSize = 1000;
+      const leads: AssignedLeadOption[] = [];
+
+      for (let offset = 0; ; offset += pageSize) {
+        const res = await fetch(`/api/agent/leads?limit=${pageSize}&offset=${offset}&verified_with_numbers=true`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          credentials: 'same-origin',
+        });
+        if (!res.ok) break;
+
+        const data = await res.json();
+        const page = ((data?.leads || []) as AssignedLeadOption[]).filter(l => (l.phone || l.contact_phone) && (l.property_address || l.address));
+        leads.push(...page);
+
+        if (page.length < pageSize) break;
+      }
+
+      if (!cancelled) setAssignedLeads(leads);
+    };
+
+    loadLeadOptions().catch(() => {
+      if (!cancelled) setAssignedLeads([]);
+    });
+
+    return () => { cancelled = true; };
+  }, [session]);
 
   // Load call count for this lead
   useEffect(() => {
@@ -1082,13 +1298,44 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
     outreachCallService.getLeadCallSummary(prefill.leadId).then(s => setCallCount(s.totalCalls));
   }, [prefill?.leadId]);
 
-  const portfolioStates = [
-    { value: 'CO', label: 'Colorado' }, { value: 'CA', label: 'California' },
-    { value: 'NV', label: 'Nevada' }, { value: 'WA', label: 'Washington' },
-    { value: 'UT', label: 'Utah' }, { value: 'FL', label: 'Florida' },
-    { value: 'ME', label: 'Maine' }, { value: 'OR', label: 'Oregon' },
-    { value: 'MA', label: 'Massachusetts' }, { value: 'TX', label: 'Texas' },
-  ];
+  const portfolioStates = PORTFOLIO_STATES;
+  const canViewAllLeadOptions = role === 'admin' || role === 'owner';
+
+  const addressMatches = assignedLeads.filter(l =>
+    !address.trim() || (l.property_address || l.address || '').toLowerCase().includes(address.toLowerCase())
+  ).slice(0, canViewAllLeadOptions ? 20 : 8);
+
+  const handleSelectLead = (lead: AssignedLeadOption) => {
+    const leadAddress = lead.property_address || lead.address || '';
+    const leadContactName = lead.owner_name || lead.contact_name || '';
+    const leadPhone = lead.phone || lead.contact_phone || '';
+    setSelectedLeadId(lead.id);
+    setAddress(leadAddress);
+    setCity(lead.city || '');
+    const matchedState = portfolioStates.find(s => s.value === lead.state)?.value;
+    if (matchedState) setState(matchedState);
+    setContactName(leadContactName);
+    setPhone(leadPhone);
+    setShowAddressDropdown(false);
+  };
+
+  const handleAutofillLeadDetails = () => {
+    const lead = addressMatches[0] || assignedLeads[0];
+    if (lead) {
+      handleSelectLead(lead);
+      toast.success('Lead details auto-filled from your assigned leads');
+      return;
+    }
+
+    setSelectedLeadId(undefined);
+    setContactName(DEMO_LEAD_DETAILS.contactName);
+    setAddress(DEMO_LEAD_DETAILS.address);
+    setCity(DEMO_LEAD_DETAILS.city);
+    setState(DEMO_LEAD_DETAILS.state);
+    setPhone(DEMO_LEAD_DETAILS.phone);
+    setShowAddressDropdown(false);
+    toast.success('Lead details auto-filled');
+  };
 
   const handleStart = () => {
     if (!address.trim()) { toast.error('Property address is required — check the lead record before starting a call'); return; }
@@ -1104,12 +1351,13 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
       state,
       portfolioState: state,
       localBlurb,
-      phone: prefill?.phone,
-      leadId: prefill?.leadId,
+      phone: phone || prefill?.phone,
+      leadId: selectedLeadId || prefill?.leadId,
     }, agentName.trim(), scriptId);
   };
 
   const selectedScript = SCRIPT_OPTIONS.find(s => s.value === scriptId);
+  const canAccessInterviewMode = role === 'admin' || role === 'owner';
 
   // Mobile: show lead card at top if prefilled
   const hasPrefill = !!(prefill?.contactName || prefill?.address);
@@ -1141,14 +1389,14 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
       {/* Property Intelligence Panel — regulation context before call */}
       {prefill?.leadId && (
         <div className="mb-5">
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
+          <div className="bg-card rounded-2xl border border-border p-4">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center">
-                <Shield className="w-3.5 h-3.5 text-white" />
+              <div className="w-7 h-7 rounded-lg bg-foreground flex items-center justify-center">
+                <Shield className="w-3.5 h-3.5 text-background" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-900">Property Context</p>
-                <p className="text-xs text-gray-400">Review before calling</p>
+                <p className="text-sm font-bold text-foreground">Property Context</p>
+                <p className="text-xs text-muted-foreground">Review before calling</p>
               </div>
             </div>
             <TeleprompterRegulationPanel
@@ -1161,87 +1409,135 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
       )}
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Live Call Teleprompter</h1>
-        <p className="text-sm text-gray-500">Enter the lead details and select the call script to load, then start the session.</p>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Live Call Teleprompter</h1>
+        <p className="text-sm text-muted-foreground">Enter the lead details and select the call script to load, then start the session.</p>
       </div>
 
-      {/* Interview Mode Entry Card */}
-      <Link
-        href="/teleprompter/interview"
-        className="block mb-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-5 text-white hover:from-gray-800 hover:to-gray-700 transition-all group"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
-              <Briefcase className="w-5 h-5 text-white" />
+      {/* Interview Mode Entry Card — admin only */}
+      {canAccessInterviewMode && (
+        <Link
+          href="/teleprompter/interview"
+          className="block mb-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-5 text-white hover:from-gray-800 hover:to-gray-700 transition-all group"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
+                <Briefcase className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Interview Mode</p>
+                <p className="text-xs text-gray-300 mt-0.5">Structured scripts + AI suggestions for Zoom interviews</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-bold text-white">Interview Mode</p>
-              <p className="text-xs text-gray-300 mt-0.5">Structured scripts + AI suggestions for Zoom interviews</p>
-            </div>
+            <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors flex-shrink-0" />
           </div>
-          <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors flex-shrink-0" />
-        </div>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {['Homeowner Outreach Agent', 'Guest Experience Manager', 'Head of Property Operations', '+3 more'].map(role => (
-            <span key={role} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-gray-300">{role}</span>
-          ))}
-        </div>
-      </Link>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {['Homeowner Outreach Agent', 'Guest Experience Manager', 'Head of Property Operations', '+3 more'].map(role => (
+              <span key={role} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-gray-300">{role}</span>
+            ))}
+          </div>
+        </Link>
+      )}
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 space-y-5">
+      <div className="bg-card rounded-2xl border border-border p-5 sm:p-6 space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Call Script</label>
+          <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Call Script</label>
           <div className="space-y-2">
             {SCRIPT_OPTIONS.map(opt => (
-              <button key={opt.value} onClick={() => setScriptId(opt.value)} className={`w-full text-left px-4 py-3 rounded-xl border transition-colors touch-manipulation ${scriptId === opt.value ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'}`}>
+              <button key={opt.value} onClick={() => setScriptId(opt.value)} className={`w-full text-left px-4 py-3 rounded-xl border transition-colors touch-manipulation ${scriptId === opt.value ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-foreground hover:border-primary/60 hover:bg-muted/50'}`}>
                 <p className="text-sm font-semibold">{opt.label}</p>
-                <p className={`text-xs mt-0.5 ${scriptId === opt.value ? 'text-gray-300' : 'text-gray-400'}`}>{opt.goal}</p>
+                <p className={`text-xs mt-0.5 ${scriptId === opt.value ? 'text-background/75' : 'text-muted-foreground'}`}>{opt.goal}</p>
               </button>
             ))}
           </div>
         </div>
-        <div className="border-t border-gray-100 pt-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Lead Details</p>
+        <div className="border-t border-border pt-4 flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lead Details</p>
+          <button
+            type="button"
+            onClick={handleAutofillLeadDetails}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold hover:bg-blue-100 transition-colors touch-manipulation"
+          >
+            <Zap className="w-3.5 h-3.5" />
+            Autofill
+          </button>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Your Name (Agent)</label>
-          <input type="text" value={agentName} onChange={e => setAgentName(e.target.value)} placeholder="e.g. Sarah" className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent touch-manipulation" />
+          <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Your Name (Agent)</label>
+          <input type="text" value={agentName} onChange={e => setAgentName(e.target.value)} autoComplete="name" placeholder="e.g. Sarah" className="w-full px-3 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation" />
+          {user && <p className="mt-1 text-xs text-muted-foreground">Auto-filled from your account — edit if needed</p>}
+        </div>
+        <div className="relative">
+          <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Property Address <span className="text-danger">*</span></label>
+          <input
+            type="text"
+            value={address}
+            onChange={e => { setAddress(e.target.value); setSelectedLeadId(undefined); setShowAddressDropdown(true); }}
+            onFocus={() => setShowAddressDropdown(true)}
+            onBlur={() => setTimeout(() => setShowAddressDropdown(false), 150)}
+            autoComplete="street-address"
+            placeholder="e.g. 123 Mountain View Dr"
+            className="w-full px-3 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">Required — teleprompter cannot start without a property address</p>
+          {showAddressDropdown && addressMatches.length > 0 && (
+            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto">
+              <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide border-b border-border">
+                {canViewAllLeadOptions ? 'All Verified Leads With Numbers' : 'Your Assigned Verified Leads With Numbers'}
+              </p>
+              {addressMatches.map(lead => (
+                <button
+                  key={lead.id}
+                  type="button"
+                  onMouseDown={() => handleSelectLead(lead)}
+                  className="w-full text-left px-3 py-2.5 hover:bg-muted transition-colors border-b border-border last:border-0"
+                >
+                  <p className="text-sm font-medium text-foreground truncate">{lead.property_address || lead.address}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-muted-foreground truncate">{[lead.owner_name || lead.contact_name, lead.city, lead.state].filter(Boolean).join(' · ')}</span>
+                    {(lead.phone || lead.contact_phone) && <span className="text-xs text-muted-foreground font-mono ml-auto flex-shrink-0">{lead.phone || lead.contact_phone}</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Property Address <span className="text-red-500">*</span></label>
-          <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="e.g. 123 Mountain View Dr" className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent touch-manipulation" />
-          <p className="mt-1 text-xs text-gray-400">Required — teleprompter cannot start without a property address</p>
+          <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Homeowner / Contact Name</label>
+          <input type="text" value={contactName} onChange={e => setContactName(e.target.value)} autoComplete="name" placeholder="e.g. John Smith (leave blank to use 'there')" className="w-full px-3 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation" />
+          {selectedLeadId && <p className="mt-1 text-xs text-muted-foreground">Auto-filled from the selected lead</p>}
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Homeowner / Contact Name</label>
-          <input type="text" value={contactName} onChange={e => setContactName(e.target.value)} placeholder="e.g. John Smith (leave blank to use 'there')" className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent touch-manipulation" />
-        </div>
+        {phone && (
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Phone Number</label>
+            <input type="text" value={phone} onChange={e => setPhone(e.target.value)} autoComplete="tel" className="w-full px-3 py-3 rounded-xl border border-input bg-background text-foreground text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation" />
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">City</label>
-            <input type="text" value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. Aspen" className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent touch-manipulation" />
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">City</label>
+            <input type="text" value={city} onChange={e => setCity(e.target.value)} autoComplete="address-level2" placeholder="e.g. Aspen" className="w-full px-3 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Portfolio State</label>
-            <select value={state} onChange={e => setState(e.target.value)} className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white touch-manipulation">
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Portfolio State</label>
+            <select value={state} onChange={e => setState(e.target.value)} className="w-full px-3 py-3 rounded-xl border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation">
               {portfolioStates.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
         </div>
         {selectedScript && city && (
-          <div className="bg-blue-50 rounded-xl px-4 py-3">
-            <p className="text-xs font-semibold text-blue-700 mb-1">Local Blurb Preview</p>
-            <p className="text-xs text-blue-600">{resolveVariables({ contactName, address, city, state }, { senderName: agentName }).localBlurb}</p>
+          <div className="bg-primary/10 border border-primary/15 rounded-xl px-4 py-3">
+            <p className="text-xs font-semibold text-primary mb-1">Local Blurb Preview</p>
+            <p className="text-xs text-foreground">{resolveVariables({ contactName, address, city, state }, { senderName: agentName }).localBlurb}</p>
           </div>
         )}
-        <button onClick={handleStart} className="w-full py-3.5 px-6 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 touch-manipulation">
+        <button onClick={handleStart} className="w-full py-3.5 px-6 bg-foreground text-background rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 touch-manipulation">
           <Headphones className="w-4 h-4" />
           Continue to Headset Setup
         </button>
       </div>
 
-      {showDialpad && <TouchDialpad phone={prefill?.phone} onClose={() => setShowDialpad(false)} />}
+      {showDialpad && <TouchDialpad phone={phone || prefill?.phone} onClose={() => setShowDialpad(false)} />}
       {showCallLog && <CallLogSidebar leadId={prefill?.leadId} onClose={() => setShowCallLog(false)} />}
     </div>
   );
@@ -1290,32 +1586,32 @@ function CallEndedSummary({
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
             <CheckCircle className="w-5 h-5 text-green-600" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Call Ended</h2>
-            <p className="text-sm text-gray-500">{mins}m {secs}s · {transcript.length} exchanges · {suggestionsCount} AI suggestions</p>
+            <h2 className="text-lg font-bold text-foreground">Call Ended</h2>
+            <p className="text-sm text-muted-foreground">{mins}m {secs}s · {transcript.length} exchanges · {suggestionsCount} AI suggestions</p>
           </div>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Call Outcome</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Call Outcome</label>
             <div className="grid grid-cols-2 gap-2">
               {outcomes.map(o => (
-                <button key={o.value} onClick={() => setOutcome(o.value)} className={`px-3 py-3 rounded-xl text-sm font-medium border transition-colors touch-manipulation ${outcome === o.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'}`}>
+                <button key={o.value} onClick={() => setOutcome(o.value)} className={`px-3 py-3 rounded-xl text-sm font-medium border transition-colors touch-manipulation ${outcome === o.value ? 'bg-foreground text-background border-foreground' : 'bg-card text-foreground border-border hover:border-primary/60 hover:bg-muted/50'}`}>
                   {o.label}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Notes</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Any follow-up actions, homeowner concerns, or context for the next touchpoint…" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none touch-manipulation" />
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Notes</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Any follow-up actions, homeowner concerns, or context for the next touchpoint…" className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none touch-manipulation" />
           </div>
-          <button onClick={() => onSave(outcome, notes)} disabled={isSaving} className="w-full py-3.5 px-6 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 touch-manipulation">
+          <button onClick={() => onSave(outcome, notes)} disabled={isSaving} className="w-full py-3.5 px-6 bg-foreground text-background rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-60 touch-manipulation">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
             {isSaving ? 'Saving…' : 'Save to Activity Timeline'}
           </button>
@@ -1380,7 +1676,7 @@ function TeleprompterPageInner() {
   } | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const suggestionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -1551,10 +1847,15 @@ function TeleprompterPageInner() {
   }, [fetchSuggestion, detectCoveredBeats]);
 
   const startListening = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) { toast.error('Speech recognition not supported in this browser. Use Chrome or Edge.'); return; }
+    const SpeechRecognitionCtor = (window as typeof window & {
+      SpeechRecognition?: new () => BrowserSpeechRecognition;
+      webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+    }).SpeechRecognition || (window as typeof window & {
+      webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+    }).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) { toast.error('Speech recognition not supported in this browser. Use Chrome or Edge.'); return; }
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognitionCtor();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
@@ -1803,12 +2104,12 @@ function TeleprompterPageInner() {
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
-
-  if (phase === 'setup') return <CallSetupForm onStart={handleSetupComplete} prefill={prefill} />;
-  if (phase === 'headset') return <HeadsetSetupPanel onComplete={handleHeadsetComplete} userId={userId} />;
-  if (phase === 'consent' && lead) return <ConsentGate onAccept={handleConsentAccepted} lead={lead} />;
+  if (phase === 'setup') return <div className="min-h-screen bg-background text-foreground"><CallSetupForm onStart={handleSetupComplete} prefill={prefill} /></div>;
+  if (phase === 'headset') return <div className="min-h-screen bg-background text-foreground"><HeadsetSetupPanel onComplete={handleHeadsetComplete} userId={userId} /></div>;
+  if (phase === 'consent' && lead) return <div className="min-h-screen bg-background text-foreground"><ConsentGate onAccept={handleConsentAccepted} lead={lead} /></div>;
   if (phase === 'ended') {
     return (
+      <div className="min-h-screen bg-background text-foreground">
       <CallEndedSummary
         transcript={transcript}
         duration={elapsed}
@@ -1818,30 +2119,31 @@ function TeleprompterPageInner() {
         autoSummary={autoSummary}
         isGeneratingSummary={isGeneratingSummary}
       />
+      </div>
     );
   }
 
   const activeScript = CALL_SCRIPTS[scriptId];
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-background text-foreground">
       {/* Header bar */}
-      <div className="flex items-center justify-between px-3 sm:px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+      <div className="flex items-center justify-between px-3 sm:px-6 py-3 bg-card border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-sm font-semibold text-gray-900">Live</span>
+            <span className="text-sm font-semibold text-foreground">Live</span>
           </div>
-          <div className="flex items-center gap-1.5 text-sm text-gray-500 flex-shrink-0">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-shrink-0">
             <Clock className="w-3.5 h-3.5" />
-            <span className="font-mono font-medium text-gray-700">{formatElapsed(elapsed)}</span>
+            <span className="font-mono font-medium text-foreground">{formatElapsed(elapsed)}</span>
           </div>
           {lead && (
-            <div className="hidden md:flex items-center gap-2 text-sm text-gray-500 min-w-0">
-              <span className="text-gray-300">·</span>
+            <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+              <span className="text-muted-foreground/50">·</span>
               <span className="truncate max-w-[120px]">{lead.contactName}</span>
-              <span className="text-gray-300">·</span>
-              <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full flex-shrink-0">{activeScript.label}</span>
+              <span className="text-muted-foreground/50">·</span>
+              <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full flex-shrink-0">{activeScript.label}</span>
             </div>
           )}
         </div>
@@ -1849,7 +2151,7 @@ function TeleprompterPageInner() {
           {/* Dialpad button — mobile prominent */}
           <button
             onClick={() => setShowDialpad(true)}
-            className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors touch-manipulation"
+            className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors touch-manipulation"
             title="Open dialpad"
           >
             <Hash className="w-4 h-4" />
@@ -1858,7 +2160,7 @@ function TeleprompterPageInner() {
           {lead?.leadId && (
             <button
               onClick={() => setShowCallLog(true)}
-              className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors touch-manipulation"
+              className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors touch-manipulation"
               title="Call history"
             >
               <List className="w-4 h-4" />
@@ -1870,9 +2172,9 @@ function TeleprompterPageInner() {
               <span className="text-xs font-semibold text-green-700 hidden sm:inline">Listening</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-gray-100 rounded-lg">
-              <MicOff className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs font-medium text-gray-500 hidden sm:inline">Mic Off</span>
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-muted rounded-lg">
+              <MicOff className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground hidden sm:inline">Mic Off</span>
             </div>
           )}
           {!headsetConnected && (
@@ -1880,7 +2182,7 @@ function TeleprompterPageInner() {
               <WifiOff className="w-3.5 h-3.5 text-red-500" />
             </div>
           )}
-          <button onClick={() => setShowScript(s => !s)} className="hidden sm:flex px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors items-center gap-1.5 touch-manipulation">
+          <button onClick={() => setShowScript(s => !s)} className="hidden sm:flex px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors items-center gap-1.5 touch-manipulation">
             <FileText className="w-3.5 h-3.5" />
             {showScript ? 'Hide' : 'Script'}
           </button>
@@ -1895,10 +2197,10 @@ function TeleprompterPageInner() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel: Script reference */}
         {showScript && resolvedVars && (
-          <div className="w-64 xl:w-80 flex flex-col border-r border-gray-200 bg-white overflow-hidden flex-shrink-0 hidden sm:flex">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-700">{activeScript.label} Script</h3>
-              <Settings className="w-3.5 h-3.5 text-gray-400" />
+          <div className="w-64 xl:w-80 flex flex-col border-r border-border bg-card overflow-hidden flex-shrink-0 hidden sm:flex">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <h3 className="text-sm font-semibold text-foreground">{activeScript.label} Script</h3>
+              <Settings className="w-3.5 h-3.5 text-muted-foreground" />
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <ScriptReferencePanel script={activeScript} resolvedVars={resolvedVars} />
@@ -1907,28 +2209,28 @@ function TeleprompterPageInner() {
         )}
 
         {/* Transcript */}
-        <div className="flex-1 flex flex-col border-r border-gray-200 bg-white overflow-hidden">
+        <div className="flex-1 flex flex-col border-r border-border bg-card overflow-hidden">
           <TranscriptPanel entries={transcript} isListening={isListening} currentSpeaker={currentSpeaker} />
           {/* Mic controls — touch-friendly */}
-          <div className="border-t border-gray-100 p-3 sm:p-4 flex-shrink-0">
+          <div className="border-t border-border p-3 sm:p-4 flex-shrink-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-semibold">
-                <button onClick={() => setActiveSpeaker('Agent')} className={`px-3 py-2.5 flex items-center gap-1.5 transition-colors touch-manipulation ${activeSpeaker === 'Agent' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              <div className="flex rounded-xl border border-border overflow-hidden text-xs font-semibold">
+                <button onClick={() => setActiveSpeaker('Agent')} className={`px-3 py-2.5 flex items-center gap-1.5 transition-colors touch-manipulation ${activeSpeaker === 'Agent' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
                   <User className="w-3 h-3" /> Agent
                 </button>
-                <button onClick={() => setActiveSpeaker('Homeowner')} className={`px-3 py-2.5 flex items-center gap-1.5 transition-colors touch-manipulation ${activeSpeaker === 'Homeowner' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <button onClick={() => setActiveSpeaker('Homeowner')} className={`px-3 py-2.5 flex items-center gap-1.5 transition-colors touch-manipulation ${activeSpeaker === 'Homeowner' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
                   <Home className="w-3 h-3" /> Owner
                 </button>
               </div>
               <button
                 onClick={() => isListening ? stopListening() : startListening()}
                 disabled={!headsetConnected}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 touch-manipulation ${isListening ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-gray-900 text-white hover:bg-gray-800'}`}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 touch-manipulation ${isListening ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-foreground text-background hover:opacity-90'}`}
               >
                 {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 {isListening ? 'Stop' : 'Start Mic'}
               </button>
-              <p className="text-xs text-gray-400 flex-1 hidden sm:block">
+              <p className="text-xs text-muted-foreground flex-1 hidden sm:block">
                 {!headsetConnected ? 'Reconnect headset' : isListening ? `Listening as ${activeSpeaker}…` : 'Tap Start Mic'}
               </p>
             </div>
@@ -1936,13 +2238,13 @@ function TeleprompterPageInner() {
         </div>
 
         {/* Right panel: Suggestion + Call Outline */}
-        <div className="w-72 sm:w-80 xl:w-96 flex flex-col bg-white overflow-hidden flex-shrink-0">
+        <div className="w-72 sm:w-80 xl:w-96 flex flex-col bg-card overflow-hidden flex-shrink-0">
           {/* Tab bar */}
-          <div className="flex items-center border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center border-b border-border flex-shrink-0">
             <button
               onClick={() => setRightPanelTab('suggestion')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
-                rightPanelTab === 'suggestion' ?'text-gray-900 border-b-2 border-gray-900' :'text-gray-400 hover:text-gray-600'
+                rightPanelTab === 'suggestion' ?'text-foreground border-b-2 border-foreground' :'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
@@ -1951,7 +2253,7 @@ function TeleprompterPageInner() {
             <button
               onClick={() => setRightPanelTab('ai-prep')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
-                rightPanelTab === 'ai-prep' ?'text-violet-700 border-b-2 border-violet-500' :'text-gray-400 hover:text-gray-600'
+                rightPanelTab === 'ai-prep' ?'text-primary border-b-2 border-primary' :'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Brain className="w-3.5 h-3.5" />
@@ -1961,7 +2263,7 @@ function TeleprompterPageInner() {
 
           {rightPanelTab === 'suggestion' ? (
             <>
-              <div className="p-3 border-b border-gray-100 flex-shrink-0">
+              <div className="p-3 border-b border-border flex-shrink-0">
                 <CallOutlineTracker
                   scriptId={scriptId}
                   transcript={transcript}
@@ -2015,10 +2317,10 @@ function TeleprompterPageInner() {
           ) : (
             <button
               onClick={() => setShowEnrichmentSidebar(true)}
-              className="flex items-center justify-center w-8 bg-white border-l border-gray-100 hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-center w-8 bg-card border-l border-border hover:bg-muted transition-colors"
               title="Show enrichment signals"
             >
-              <PanelRightOpen className="w-4 h-4 text-gray-400" />
+              <PanelRightOpen className="w-4 h-4 text-muted-foreground" />
             </button>
           )}
         </div>

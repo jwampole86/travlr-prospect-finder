@@ -46,15 +46,17 @@ const SERVICES: ServiceConfig[] = [
     docsUrl: 'https://console.twilio.com',
     sandboxNote: 'Sandbox uses your Twilio test credentials. Messages are simulated — no real SMS is sent.',
     productionNote: 'Production credentials dispatch real SMS and voice calls. Charges apply per message.',
-    testEndpoint: '/api/sms/send',
+    testEndpoint: '/api/twilio/status',
     sandboxFields: [
       { key: 'TWILIO_ACCOUNT_SID', label: 'Test Account SID', placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', hint: 'Found in Twilio Console → Account Info', isSecret: false },
+      { key: 'TWILIO_ACCOUNT_SID_MAIN', label: 'Parent Account SID', placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', hint: 'Required when TWILIO_ACCOUNT_SID is an SK API Key SID' },
       { key: 'TWILIO_AUTH_TOKEN', label: 'Test Auth Token', placeholder: '••••••••••••••••••••••••••••••••', isSecret: true },
       { key: 'TWILIO_FROM_NUMBER', label: 'Test From Number', placeholder: '+15005550006', hint: 'Twilio magic test number for sandbox' },
       { key: 'TWILIO_TWIML_APP_SID', label: 'TwiML App SID (Voice)', placeholder: 'APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', hint: 'Required for browser-based voice calls' },
     ],
     productionFields: [
       { key: 'TWILIO_ACCOUNT_SID', label: 'Live Account SID', placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', hint: 'Your live Twilio Account SID', isSecret: false },
+      { key: 'TWILIO_ACCOUNT_SID_MAIN', label: 'Parent Account SID', placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', hint: 'Required when using an SK API Key SID for auth' },
       { key: 'TWILIO_AUTH_TOKEN', label: 'Live Auth Token', placeholder: '••••••••••••••••••••••••••••••••', isSecret: true },
       { key: 'TWILIO_FROM_NUMBER', label: 'Live From Number', placeholder: '+1XXXXXXXXXX', hint: 'Your purchased Twilio phone number' },
       { key: 'TWILIO_TWIML_APP_SID', label: 'TwiML App SID (Voice)', placeholder: 'APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', hint: 'Required for browser-based voice calls' },
@@ -69,12 +71,16 @@ const SERVICES: ServiceConfig[] = [
     docsUrl: 'https://resend.com/api-keys',
     sandboxNote: 'Sandbox API key sends to your verified email only. No external recipients receive mail.',
     productionNote: 'Production key sends to any recipient. Ensure your domain is verified in Resend.',
-    testEndpoint: '/api/send-test-email',
+    testEndpoint: '/api/resend/status',
     sandboxFields: [
       { key: 'RESEND_API_KEY', label: 'Sandbox API Key', placeholder: 're_test_••••••••••••••••••••••••••••••', isSecret: true, hint: 'Create a test key in Resend Dashboard → API Keys' },
+      { key: 'RESEND_FROM_EMAIL', label: 'Verified Sender Email', placeholder: 'onboarding@resend.dev', hint: 'Must be verified in Resend before production sending' },
+      { key: 'RESEND_FROM_NAME', label: 'Sender Name', placeholder: 'TRAVLR Vacation Homes' },
     ],
     productionFields: [
       { key: 'RESEND_API_KEY', label: 'Production API Key', placeholder: 're_live_••••••••••••••••••••••••••••••', isSecret: true, hint: 'Use a production key with your verified sending domain' },
+      { key: 'RESEND_FROM_EMAIL', label: 'Verified Sender Email', placeholder: 'outreach@staytrvlr.com', hint: 'Use an address on a verified Resend domain' },
+      { key: 'RESEND_FROM_NAME', label: 'Sender Name', placeholder: 'TRAVLR Vacation Homes' },
     ],
   },
   {
@@ -86,7 +92,7 @@ const SERVICES: ServiceConfig[] = [
     docsUrl: 'https://developers.docusign.com',
     sandboxNote: 'Sandbox uses demo.docusign.net. Envelopes are free and do not count toward production quota.',
     productionNote: 'Production uses na1.docusign.net. Requires Go-Live certification from DocuSign. Envelopes count toward your plan.',
-    testEndpoint: '/api/docusign/sessions',
+    testEndpoint: '/api/docusign/status',
     sandboxFields: [
       { key: 'DOCUSIGN_INTEGRATION_KEY', label: 'Integration Key (Client ID)', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', hint: 'From DocuSign Apps & Keys → Sandbox app' },
       { key: 'DOCUSIGN_ACCOUNT_ID', label: 'Account ID', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', hint: 'Found in DocuSign Admin → Account Profile' },

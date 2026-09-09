@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { DollarSign, Clock, Shield, MapPin } from 'lucide-react';
+import { DollarSign, Home, Shield, Phone, Activity } from 'lucide-react';
 import type { ScoringWeights } from '../page';
 import Icon from '@/components/ui/AppIcon';
 
@@ -13,40 +13,40 @@ interface Props {
 
 const FACTORS = [
   {
-    key: 'price' as keyof ScoringWeights,
-    label: 'Price Competitiveness',
+    key: 'revenuePotential' as keyof ScoringWeights,
+    label: 'Revenue Potential',
     icon: DollarSign,
     color: 'text-blue-500',
     trackColor: 'bg-blue-500',
-    description: 'How much the listing price relative to market average affects the score. Lower price = higher score.',
-    lowLabel: 'Less weight on price',
-    highLabel: 'Price-driven scoring',
+    description: 'Estimated net/gross monthly opportunity. Higher revenue and luxury opportunities score better.',
+    lowLabel: 'Less weight on revenue',
+    highLabel: 'Revenue-driven scoring',
     tips: [
-      'High weight: ideal for budget-focused strategies',
-      'Low weight: prioritize quality over price',
+      'High weight: prioritize biggest owner-income opportunities',
+      'Low weight: balance revenue against readiness and compliance',
     ],
   },
   {
-    key: 'daysOnMarket' as keyof ScoringWeights,
-    label: 'Days on Market',
-    icon: Clock,
+    key: 'propertyFit' as keyof ScoringWeights,
+    label: 'Property Fit',
+    icon: Home,
     color: 'text-amber-500',
     trackColor: 'bg-amber-500',
-    description: 'Listings sitting longer signal motivated sellers or undervalued properties — the longer on market, the better the lead. More days = higher score.',
-    lowLabel: 'Ignore listing age',
-    highLabel: 'Motivated-seller scoring',
+    description: 'Bedroom/bath count and property type fit for luxury STR demand. Larger private homes score best.',
+    lowLabel: 'Less weight on fit',
+    highLabel: 'Property-fit scoring',
     tips: [
-      'High weight: target motivated sellers with long-stale listings',
-      'Low weight: focus on fresh inventory and market timing',
+      'High weight: emphasize homes that naturally work for STR guests',
+      'Low weight: let engagement or verification drive priority',
     ],
   },
   {
-    key: 'regulationStatus' as keyof ScoringWeights,
-    label: 'Regulation Status',
+    key: 'regulatoryFeasibility' as keyof ScoringWeights,
+    label: 'Regulatory Feasibility',
     icon: Shield,
     color: 'text-emerald-500',
     trackColor: 'bg-emerald-500',
-    description: 'STR-friendly regulation status (Allowed > Restricted > Pending > Banned). Directly impacts viability.',
+    description: 'STR feasibility based on local rules. Allowed and manageable restricted markets score above unknown/prohibited markets.',
     lowLabel: 'Regulation less critical',
     highLabel: 'Compliance-first scoring',
     tips: [
@@ -55,17 +55,31 @@ const FACTORS = [
     ],
   },
   {
-    key: 'neighborhoodSaturation' as keyof ScoringWeights,
-    label: 'Neighborhood Saturation',
-    icon: MapPin,
+    key: 'leadQuality' as keyof ScoringWeights,
+    label: 'Lead Quality',
+    icon: Phone,
     color: 'text-purple-500',
     trackColor: 'bg-purple-500',
-    description: 'Areas with fewer competing STRs offer better occupancy potential. Lower saturation = higher score.',
-    lowLabel: 'Saturation less critical',
-    highLabel: 'Market gap scoring',
+    description: 'Owner, address, and phone verification quality. Fully verified leads are safer and faster to work.',
+    lowLabel: 'Quality less critical',
+    highLabel: 'Verification-first scoring',
     tips: [
-      'High weight: find underserved neighborhoods',
-      'Low weight: proven markets matter more',
+      'High weight: prioritize verified, callable prospects',
+      'Low weight: accept more research before outreach',
+    ],
+  },
+  {
+    key: 'engagement' as keyof ScoringWeights,
+    label: 'Engagement & Freshness',
+    icon: Activity,
+    color: 'text-rose-500',
+    trackColor: 'bg-rose-500',
+    description: 'SMS replies, callbacks, email clicks, answered calls, stage progress, and freshness. Active responses raise urgency.',
+    lowLabel: 'Engagement less critical',
+    highLabel: 'Response-driven scoring',
+    tips: [
+      'High weight: focus agents on warm/responding homeowners',
+      'Low weight: keep top-of-funnel prospecting broader',
     ],
   },
 ];

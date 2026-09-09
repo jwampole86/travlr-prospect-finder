@@ -10,6 +10,7 @@ import RegulationBadge from '@/components/ui/RegulationBadge';
 import ProspectScoreBar from '@/components/ui/ProspectScoreBar';
 import { X, Phone, Mail, ExternalLink, MessageSquare, Clock, Calendar, ChevronDown, Plus, Send, Bell, CheckCircle, Trash2, Edit3, FileText, Home, DollarSign, Star, MapPin, User, Tag, ShieldCheck, ShieldAlert, RefreshCw, AlertCircle, PhoneCall, TrendingUp, ThumbsUp, ThumbsDown, Loader2, Play, Pause, Volume2, Shield, Award, AlertTriangle, Flag, MessageCircle, ExternalLink as LinkIcon } from 'lucide-react';
 import { useRealtime } from '@/components/RealtimeProvider';
+import { toast } from 'sonner';
 
 import { resolveLocalBlurb } from '@/lib/localBlurbs';
 import EnrichmentPanel from './EnrichmentPanel';
@@ -815,18 +816,6 @@ export default function LeadDetailPanel({ lead, onClose, onStageChange, onDelete
   }
 
   async function handleCallLead() {
-    if (!lead.contactPhone) return;
-    setCalling(true);
-    try {
-      const call = await placeOutboundCall(lead.contactPhone);
-      setCallPlaced(true);
-      await addRecentCall(lead.id, 'call', lead.contactPhone);
-    } finally {
-      setCalling(false);
-    }
-  }
-
-  async function handleCallLead() {
     const phone = lead.contactPhone;
     if (!phone) return;
     setCalling(true);
@@ -835,12 +824,16 @@ export default function LeadDetailPanel({ lead, onClose, onStageChange, onDelete
         to: phone,
         leadId: lead.id,
       });
+      if (result.status === 'error') {
+        toast.error(result.error || 'Call failed');
+        return;
+      }
       addRecentCall({
         to: phone,
         contactName: lead.contactName || undefined,
         address: lead.address,
         callSid: result.callSid,
-        status: result.configured ? 'completed' : 'placeholder',
+        status: result.status === 'error' ? 'failed' : result.configured ? 'completed' : 'placeholder',
         duration: 0,
         startedAt: new Date().toISOString(),
         leadId: lead.id,

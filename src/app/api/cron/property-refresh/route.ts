@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyJobRequest } from '@/lib/jobAuth';
 
 /**
  * POST /api/cron/property-refresh
@@ -9,18 +10,13 @@ import { createClient } from '@supabase/supabase-js';
  * 3. Triggers re-enrichment on leads not contacted in 7+ days
  *
  * Designed to run hourly via an external cron scheduler.
- * Protected by SEQUENCE_JOB_SECRET header.
+ * Protected by SEQUENCE_JOB_SECRET header (cron) or an authenticated admin session (UI).
  */
 
-function authCheck(req: NextRequest): boolean {
-  const secret = process.env.SEQUENCE_JOB_SECRET;
-  if (!secret) return true; // no secret configured — allow (dev mode)
-  return req.headers.get('x-job-secret') === secret;
-}
-
 export async function POST(req: NextRequest) {
-  if (!authCheck(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await verifyJobRequest(req);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.reason || 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = createClient(

@@ -1398,7 +1398,7 @@ function RolePlaysPanel({ rolePlays }: { rolePlays: RolePlay[] }) {
 // ─── Main Interview Mode Page ─────────────────────────────────────────────────
 
 export default function InterviewModePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, role } = useAuth();
   const router = useRouter();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
@@ -1408,9 +1408,10 @@ export default function InterviewModePage() {
   const [generatingScript, setGeneratingScript] = useState(false);
   const [activeTab, setActiveTab] = useState<'teleprompter' | 'roleplays' | 'upload'>('teleprompter');
   const [showUpload, setShowUpload] = useState(false);
+  const canAccessInterviewMode = role === 'admin' || role === 'owner';
 
   const fetchCandidates = useCallback(async () => {
-    if (!user) return;
+    if (!user || !canAccessInterviewMode) return;
     setLoadingCandidates(true);
     try {
       const res = await fetch('/api/candidates');
@@ -1421,12 +1422,20 @@ export default function InterviewModePage() {
     } finally {
       setLoadingCandidates(false);
     }
-  }, [user]);
+  }, [canAccessInterviewMode, user]);
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/login');
-    if (!authLoading && user) fetchCandidates();
-  }, [authLoading, fetchCandidates, router, user]);
+    if (authLoading) return;
+    if (!user) {
+      router.replace('/login');
+      return;
+    }
+    if (!canAccessInterviewMode) {
+      router.replace('/teleprompter');
+      return;
+    }
+    fetchCandidates();
+  }, [authLoading, canAccessInterviewMode, fetchCandidates, router, user]);
 
   const fetchCandidate = useCallback(async (id: string) => {
     setLoadingCandidate(true);
@@ -1471,7 +1480,7 @@ export default function InterviewModePage() {
   const script = selectedCandidate?.interview_script;
   const rolePlays = script?.rolePlays || [];
 
-  if (authLoading || !user) {
+  if (authLoading || !user || !canAccessInterviewMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="flex flex-col items-center gap-3 text-center">

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { resolveVariables } from '@/lib/services/variableResolutionService';
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 interface BulkEmailPayload {
   templateId: string;
@@ -39,11 +38,16 @@ interface EmailTemplate {
 }
 
 function fillVariables(text: string, lead: Lead, senderName: string): string {
+  const resolved = resolveVariables(
+    { contactName: lead.contact_name || '', address: lead.address || '', city: lead.city || '', state: lead.state || '' },
+    { senderName }
+  );
   return (text || '')
-    .replace(/\{\{contactName\}\}/g, lead.contact_name || 'there')
-    .replace(/\{\{senderName\}\}/g, senderName)
-    .replace(/\{\{address\}\}/g, lead.address || '')
+    .replace(/\{\{contactName\}\}/g, resolved.contactName)
+    .replace(/\{\{senderName\}\}/g, resolved.senderName || senderName)
+    .replace(/\{\{address\}\}/g, resolved.address)
     .replace(/\{\{city\}\}/g, lead.city || '')
+    .replace(/\{\{state\}\}/g, lead.state || '')
     .replace(/\{\{price\}\}/g, lead.price ? `$${lead.price.toLocaleString()}` : '')
     .replace(/\{\{beds\}\}/g, String(lead.beds || ''))
     .replace(/\{\{baths\}\}/g, String(lead.baths || ''))
@@ -51,7 +55,20 @@ function fillVariables(text: string, lead: Lead, senderName: string): string {
     .replace(/\{\{proposedRent\}\}/g, '')
     .replace(/\{\{leaseTerm\}\}/g, '')
     .replace(/\{\{proposedStartDate\}\}/g, '')
-    .replace(/\{\{localBlurb\}\}/g, '');
+    .replace(/\{\{localBlurb\}\}/g, resolved.localBlurb);
+}
+
+function extractTemplateText(body: string): string {
+  try {
+    const parsed = JSON.parse(body);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((block: { content?: string }) => block.content || '')
+        .filter(Boolean)
+        .join('\n\n');
+    }
+  } catch { /* plain text template */ }
+  return body || '';
 }
 
 function buildHtml(body: string): string {
@@ -78,7 +95,9 @@ function buildHtml(body: string): string {
 export async function POST(req: NextRequest) {
   try {
     const body: BulkEmailPayload = await req.json();
-    const { templateId, leadIds, senderName = 'TRAVLR Team', senderEmail = 'onboarding@resend.dev', dryRun = false } = body;
+    const { templateId, leadIds, senderName = process.env.RESEND_FROM_NAME || 'TRAVLR Team', dryRun = false } = body;
+    const resend = getResendClient();
+    const from = getResendFrom();
 
     if (!templateId || !leadIds?.length) {
       return NextResponse.json({ success: false, error: 'Missing templateId or leadIds' }, { status: 400 });
@@ -142,6 +161,7 @@ export async function POST(req: NextRequest) {
         skippedReasons,
         templateName: tpl.name,
         sampleSubject: eligible[0] ? fillVariables(tpl.subject, eligible[0], senderName) : tpl.subject,
+        sampleBody: eligible[0] ? fillVariables(extractTemplateText(tpl.body), eligible[0], senderName) : extractTemplateText(tpl.body),
       });
     }
 
@@ -153,13 +173,13 @@ export async function POST(req: NextRequest) {
 
     for (const lead of eligible) {
       const filledSubject = fillVariables(tpl.subject, lead, senderName);
-      const filledBody = fillVariables(tpl.body, lead, senderName);
+      const filledBody = fillVariables(extractTemplateText(tpl.body), lead, senderName);
       const html = buildHtml(filledBody).replace('{{unsubscribeUrl}}', '#');
       const eventTimestamp = new Date().toISOString();
 
       try {
         const { data: emailData, error: emailErr } = await resend.emails.send({
-          from: `${senderName} <${senderEmail}>`,
+          from,
           to: [lead.email!],
           subject: filledSubject,
           html,

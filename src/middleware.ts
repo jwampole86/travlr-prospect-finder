@@ -100,6 +100,7 @@ const ADMIN_ONLY_ROUTES = [
   '/credential-manager',
   '/admin-roles',
   '/base44-submissions',
+  '/teleprompter/interview',
   '/candidate-profiles',
   '/candidate-kanban',
   '/candidate-tracker',
@@ -183,11 +184,11 @@ export function middleware(req: NextRequest) {
   // For page routes: redirect agents away from admin-only pages
   const roleCookie = req.cookies.get('travlr_role')?.value;
 
-  if (roleCookie === 'agent') {
-    const isAdminRoute = ADMIN_ONLY_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'));
-    if (isAdminRoute) {
-      return NextResponse.redirect(new URL('/agent-workspace', req.url));
-    }
+  const isAdminRoute = ADMIN_ONLY_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'));
+  const isAdminLikeRole = roleCookie === 'admin' || roleCookie === 'owner';
+  if (roleCookie && !isAdminLikeRole && isAdminRoute) {
+    const redirectPath = roleCookie === 'homeowner' ? '/homeowner' : '/agent-workspace';
+    return NextResponse.redirect(new URL(redirectPath, req.url));
   }
 
   return NextResponse.next();

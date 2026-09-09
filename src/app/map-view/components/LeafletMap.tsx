@@ -18,6 +18,15 @@ const regColors: Record<RegulationStatus, string> = {
 
 const MAP_CONTAINER_ID = 'travlr-leaflet-map';
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,6 +36,7 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
 
   useEffect(() => {
     if (!mapRef.current) return;
+    let cancelled = false;
 
     // Prevent double-init (React Strict Mode / hot reload)
     if (mapInstanceRef.current) {
@@ -37,7 +47,7 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
 
     // BACKEND: Replace static leads with live data from /api/leads?view=map
     import('leaflet').then((L) => {
-      if (!mapRef.current) return;
+      if (!mapRef.current || cancelled) return;
 
       // Clear any Leaflet state left on the DOM node (must happen inside async callback)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,9 +78,11 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
 
       mapInstanceRef.current = map;
 
-      // Add markers for initial leads
+      // Add markers for the current lead set
+      const bounds: [number, number][] = [];
       leads.forEach((lead) => {
         if (lead.lat == null || lead.lng == null || isNaN(lead.lat) || isNaN(lead.lng)) return;
+        bounds.push([lead.lat, lead.lng]);
         const color = regColors[lead.regulationStatus];
         const icon = L.divIcon({
           className: '',
@@ -105,8 +117,8 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
           .addTo(map)
           .bindPopup(`
             <div style="font-family: system-ui; min-width: 180px;">
-              <strong style="font-size: 13px;">${lead.address}</strong>
-              <p style="margin: 4px 0; font-size: 11px; color: #64748b;">${lead.city}, ${lead.state}</p>
+              <strong style="font-size: 13px;">${escapeHtml(lead.address)}</strong>
+              <p style="margin: 4px 0; font-size: 11px; color: #64748b;">${escapeHtml(lead.city)}, ${escapeHtml(lead.state)}</p>
               <div style="display: flex; gap: 8px; font-size: 11px; margin-top: 4px;">
                 <span>${lead.beds}bd/${lead.baths}ba</span>
                 <span style="font-weight: 600;">$${lead.price.toLocaleString()}/mo</span>
@@ -123,9 +135,16 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
 
         markersRef.current.set(lead.id, marker);
       });
+
+      if (bounds.length === 1) {
+        map.setView(bounds[0], 12);
+      } else if (bounds.length > 1) {
+        map.fitBounds(bounds, { padding: [32, 32], maxZoom: 12 });
+      }
     });
 
     return () => {
+      cancelled = true;
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -133,7 +152,7 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [leads, onSelect]);
 
   // Fly to selected lead
   useEffect(() => {

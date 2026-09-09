@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 export async function POST(req: NextRequest) {
   try {
     const { sessionId, candidateName, roleTitle, scheduledAt, zoomLink, candidateEmail, interviewerName } = await req.json();
-
-    if (!RESEND_API_KEY) {
-      return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
-    }
 
     const dateStr = new Date(scheduledAt).toLocaleDateString('en-US', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -46,23 +41,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'No recipient email — skipped sending', skipped: true });
     }
 
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'onboarding@resend.dev',
-        to: recipients.map(r => r.email),
-        subject: `Interview Reminder: ${roleTitle} — ${dateStr} at ${timeStr}`,
-        html: emailHtml,
-      }),
+    const { error } = await getResendClient().emails.send({
+      from: getResendFrom(),
+      to: recipients.map(r => r.email),
+      subject: `Interview Reminder: ${roleTitle} — ${dateStr} at ${timeStr}`,
+      html: emailHtml,
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return NextResponse.json({ error: err.message || 'Email send failed' }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error: error.message || 'Email send failed' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, sessionId });

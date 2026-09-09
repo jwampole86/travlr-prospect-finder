@@ -139,6 +139,15 @@ function CounterCell({ value, label, isError = false }: { value: number | null; 
   );
 }
 
+function sourceCounterValue(source: TruliaSourceConfig, value: number | null): number | null {
+  const sourceAccessUnavailable =
+    source.health_status === 'SOURCE_ERROR' &&
+    (source.last_error?.includes('SOURCE_ACCESS_UNAVAILABLE') || source.validation_status === 'SOURCE_ACCESS_UNAVAILABLE');
+
+  if (sourceAccessUnavailable && value === -1) return 0;
+  return value;
+}
+
 function formatRelativeTime(iso: string | null): string {
   if (!iso) return '—';
   const diff = Date.now() - new Date(iso).getTime();
@@ -169,6 +178,8 @@ export default function TruliaSourceHealthPage() {
   const [tracing, setTracing] = useState(false);
   const [auditRunning, setAuditRunning] = useState(false);
   const [auditResults, setAuditResults] = useState<Record<string, unknown> | null>(null);
+  const [validationSummary, setValidationSummary] = useState<{ total: number; valid: number; invalid: number } | null>(null);
+  const [repairingConfigs, setRepairingConfigs] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -181,12 +192,7 @@ export default function TruliaSourceHealthPage() {
     setLoading(true);
     try {
       const [configsRes, runsRes] = await Promise.all([
-        supabase
-          .from('trulia_source_configs')
-          .select('*')
-          .order('state_code')
-          .order('source_tier')
-          .order('minimum_rent'),
+        fetch('/api/trulia/ingest?action=validate').then((res) => res.json()),
         supabase
           .from('trulia_sync_runs')
           .select('*')
@@ -194,7 +200,8 @@ export default function TruliaSourceHealthPage() {
           .limit(20),
       ]);
 
-      setConfigs((configsRes.data || []) as TruliaSourceConfig[]);
+      setConfigs((configsRes.configs || []) as TruliaSourceConfig[]);
+      setValidationSummary(configsRes.summary || null);
       setSyncRuns((runsRes.data || []) as SyncRun[]);
     } catch (err) {
       toast.error('Failed to load source data');
@@ -218,6 +225,21 @@ export default function TruliaSourceHealthPage() {
   });
 
   const uniqueStates = [...new Set(configs.map((c) => c.state_code))].sort();
+
+  const repairConfigs = async () => {
+    setRepairingConfigs(true);
+    try {
+      const res = await fetch('/api/trulia/ingest?action=repair-configs');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Repair failed');
+      toast.success(`Revalidated ${data.repaired || 0} Trulia configs`);
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to repair configs');
+    } finally {
+      setRepairingConfigs(false);
+    }
+  };
 
   // ── Summary stats ─────────────────────────────────────────────────────────
   const totalSources = configs.length;
@@ -426,6 +448,12 @@ export default function TruliaSourceHealthPage() {
             <p className="text-sm text-muted-foreground mt-1">
               End-to-end validation: Source Config → Fetch → Parse → Normalize → Validate → Dedup → Upsert → Provenance → Portfolio → Dashboard
             </p>
+            {validationSummary && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Config validation: <span className="font-semibold text-foreground">{validationSummary.valid}</span> valid / <span className="font-semibold text-foreground">{validationSummary.total}</span> total
+                {validationSummary.invalid > 0 && <span className="text-amber-600"> · {validationSummary.invalid} need review</span>}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -443,6 +471,14 @@ export default function TruliaSourceHealthPage() {
             >
               <Shield size={14} />
               Validate All
+            </button>
+            <button
+              onClick={repairConfigs}
+              disabled={repairingConfigs || syncing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted/50 transition-colors disabled:opacity-50"
+            >
+              {repairingConfigs ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+              Repair Configs
             </button>
             <button
               onClick={() => runSync({})}
@@ -586,7 +622,11 @@ export default function TruliaSourceHealthPage() {
                     ) : filteredConfigs.map((src) => {
                       const hc = HEALTH_CONFIG[src.health_status] || HEALTH_CONFIG.UNKNOWN;
                       const isExpanded = expandedSource === src.source_id;
-                      const totalRejected = (src.last_rejected_invalid ?? 0) + (src.last_rejected_wrong_state ?? 0) + (src.last_rejected_filter_mismatch ?? 0);
+                      const totalRejected =
+                        (sourceCounterValue(src, src.last_rejected_invalid) ?? 0) +
+                        (sourceCounterValue(src, src.last_rejected_wrong_state) ?? 0) +
+                        (sourceCounterValue(src, src.last_rejected_filter_mismatch) ?? 0);
+                      const errorsCount = sourceCounterValue(src, src.last_errors_count) ?? 0;
                       return (
                         <React.Fragment key={src.source_id}>
                           <tr
@@ -613,13 +653,13 @@ export default function TruliaSourceHealthPage() {
                             </td>
                             <td className="px-4 py-3 text-center text-xs text-muted-foreground">{formatRelativeTime(src.last_attempt_at)}</td>
                             <td className="px-4 py-3 text-center text-xs text-muted-foreground">{formatRelativeTime(src.last_successful_ingestion_at)}</td>
-                            <td className="px-4 py-3 text-center"><CounterCell value={src.last_source_results_returned} label="" /></td>
-                            <td className="px-4 py-3 text-center"><CounterCell value={src.last_filter_validated} label="" /></td>
-                            <td className="px-4 py-3 text-center"><CounterCell value={src.last_new_prospects_inserted} label="" /></td>
-                            <td className="px-4 py-3 text-center"><CounterCell value={src.last_existing_prospects_updated} label="" /></td>
-                            <td className="px-4 py-3 text-center"><CounterCell value={src.last_duplicates_merged} label="" /></td>
+                            <td className="px-4 py-3 text-center"><CounterCell value={sourceCounterValue(src, src.last_source_results_returned)} label="" /></td>
+                            <td className="px-4 py-3 text-center"><CounterCell value={sourceCounterValue(src, src.last_filter_validated)} label="" /></td>
+                            <td className="px-4 py-3 text-center"><CounterCell value={sourceCounterValue(src, src.last_new_prospects_inserted)} label="" /></td>
+                            <td className="px-4 py-3 text-center"><CounterCell value={sourceCounterValue(src, src.last_existing_prospects_updated)} label="" /></td>
+                            <td className="px-4 py-3 text-center"><CounterCell value={sourceCounterValue(src, src.last_duplicates_merged)} label="" /></td>
                             <td className="px-4 py-3 text-center"><CounterCell value={totalRejected} label="" isError={totalRejected > 0} /></td>
-                            <td className="px-4 py-3 text-center"><CounterCell value={src.last_errors_count} label="" isError={(src.last_errors_count ?? 0) > 0} /></td>
+                            <td className="px-4 py-3 text-center"><CounterCell value={errorsCount} label="" isError={errorsCount > 0} /></td>
                             <td className="px-4 py-3 text-center">
                               <div className="flex items-center justify-center gap-1">
                                 <button

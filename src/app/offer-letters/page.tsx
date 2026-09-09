@@ -19,12 +19,14 @@ interface BenefitItem {
 }
 
 interface OfferLetterForm {
+  candidateId?: string;
   candidateName: string;
   candidateEmail: string;
   roleTitle: string;
   department: string;
   salary: string;
   salaryType: 'annual' | 'hourly';
+  employmentType: string;
   startDate: string;
   reportingTo: string;
   workLocation: string;
@@ -62,9 +64,50 @@ const DEFAULT_BENEFITS: BenefitItem[] = [
   { id: 'parental', label: 'Parental Leave (12 weeks paid)', included: false },
 ];
 
+const TRAVLR_LOGO_URL = '/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG';
+
+function toDateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function getDefaultStartDate() {
+  const next = addDays(new Date(), 14);
+  while (next.getDay() !== 1) next.setDate(next.getDate() + 1);
+  return toDateInputValue(next);
+}
+
+function getDefaultOfferExpiryDate(startDate: string) {
+  const today = new Date();
+  const defaultExpiry = addDays(today, 7);
+  if (!startDate) return toDateInputValue(defaultExpiry);
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const oneWeekBeforeStart = addDays(start, -7);
+  const expiry = oneWeekBeforeStart < defaultExpiry && oneWeekBeforeStart > today
+    ? oneWeekBeforeStart
+    : defaultExpiry;
+  return toDateInputValue(expiry);
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ─── Offer Letter Generator ────────────────────────────────────────────────────
 
 function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[]): GeneratedLetter {
+  const safe = (value: string) => escapeHtml(value || '');
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const startFormatted = form.startDate
     ? new Date(form.startDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -76,34 +119,38 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
     ? `$${Number(form.salary.replace(/,/g, '')).toLocaleString()} ${form.salaryType === 'annual' ? 'per year' : 'per hour'}`
     : '[Compensation]';
   const includedBenefits = benefits.filter(b => b.included);
+  const firstPayrollDate = form.startDate
+    ? addDays(new Date(form.startDate + 'T00:00:00'), 14).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : '[First Payroll Date]';
+  const logoUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}${TRAVLR_LOGO_URL}`;
 
   const html = `
-<div style="font-family: Georgia, serif; max-width: 680px; margin: 0 auto; padding: 48px; color: #1a1a1a; line-height: 1.7;">
+<div style="font-family: Georgia, 'Times New Roman', serif; max-width: 720px; margin: 0 auto; padding: 48px; color: #172033; line-height: 1.7; background: #ffffff;">
   <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e5e7eb;">
-    <div style="width: 48px; height: 48px; background: #111827; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-      <span style="color: white; font-size: 20px; font-weight: bold;">T</span>
-    </div>
+    <img src="${logoUrl}" alt="TRAVLR Vacation Homes" style="width: 58px; height: 58px; object-fit: contain; border-radius: 14px;" />
     <div>
-      <div style="font-size: 20px; font-weight: 700; color: #111827; letter-spacing: -0.5px;">TRAVLR Inc.</div>
-      <div style="font-size: 13px; color: #6b7280;">Short-Term Rental Management</div>
+      <div style="font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.4px;">TRAVLR Vacation Homes</div>
+      <div style="font-size: 13px; color: #6b7280;">Ultra-Luxury Vacation Rental Management</div>
     </div>
   </div>
 
   <p style="color: #6b7280; font-size: 14px; margin-bottom: 32px;">${today}</p>
 
-  <p style="font-size: 16px; margin-bottom: 8px;">Dear <strong>${form.candidateName || '[Candidate Name]'}</strong>,</p>
+  <p style="font-size: 16px; margin-bottom: 8px;">Dear <strong>${safe(form.candidateName) || '[Candidate Name]'}</strong>,</p>
 
-  <p style="margin-bottom: 20px;">We are thrilled to extend this offer of employment to you for the position of <strong>${form.roleTitle || '[Role Title]'}</strong>${form.department ? ` within our <strong>${form.department}</strong> team` : ''}. After a thorough interview process, we are confident that your skills and experience make you an excellent fit for TRAVLR.</p>
+  <p style="margin-bottom: 20px;">We are pleased to extend this offer of employment to you for the position of <strong>${safe(form.roleTitle) || '[Role Title]'}</strong>${form.department ? ` within our <strong>${safe(form.department)}</strong> team` : ''}. After a thorough interview process, we are confident that your skills, judgment, and experience make you an excellent fit for TRAVLR.</p>
 
   <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 28px 0;">
     <h3 style="font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #374151; margin: 0 0 16px 0;">Offer Details</h3>
     <table style="width: 100%; border-collapse: collapse;">
-      <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px; width: 40%;">Position</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${form.roleTitle || '—'}</td></tr>
-      ${form.department ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Department</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${form.department}</td></tr>` : ''}
+      <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px; width: 40%;">Position</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${safe(form.roleTitle) || '—'}</td></tr>
+      ${form.department ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Department</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${safe(form.department)}</td></tr>` : ''}
+      <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Employment Type</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${safe(form.employmentType)}</td></tr>
       <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Compensation</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600; color: #059669;">${salaryDisplay}</td></tr>
       <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Start Date</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${startFormatted}</td></tr>
-      ${form.reportingTo ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Reports To</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${form.reportingTo}</td></tr>` : ''}
-      ${form.workLocation ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Work Location</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${form.workLocation}</td></tr>` : ''}
+      <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Projected First Payroll</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${firstPayrollDate}</td></tr>
+      ${form.reportingTo ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Reports To</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${safe(form.reportingTo)}</td></tr>` : ''}
+      ${form.workLocation ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Work Location</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${safe(form.workLocation)}</td></tr>` : ''}
     </table>
   </div>
 
@@ -111,13 +158,15 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
   <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin: 28px 0 12px 0;">Benefits Package</h3>
   <p style="margin-bottom: 12px; color: #374151;">As a full-time member of the TRAVLR team, you will be eligible for the following benefits:</p>
   <ul style="margin: 0 0 20px 0; padding-left: 20px; color: #374151;">
-    ${includedBenefits.map(b => `<li style="margin-bottom: 6px; font-size: 14px;">${b.label}</li>`).join('')}
+    ${includedBenefits.map(b => `<li style="margin-bottom: 6px; font-size: 14px;">${safe(b.label)}</li>`).join('')}
   </ul>
   ` : ''}
 
-  <p style="margin-bottom: 16px;">This offer is contingent upon successful completion of a background check and your execution of TRAVLR's standard confidentiality and intellectual property agreement.</p>
+  <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin: 28px 0 12px 0;">Important Terms</h3>
+  <p style="margin-bottom: 12px;">This offer is contingent upon successful completion of any required background check, reference checks, employment eligibility verification, and your execution of TRAVLR's standard confidentiality, intellectual property, and policy acknowledgements.</p>
+  <p style="margin-bottom: 16px;">Employment with TRAVLR is at-will. Either you or TRAVLR may end the employment relationship at any time, with or without cause or notice, subject to applicable law.</p>
 
-  ${form.additionalNotes ? `<p style="margin-bottom: 16px; padding: 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 14px; color: #92400e;">${form.additionalNotes}</p>` : ''}
+  ${form.additionalNotes ? `<p style="margin-bottom: 16px; padding: 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 14px; color: #92400e;">${safe(form.additionalNotes)}</p>` : ''}
 
   <p style="margin-bottom: 8px;">Please indicate your acceptance of this offer by signing and returning this letter by <strong>${expiryFormatted}</strong>.</p>
 
@@ -128,14 +177,14 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
   <p style="color: #6b7280; font-size: 14px; margin-bottom: 40px;">Head of People Operations · TRAVLR Inc.</p>
 
   <div style="border-top: 1px solid #e5e7eb; padding-top: 32px; margin-top: 32px;">
-    <p style="font-size: 13px; color: #6b7280; margin-bottom: 24px;">By signing below, I, <strong>${form.candidateName || '[Candidate Name]'}</strong>, accept the terms of this offer of employment.</p>
+    <p style="font-size: 13px; color: #6b7280; margin-bottom: 24px;">By signing below, I, <strong>${safe(form.candidateName) || '[Candidate Name]'}</strong>, accept the terms of this offer of employment.</p>
     <div style="display: flex; gap: 48px;">
       <div>
-        <div style="border-bottom: 1px solid #374151; width: 200px; margin-bottom: 6px; height: 32px;"></div>
+        <div style="border-bottom: 1px solid #374151; width: 200px; margin-bottom: 6px; height: 32px;"><span style="color:#fff;font-size:1px;">[CANDIDATE_SIGNATURE_1]</span></div>
         <p style="font-size: 12px; color: #6b7280;">Candidate Signature</p>
       </div>
       <div>
-        <div style="border-bottom: 1px solid #374151; width: 160px; margin-bottom: 6px; height: 32px;"></div>
+        <div style="border-bottom: 1px solid #374151; width: 160px; margin-bottom: 6px; height: 32px;"><span style="color:#fff;font-size:1px;">[CANDIDATE_DATE_1]</span></div>
         <p style="font-size: 12px; color: #6b7280;">Date</p>
       </div>
     </div>
@@ -143,7 +192,7 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
 </div>
   `.trim();
 
-  const plain = `OFFER OF EMPLOYMENT — TRAVLR Inc.\n${today}\n\nDear ${form.candidateName || '[Candidate Name]'},\n\nWe are thrilled to extend this offer for the position of ${form.roleTitle || '[Role Title]'}${form.department ? ` in our ${form.department} team` : ''}.\n\nOFFER DETAILS\nPosition: ${form.roleTitle || '—'}\nCompensation: ${salaryDisplay}\nStart Date: ${startFormatted}\n${form.reportingTo ? `Reports To: ${form.reportingTo}\n` : ''}${form.workLocation ? `Work Location: ${form.workLocation}\n` : ''}\n${includedBenefits.length > 0 ? `BENEFITS\n${includedBenefits.map(b => `• ${b.label}`).join('\n')}\n\n` : ''}Please accept by ${expiryFormatted}.\n\nWarm regards,\nJennifer Wampole\nHead of People Operations · TRAVLR Inc.`;
+  const plain = `OFFER OF EMPLOYMENT — TRAVLR Vacation Homes\n${today}\n\nDear ${form.candidateName || '[Candidate Name]'},\n\nWe are pleased to extend this offer for the position of ${form.roleTitle || '[Role Title]'}${form.department ? ` in our ${form.department} team` : ''}.\n\nOFFER DETAILS\nPosition: ${form.roleTitle || '—'}\nEmployment Type: ${form.employmentType}\nCompensation: ${salaryDisplay}\nStart Date: ${startFormatted}\nProjected First Payroll: ${firstPayrollDate}\n${form.reportingTo ? `Reports To: ${form.reportingTo}\n` : ''}${form.workLocation ? `Work Location: ${form.workLocation}\n` : ''}\n${includedBenefits.length > 0 ? `BENEFITS\n${includedBenefits.map(b => `- ${b.label}`).join('\n')}\n\n` : ''}Please accept by ${expiryFormatted}.\n\nWarm regards,\nJennifer Wampole\nHead of People Operations · TRAVLR Inc.`;
 
   return { html, plain };
 }
@@ -151,30 +200,17 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
 // ─── DocuSign Send ────────────────────────────────────────────────────────────
 
 async function sendViaDocuSign(form: OfferLetterForm, letterHtml: string): Promise<{ envelopeId: string }> {
-  const res = await fetch('/api/docusign/create-envelope', {
+  const res = await fetch('/api/docusign/create-offer-envelope', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      leadId: `offer-${Date.now()}`,
-      leadAddress: `Offer Letter — ${form.candidateName}`,
-      signers: [
-        {
-          name: form.candidateName,
-          email: form.candidateEmail,
-          clientUserId: `candidate-${Date.now()}`,
-          recipientId: '1',
-          order: 1,
-        },
-      ],
-      prefill: {
-        homeownerName: form.candidateName,
-        homeownerEmail: form.candidateEmail,
-        propertyAddress: `${form.roleTitle} — TRAVLR Inc.`,
-        managementFeePercent: form.salary,
-        termLengthMonths: '12',
-        payoutSchedule: form.salaryType === 'annual' ? 'Bi-weekly' : 'Weekly',
-      },
-      agentNotes: `Offer Letter for ${form.roleTitle}. Start: ${form.startDate}. ${form.additionalNotes || ''}`.trim(),
+      candidateId: form.candidateId,
+      candidateName: form.candidateName,
+      candidateEmail: form.candidateEmail,
+      roleTitle: form.roleTitle,
+      startDate: form.startDate,
+      offerExpiryDate: form.offerExpiryDate,
+      letterHtml,
     }),
   });
 
@@ -218,16 +254,18 @@ function OfferLettersInner() {
   const searchParams = useSearchParams();
 
   const [form, setForm] = useState<OfferLetterForm>({
+    candidateId: undefined,
     candidateName: '',
     candidateEmail: '',
     roleTitle: '',
     department: '',
     salary: '',
     salaryType: 'annual',
-    startDate: '',
+    employmentType: 'Full-time, at-will employment',
+    startDate: getDefaultStartDate(),
     reportingTo: '',
     workLocation: 'Remote',
-    offerExpiryDate: '',
+    offerExpiryDate: getDefaultOfferExpiryDate(getDefaultStartDate()),
     additionalNotes: '',
   });
   const [benefits, setBenefits] = useState<BenefitItem[]>(DEFAULT_BENEFITS);
@@ -239,42 +277,103 @@ function OfferLettersInner() {
   const [sent, setSent] = useState<{ envelopeId: string } | null>(null);
   const [prefillBanner, setPrefillBanner] = useState('');
 
-  // Pre-fill from URL params (coming from Interview Mode)
+  // Pre-fill from URL params or a hired candidate record
   useEffect(() => {
+    const candidateId = searchParams.get('candidateId');
     const candidateName = searchParams.get('candidateName');
+    const candidateEmail = searchParams.get('candidateEmail');
     const roleTitle = searchParams.get('roleTitle');
     const salary = searchParams.get('salary');
     const salaryType = searchParams.get('salaryType') as 'annual' | 'hourly' | null;
+    const startDate = searchParams.get('startDate');
     const score = searchParams.get('score');
     const benefitsParam = searchParams.get('benefits');
     const source = searchParams.get('source');
 
-    if (source === 'interview' && (candidateName || roleTitle)) {
-      setForm(prev => ({
-        ...prev,
-        candidateName: candidateName || prev.candidateName,
-        roleTitle: roleTitle || prev.roleTitle,
-        salary: salary || prev.salary,
-        salaryType: salaryType || prev.salaryType,
-      }));
+    const hydrateFromCandidate = async () => {
+      if (!candidateId) return false;
+      const res = await fetch(`/api/candidates/${candidateId}`);
+      if (!res.ok) return false;
+      const data = await res.json();
+      const candidate = data.candidate || {};
+      const defaultStart = startDate || getDefaultStartDate();
+      const nextForm: OfferLetterForm = {
+        candidateId,
+        candidateName: candidate.full_name || candidateName || '',
+        candidateEmail: candidate.email || candidateEmail || '',
+        roleTitle: roleTitle || 'Homeowner Outreach Agent',
+        department: 'Homeowner Partnerships',
+        salary: salary || '',
+        salaryType: salaryType || 'annual',
+        employmentType: 'Full-time, at-will employment',
+        startDate: defaultStart,
+        reportingTo: 'Jennifer Wampole',
+        workLocation: 'Remote',
+        offerExpiryDate: getDefaultOfferExpiryDate(defaultStart),
+        additionalNotes: candidate.latest_scorecard_average
+          ? `Interview score: ${candidate.latest_scorecard_average}. Candidate marked hired in the recruiting pipeline.`
+          : 'Candidate marked hired in the recruiting pipeline.',
+      };
 
-      if (benefitsParam) {
-        const enabledIds = benefitsParam.split(',');
-        setBenefits(prev => prev.map(b => ({ ...b, included: enabledIds.includes(b.id) })));
-      }
+      setForm(nextForm);
+      setGenerated(generateOfferLetterHTML(nextForm, benefits));
+      setSent(null);
+      setPrefillBanner(`Drafted offer letter for hired candidate: ${nextForm.candidateName}`);
+      return true;
+    };
 
-      const parts: string[] = [];
-      if (candidateName) parts.push(candidateName);
-      if (roleTitle) parts.push(roleTitle);
-      if (score) parts.push(`Score: ${score}`);
-      if (parts.length > 0) {
-        setPrefillBanner(`Pre-filled from interview: ${parts.join(' · ')}`);
+    hydrateFromCandidate().then((hydrated) => {
+      if (hydrated) return;
+
+      if ((source === 'interview' || source === 'hired') && (candidateName || roleTitle)) {
+        const nextStart = startDate || form.startDate || getDefaultStartDate();
+        const nextForm = {
+          ...form,
+          candidateId: candidateId || form.candidateId,
+          candidateName: candidateName || form.candidateName,
+          candidateEmail: candidateEmail || form.candidateEmail,
+          roleTitle: roleTitle || form.roleTitle || 'Homeowner Outreach Agent',
+          salary: salary || form.salary,
+          salaryType: salaryType || form.salaryType,
+          startDate: nextStart,
+          offerExpiryDate: getDefaultOfferExpiryDate(nextStart),
+        };
+        setForm(nextForm);
+        if (source === 'hired') setGenerated(generateOfferLetterHTML(nextForm, benefits));
+
+        const parts: string[] = [];
+        if (candidateName) parts.push(candidateName);
+        if (roleTitle) parts.push(roleTitle);
+        if (score) parts.push(`Score: ${score}`);
+        if (parts.length > 0) {
+          setPrefillBanner(`${source === 'hired' ? 'Drafted from hired candidate' : 'Pre-filled from interview'}: ${parts.join(' · ')}`);
+        }
       }
+    });
+
+    if (benefitsParam) {
+      const enabledIds = benefitsParam.split(',');
+      setBenefits(prev => prev.map(b => ({ ...b, included: enabledIds.includes(b.id) })));
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (!form.startDate) return;
+    setForm(prev => {
+      if (prev.offerExpiryDate) return prev;
+      return {
+        ...prev,
+        offerExpiryDate: getDefaultOfferExpiryDate(prev.startDate),
+      };
+    });
+  }, [form.startDate]);
+
   const updateForm = (key: keyof OfferLetterForm, value: string) => {
-    setForm(prev => ({ ...prev, [key]: value }));
+    setForm(prev => {
+      const next = { ...prev, [key]: value };
+      if (key === 'startDate') next.offerExpiryDate = getDefaultOfferExpiryDate(value);
+      return next;
+    });
     setGenerated(null);
     setSent(null);
   };
@@ -446,6 +545,21 @@ function OfferLettersInner() {
                       className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Employment Type</label>
+                    <select
+                      value={form.employmentType}
+                      onChange={e => updateForm('employmentType', e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                    >
+                      <option value="Full-time, at-will employment">Full-time, at-will</option>
+                      <option value="Part-time, at-will employment">Part-time, at-will</option>
+                      <option value="Contractor engagement, subject to contractor agreement">Contractor</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Reports To</label>
                     <input

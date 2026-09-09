@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 /**
  * POST /api/cadence/notify-escalation
@@ -8,7 +8,6 @@ import { Resend } from 'resend';
  * when a lead hits human_outreach stage.
  */
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
 
 export async function POST(req: NextRequest) {
@@ -153,8 +152,8 @@ export async function POST(req: NextRequest) {
         </html>
       `;
 
-      const { error: emailErr } = await resend.emails.send({
-        from: 'TRAVLR <onboarding@resend.dev>',
+      const { error: emailErr } = await getResendClient().emails.send({
+        from: getResendFrom(),
         to: [agentEmail],
         subject: `🔥 Warm Lead Ready: ${leadName} — ${propertyAddress}`,
         html: emailHtml,

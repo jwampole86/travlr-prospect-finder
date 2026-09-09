@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { OUTREACH_BIZDEV_JOB_DESCRIPTION } from '@/lib/roles/outreachBizDevRole';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const TARGET_ROLE = `Homeowner Outreach & Business Development Agent at TRAVLR Vacation Homes.
-Core responsibilities: call homeowner leads, develop homeowner relationships, conduct consultative discovery,
-explain TRAVLR Vacation Homes, qualify homeowners, discuss vacation-rental/property-management needs,
-handle objections, perform follow-ups, move qualified leads through pipeline, maintain detailed CRM notes,
-coordinate handoff, use teleprompter/call intelligence, work remotely, represent a boutique luxury vacation-rental brand.`;
+const TARGET_ROLE = OUTREACH_BIZDEV_JOB_DESCRIPTION;
 
 const CORE_COMPETENCIES = [
   'Vacation Rental Knowledge', 'Property Management Knowledge', 'Luxury Homeowner Communication',
-  'Outbound Calling Ability', 'Consultative Sales', 'Discovery / Questioning', 'Objection Handling',
+  'Warm-Lead Phone Communication', 'Consultative Sales', 'Discovery / Questioning', 'Objection Handling',
   'Closing Ability', 'Follow-Up Discipline', 'CRM / Pipeline Management', 'Relationship Building',
   'Professional Communication', 'Self-Motivation', 'Remote Work Discipline', 'Coachability',
   'Operational Understanding', 'Business Development', 'Judgment', 'Organization', 'Culture / Role Fit',
 ];
+
+const TRAVLR_COMPANY_POSITIONING = `TRAVLR Vacation Homes has spent the past 10 years as a premier partner for homeowners of ultra-luxury properties in California, managing multi-million-dollar vacation homes with high-touch care. The California desert portfolio has shown that TRAVLR can protect and elevate property value while producing substantial passive income for owners. TRAVLR is now bringing that approach to Aspen, Vail, Las Vegas, Miami, and Seattle. The operating model combines full-service property management, 5-star guest hospitality, dynamic revenue optimization, smart-home technology, compliance and permit support, robust marketing, weekly inspections, and transparent owner-portal reporting.`;
 
 // ─── Candidate-specific resume intelligence (source of truth from actual resumes) ───
 
@@ -260,7 +259,12 @@ export async function POST(req: NextRequest) {
     const intelligence = getCandidateIntelligence(fullName);
 
     const systemPrompt = `You are an expert interview coach for TRAVLR Vacation Homes, a boutique luxury vacation-rental brand.
-You generate highly personalized, evidence-based interview teleprompter scripts for the role of Homeowner Outreach & Business Development Agent.
+You generate highly personalized, evidence-based interview teleprompter scripts for the following role:
+
+${TARGET_ROLE}
+
+TRAVLR COMPANY POSITIONING FOR INTERVIEW CONTEXT:
+${TRAVLR_COMPANY_POSITIONING}
 
 CRITICAL RULES:
 1. Use ONLY information from the candidate's actual resume/profile. NEVER fabricate employers, metrics, or experience.
@@ -273,6 +277,8 @@ CRITICAL RULES:
 8. CRITICAL: Sections with sectionType "CONTEXT" are PRIVATE INTERVIEWER INTELLIGENCE — they are shown to the interviewer only and NEVER read aloud to the candidate. Use these for candidate analysis, resume highlights, and strategic notes.
 9. Sections with sectionType "SCRIPT" contain the actual teleprompter text the interviewer reads aloud.
 10. The Candidate Intelligence section (CONTEXT type) must be visually and structurally separate from the teleprompter script.
+11. Since leads are warm and pre-qualified (not cold-outbound), do not penalize candidates for lacking cold-prospecting experience — instead weight consultative phone communication, relationship building with high-net-worth homeowners, and follow-up/CRM discipline.
+12. Include the company positioning above in a private CONTEXT section and use it to frame at least one role-fit question about explaining TRAVLR's value to an ultra-luxury homeowner.
 
 CORE COMPETENCIES TO EVALUATE: ${CORE_COMPETENCIES.join(', ')}
 
@@ -350,7 +356,7 @@ ${candidateProfile}
 
 ${personalizedInstructions}
 
-The script must follow the 17-section TRAVLR structure:
+The script must follow the 18-section TRAVLR structure:
 
 A. CANDIDATE INTELLIGENCE (sectionType: "CONTEXT") — Private interviewer-only context. Include:
    - Resume highlights and key evidence
@@ -362,35 +368,37 @@ A. CANDIDATE INTELLIGENCE (sectionType: "CONTEXT") — Private interviewer-only 
 
 B. INTERVIEW STRATEGY (sectionType: "CONTEXT") — Private strategic notes for the interviewer
 
-C. OPENING (sectionType: "SCRIPT", isCore: true) — Standard TRAVLR opening
+C. TRAVLR COMPANY POSITIONING (sectionType: "CONTEXT") — Private interviewer-only context. Include the 10-year California ultra-luxury proof story, expansion markets, and the TRAVLR Difference. This section is NEVER read aloud verbatim.
 
-D. CAREER OVERVIEW (sectionType: "SCRIPT", isCore: true) — Standard career question, lightly personalized
+D. OPENING (sectionType: "SCRIPT", isCore: true) — Standard TRAVLR opening
 
-E. TRAVLR ROLE FIT (sectionType: "SCRIPT", isCore: true) — Standard role fit questions
+E. CAREER OVERVIEW (sectionType: "SCRIPT", isCore: true) — Standard career question, lightly personalized
 
-F. CANDIDATE-SPECIFIC DEEP DIVE (sectionType: "SCRIPT", isCore: false) — 30% personalized questions based on ACTUAL resume evidence. These must be meaningfully different for each candidate based on their specific work history.
+F. TRAVLR ROLE FIT (sectionType: "SCRIPT", isCore: true) — Standard role fit questions. Include one question that asks how the candidate would explain TRAVLR's decade of California ultra-luxury credibility and expansion into Aspen, Vail, Las Vegas, Miami, and Seattle to a homeowner.
 
-G. OUTBOUND SALES (sectionType: "SCRIPT", isCore: true) — Standard outbound questions
+G. CANDIDATE-SPECIFIC DEEP DIVE (sectionType: "SCRIPT", isCore: false) — 30% personalized questions based on ACTUAL resume evidence. These must be meaningfully different for each candidate based on their specific work history.
 
-H. HOMEOWNER CONVERSATION (sectionType: "SCRIPT", isCore: true) — Standard homeowner questions
+H. OUTBOUND SALES (sectionType: "SCRIPT", isCore: true) — Standard outbound questions
 
-I. VACATION RENTAL / PROPERTY MANAGEMENT (sectionType: "SCRIPT", isCore: true) — Standard VR/PM questions
+I. HOMEOWNER CONVERSATION (sectionType: "SCRIPT", isCore: true) — Standard homeowner questions
 
-J. OBJECTION HANDLING (sectionType: "SCRIPT", isCore: true) — Standard objection questions
+J. VACATION RENTAL / PROPERTY MANAGEMENT (sectionType: "SCRIPT", isCore: true) — Standard VR/PM questions
 
-K. ROLE-PLAY (sectionType: "SCRIPT", isCore: true) — Standard homeowner scenario
+K. OBJECTION HANDLING (sectionType: "SCRIPT", isCore: true) — Standard objection questions
 
-L. CRM + FOLLOW-UP (sectionType: "SCRIPT", isCore: true) — Standard CRM questions, personalized with their actual CRM systems
+L. ROLE-PLAY (sectionType: "SCRIPT", isCore: true) — Standard homeowner scenario
 
-M. REMOTE WORK / SELF-MANAGEMENT (sectionType: "SCRIPT", isCore: true) — Standard remote work questions
+M. CRM + FOLLOW-UP (sectionType: "SCRIPT", isCore: true) — Standard CRM questions, personalized with their actual CRM systems
 
-N. POTENTIAL CONCERNS TO VALIDATE (sectionType: "SCRIPT", isCore: false) — At least 2 questions specifically designed to test the identified concern
+N. REMOTE WORK / SELF-MANAGEMENT (sectionType: "SCRIPT", isCore: true) — Standard remote work questions
 
-O. CANDIDATE QUESTIONS (sectionType: "SCRIPT", isCore: true) — Standard candidate questions section
+O. POTENTIAL CONCERNS TO VALIDATE (sectionType: "SCRIPT", isCore: false) — At least 2 questions specifically designed to test the identified concern
 
-P. CLOSE (sectionType: "SCRIPT", isCore: true) — Standard close
+P. CANDIDATE QUESTIONS (sectionType: "SCRIPT", isCore: true) — Standard candidate questions section
 
-Q. INTERVIEWER SCORECARD NOTES (sectionType: "CONTEXT") — Private post-interview prompts
+Q. CLOSE (sectionType: "SCRIPT", isCore: true) — Standard close
+
+R. INTERVIEWER SCORECARD NOTES (sectionType: "CONTEXT") — Private post-interview prompts
 
 For section F (Candidate-Specific Deep Dive), generate questions DIRECTLY tied to this candidate's actual resume evidence. These must be meaningfully different from what you would generate for a different candidate.
 For section N, generate at least 2 questions specifically designed to test each identified concern.

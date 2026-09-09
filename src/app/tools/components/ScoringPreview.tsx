@@ -3,6 +3,7 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { ScoringWeights } from '../page';
+import { calculateProspectScore, DEFAULT_PROSPECT_SCORING_WEIGHTS } from '@/lib/scoring/prospectScoring';
 
 interface Props {
   weights: ScoringWeights;
@@ -13,85 +14,73 @@ const SAMPLE_LEADS = [
   {
     id: 'p1',
     address: '1420 Blake St, Denver CO',
-    price: 1800,
-    marketAvg: 2400,
+    estimatedNetMonthly: 7600,
+    beds: 4,
+    baths: 3,
     daysOnMarket: 3,
-    regulation: 'Allowed',
-    saturation: 'Low',
+    regulationStatus: 'Allowed',
+    verifiedOwner: true,
+    verifiedNumber: true,
+    verifiedAddress: true,
+    smsReplies: 1,
   },
   {
     id: 'p2',
     address: '3305 Colfax Ave, Denver CO',
-    price: 2200,
-    marketAvg: 2300,
+    estimatedNetMonthly: 4200,
+    beds: 3,
+    baths: 2,
     daysOnMarket: 21,
-    regulation: 'Restricted',
-    saturation: 'Medium',
+    regulationStatus: 'Restricted',
+    verifiedOwner: true,
+    verifiedNumber: true,
+    verifiedAddress: true,
+    emailClicks: 1,
   },
   {
     id: 'p3',
     address: '890 Broadway, Denver CO',
-    price: 3100,
-    marketAvg: 2800,
+    estimatedNetMonthly: 2400,
+    beds: 1,
+    baths: 1,
     daysOnMarket: 45,
-    regulation: 'Pending',
-    saturation: 'High',
+    regulationStatus: 'Unknown',
+    verifiedOwner: false,
+    verifiedNumber: false,
+    verifiedAddress: false,
   },
   {
     id: 'p4',
     address: '512 Larimer St, Denver CO',
-    price: 1600,
-    marketAvg: 2100,
+    estimatedNetMonthly: 5800,
+    beds: 2,
+    baths: 2,
     daysOnMarket: 8,
-    regulation: 'Allowed',
-    saturation: 'Low',
+    regulationStatus: 'Allowed',
+    verifiedOwner: true,
+    verifiedNumber: false,
+    verifiedAddress: true,
   },
   {
     id: 'p5',
     address: '2200 Speer Blvd, Denver CO',
-    price: 2800,
-    marketAvg: 2600,
+    estimatedNetMonthly: 9000,
+    beds: 5,
+    baths: 4,
     daysOnMarket: 60,
-    regulation: 'Banned',
-    saturation: 'High',
+    regulationStatus: 'Prohibited',
+    verifiedOwner: true,
+    verifiedNumber: true,
+    verifiedAddress: true,
   },
 ];
 
 function computeScore(lead: typeof SAMPLE_LEADS[0], weights: ScoringWeights): number {
-  // Price score: below market = higher score (competitive pricing)
-  const priceRatio = lead.marketAvg > 0 ? lead.price / lead.marketAvg : 1;
-  const priceScore = Math.max(0, Math.min(100, Math.round((2 - priceRatio) * 100)));
-
-  // DOM score: LONGER on market = HIGHER score
-  // Listings sitting 60+ days signal motivated sellers / undervalued properties
-  // Scale: 0 days → 0 pts, 30 days → ~50 pts, 60 days → ~83 pts, 90+ days → 100 pts
-  const domScore = Math.max(0, Math.min(100, Math.round((lead.daysOnMarket / 90) * 100)));
-
-  // Regulation score: STR-friendly status directly impacts viability
-  const regMap: Record<string, number> = { Allowed: 100, Restricted: 65, Pending: 35, Banned: 0, Unknown: 20 };
-  const regScore = regMap[lead.regulation] ?? 20;
-
-  // Saturation score: fewer competing STRs = better occupancy potential
-  const satMap: Record<string, number> = { Low: 100, Medium: 60, High: 20 };
-  const satScore = satMap[lead.saturation] ?? 50;
-
-  const total = weights.price + weights.daysOnMarket + weights.regulationStatus + weights.neighborhoodSaturation;
-  if (total === 0) return 0;
-
-  return Math.round(
-    (priceScore * weights.price +
-      domScore * weights.daysOnMarket +
-      regScore * weights.regulationStatus +
-      satScore * weights.neighborhoodSaturation) /
-      total
-  );
+  return calculateProspectScore(lead, weights).score;
 }
 
 const DEFAULT_WEIGHTS: ScoringWeights = {
-  price: 30,
-  daysOnMarket: 25,
-  regulationStatus: 30,
-  neighborhoodSaturation: 15,
+  ...DEFAULT_PROSPECT_SCORING_WEIGHTS,
 };
 
 function ScoreBadge({ score }: { score: number }) {
@@ -138,7 +127,7 @@ export default function ScoringPreview({ weights }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-foreground truncate">{lead.address}</p>
                   <p className="text-[10px] text-muted-foreground">
-                    {lead.regulation} · {lead.saturation} sat · {lead.daysOnMarket}d on market
+                    {lead.regulationStatus} · {lead.beds}bd/{lead.baths}ba · ${lead.estimatedNetMonthly.toLocaleString()}/mo · {lead.daysOnMarket}d
                   </p>
                 </div>
                 <div className="shrink-0 flex items-center gap-1">
@@ -170,17 +159,19 @@ export default function ScoringPreview({ weights }: Props) {
       <div className="bg-card rounded-xl border border-border p-5">
         <h2 className="text-sm font-semibold text-foreground mb-3">Weight Distribution</h2>
         <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
-          <div className="bg-blue-500 transition-all duration-300" style={{ width: `${weights.price}%` }} title={`Price: ${weights.price}%`} />
-          <div className="bg-amber-500 transition-all duration-300" style={{ width: `${weights.daysOnMarket}%` }} title={`DOM: ${weights.daysOnMarket}%`} />
-          <div className="bg-emerald-500 transition-all duration-300" style={{ width: `${weights.regulationStatus}%` }} title={`Regulation: ${weights.regulationStatus}%`} />
-          <div className="bg-purple-500 transition-all duration-300" style={{ width: `${weights.neighborhoodSaturation}%` }} title={`Saturation: ${weights.neighborhoodSaturation}%`} />
+          <div className="bg-blue-500 transition-all duration-300" style={{ width: `${weights.revenuePotential}%` }} title={`Revenue: ${weights.revenuePotential}%`} />
+          <div className="bg-amber-500 transition-all duration-300" style={{ width: `${weights.propertyFit}%` }} title={`Property Fit: ${weights.propertyFit}%`} />
+          <div className="bg-emerald-500 transition-all duration-300" style={{ width: `${weights.regulatoryFeasibility}%` }} title={`Regulation: ${weights.regulatoryFeasibility}%`} />
+          <div className="bg-purple-500 transition-all duration-300" style={{ width: `${weights.leadQuality}%` }} title={`Lead Quality: ${weights.leadQuality}%`} />
+          <div className="bg-rose-500 transition-all duration-300" style={{ width: `${weights.engagement}%` }} title={`Engagement: ${weights.engagement}%`} />
         </div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-3">
           {[
-            { label: 'Price', value: weights.price, color: 'bg-blue-500' },
-            { label: 'Days on Market', value: weights.daysOnMarket, color: 'bg-amber-500' },
-            { label: 'Regulation', value: weights.regulationStatus, color: 'bg-emerald-500' },
-            { label: 'Saturation', value: weights.neighborhoodSaturation, color: 'bg-purple-500' },
+            { label: 'Revenue', value: weights.revenuePotential, color: 'bg-blue-500' },
+            { label: 'Property Fit', value: weights.propertyFit, color: 'bg-amber-500' },
+            { label: 'Regulation', value: weights.regulatoryFeasibility, color: 'bg-emerald-500' },
+            { label: 'Lead Quality', value: weights.leadQuality, color: 'bg-purple-500' },
+            { label: 'Engagement', value: weights.engagement, color: 'bg-rose-500' },
           ].map((item) => (
             <div key={item.label} className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full shrink-0 ${item.color}`} />

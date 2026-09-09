@@ -122,7 +122,6 @@ export default function CronMonitorPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-job-secret': process.env.NEXT_PUBLIC_SEQUENCE_JOB_SECRET ?? '',
         },
       });
       const json = await res.json();

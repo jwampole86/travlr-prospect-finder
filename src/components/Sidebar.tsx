@@ -10,7 +10,7 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 import HelpChatPanel from '@/components/HelpChatPanel';
 import ThemeToggle from '@/components/ThemeToggle';
 
-import { LayoutDashboard, List, Map, ChevronLeft, ChevronRight, Settings, Download, RefreshCw, Bell, HelpCircle, Building2, ChevronDown, Calculator, FileText, Zap, TrendingUp, Star, SlidersHorizontal, LogOut, Radio, LineChart, Mail, UserCircle, Users, GitBranch, Inbox, History, CalendarClock, Wrench, DollarSign, CheckCircle, Kanban, Copy, Activity, BarChart2, Brain, CalendarCheck, Globe2, X, Shield, ClipboardList, Search, Radar, HeartPulse, Play, MessageSquare, Megaphone, UserPlus, Send, RotateCcw, AlertOctagon, TrendingDown, PieChart, ShieldCheck, Phone, Flame, UserCog, Edit2, CheckSquare, Webhook, Server, MonitorDot, Trophy, Sparkles, DatabaseZap, Home, Rocket, Signal, UserCheck, CreditCard, Plug, BookOpen, Lock, Globe, Database, Headphones, Award, Link2, MessageCircle, Target, Navigation, Briefcase, Mic, Calendar, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, List, Map, ChevronLeft, ChevronRight, Settings, Download, RefreshCw, Bell, HelpCircle, Building2, ChevronDown, Calculator, FileText, Zap, TrendingUp, Star, SlidersHorizontal, LogOut, Radio, LineChart, Mail, UserCircle, Users, GitBranch, Inbox, History, CalendarClock, Wrench, DollarSign, CheckCircle, Kanban, Copy, Activity, BarChart2, Brain, CalendarCheck, Globe2, X, Shield, ClipboardList, Search, Radar, HeartPulse, Play, MessageSquare, Megaphone, UserPlus, Send, RotateCcw, AlertOctagon, TrendingDown, PieChart, ShieldCheck, Phone, Flame, UserCog, Edit2, CheckSquare, Webhook, Server, MonitorDot, Trophy, Sparkles, DatabaseZap, Home, Rocket, Signal, UserCheck, CreditCard, Plug, BookOpen, Lock, Globe, Database, Headphones, Award, Link2, MessageCircle, Target, Navigation, Briefcase, Mic, Calendar, AlertCircle, Clock } from 'lucide-react';
 
 // ─── Nav Group Types ──────────────────────────────────────────────────────────
 
@@ -42,6 +42,7 @@ const adminNavGroups: NavGroup[] = [
       { key: 'nav-pipeline', label: 'Pipeline Board', href: '/pipeline', icon: Kanban, badge: null },
       { key: 'nav-map', label: 'Map View', href: '/map-view', icon: Map, badge: null },
       { key: 'nav-agent-field-view', label: 'Field View (Mobile)', href: '/agent-field-view', icon: Navigation, badge: null },
+      { key: 'nav-time-clock', label: 'Time Clock', href: '/time-clock', icon: Clock, badge: null },
       { key: 'nav-agent-profile', label: 'My Profile & Prefs', href: '/agent-profile', icon: UserCheck, badge: null },
       { key: 'nav-system-health', label: 'System Health', href: '/system-health', icon: Globe, badge: null },
     ],
@@ -237,7 +238,6 @@ const adminNavGroups: NavGroup[] = [
       { key: 'nav-team-onboarding', label: 'Team Onboarding', href: '/team-onboarding', icon: Rocket, badge: null },
       { key: 'nav-agent-profile-tools', label: 'Agent Profile', href: '/agent-profile', icon: UserCheck, badge: null },
       { key: 'nav-help-center', label: 'Help Center', href: '/help-center', icon: BookOpen, badge: null },
-      { key: 'nav-owner-dashboard', label: 'Owner Dashboard', href: '/owner-dashboard', icon: Building2, badge: null },
     ],
   },
 ];
@@ -252,6 +252,7 @@ const agentNavGroups: NavGroup[] = [
     items: [
       { key: 'nav-agent-workspace', label: 'My Dashboard', href: '/agent-workspace', icon: LayoutDashboard, badge: null },
       { key: 'nav-agent-my-leads', label: 'My Leads', href: '/agent-my-leads', icon: List, badge: null },
+      { key: 'nav-time-clock', label: 'Time Clock', href: '/time-clock', icon: Clock, badge: null },
       { key: 'nav-agent-followups', label: 'Follow-Ups', href: '/agent-my-leads?filter=followup', icon: Calendar, badge: null },
     ],
   },

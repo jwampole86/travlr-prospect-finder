@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTwilioConfigStatus } from '@/lib/services/twilioService';
 
 /**
  * Twilio Voice outbound call initiation endpoint.
@@ -28,9 +29,12 @@ export async function POST(req: NextRequest) {
     // This mirrors the same check in /api/sms/send/route.ts.
     if (leadId) {
       try {
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
         const supabase = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          serviceRoleKey && !serviceRoleKey.includes('your-supabase-service-role-key')
+            ? serviceRoleKey
+            : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         );
 
         // Check leads table
@@ -98,31 +102,28 @@ export async function POST(req: NextRequest) {
     }
     // ── End DNC Check ─────────────────────────────────────────────────────────
 
-    const sid = process.env.TWILIO_ACCOUNT_SID;
-    const token = process.env.TWILIO_AUTH_TOKEN;
     const fromNumber = from || process.env.TWILIO_FROM_NUMBER;
+    const status = getTwilioConfigStatus();
 
-    const configured = !!(
-      sid && !sid.startsWith('your-') &&
-      token && !token.startsWith('your-') &&
-      fromNumber && !fromNumber.startsWith('your-')
-    );
-
-    if (!configured) {
+    if (!status.voiceCallConfigured || !fromNumber || fromNumber.startsWith('your-')) {
       // Placeholder — log intent, return mock call SID
       console.info('[TwilioVoice] Placeholder mode — call not placed. Configure Twilio credentials.');
       return NextResponse.json({
         callSid: `placeholder-${Date.now()}`,
         status: 'placeholder',
         configured: false,
+        missing: status.missing,
         leadId,
         agentId,
       });
     }
 
-    const credentials = Buffer.from(`${sid}:${token}`).toString('base64');
+    const authSid = process.env.TWILIO_ACCOUNT_SID!;
+    const authToken = process.env.TWILIO_AUTH_TOKEN!;
+    const accountSid = authSid.startsWith('SK') ? process.env.TWILIO_ACCOUNT_SID_MAIN! : authSid;
+    const credentials = Buffer.from(`${authSid}:${authToken}`).toString('base64');
     const response = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`,
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`,
       {
         method: 'POST',
         headers: {

@@ -19,7 +19,12 @@ export const metadata: Metadata = {
   description:
     'Upload FRBO leads, score by regulation compliance and revenue potential, and prioritize outreach for short-term rental conversion.',
   icons: {
-    icon: [{ url: '/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1787643323672.PNG', type: 'image/png' }],
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG', type: 'image/png', sizes: '1254x1254' },
+    ],
+    shortcut: ['/favicon.ico'],
+    apple: [{ url: '/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG', type: 'image/png', sizes: '1254x1254' }],
   },
 };
 

@@ -37,7 +37,8 @@ function normalizeStreet(address: string): string {
 export async function POST(req: NextRequest) {
   // ── 0. Optional webhook secret verification ──────────────────────────────
   const webhookSecret = process.env.WEBHOOK_SECRET;
-  if (webhookSecret) {
+  const secretConfigured = Boolean(webhookSecret) && !/your-|placeholder|changeme|example/i.test(webhookSecret!);
+  if (secretConfigured) {
     const authHeader = req.headers.get('authorization') ?? '';
     const secretHeader = req.headers.get('x-webhook-secret') ?? '';
     const providedSecret = authHeader.startsWith('Bearer ')

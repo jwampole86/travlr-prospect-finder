@@ -176,10 +176,10 @@ export async function POST(req: NextRequest) {
         // Extract name
         const nameInfo = extractCandidateName(rawText, fileName);
 
-        // Upload file to Supabase storage (interview-recordings bucket exists; create resumes path)
+        // Upload file to Supabase storage — dedicated bucket, since 'interview-recordings' only allows audio mime types
         const filePath = `resumes/${Date.now()}_${fileName.replace(/\s+/g, '_')}`;
         const { error: uploadError } = await supabase.storage
-          .from('interview-recordings')
+          .from('candidate-resumes')
           .upload(filePath, buffer, {
             contentType: mimeType,
             upsert: false,

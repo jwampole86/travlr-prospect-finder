@@ -53,6 +53,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
       { id: 'gs-2', title: 'Connecting Your Data Sources', summary: 'How to link Zillow, Realtor.com, Craigslist, and SalesGenie to start pulling leads automatically into your pipeline.', readTime: '8 min', href: '#', tags: ['data', 'sync', 'sources'] },
       { id: 'gs-3', title: 'Inviting Team Members & Setting Roles', summary: 'Add agents, managers, and viewers. Understand role-based permissions and how they affect data visibility.', readTime: '4 min', href: '#', tags: ['team', 'roles', 'permissions'] },
       { id: 'gs-4', title: 'Running the Team Onboarding Wizard', summary: 'Use the 4-step onboarding wizard to configure data sources, seed cadence templates, define assignment rules, and connect SMS/email services.', readTime: '6 min', href: '/team-onboarding', tags: ['onboarding', 'wizard', 'setup'] },
+      { id: 'gs-5', title: 'Clocking In, Out, and Tracking Breaks', summary: 'Use the Time Clock widget in the top bar to clock in/out and manage breaks with a live running timer. Admins can see everyone\'s live status from the Team Status tab.', readTime: '3 min', href: '/time-clock', tags: ['time clock', 'shifts', 'breaks'] },
     ],
     videos: [
       { id: 'gs-v1', title: 'Platform Walkthrough (5 min)', description: 'A quick tour of every major section — from the Dashboard to Lead Management to Cadence Performance.', youtubeId: 'dQw4w9WgXcQ', duration: '5:12' },
@@ -61,6 +62,9 @@ const FEATURE_GROUPS: FeatureGroup[] = [
       { q: 'How long does initial data sync take?', a: 'First-time syncs typically complete within 5–15 minutes depending on lead volume. You can monitor progress in the Sync Health dashboard.' },
       { q: 'Can I import leads from a CSV file?', a: 'Yes. Go to Lead Management → Bulk Actions → CSV Upload. The system maps columns automatically and flags duplicates before import.' },
       { q: 'What is the difference between an Agent and a Manager role?', a: 'Agents see only their assigned leads. Managers see all leads across their portfolio and can reassign, bulk-act, and view team analytics.' },
+      { q: 'How do I clock in and track breaks?', a: 'Click "Clock In" in the top-bar widget next to your profile menu, or go to /time-clock. A live timer starts immediately. Use Start Break/End Break to pause the visible timer without ending your shift, and Clock Out when you finish. Your worked time always excludes break time.' },
+      { q: 'Can I see who is currently clocked in?', a: 'Admins and owners see a "Team Status" tab on the Time Clock page listing everyone currently clocked in or on break, with a live running timer and an idle indicator for each person.' },
+      { q: 'What happens if I forget to take a break or step away?', a: 'After 8 minutes of no mouse/keyboard/touch activity while clocked in, you get an on-screen "Are you still working?" prompt. If there\'s no response within 2 more minutes, the system automatically starts a break so idle time never counts as worked hours. Coming back and using the app again automatically resumes your timer. If you stay away for 45+ minutes total, the system automatically clocks you out.' },
     ],
   },
   {
@@ -143,7 +147,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
     articles: [
       { id: 'ac-1', title: 'Subscription Plans & Seat Management', summary: 'Switch plans, manage team seats, view invoices, and update payment methods from the Subscription & Billing page.', readTime: '3 min', href: '/billing', tags: ['billing', 'seats', 'plans'] },
       { id: 'ac-2', title: 'TCPA Compliance & Audit Trail', summary: 'How the platform logs every outreach action for TCPA compliance, and how to export audit reports for legal review.', readTime: '5 min', href: '/compliance-audit', tags: ['compliance', 'TCPA', 'audit'] },
-      { id: 'ac-3', title: 'Homeowner Portal & White-Label Dashboard', summary: 'Give property owners access to their portfolio performance, lease-up status, and revenue estimates without admin interface access.', readTime: '4 min', href: '/owner-dashboard', tags: ['homeowner', 'portal', 'white-label'] },
+      { id: 'ac-3', title: 'Homeowner Portal & White-Label Dashboard', summary: 'Give property owners access to their portfolio performance, lease-up status, and revenue estimates without admin interface access.', readTime: '4 min', href: '/homeowner', tags: ['homeowner', 'portal', 'white-label'] },
     ],
     videos: [],
     faqs: [

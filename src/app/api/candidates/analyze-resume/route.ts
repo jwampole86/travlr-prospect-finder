@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { OUTREACH_BIZDEV_JOB_DESCRIPTION } from '@/lib/roles/outreachBizDevRole';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -24,7 +25,9 @@ export async function POST(req: NextRequest) {
     }
 
     const systemPrompt = `You are an expert resume analyst for TRAVLR Vacation Homes, a boutique luxury vacation-rental brand.
-Analyze resumes for the role of Homeowner Outreach & Business Development Agent.
+Analyze resumes for the following role:
+
+${OUTREACH_BIZDEV_JOB_DESCRIPTION}
 
 CRITICAL RULES:
 1. Extract ONLY information explicitly stated in the resume. NEVER fabricate or infer.

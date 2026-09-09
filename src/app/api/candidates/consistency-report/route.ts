@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { OUTREACH_BIZDEV_JOB_DESCRIPTION } from '@/lib/roles/outreachBizDevRole';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -76,7 +77,8 @@ Interviewer Notes: ${scorecard.interviewer_notes || 'None recorded'}
 
   return `
 CANDIDATE: ${candidate.full_name || 'Unknown'}
-TARGET ROLE: Homeowner Outreach & Business Development Agent at TRAVLR Vacation Homes
+
+${OUTREACH_BIZDEV_JOB_DESCRIPTION}
 
 RESUME WORK HISTORY:
 ${workExpText || candidate.resume_raw_text?.toString().slice(0, 3000) || 'Not available'}

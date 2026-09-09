@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Menu, Phone } from 'lucide-react';
@@ -11,6 +11,9 @@ import SyncToastEmitter from './SyncToastEmitter';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import ProfileMenu from './ProfileMenu';
+import FirstLoginPlatformGuide from './FirstLoginPlatformGuide';
+import TimeClockWidget from './TimeClockWidget';
+import TimeClockIdleMonitor from './TimeClockIdleMonitor';
 
 // ── Lazy-load FloatingDialer — Twilio Voice SDK is heavy and should only
 //    initialize when the agent actually opens the dialer, not on every page load.
@@ -26,6 +29,7 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   const { user, loading, role } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [dialerOpen, setDialerOpen] = useState(false);
 
@@ -37,9 +41,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
     if (!loading && user && role === 'homeowner') {
       router.replace('/homeowner');
     }
-    // Agents are redirected to agent-workspace if they try to access admin-only routes
-    // This is handled per-page; AppLayout itself allows agents through
-  }, [user, loading, role, router]);
+    // Agents land on the shared dashboard ("/") only when they type/bookmark it directly —
+    // route them to their own workspace so there's one consistent agent landing page.
+    if (!loading && user && role === 'agent' && pathname === '/') {
+      router.replace('/agent-workspace');
+    }
+  }, [user, loading, role, pathname, router]);
 
   if (loading) {
     return (
@@ -84,11 +91,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <Menu size={20} />
           </button>
           <span className="text-sm font-semibold text-foreground flex-1">TRAVLR Prospect Finder</span>
+          <TimeClockWidget />
           <ProfileMenu />
         </div>
 
         {/* Desktop top bar */}
         <div className="hidden md:flex sticky top-0 z-30 items-center justify-end gap-2 px-6 py-2 bg-card border-b border-border">
+          <TimeClockWidget />
           <ProfileMenu />
         </div>
         {children}
@@ -106,6 +115,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <NotificationDrawer />
       <SyncSchedulerRunner />
       <SyncToastEmitter />
+      <FirstLoginPlatformGuide />
+      <TimeClockIdleMonitor />
 
       {/* Floating Dialer toggle button — 44px min touch target.
           The FloatingDialer component (and Twilio SDK) is lazy-loaded via

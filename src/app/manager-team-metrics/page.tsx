@@ -226,8 +226,8 @@ export default function ManagerTeamMetricsPage() {
 
       const { data: leads } = await supabase
         .from('leads')
-        .select('assigned_agent_id, stage, prospect_score')
-        .not('assigned_agent_id', 'is', null);
+        .select('primary_agent_id, stage, prospect_score, estimated_net_monthly, estimated_gross_monthly')
+        .not('primary_agent_id', 'is', null);
 
       const { data: callScores } = await supabase
         .from('call_quality_scores')
@@ -235,7 +235,7 @@ export default function ManagerTeamMetricsPage() {
         .gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
 
       const agentMetrics: AgentMetric[] = profiles.map(p => {
-        const agentLeads = (leads ?? []).filter(l => l.assigned_agent_id === p.id);
+        const agentLeads = (leads ?? []).filter(l => l.primary_agent_id === p.id);
         const totalLeads = agentLeads.length;
         const closedLeads = agentLeads.filter(l => l.stage === 'Live' || l.stage === 'Contract').length;
         const activeLeads = agentLeads.filter(l => !['Not a Fit', 'Live'].includes(l.stage ?? '')).length;
@@ -243,10 +243,13 @@ export default function ManagerTeamMetricsPage() {
         const agentCallScores = (callScores ?? []).filter(c => c.agent_id === p.id);
         const avgCallQuality = agentCallScores.length > 0
           ? Math.round(agentCallScores.reduce((a, c) => a + (c.overall_score ?? 0), 0) / agentCallScores.length)
-          : Math.round(50 + Math.random() * 40);
+          : 0;
         const cohort = assignCohort(conversionRate, avgCallQuality);
-        const agentCost = 5000 + Math.round(Math.random() * 4000);
-        const ltv = closedLeads * (1800 + Math.round(Math.random() * 1200));
+        // Deterministic cost proxy (no real cost-tracking table yet) — fixed per-lead handling cost, not randomized.
+        const agentCost = totalLeads * 75;
+        const ltv = agentLeads
+          .filter(l => l.stage === 'Live' || l.stage === 'Contract')
+          .reduce((sum, l) => sum + (l.estimated_net_monthly || l.estimated_gross_monthly || 0), 0);
         const costPerConversion = closedLeads > 0 ? Math.round(agentCost / closedLeads) : agentCost;
 
         return {

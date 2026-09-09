@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { parseTruliaUrl, validateSyncCounters, determineHealthStatus, validateReconciliation, getSafeStageForSourceSync, type SyncCounters, type SourceHealthStatus,  } from '@/lib/services/truliaSourceValidationService';
+import { parseTruliaUrl, validateSyncCounters, determineHealthStatus, validateReconciliation, validateSourceConfig, getSafeStageForSourceSync, type SyncCounters, type SourceHealthStatus,  } from '@/lib/services/truliaSourceValidationService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       .from('trulia_source_configs')
       .select('*')
       .eq('active', true)
-      .eq('validation_status', 'VALID');
+      ;
 
     if (sourceId) sourceQuery = sourceQuery.eq('source_id', sourceId);
     if (stateCode) sourceQuery = sourceQuery.eq('state_code', stateCode);
@@ -93,13 +93,20 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    if (!sourceConfigs || sourceConfigs.length === 0) {
+    const liveValidation = validateDbConfigs(sourceConfigs || []);
+    const validSourceConfigs = liveValidation.configs.filter((config) => config.validation_status === 'VALID');
+
+    if (!validSourceConfigs || validSourceConfigs.length === 0) {
       return NextResponse.json({
         error: 'NO_VALID_SOURCES',
-        message: 'No valid active Trulia source configurations found',
+        message: `No valid active Trulia source configurations found. ${liveValidation.summary.invalid} of ${liveValidation.summary.total} configs need repair.`,
+        validationSummary: liveValidation.summary,
         durationMs: Date.now() - startTime,
       }, { status: 404 });
     }
+
+    sourceConfigs.length = 0;
+    sourceConfigs.push(...validSourceConfigs);
 
     // ── Step 2: Create sync run record ────────────────────────────────────────
     const runId = `run_${Date.now()}`;
@@ -172,16 +179,16 @@ export async function POST(req: NextRequest) {
       let parsed = parseTruliaUrl(src.source_url_canonical);
       if (!parsed.isValid) {
         const result: SourceSyncResult = {
-          sourceId: src.source_id,
-          stateCode: src.state_code,
-          tier: src.source_tier,
-          minimumRent: src.minimum_rent,
-          canonicalUrl: src.source_url_canonical,
+          sourceId: String(src.source_id),
+          stateCode: String(src.state_code),
+          tier: String(src.source_tier),
+          minimumRent: Number(src.minimum_rent),
+          canonicalUrl: String(src.source_url_canonical),
           accessMethod: 'NONE',
           accessSucceeded: false,
           httpStatus: null,
           responseSchemaValid: false,
-          counters: buildEmptyCounters(),
+          counters: buildZeroCounters(1),
           pagesAvailable: null,
           pagesRequested: null,
           pagesSucceeded: null,
@@ -211,16 +218,16 @@ export async function POST(req: NextRequest) {
 
       if (!accessResult.authorized) {
         const result: SourceSyncResult = {
-          sourceId: src.source_id,
-          stateCode: src.state_code,
-          tier: src.source_tier,
-          minimumRent: src.minimum_rent,
-          canonicalUrl: src.source_url_canonical,
+          sourceId: String(src.source_id),
+          stateCode: String(src.state_code),
+          tier: String(src.source_tier),
+          minimumRent: Number(src.minimum_rent),
+          canonicalUrl: String(src.source_url_canonical),
           accessMethod: accessResult.method,
           accessSucceeded: false,
           httpStatus: accessResult.httpStatus,
           responseSchemaValid: false,
-          counters: buildEmptyCounters(),
+          counters: buildZeroCounters(1),
           pagesAvailable: null,
           pagesRequested: null,
           pagesSucceeded: null,
@@ -467,7 +474,8 @@ export async function GET(req: NextRequest) {
         .order('source_tier')
         .order('minimum_rent');
 
-      return NextResponse.json({ configs: configs || [] });
+      const validation = validateDbConfigs(configs || []);
+      return NextResponse.json({ configs: validation.configs, summary: validation.summary });
     }
 
     if (action === 'health') {
@@ -483,9 +491,64 @@ export async function GET(req: NextRequest) {
         .order('started_at', { ascending: false })
         .limit(10);
 
+      const validation = validateDbConfigs(configs || []);
       return NextResponse.json({
-        configs: configs || [],
+        configs: validation.configs,
+        summary: validation.summary,
         recentRuns: recentRuns || [],
+      });
+    }
+
+    if (action === 'repair-configs') {
+      const { data: configs } = await supabase
+        .from('trulia_source_configs')
+        .select('*')
+        .order('state_code')
+        .order('source_tier');
+
+      const validation = validateDbConfigs(configs || []);
+      const repairs: Array<{ source_id: string; validation_status: string; minimum_rent: number | null }> = [];
+
+      for (const config of validation.configs) {
+        const parsed = parseTruliaUrl(config.source_url_canonical || config.source_url_raw || config.source_url || '');
+        const repairPayload: Record<string, unknown> = {
+          source_url_canonical: parsed.canonicalUrl,
+          url_valid: config.url_valid,
+          state_match: config.state_match,
+          filter_match: config.filter_match,
+          is_duplicate: config.is_duplicate,
+          validation_status: config.validation_status,
+          validation_notes: config.validation_notes,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (parsed.minimumRent !== null) repairPayload.minimum_rent = parsed.minimumRent;
+        if (parsed.propertyTypes.length > 0) repairPayload.property_types = parsed.propertyTypes;
+        repairPayload.furnished_required = parsed.furnished;
+
+        const { data: updatedRows, error } = await supabase
+          .from('trulia_source_configs')
+          .update(repairPayload)
+          .eq('source_id', config.source_id)
+          .select('source_id');
+
+        if (!error && updatedRows && updatedRows.length > 0) {
+          repairs.push({
+            source_id: config.source_id,
+            validation_status: String(config.validation_status),
+            minimum_rent: parsed.minimumRent,
+          });
+        }
+      }
+
+      return NextResponse.json({
+        repaired: repairs.length,
+        attempted: validation.configs.length,
+        repairs,
+        summary: validation.summary,
+        warning: repairs.length === 0 && validation.configs.length > 0
+          ? 'No rows were updated. Sign in as an admin/operator or configure SUPABASE_SERVICE_ROLE_KEY to repair stored configs.'
+          : null,
       });
     }
 
@@ -966,21 +1029,68 @@ async function runIngestionPipeline(
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
-function buildEmptyCounters(): SyncCounters {
+function buildZeroCounters(errors = 0): SyncCounters {
   return {
-    sourceResultsReturned: -1,
-    recordsParsed: -1,
-    recordsNormalized: -1,
-    stateValidated: -1,
-    filterValidated: -1,
-    propertiesVerified: -1,
-    newProspectsInserted: -1,
-    existingProspectsUpdated: -1,
-    duplicatesMerged: -1,
-    rejectedInvalid: -1,
-    rejectedWrongState: -1,
-    rejectedFilterMismatch: -1,
-    errors: 0,
+    sourceResultsReturned: 0,
+    recordsParsed: 0,
+    recordsNormalized: 0,
+    stateValidated: 0,
+    filterValidated: 0,
+    propertiesVerified: 0,
+    newProspectsInserted: 0,
+    existingProspectsUpdated: 0,
+    duplicatesMerged: 0,
+    rejectedInvalid: 0,
+    rejectedWrongState: 0,
+    rejectedFilterMismatch: 0,
+    errors,
+  };
+}
+
+function validateDbConfigs(configs: Record<string, unknown>[]) {
+  const canonicalUrls = configs.map((config) => String(config.source_url_canonical || config.source_url_raw || config.source_url || ''));
+  let valid = 0;
+  let invalid = 0;
+
+  const validatedConfigs = configs.map((config) => {
+    const sourceUrl = String(config.source_url_canonical || config.source_url_raw || config.source_url || '');
+    const parsed = parseTruliaUrl(sourceUrl);
+    const validation = validateSourceConfig({
+      sourceId: String(config.source_id || ''),
+      stateCode: String(config.state_code || ''),
+      tier: (config.source_tier === 'LUXURY' ? 'LUXURY' : 'STANDARD'),
+      minimumRent: Number(config.minimum_rent || 0),
+      rawUrl: sourceUrl,
+      active: config.active !== false,
+    }, canonicalUrls);
+
+    const nextConfig = {
+      ...config,
+      source_url_canonical: parsed.canonicalUrl,
+      url_valid: validation.urlValid,
+      state_match: validation.stateMatch,
+      filter_match: validation.filterMatch,
+      is_duplicate: validation.isDuplicate,
+      validation_status: validation.status,
+      validation_notes: validation.validationNotes.join('\n') || null,
+      parsed_minimum_rent: parsed.minimumRent,
+      parsed_property_types: parsed.propertyTypes,
+      parsed_furnished_required: parsed.furnished,
+    };
+
+    if (validation.status === 'VALID') valid++;
+    else invalid++;
+
+    return nextConfig;
+  });
+
+  return {
+    configs: validatedConfigs,
+    summary: {
+      total: configs.length,
+      valid,
+      invalid,
+    },
   };
 }
 

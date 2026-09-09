@@ -99,13 +99,9 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
 
   useEffect(() => {
     setFavorites(getFavorites());
-    fetch('/api/twilio/voice/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identity: 'check' }),
-    })
+    fetch('/api/twilio/status')
       .then(r => r.json())
-      .then(d => setConfigured(d.configured ?? false))
+      .then(d => setConfigured(d.ok === true))
       .catch(() => setConfigured(false));
   }, []);
 
@@ -121,7 +117,7 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
       timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (callStatus !== 'in-call') setCallDuration(0);
+      setCallDuration(0);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [callStatus]);
@@ -455,11 +451,11 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
             </div>
             <button
               onClick={() => handleCall()}
-              disabled={!dialInput.trim() || callStatus === 'connecting'}
+              disabled={!dialInput.trim()}
               className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
             >
               <Phone size={16} />
-              {callStatus === 'connecting' ? 'Connecting…' : 'Call'}
+              Call
             </button>
             {dialInput && (
               <button
@@ -643,15 +639,6 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Placeholder notice */}
-        {configured === false && !isInCall && (
-          <div className="px-4 py-2.5 bg-amber-500/5 border-t border-amber-500/20">
-            <p className="text-[10px] text-amber-600 leading-relaxed">
-              Twilio credentials not configured. Add <code className="font-mono bg-amber-500/10 px-1 rounded">TWILIO_ACCOUNT_SID</code>, <code className="font-mono bg-amber-500/10 px-1 rounded">TWILIO_AUTH_TOKEN</code>, and <code className="font-mono bg-amber-500/10 px-1 rounded">TWILIO_TWIML_APP_SID</code> to activate VoIP.
-            </p>
           </div>
         )}
       </div>

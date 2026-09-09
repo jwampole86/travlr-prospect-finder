@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 const PRIORITY_LABELS: Record<number, string> = {
   1: 'Low',
@@ -199,8 +197,8 @@ export async function POST(req: NextRequest) {
           ? `<p style="color: #6b7280; font-size: 12px; margin: 8px 0 0; text-align: center;">+ ${leadCount - 10} more leads in your queue</p>`
           : '';
 
-        await resend.emails.send({
-          from: 'TRAVLR <onboarding@resend.dev>',
+        await getResendClient().emails.send({
+          from: getResendFrom(),
           to: [agentEmail],
           subject: leadCount === 1
             ? `🎯 New Lead Assigned: ${firstLead?.contact_name || firstLead?.address || 'Property'}`

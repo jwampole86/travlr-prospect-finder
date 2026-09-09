@@ -1,10 +1,8 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
 import { createClient } from '@/lib/supabase/client';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,8 +46,8 @@ export async function POST(req: NextRequest) {
 
     // Send Resend notification if agent email provided
     if (agentEmail) {
-      await resend.emails.send({
-        from: 'TRAVLR <onboarding@resend.dev>',
+      await getResendClient().emails.send({
+        from: getResendFrom(),
         to: [agentEmail],
         subject: `🔥 Hot Lead Assigned: ${leadAddress}`,
         html: `

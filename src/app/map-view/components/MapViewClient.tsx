@@ -49,13 +49,13 @@ export default function MapViewClient({ leads: initialLeads, regulations }: MapV
     ? regulations.find((r) => r.city === selectedLead.city)
     : null;
 
-  function handleSelectLead(lead: Lead | null) {
+  const handleSelectLead = React.useCallback((lead: Lead | null) => {
     setSelectedLead(lead);
     // On mobile, close sidebar when a lead is selected
     if (lead && typeof window !== 'undefined' && window.innerWidth < 768) {
       setSidebarOpen(false);
     }
-  }
+  }, []);
 
   function handleOpenDetail(lead: Lead) {
     setDetailLead(lead);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { downloadSignedDocuments } from '@/lib/services/docusignService';
 import { createClient } from '@supabase/supabase-js';
 import { activityService } from '@/lib/services/activityService';
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 /**
  * DocuSign Connect Webhook handler.
@@ -63,19 +64,14 @@ async function sendHomeownerCredentials(opts: {
     </div>
   `;
 
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: 'TRAVLR Vacation Homes <onboarding@travlrpro3047.builtwithrocket.new>',
-      to: [email],
-      subject: `Your TRAVLR Homeowner Portal is ready — ${address}`,
-      html: htmlBody,
-    }),
+  const { error } = await getResendClient().emails.send({
+    from: getResendFrom(),
+    to: [email],
+    subject: `Your TRAVLR Homeowner Portal is ready — ${address}`,
+    html: htmlBody,
   });
+
+  if (error) throw new Error(`Resend homeowner welcome email failed: ${error.message}`);
 }
 
 export async function POST(req: NextRequest) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { dispatchSMS, isTwilioConfigured } from '@/lib/services/twilioService';
+import { dispatchSMS, getTwilioConfigStatus, isTwilioConfigured } from '@/lib/services/twilioService';
 import { injectTrackedLinks } from '@/lib/services/linkTrackingService';
 
 export async function POST(req: NextRequest) {
@@ -148,10 +148,14 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+  const status = getTwilioConfigStatus();
   return NextResponse.json({
-    twilioConfigured: isTwilioConfigured(),
-    message: isTwilioConfigured()
-      ? 'Twilio is configured and ready' :'Twilio placeholder mode — set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER to activate',
+    twilioConfigured: status.smsConfigured,
+    voiceTokenConfigured: status.voiceTokenConfigured,
+    missing: status.missing,
+    message: status.smsConfigured
+      ? 'Twilio SMS is configured and ready'
+      : `Twilio placeholder mode — missing ${status.missing.join(', ') || 'required Twilio configuration'}`,
     complianceNote: 'All SMS sends are subject to TCPA compliance checks. Leads with do_not_contact=true are automatically blocked.',
   });
 }

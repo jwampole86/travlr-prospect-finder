@@ -160,8 +160,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const markAllRead = useCallback(async () => {
     if (!user) return;
-    await supabase.from('app_notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    await supabase.from('app_notifications').update({ read: true }).eq('user_id', user.id).eq('read', false).eq('archived', false);
+    setNotifications((prev) => prev.map((n) => (!n.archived ? { ...n, read: true } : n)));
   }, [user, supabase]);
 
   const clearAll = useCallback(async () => {
@@ -170,7 +170,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setNotifications([]);
   }, [user, supabase]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read && !n.archived).length;
 
   return (
     <NotificationContext.Provider value={{ notifications, unreadCount, drawerOpen, setDrawerOpen, markAllRead, markRead, addNotification, clearAll }}>

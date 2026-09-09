@@ -114,15 +114,16 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 2. Load unassigned leads ───────────────────────────────────────────────
+    // primary_agent_id is the canonical assignment field (see /api/leads/assign-agent).
     const { data: unassignedLeads, error: leadsError } = await supabase
       .from('leads')
       .select('id, address, state, stage, prospect_score, tags')
-      .is('assigned_agent_id', null)
+      .is('primary_agent_id', null)
       .order('prospect_score', { ascending: false })
       .limit(500);
 
     if (leadsError) {
-      // Try without assigned_agent_id filter (column may not exist yet)
+      // Try without primary_agent_id filter (column may not exist yet)
       const { data: allLeads } = await supabase
         .from('leads')
         .select('id, address, state, stage, prospect_score, tags')
@@ -266,12 +267,18 @@ export async function POST(req: NextRequest) {
 
       await supabase.from('lead_assignment_log').insert(logRows).catch(() => {});
 
-      // Update leads with assigned agent (if column exists)
+      // Update leads with assigned agent — write the canonical field directly
+      // (a DB trigger also keeps the legacy assigned_agent_id column in sync).
       for (const result of assignmentResults) {
         if (result.agentId) {
           await supabase
             .from('leads')
-            .update({ assigned_agent_id: result.agentId } as any)
+            .update({
+              primary_agent_id: result.agentId,
+              primary_agent_name: result.agentName,
+              assigned_agent_id: result.agentId,
+              assigned_at: new Date().toISOString(),
+            } as any)
             .eq('id', result.leadId)
             .catch(() => {});
         }

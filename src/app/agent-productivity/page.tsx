@@ -319,9 +319,9 @@ export default function AgentProductivityPage() {
       since.setDate(since.getDate() - (period === '30d' ? 30 : 90));
 
       const [agentRes, outreachRes, leadsRes] = await Promise.all([
-        supabase.from('agent_profiles').select('id, full_name, email').order('full_name'),
+        supabase.from('user_profiles').select('id, full_name, email, app_role, role').in('app_role', ['agent', 'admin', 'owner']).order('full_name'),
         supabase.from('outreach_history').select('agent_id, status, reply_detected, sent_at, replied_at').gte('sent_at', since.toISOString()),
-        supabase.from('leads').select('agent_id, stage'),
+        supabase.from('leads').select('primary_agent_id, stage'),
       ]);
 
       const agentData = agentRes.data ?? [];
@@ -338,7 +338,7 @@ export default function AgentProductivityPage() {
 
       const metrics: AgentMetrics[] = agentData.map((a: any, idx: number) => {
         const agentOutreach = outreachData.filter((r: any) => r.agent_id === a.id);
-        const agentLeads = leadsData.filter((l: any) => l.agent_id === a.id);
+        const agentLeads = leadsData.filter((l: any) => l.primary_agent_id === a.id);
         const total = agentOutreach.length;
         const replied = agentOutreach.filter((r: any) => r.reply_detected || r.status === 'replied').length;
         const converted = agentOutreach.filter((r: any) => r.status === 'converted').length;

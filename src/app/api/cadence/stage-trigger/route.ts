@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 /**
  * POST /api/cadence/stage-trigger
@@ -11,7 +11,6 @@ import { Resend } from 'resend';
  *   - not_interested                                        → mark closed_dead, pause all enrollments
  */
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
 
 // Outcome → sequence tag mapping
@@ -174,8 +173,9 @@ export async function POST(req: NextRequest) {
       const outcomeLabel = outcomeLabels[callOutcome] || callOutcome;
 
       try {
+        const resend = getResendClient();
         await resend.emails.send({
-          from: 'TRAVLR <onboarding@resend.dev>',
+          from: getResendFrom(),
           to: [lead.email],
           subject: `Great news — next steps for your property`,
           html: buildFollowUpEmail(leadName, outcomeLabel, lead.address || '', agentName || 'TRAVLR Team', notes || ''),

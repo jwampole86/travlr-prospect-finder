@@ -37,58 +37,7 @@ interface BestPractice {
   copied: boolean;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const MOCK_AGENTS: AgentLeaderboardEntry[] = [
-  {
-    id: 'a1', name: 'Priya Nair', email: 'priya@travlr.com', rank: 1,
-    conversionRate: 34.2, avgDaysToClose: 11.4, templateEffectiveness: 91,
-    totalLeads: 134, closedLeads: 46,
-    topTemplates: ['Revenue Estimate Offer', 'Luxury Market Check-In', 'Urgency Follow-Up'],
-    talkTrackSnippets: [
-      'Lead with the revenue estimate — homeowners respond 3x better when they see numbers first.',
-      'Ask about their timeline before pitching. "Are you thinking 30 days or 90 days?" anchors urgency.',
-    ],
-    trend: 'up', badge: 'gold',
-  },
-  {
-    id: 'a2', name: 'Sarah Mitchell', email: 'sarah@travlr.com', rank: 2,
-    conversionRate: 28.7, avgDaysToClose: 14.1, templateEffectiveness: 84,
-    totalLeads: 118, closedLeads: 34,
-    topTemplates: ['Check-In — Luxury Markets', 'Proposal Follow-Up', 'SMS Quick Touch'],
-    talkTrackSnippets: [
-      'Mirror the homeowner\'s language from their listing. If they say "cozy," use "cozy" back.',
-      'Send the proposal follow-up exactly 48 hours after — not 24, not 72.',
-    ],
-    trend: 'up', badge: 'silver',
-  },
-  {
-    id: 'a3', name: 'Marcus Webb', email: 'marcus@travlr.com', rank: 3,
-    conversionRate: 22.1, avgDaysToClose: 18.3, templateEffectiveness: 78,
-    totalLeads: 95, closedLeads: 21,
-    topTemplates: ['Initial Outreach — Denver', 'Value Prop SMS', 'Re-Engagement Email'],
-    talkTrackSnippets: [
-      'Open with a local market stat. "Denver short-term rentals are up 18% this quarter" builds credibility fast.',
-    ],
-    trend: 'flat', badge: 'bronze',
-  },
-  {
-    id: 'a4', name: 'James Torres', email: 'james@travlr.com', rank: 4,
-    conversionRate: 16.8, avgDaysToClose: 22.7, templateEffectiveness: 63,
-    totalLeads: 107, closedLeads: 18,
-    topTemplates: ['Initial Outreach — Denver', 'Basic Follow-Up'],
-    talkTrackSnippets: [],
-    trend: 'down', badge: null,
-  },
-  {
-    id: 'a5', name: 'Aisha Okafor', email: 'aisha@travlr.com', rank: 5,
-    conversionRate: 13.4, avgDaysToClose: 27.2, templateEffectiveness: 55,
-    totalLeads: 82, closedLeads: 11,
-    topTemplates: ['Generic Outreach', 'Basic Follow-Up'],
-    talkTrackSnippets: [],
-    trend: 'down', badge: null,
-  },
-];
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const CHART_COLORS = ['#f59e0b', '#94a3b8', '#b45309', '#3b82f6', '#8b5cf6'];
 
@@ -111,13 +60,82 @@ function TrendIcon({ trend }: { trend: AgentLeaderboardEntry['trend'] }) {
 
 export default function AgentLeaderboardPage() {
   const supabase = createClient();
-  const [agents, setAgents] = useState<AgentLeaderboardEntry[]>(MOCK_AGENTS);
-  const [loading, setLoading] = useState(false);
-  const [expandedAgent, setExpandedAgent] = useState<string | null>('a1');
+  const [agents, setAgents] = useState<AgentLeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
   const [bestPractices, setBestPractices] = useState<BestPractice[]>([]);
   const [extractingBP, setExtractingBP] = useState(false);
   const [sortBy, setSortBy] = useState<'conversionRate' | 'avgDaysToClose' | 'templateEffectiveness'>('conversionRate');
   const [copiedItems, setCopiedItems] = useState<Set<number>>(new Set());
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email, app_role, role')
+        .in('app_role', ['agent', 'admin', 'owner']);
+
+      if (!profiles || profiles.length === 0) {
+        setAgents([]);
+        return;
+      }
+
+      const [{ data: leads }, { data: outreach }] = await Promise.all([
+        supabase.from('leads').select('primary_agent_id, stage, created_at, updated_at').not('primary_agent_id', 'is', null),
+        supabase.from('outreach_history').select('agent_id, template_id, reply_detected, status'),
+      ]);
+
+      const entries: AgentLeaderboardEntry[] = profiles.map((p: any) => {
+        const agentLeads = (leads ?? []).filter((l: any) => l.primary_agent_id === p.id);
+        const totalLeads = agentLeads.length;
+        const closed = agentLeads.filter((l: any) => l.stage === 'Live' || l.stage === 'Under Contract');
+        const closedLeads = closed.length;
+        const conversionRate = totalLeads > 0 ? Math.round((closedLeads / totalLeads) * 1000) / 10 : 0;
+
+        const closeDurationsDays = closed
+          .filter((l: any) => l.created_at && l.updated_at)
+          .map((l: any) => (new Date(l.updated_at).getTime() - new Date(l.created_at).getTime()) / 86400000);
+        const avgDaysToClose = closeDurationsDays.length > 0
+          ? Math.round((closeDurationsDays.reduce((a: number, b: number) => a + b, 0) / closeDurationsDays.length) * 10) / 10
+          : 0;
+
+        const agentOutreach = (outreach ?? []).filter((o: any) => o.agent_id === p.id);
+        const sent = agentOutreach.length;
+        const replied = agentOutreach.filter((o: any) => o.reply_detected || o.status === 'replied').length;
+        const templateEffectiveness = sent > 0 ? Math.round((replied / sent) * 100) : 0;
+
+        const templateCounts: Record<string, number> = {};
+        agentOutreach.forEach((o: any) => { if (o.template_id) templateCounts[o.template_id] = (templateCounts[o.template_id] || 0) + 1; });
+        const topTemplates = Object.entries(templateCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => id);
+
+        return {
+          id: p.id,
+          name: p.full_name || p.email || 'Agent',
+          email: p.email || '',
+          rank: 0,
+          conversionRate,
+          avgDaysToClose,
+          templateEffectiveness,
+          totalLeads,
+          closedLeads,
+          topTemplates,
+          talkTrackSnippets: [],
+          trend: 'flat' as const,
+          badge: null,
+        };
+      });
+
+      entries.sort((a, b) => b.conversionRate - a.conversionRate).forEach((e, i) => { e.rank = i + 1; });
+      setAgents(entries);
+    } catch {
+      setAgents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const sortedAgents = [...agents].sort((a, b) => {
     if (sortBy === 'avgDaysToClose') return a.avgDaysToClose - b.avgDaysToClose;
@@ -170,15 +188,12 @@ Return ONLY a JSON array with objects having keys: category, title, description,
       toast.success('Best practices extracted from top performers');
     } catch (err) {
       console.error('Best practices extraction error:', err);
-      // Fallback mock best practices
+      // Fallback best practices if AI extraction fails — generic guidance, not attributed to a specific agent.
       setBestPractices([
-        { category: 'template', title: 'Lead with Revenue Estimate', description: 'Open every outreach with a personalized revenue estimate. Homeowners respond 3x faster when they see potential earnings upfront.', sourceAgent: 'Priya Nair', impact: '+18% open rate', copied: false },
-        { category: 'talk_track', title: 'Timeline Anchoring Question', description: 'Ask "Are you thinking 30 days or 90 days?" early in the call to anchor urgency and qualify intent simultaneously.', sourceAgent: 'Priya Nair', impact: '4 days faster close', copied: false },
-        { category: 'timing', title: '48-Hour Proposal Follow-Up', description: 'Send the proposal follow-up exactly 48 hours after delivery — not 24, not 72. This window has the highest re-engagement rate.', sourceAgent: 'Sarah Mitchell', impact: '+22% follow-up reply rate', copied: false },
-        { category: 'approach', title: 'Mirror Listing Language', description: 'Use the exact adjectives from the homeowner\'s listing in your outreach. Matching their vocabulary builds instant rapport.', sourceAgent: 'Sarah Mitchell', impact: '+9% conversion lift', copied: false },
-        { category: 'template', title: 'Local Market Stat Opener', description: 'Open SMS with a local market statistic (e.g., "Denver STR revenue up 18% this quarter"). Credibility-first openers outperform generic intros.', sourceAgent: 'Marcus Webb', impact: '+14% reply rate', copied: false },
+        { category: 'template', title: 'Lead with Revenue Estimate', description: 'Open outreach with a personalized revenue estimate. Homeowners tend to respond faster when they see potential earnings upfront.', sourceAgent: 'Team best practice', impact: 'Directional guidance', copied: false },
+        { category: 'timing', title: 'Follow Up Within 48 Hours', description: 'Send proposal follow-ups within 48 hours of delivery to catch homeowners while the offer is still top of mind.', sourceAgent: 'Team best practice', impact: 'Directional guidance', copied: false },
       ]);
-      toast.success('Best practices loaded');
+      toast.error('AI extraction unavailable — showing general guidance instead');
     } finally {
       setExtractingBP(false);
     }
@@ -229,7 +244,7 @@ Return ONLY a JSON array with objects having keys: category, title, description,
               <option value="templateEffectiveness">Sort: Template Effectiveness</option>
             </select>
             <button
-              onClick={() => setLoading(true)}
+              onClick={loadData}
               className="flex items-center gap-2 text-sm border border-border rounded-lg px-3 py-2 hover:bg-muted transition-colors"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -244,7 +259,7 @@ Return ONLY a JSON array with objects having keys: category, title, description,
             { label: 'Top Conversion Rate', value: `${topPerformers[0]?.conversionRate}%`, icon: <Target size={18} className="text-emerald-500" />, sub: topPerformers[0]?.name },
             { label: 'Fastest Close', value: `${topPerformers[0]?.avgDaysToClose}d`, icon: <Clock size={18} className="text-blue-500" />, sub: 'avg days to close' },
             { label: 'Best Template Score', value: `${topPerformers[0]?.templateEffectiveness}%`, icon: <Star size={18} className="text-amber-500" />, sub: 'effectiveness rating' },
-            { label: 'Team Avg Conversion', value: `${(agents.reduce((s, a) => s + a.conversionRate, 0) / agents.length).toFixed(1)}%`, icon: <Users size={18} className="text-purple-500" />, sub: 'all agents' },
+            { label: 'Team Avg Conversion', value: `${agents.length > 0 ? (agents.reduce((s, a) => s + a.conversionRate, 0) / agents.length).toFixed(1) : '0.0'}%`, icon: <Users size={18} className="text-purple-500" />, sub: 'all agents' },
           ].map((kpi, i) => (
             <div key={i} className="bg-card border border-border rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
@@ -289,7 +304,7 @@ Return ONLY a JSON array with objects having keys: category, title, description,
                     className="w-full px-5 py-4 flex items-center gap-4 hover:bg-muted/40 transition-colors text-left"
                     onClick={() => setExpandedAgent(expandedAgent === agent.id ? null : agent.id)}
                   >
-                    <RankBadge badge={agent.badge} rank={idx + 1} />
+                    <RankBadge badge={idx < 3 ? (['gold', 'silver', 'bronze'] as const)[idx] : null} rank={idx + 1} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-foreground text-sm">{agent.name}</span>
@@ -359,7 +374,7 @@ Return ONLY a JSON array with objects having keys: category, title, description,
                         <span>·</span>
                         <span>{agent.closedLeads} closed</span>
                         <span>·</span>
-                        <span>{((agent.closedLeads / agent.totalLeads) * 100).toFixed(1)}% close rate</span>
+                        <span>{((agent.totalLeads > 0 ? agent.closedLeads / agent.totalLeads : 0) * 100).toFixed(1)}% close rate</span>
                       </div>
                     </div>
                   )}

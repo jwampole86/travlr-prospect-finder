@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -53,8 +51,8 @@ export async function POST(req: NextRequest) {
     const inviteLink = `${siteUrl}/invite/${newToken}`;
 
     // Resend email
-    await resend.emails.send({
-      from: 'TRAVLR Pro <info@staytrvlr.com>',
+    await getResendClient().emails.send({
+      from: getResendFrom(),
       to: invite.email,
       subject: `Your TRAVLR Pro invite has been refreshed`,
       html: `

@@ -47,11 +47,6 @@ const SyncStatusTicker = dynamic(() => import('./components/SyncStatusTicker'), 
   ),
 });
 
-const OnboardingWalkthrough = dynamic(() => import('@/components/OnboardingTourEngine'), {
-  ssr: false,
-  loading: () => null,
-});
-
 const StageFunnelChart = dynamic(() => import('./components/StageFunnelChart'), {
   ssr: false,
   loading: () => (
@@ -96,14 +91,15 @@ const DashboardKPIMonitor = dynamic(() => import('@/components/DashboardKPIMonit
 });
 
 // ─── Anchor nav items ─────────────────────────────────────────────────────────
+// Order must match the actual section order rendered below.
 const ANCHORS = [
   { id: 'section-overview', label: 'Overview' },
   { id: 'section-state-regs', label: 'State Regulations' },
   { id: 'section-pipeline', label: 'Pipeline' },
   { id: 'section-top-leads', label: 'Top Leads' },
+  { id: 'section-city-regs', label: 'City Regulations' },
   { id: 'section-activity', label: 'Activity' },
   { id: 'section-data-sync', label: 'Data Sync' },
-  { id: 'section-city-regs', label: 'City Regulations' },
 ];
 
 // ─── Section error boundary ───────────────────────────────────────────────────
@@ -364,7 +360,6 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <OnboardingWalkthrough />
       <div className="px-3 sm:px-6 py-4 sm:py-5 max-w-screen-2xl mx-auto space-y-4 sm:space-y-6">
         <DashboardHeader onLeadsRefreshed={refresh} />
 

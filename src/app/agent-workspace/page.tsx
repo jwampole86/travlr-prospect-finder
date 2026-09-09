@@ -168,10 +168,6 @@ export default function AgentWorkspacePage() {
       .single()
       .then(({ data }) => {
         if (data?.full_name) setAgentName(data.full_name.split(' ')[0]);
-        // Show tour if not completed
-        if (data?.app_role === 'agent' && !data?.agent_onboarding_completed_at) {
-          setShowTour(true);
-        }
       });
 
     Promise.all([fetchKPIs(), fetchLeads(), fetchFollowUps(), fetchActivity()])

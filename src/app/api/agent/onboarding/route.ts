@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  serviceRoleKey && !serviceRoleKey.includes('your-supabase-service-role-key')
+    ? serviceRoleKey
+    : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 /**

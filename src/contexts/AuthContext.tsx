@@ -71,46 +71,62 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const sessionRequest = supabase.auth.getSession();
-    const sessionTimeout = new Promise<{ data: { session: null } }>((resolve) =>
-      setTimeout(() => resolve({ data: { session: null } }), 3000)
+    const sessionTimeout = new Promise<{ data: { session: null }; error: null }>((resolve) =>
+      setTimeout(() => resolve({ data: { session: null }, error: null }), 3000)
     );
 
-    Promise.race([sessionRequest, sessionTimeout]).then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        // The session JWT is already available locally; avoid an extra auth request here.
-        const authenticatedUser = session.user;
-        setUser(authenticatedUser ?? null);
-        if (authenticatedUser) {
-          const profileRole = await loadRoleFromProfile(authenticatedUser.id);
-          setRole(profileRole ?? extractRole(authenticatedUser));
-          identifyUser(authenticatedUser.id, { email: authenticatedUser.email });
+    Promise.race([sessionRequest, sessionTimeout])
+      .then(async ({ data: { session }, error }) => {
+        if (error) throw error;
+        setSession(session);
+        if (session?.user) {
+          // The session JWT is already available locally; avoid an extra auth request here.
+          const authenticatedUser = session.user;
+          setUser(authenticatedUser ?? null);
+          if (authenticatedUser) {
+            const profileRole = await loadRoleFromProfile(authenticatedUser.id);
+            setRole(profileRole ?? extractRole(authenticatedUser));
+            identifyUser(authenticatedUser.id, { email: authenticatedUser.email });
+          } else {
+            setRole(null);
+          }
         } else {
+          setUser(null);
           setRole(null);
         }
-      } else {
+        setLoading(false);
+      })
+      .catch(async (err) => {
+        // A stale/invalid refresh token (e.g. from a previous Supabase project or domain)
+        // gets stuck in storage and throws here — wipe it so the user can sign in fresh.
+        if (err?.message?.includes('Refresh Token')) {
+          await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+        }
         setUser(null);
+        setSession(null);
         setRole(null);
-      }
-      setLoading(false);
-    });
+        setLoading(false);
+      });
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
         // The session JWT is already available locally; avoid an extra auth request here.
         const authenticatedUser = session.user;
         setUser(authenticatedUser ?? null);
-        if (authenticatedUser) {
-          const profileRole = await loadRoleFromProfile(authenticatedUser.id);
-          setRole(profileRole ?? extractRole(authenticatedUser));
-          identifyUser(authenticatedUser.id, { email: authenticatedUser.email });
-        } else {
-          setRole(null);
-          resetMixpanel();
-        }
+        // Show a fast fallback role immediately; refine it in the background once the profile loads.
+        setRole(extractRole(authenticatedUser));
+        identifyUser(authenticatedUser.id, { email: authenticatedUser.email });
+        loadRoleFromProfile(authenticatedUser.id).then((profileRole) => {
+          if (profileRole) {
+            setRole(profileRole);
+            if (typeof document !== 'undefined') {
+              document.cookie = `travlr_role=${profileRole}; path=/; max-age=86400; SameSite=Lax`;
+            }
+          }
+        });
       } else {
         setUser(null);
         setRole(null);
@@ -148,13 +164,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    // Set role cookie for middleware-level route protection
-    if (data?.user) {
-      const profileRole = await loadRoleFromProfile(data.user.id);
-      const resolvedRole = profileRole ?? extractRole(data.user);
-      if (typeof document !== 'undefined') {
-        document.cookie = `travlr_role=${resolvedRole}; path=/; max-age=86400; SameSite=Lax`;
-      }
+    // Set a fast fallback role cookie immediately for middleware route protection;
+    // onAuthStateChange refines it once the profile query resolves in the background.
+    if (data?.user && typeof document !== 'undefined') {
+      document.cookie = `travlr_role=${extractRole(data.user)}; path=/; max-age=86400; SameSite=Lax`;
     }
     return data;
   };
@@ -171,7 +184,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     if (error) throw error;
     return data;
@@ -180,7 +193,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signInWithApple = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
-      options: { redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     if (error) throw error;
     return data;

@@ -87,6 +87,10 @@ export async function PATCH(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
+    if (newStatus === 'HIRED') {
+      updateData.candidate_status = 'HIRED';
+    }
+
     if (nextAction) updateData.next_action = nextAction;
     if (nextInterviewAt) updateData.next_interview_at = nextInterviewAt;
     if (nextInterviewType) updateData.next_interview_type = nextInterviewType;
@@ -119,7 +123,11 @@ export async function PATCH(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ candidate: data });
+    const offerDraftUrl = newStatus === 'HIRED'
+      ? `/offer-letters?candidateId=${encodeURIComponent(candidateId)}&source=hired`
+      : null;
+
+    return NextResponse.json({ candidate: data, offerDraftUrl });
   } catch (err) {
     console.error('[pipeline PATCH]', err);
     return NextResponse.json({ error: 'Failed to update pipeline status' }, { status: 500 });

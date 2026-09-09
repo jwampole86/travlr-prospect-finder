@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const RESEND_API_URL = 'https://api.resend.com/emails';
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 interface NotifyPayload {
   ticketNumber: string;
@@ -98,36 +97,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });
-    }
-
     const emailSubject = payload.eventType === 'created'
       ? `[${payload.ticketNumber}] Support ticket received — ${payload.subject}`
       : `[${payload.ticketNumber}] Status update: ${STATUS_LABELS[payload.status] || payload.status}`;
 
-    const response = await fetch(RESEND_API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'onboarding@resend.dev',
-        to: [payload.userEmail],
-        subject: emailSubject,
-        html: buildEmailHtml(payload),
-      }),
+    const { data, error } = await getResendClient().emails.send({
+      from: getResendFrom(),
+      to: [payload.userEmail],
+      subject: emailSubject,
+      html: buildEmailHtml(payload),
     });
 
-    if (!response.ok) {
-      const errBody = await response.text();
-      return NextResponse.json({ error: `Resend error: ${errBody}` }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error: `Resend error: ${error.message}` }, { status: 500 });
     }
 
-    const result = await response.json();
-    return NextResponse.json({ success: true, id: result.id });
+    return NextResponse.json({ success: true, id: data?.id });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: msg }, { status: 500 });

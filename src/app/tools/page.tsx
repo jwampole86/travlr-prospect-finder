@@ -11,17 +11,19 @@ import { SlidersHorizontal, Save, RotateCcw, Info, Mail, Target } from 'lucide-r
 import { toast } from 'sonner';
 
 export interface ScoringWeights {
-  price: number;
-  daysOnMarket: number;
-  regulationStatus: number;
-  neighborhoodSaturation: number;
+  revenuePotential: number;
+  propertyFit: number;
+  regulatoryFeasibility: number;
+  leadQuality: number;
+  engagement: number;
 }
 
 const DEFAULT_WEIGHTS: ScoringWeights = {
-  price: 30,
-  daysOnMarket: 25,
-  regulationStatus: 30,
-  neighborhoodSaturation: 15,
+  revenuePotential: 25,
+  propertyFit: 25,
+  regulatoryFeasibility: 25,
+  leadQuality: 15,
+  engagement: 10,
 };
 
 const STORAGE_KEY = 'travlr_scoring_weights';
@@ -54,7 +56,7 @@ export default function ToolsPage() {
   const [activeToolTab, setActiveToolTab] = useState<'scoring' | 'followup'>('scoring');
   const [scoringSubTab, setScoringSubTab] = useState<ScoringSubTab>('weights');
 
-  const total = weights.price + weights.daysOnMarket + weights.regulationStatus + weights.neighborhoodSaturation;
+  const total = weights.revenuePotential + weights.propertyFit + weights.regulatoryFeasibility + weights.leadQuality + weights.engagement;
   const isValid = total === 100;
 
   const handleChange = useCallback((key: keyof ScoringWeights, value: number) => {
@@ -200,7 +202,7 @@ export default function ToolsPage() {
                         { label: 'DOM Motivated Threshold', desc: 'Days on market before a listing is flagged as a motivated seller opportunity.' },
                         { label: 'DOM Stale Threshold', desc: 'Days on market before a listing is penalized for being potentially problematic.' },
                         { label: 'Price Competitive Band', desc: '% below market average required to be considered a competitive price.' },
-                        { label: 'Saturation Thresholds', desc: 'STR density % ranges that define underserved vs. oversaturated neighborhoods.' },
+                        { label: 'Engagement Thresholds', desc: 'Response, callback, click, and freshness signals that define outreach urgency.' },
                       ].map((item) => (
                         <div key={item.label} className="bg-muted/40 rounded-lg p-3">
                           <p className="text-xs font-medium text-foreground">{item.label}</p>

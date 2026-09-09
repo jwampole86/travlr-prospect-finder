@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, ChevronRight, ChevronLeft, HelpCircle, BookOpen, Lightbulb, ArrowRight, CheckCircle2, LayoutDashboard, List, Phone, MessageSquare, Calendar, FileText, BarChart2, HelpCircle as HelpIcon,  } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, HelpCircle, BookOpen, Lightbulb, ArrowRight, CheckCircle2, LayoutDashboard, List, Phone, MessageSquare, Calendar, FileText, BarChart2, HelpCircle as HelpIcon, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -43,6 +43,25 @@ const TOUR_STEPS: TourStep[] = [
     tip: 'Pin your most-used portfolio in the sidebar switcher to load it by default every session.',
   },
   {
+    id: 'data-sync-admin',
+    screen: 'Data Sync',
+    screenHref: '/data-sync',
+    icon: ArrowRight,
+    iconColor: 'text-cyan-500',
+    title: 'Data Sync & Quality — Keep Lead Data Current',
+    overview: 'Admins control the data engine that feeds every outreach workflow. Use Data Sync, Source Intelligence, duplicate detection, freshness checks, and enrichment review queues to keep lead records accurate before agents call or message homeowners.',
+    keyFeatures: [
+      'Run and monitor lead-source sync jobs across configured markets',
+      'Review import quality, duplicate detection, and address mismatch reports',
+      'Track data freshness so agents are not working stale listings',
+      'Use enrichment review queues before accepting owner/contact updates',
+      'Watch system health and retry queues for failed sync or provider events',
+    ],
+    nextAction: 'Next: Lead & Homeowner Pipeline',
+    nextActionHref: '/lead-management',
+    tip: 'Data quality is upstream of every call and campaign. Fix duplicate, stale, or mismatched leads before assigning them to agents.',
+  },
+  {
     id: 'lead-pipeline',
     screen: 'Lead Pipeline',
     screenHref: '/lead-management',
@@ -62,6 +81,25 @@ const TOUR_STEPS: TourStep[] = [
     tip: 'Filter by "Inbound — Self-Qualified" first — these leads already expressed interest and convert at a higher rate than cold outreach.',
   },
   {
+    id: 'map-view',
+    screen: 'Map View',
+    screenHref: '/map-view',
+    icon: List,
+    iconColor: 'text-emerald-500',
+    title: 'Map View — Check Market Coverage and Pin Accuracy',
+    overview: 'Map View shows where your non-synthetic leads are located across active markets. Use it to spot market concentration, verify that pins match the lead city/state, and select properties before drilling into the full lead record.',
+    keyFeatures: [
+      'Shows all available map-ready leads, not only the first 1,000',
+      'Filters by regulation status, minimum score, and bedroom count',
+      'Pin color reflects STR regulation status for quick market scanning',
+      'Lead list and detail panel stay synced with the selected map pin',
+      'Use map clustering patterns to guide assignment and outreach strategy',
+    ],
+    nextAction: 'Next: Dialer & Teleprompter',
+    nextActionHref: '/teleprompter',
+    tip: 'If a pin looks wrong, check the lead address, city, state, zip, and coordinate fields before assigning that lead for outreach.',
+  },
+  {
     id: 'dialer',
     screen: 'Dialer',
     screenHref: '/teleprompter',
@@ -75,7 +113,7 @@ const TOUR_STEPS: TourStep[] = [
       'Call disposition capture: outcome logged and lead stage updated automatically on hang-up',
       'Every call auto-logged to Activity Timeline (duration, outcome, timestamp, recording link)',
       'Post-call summary generated and saved without manual entry',
-      'Call recording consent disclosure plays on every call (all-party consent standard across all 10 states)',
+      'Call recording consent disclosure and state-specific guidance appear before live transcription starts',
     ],
     nextAction: 'Next: Messaging Tools',
     nextActionHref: '/templates',
@@ -139,6 +177,25 @@ const TOUR_STEPS: TourStep[] = [
     tip: 'After sending a DocuSign, check the Activity Timeline on the lead record — signing events are logged there in real time so you know exactly when the homeowner opens and signs.',
   },
   {
+    id: 'hiring-admin',
+    screen: 'Hiring',
+    screenHref: '/candidate-pipeline',
+    icon: FileText,
+    iconColor: 'text-purple-500',
+    title: 'Hiring & Offer Letters — Recruit and Onboard the Team',
+    overview: 'Admins can manage candidate profiles, interview scripts, scorecards, pipeline stages, offer letters, and DocuSign signing for new hires. Interview Mode is admin-only and should be used to standardize candidate evaluation.',
+    keyFeatures: [
+      'Candidate Profiles store parsed resumes, strengths, concerns, and scorecards',
+      'Interview Mode gives admins structured interview scripts and role-play prompts',
+      'Candidate Pipeline tracks ready, interviewed, follow-up, move-forward, hired, and rejected stages',
+      'Moving a candidate to Hired opens a branded offer-letter draft',
+      'Offer letters can route through DocuSign once credentials are configured',
+    ],
+    nextAction: 'Next: Performance & Reporting',
+    nextActionHref: '/hiring-analytics',
+    tip: 'Keep Interview Mode restricted to admins so hiring notes, scorecards, and candidate data stay separated from agent outreach tools.',
+  },
+  {
     id: 'performance',
     screen: 'Performance',
     screenHref: '/agent/commissions',
@@ -156,6 +213,44 @@ const TOUR_STEPS: TourStep[] = [
     nextAction: 'Next: Q&A / Help Center',
     nextActionHref: '/help-center',
     tip: 'Commission calculations are tied to DocuSign completion — if a payout looks wrong, check the lead\'s Activity Timeline to confirm the signing event was captured.',
+  },
+  {
+    id: 'team-admin',
+    screen: 'Team Admin',
+    screenHref: '/agent-management',
+    icon: HelpCircle,
+    iconColor: 'text-indigo-500',
+    title: 'Team Admin — Roles, Assignments, and Agent Readiness',
+    overview: 'Admin tools control who can access what, which leads agents receive, and whether agents are ready to work. New agents should complete their mandatory orientation before they start calling leads.',
+    keyFeatures: [
+      'Invite agents and monitor whether their onboarding tour is complete',
+      'Assign high-priority or fully verified leads to the right agent queue',
+      'Use role management to keep admin-only pages away from agents and homeowners',
+      'Review agent workload, performance, productivity, and coaching views',
+      'Use audit logs and compliance reports to trace sensitive changes',
+    ],
+    nextAction: 'Next: Time Clock',
+    nextActionHref: '/time-clock',
+    tip: 'Before assigning call volume, confirm the agent is active, has completed onboarding, and has verified leads with phone numbers in their queue.',
+  },
+  {
+    id: 'time-clock',
+    screen: 'Time Clock',
+    screenHref: '/time-clock',
+    icon: Clock,
+    iconColor: 'text-primary',
+    title: 'Time Clock — Shift Tracking for Every Team Member',
+    overview: 'Every admin and agent can clock in/out and track breaks from the top bar or the Time Clock page. A live timer runs continuously while clocked in and pauses visually during breaks — no separate timesheet tool needed.',
+    keyFeatures: [
+      'Clock In / Start Break / End Break / Clock Out from the top-bar widget on every page',
+      'Live HH:MM:SS timer visible at all times once clocked in',
+      'Personal 14-day shift history and this-week total on the Time Clock page',
+      'Admins/owners get a "Team Status" tab showing everyone currently clocked in or on break in real time',
+      'Only one open shift per person is allowed at a time — clock out before starting a new one',
+    ],
+    nextAction: 'Next: Q&A / Help Center',
+    nextActionHref: '/help-center',
+    tip: 'Use the Team Status tab to spot agents who forgot to clock out — a stuck shift keeps accumulating hours until it is closed.',
   },
   {
     id: 'help-center',
@@ -402,12 +497,9 @@ export default function OnboardingTourEngine({
           setVisible(true);
         } else {
           // Auto-detect: show mandatory tour if count === 0
-          // If count >= 2, redirect to Help Center instead of showing tour again
           if (count === 0) {
             setResolvedViewingNumber(1);
             setVisible(true);
-          } else if (count >= 2) {
-            router.push('/help-center');
           }
         }
         setLoadingCount(false);

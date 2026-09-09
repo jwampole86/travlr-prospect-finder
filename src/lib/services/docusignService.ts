@@ -14,6 +14,8 @@ const DS_ACCOUNT_ID = process.env.DOCUSIGN_ACCOUNT_ID ?? '';
 const DS_USER_ID = process.env.DOCUSIGN_USER_ID ?? '';
 const DS_PRIVATE_KEY = (process.env.DOCUSIGN_PRIVATE_KEY ?? '').replace(/\\n/g, '\n');
 
+const hasPlaceholderValue = (value: string) => !value || /your-|here|xxxxxxxx|BEGIN RSA PRIVATE KEY/.test(value);
+
 // TRAVLR static config — never re-entered per deal
 export const TRAVLR_CONFIG = {
   entityType: 'TRAVLR Inc.',
@@ -73,6 +75,28 @@ export interface EmbeddedSigningUrlResult {
   url: string;
 }
 
+export interface OfferLetterSigner {
+  name: string;
+  email: string;
+  recipientId: string;
+  order: number;
+}
+
+export function getDocuSignConfigStatus() {
+  const missing: string[] = [];
+  if (hasPlaceholderValue(DS_INTEGRATION_KEY)) missing.push('DOCUSIGN_INTEGRATION_KEY');
+  if (hasPlaceholderValue(DS_ACCOUNT_ID)) missing.push('DOCUSIGN_ACCOUNT_ID');
+  if (hasPlaceholderValue(DS_USER_ID)) missing.push('DOCUSIGN_USER_ID');
+  if (hasPlaceholderValue(DS_PRIVATE_KEY)) missing.push('DOCUSIGN_PRIVATE_KEY');
+
+  return {
+    configured: missing.length === 0,
+    missing,
+    basePath: DS_BASE_PATH,
+    oauthBase: DS_OAUTH_BASE,
+  };
+}
+
 // ─── JWT Auth ─────────────────────────────────────────────────────────────────
 
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
@@ -82,9 +106,10 @@ export async function getDocuSignAccessToken(): Promise<string> {
     return cachedToken.accessToken;
   }
 
-  if (!DS_INTEGRATION_KEY || !DS_USER_ID || !DS_PRIVATE_KEY) {
+  const config = getDocuSignConfigStatus();
+  if (!config.configured) {
     throw new Error(
-      'DocuSign credentials not configured. Set DOCUSIGN_INTEGRATION_KEY, DOCUSIGN_USER_ID, and DOCUSIGN_PRIVATE_KEY in your environment.'
+      `DocuSign credentials not configured. Set real values for: ${config.missing.join(', ')}.`
     );
   }
 
@@ -237,6 +262,79 @@ export async function createSigningEnvelope(
   if (!response.ok) {
     const err = await response.text();
     throw new Error(`DocuSign create envelope failed: ${err}`);
+  }
+
+  const data = await response.json() as { envelopeId: string; status: string };
+  return { envelopeId: data.envelopeId, status: data.status };
+}
+
+export async function createOfferLetterEnvelope(
+  signers: OfferLetterSigner[],
+  letterHtml: string,
+  emailSubject = 'TRAVLR Offer Letter — Please Review & Sign'
+): Promise<CreateEnvelopeResult> {
+  if (!signers.length) throw new Error('At least one offer signer is required');
+  if (!letterHtml.trim()) throw new Error('Offer letter HTML is required');
+
+  const accessToken = await getDocuSignAccessToken();
+  const signerRecipients = signers.map((signer) => ({
+    email: signer.email,
+    name: signer.name,
+    recipientId: signer.recipientId,
+    routingOrder: String(signer.order),
+    tabs: {
+      signHereTabs: [
+        {
+          documentId: '1',
+          tabLabel: `CandidateSignHere_${signer.recipientId}`,
+          anchorString: `[CANDIDATE_SIGNATURE_${signer.recipientId}]`,
+          anchorUnits: 'pixels',
+          anchorXOffset: '0',
+          anchorYOffset: '-8',
+        },
+      ],
+      dateSignedTabs: [
+        {
+          documentId: '1',
+          tabLabel: `CandidateDateSigned_${signer.recipientId}`,
+          anchorString: `[CANDIDATE_DATE_${signer.recipientId}]`,
+          anchorUnits: 'pixels',
+          anchorXOffset: '0',
+          anchorYOffset: '-8',
+        },
+      ],
+    },
+  }));
+
+  const envelopeDefinition = {
+    emailSubject,
+    documents: [
+      {
+        documentId: '1',
+        name: 'TRAVLR_Offer_Letter.html',
+        fileExtension: 'html',
+        documentBase64: Buffer.from(letterHtml).toString('base64'),
+      },
+    ],
+    recipients: { signers: signerRecipients },
+    status: 'sent',
+  };
+
+  const response = await fetch(
+    `${DS_BASE_PATH}/v2.1/accounts/${DS_ACCOUNT_ID}/envelopes`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(envelopeDefinition),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`DocuSign create offer envelope failed: ${err}`);
   }
 
   const data = await response.json() as { envelopeId: string; status: string };

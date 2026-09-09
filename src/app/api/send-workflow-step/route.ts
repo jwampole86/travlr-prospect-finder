@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,7 +29,7 @@ export async function POST(req: NextRequest) {
     // Fetch leads
     const { data: leads, error: leadsErr } = await supabase
       .from('leads')
-      .select('id, contact_name, address, city, price, beds, baths, source')
+      .select('id, contact_name, email, address, city, price, beds, baths, source')
       .in('id', leadIds);
 
     if (leadsErr || !leads?.length) {
@@ -51,6 +49,13 @@ export async function POST(req: NextRequest) {
         .replace(/{{source}}/g, lead.source || '');
 
       if (step.channel === 'email') {
+        if (!lead.email) {
+          results.push({ leadId: lead.id, success: false, error: 'Lead has no email address' });
+          continue;
+        }
+
+        const resend = getResendClient();
+        const from = getResendFrom();
         const filledSubject = fill(step.subject) || 'Following up on your property';
         const filledBody = fill(step.body) || '';
 
@@ -59,8 +64,8 @@ export async function POST(req: NextRequest) {
         </div>`;
 
         const { data: emailData, error: emailErr } = await resend.emails.send({
-          from: 'TRAVLR <onboarding@resend.dev>',
-          to: ['delivered@resend.dev'], // In production, use lead's actual email
+          from,
+          to: [lead.email],
           subject: filledSubject,
           html,
         });

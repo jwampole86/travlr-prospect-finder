@@ -32,6 +32,24 @@ export interface SMSDispatchResult {
   twilioConfigured: boolean;
 }
 
+export interface TwilioConfigStatus {
+  smsConfigured: boolean;
+  voiceTokenConfigured: boolean;
+  voiceCallConfigured: boolean;
+  authMode: 'account_sid' | 'api_key' | 'missing';
+  accountSidConfigured: boolean;
+  apiKeySidConfigured: boolean;
+  apiAccountSidConfigured: boolean;
+  authTokenConfigured: boolean;
+  fromNumberConfigured: boolean;
+  twimlAppConfigured: boolean;
+  missing: string[];
+}
+
+function isConfiguredValue(value: string | undefined): value is string {
+  return Boolean(value && !/your-|placeholder|changeme|example/i.test(value));
+}
+
 /**
  * Returns the Account SID to use in the Twilio API URL.
  * If TWILIO_ACCOUNT_SID is an API Key (SK prefix), falls back to TWILIO_ACCOUNT_SID_MAIN.
@@ -41,23 +59,53 @@ function getTwilioAccountSid(): string | undefined {
   if (!sid) return undefined;
   // API Key SIDs start with SK — the actual Account SID must be in TWILIO_ACCOUNT_SID_MAIN
   if (sid.startsWith('SK')) {
-    return process.env.TWILIO_ACCOUNT_SID_MAIN || sid;
+    return isConfiguredValue(process.env.TWILIO_ACCOUNT_SID_MAIN) ? process.env.TWILIO_ACCOUNT_SID_MAIN : undefined;
   }
   return sid;
+}
+
+export function getTwilioConfigStatus(): TwilioConfigStatus {
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM_NUMBER;
+  const accountSidMain = process.env.TWILIO_ACCOUNT_SID_MAIN;
+  const twimlAppSid = process.env.TWILIO_TWIML_APP_SID;
+
+  const apiKeySidConfigured = isConfiguredValue(sid) && sid.startsWith('SK');
+  const accountSidConfigured = isConfiguredValue(sid) && sid.startsWith('AC');
+  const apiAccountSidConfigured = apiKeySidConfigured ? isConfiguredValue(accountSidMain) && accountSidMain.startsWith('AC') : accountSidConfigured;
+  const authTokenConfigured = isConfiguredValue(token);
+  const fromNumberConfigured = isConfiguredValue(from);
+  const twimlAppConfigured = isConfiguredValue(twimlAppSid) && twimlAppSid.startsWith('AP');
+  const authMode = apiKeySidConfigured ? 'api_key' : accountSidConfigured ? 'account_sid' : 'missing';
+
+  const missing: string[] = [];
+  if (!isConfiguredValue(sid)) missing.push('TWILIO_ACCOUNT_SID');
+  if (apiKeySidConfigured && !apiAccountSidConfigured) missing.push('TWILIO_ACCOUNT_SID_MAIN');
+  if (!authTokenConfigured) missing.push('TWILIO_AUTH_TOKEN');
+  if (!fromNumberConfigured) missing.push('TWILIO_FROM_NUMBER');
+  if (!twimlAppConfigured) missing.push('TWILIO_TWIML_APP_SID');
+
+  return {
+    smsConfigured: apiAccountSidConfigured && authTokenConfigured && fromNumberConfigured,
+    voiceTokenConfigured: apiKeySidConfigured && apiAccountSidConfigured && authTokenConfigured && twimlAppConfigured,
+    voiceCallConfigured: apiAccountSidConfigured && authTokenConfigured && fromNumberConfigured,
+    authMode,
+    accountSidConfigured,
+    apiKeySidConfigured,
+    apiAccountSidConfigured,
+    authTokenConfigured,
+    fromNumberConfigured,
+    twimlAppConfigured,
+    missing,
+  };
 }
 
 /**
  * Returns true when all three Twilio env vars are present and non-placeholder.
  */
 export function isTwilioConfigured(): boolean {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_FROM_NUMBER;
-  return !!(
-    sid && !sid.startsWith('your-') &&
-    token && !token.startsWith('your-') &&
-    from && !from.startsWith('your-')
-  );
+  return getTwilioConfigStatus().smsConfigured;
 }
 
 /**
@@ -83,7 +131,15 @@ export async function dispatchSMS(payload: SMSDispatchPayload): Promise<SMSDispa
 
   // For API Key auth (SK prefix), use the API Key SID + secret as Basic Auth credentials
   // The URL path still uses the Account SID (from TWILIO_ACCOUNT_SID_MAIN if set)
-  const urlAccountSid = getTwilioAccountSid() || accountSid;
+  const urlAccountSid = getTwilioAccountSid();
+  if (!urlAccountSid) {
+    return {
+      success: false,
+      status: 'failed',
+      twilioConfigured: false,
+      error: 'Twilio API Key SID is configured, but TWILIO_ACCOUNT_SID_MAIN is missing. Set the parent AC... Account SID for REST API URLs.',
+    };
+  }
 
   try {
     const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
@@ -143,7 +199,8 @@ export async function getSMSStatus(messageSid: string): Promise<{
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID!;
   const authToken = process.env.TWILIO_AUTH_TOKEN!;
-  const urlAccountSid = getTwilioAccountSid() || accountSid;
+  const urlAccountSid = getTwilioAccountSid();
+  if (!urlAccountSid) return null;
   const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
 
   try {
