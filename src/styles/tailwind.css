@@ -1,0 +1,322 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --background: #f4f6f9;
+  --foreground: #0d1b2a;
+  --primary: #1a5276;
+  --primary-foreground: #ffffff;
+  --secondary: #2e86c1;
+  --secondary-foreground: #ffffff;
+  --accent: #1a5276;
+  --accent-foreground: #ffffff;
+  --muted: #e8edf3;
+  --muted-foreground: #64748b;
+  --card: #ffffff;
+  --card-foreground: #0d1b2a;
+  --border: #dde3ec;
+  --input: #dde3ec;
+  --ring: #1a5276;
+  --radius: 8px;
+  --font-sans: 'DM Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Semantic colors */
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --success-border: #bbf7d0;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --danger-border: #fecaca;
+  --info: #2563eb;
+  --info-bg: #eff6ff;
+  --info-border: #bfdbfe;
+  --neutral: #64748b;
+  --neutral-bg: #f8fafc;
+  --neutral-border: #e2e8f0;
+
+  /* Stage colors */
+  --stage-new: #7c3aed;
+  --stage-new-bg: #f5f3ff;
+  --stage-contacted: #2563eb;
+  --stage-contacted-bg: #eff6ff;
+  --stage-interested: #0891b2;
+  --stage-interested-bg: #ecfeff;
+  --stage-proposal: #d97706;
+  --stage-proposal-bg: #fffbeb;
+  --stage-contract: #16a34a;
+  --stage-contract-bg: #f0fdf4;
+  --stage-live: #1a5276;
+  --stage-live-bg: #e8f4fd;
+  --stage-notfit: #6b7280;
+  --stage-notfit-bg: #f9fafb;
+
+  /* Chart colors — light mode */
+  --chart-1: #1a5276;
+  --chart-2: #2e86c1;
+  --chart-3: #16a34a;
+  --chart-4: #d97706;
+  --chart-5: #7c3aed;
+  --chart-6: #dc2626;
+
+  /* Teleprompter */
+  --teleprompter-bg: #0d1b2a;
+  --teleprompter-text: #e2e8f0;
+  --teleprompter-suggestion-bg: #1e3a5f;
+  --teleprompter-suggestion-border: #2e86c1;
+  --teleprompter-suggestion-text: #93c5fd;
+  --teleprompter-highlight: #fbbf24;
+}
+
+/* ─── Dark Mode Tokens ──────────────────────────────────────────────────────── */
+.dark {
+  --background: #0d1117;
+  --foreground: #e2e8f0;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #60a5fa;
+  --secondary-foreground: #0d1117;
+  --accent: #3b82f6;
+  --accent-foreground: #ffffff;
+  --muted: #1e2533;
+  --muted-foreground: #94a3b8;
+  --card: #161b27;
+  --card-foreground: #e2e8f0;
+  --border: #2a3142;
+  --input: #2a3142;
+  --ring: #3b82f6;
+
+  /* Semantic colors — dark mode (preserve meaning, boost contrast) */
+  --success: #4ade80;
+  --success-bg: #052e16;
+  --success-border: #166534;
+  --warning: #fbbf24;
+  --warning-bg: #1c1400;
+  --warning-border: #854d0e;
+  --danger: #f87171;
+  --danger-bg: #1c0a0a;
+  --danger-border: #991b1b;
+  --info: #60a5fa;
+  --info-bg: #0c1a2e;
+  --info-border: #1e40af;
+  --neutral: #94a3b8;
+  --neutral-bg: #1e2533;
+  --neutral-border: #334155;
+
+  /* Stage colors — dark mode */
+  --stage-new: #a78bfa;
+  --stage-new-bg: #1e1040;
+  --stage-contacted: #60a5fa;
+  --stage-contacted-bg: #0c1a2e;
+  --stage-interested: #22d3ee;
+  --stage-interested-bg: #0a1e24;
+  --stage-proposal: #fbbf24;
+  --stage-proposal-bg: #1c1400;
+  --stage-contract: #4ade80;
+  --stage-contract-bg: #052e16;
+  --stage-live: #60a5fa;
+  --stage-live-bg: #0c1a2e;
+  --stage-notfit: #94a3b8;
+  --stage-notfit-bg: #1e2533;
+
+  /* Chart colors — dark mode (brighter for dark backgrounds) */
+  --chart-1: #60a5fa;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #f472b6;
+  --chart-5: #a78bfa;
+  --chart-6: #fb923c;
+
+  /* Teleprompter — dark mode (high contrast for live calls) */
+  --teleprompter-bg: #060d16;
+  --teleprompter-text: #f1f5f9;
+  --teleprompter-suggestion-bg: #0f2744;
+  --teleprompter-suggestion-border: #3b82f6;
+  --teleprompter-suggestion-text: #bfdbfe;
+  --teleprompter-highlight: #fde047;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  h1, h2, h3, h4, h5, h6, p {
+    margin: 0;
+  }
+}
+
+@layer utilities {
+  .font-mono-data {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 3px;
+  }
+
+  .prospect-score-bar {
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--muted);
+    overflow: hidden;
+  }
+
+  .regulation-allowed {
+    color: var(--success);
+    background-color: var(--success-bg);
+    border: 1px solid var(--success-border);
+  }
+
+  .regulation-restricted {
+    color: var(--warning);
+    background-color: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+  }
+
+  .regulation-prohibited {
+    color: var(--danger);
+    background-color: var(--danger-bg);
+    border: 1px solid var(--danger-border);
+  }
+
+  .regulation-unknown {
+    color: var(--neutral);
+    background-color: var(--neutral-bg);
+    border: 1px solid var(--neutral-border);
+  }
+
+  .slide-in-right {
+    animation: slideInRight 0.2s ease-out;
+  }
+
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .fade-in {
+    animation: fadeIn 0.15s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Modal/drawer entrance animations */
+  .modal-enter {
+    animation: modalEnter 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes modalEnter {
+    from { opacity: 0; transform: scale(0.96) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .drawer-enter {
+    animation: drawerEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes drawerEnter {
+    from { opacity: 0; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .slide-up {
+    animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Portfolio switch transition */
+  .portfolio-fade {
+    animation: portfolioFade 0.25s ease-out;
+  }
+
+  @keyframes portfolioFade {
+    from { opacity: 0.4; }
+    to { opacity: 1; }
+  }
+
+  /* Optimistic stage update flash */
+  .stage-flash {
+    animation: stageFlash 0.4s ease-out;
+  }
+
+  @keyframes stageFlash {
+    0% { background-color: var(--primary); opacity: 0.15; }
+    100% { background-color: transparent; opacity: 1; }
+  }
+
+  .map-pin-allowed {
+    background-color: var(--success);
+  }
+
+  .map-pin-restricted {
+    background-color: var(--warning);
+  }
+
+  .map-pin-prohibited {
+    background-color: var(--danger);
+  }
+
+  .map-pin-unknown {
+    background-color: var(--neutral);
+  }
+
+  /* Teleprompter suggestion panel — uses CSS vars for dark mode */
+  .teleprompter-suggestion {
+    background-color: var(--teleprompter-suggestion-bg);
+    border: 1px solid var(--teleprompter-suggestion-border);
+    color: var(--teleprompter-suggestion-text);
+  }
+}
