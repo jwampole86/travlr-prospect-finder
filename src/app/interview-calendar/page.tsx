@@ -132,8 +132,9 @@ function ScheduleModal({
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Zoom Link</label>
-            <input type="url" value={form.zoom_link} onChange={e => setForm(f => ({ ...f, zoom_link: e.target.value }))} placeholder="https://zoom.us/j/..." className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Zoom Meeting</label>
+            <input type="url" value={form.zoom_link} onChange={e => setForm(f => ({ ...f, zoom_link: e.target.value }))} placeholder="Leave blank to create automatically" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            <p className="mt-1.5 text-xs text-gray-500">Paste an existing Zoom link, or leave this blank and TRAVLR will create one when you save.</p>
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Notes</label>
@@ -526,15 +527,42 @@ export default function InterviewCalendarPage() {
 
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
+  const createZoomMeeting = async (session: Partial<InterviewSession>) => {
+    const response = await fetch('/api/interview/zoom/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidateName: session.candidate_name,
+        roleTitle: session.role_title,
+        scheduledAt: session.scheduled_at,
+        durationMinutes: session.duration_minutes,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to create Zoom meeting');
+    return result.joinUrl as string;
+  };
+
   const handleSave = async (formData: Partial<InterviewSession>) => {
+    const dataToSave = { ...formData };
+
+    if (!dataToSave.zoom_link) {
+      try {
+        dataToSave.zoom_link = await createZoomMeeting(dataToSave);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to create Zoom meeting');
+        return;
+      }
+    }
+
     if (editingSession?.id) {
-      const { error } = await supabase.from('interview_sessions').update({ ...formData, updated_at: new Date().toISOString() }).eq('id', editingSession.id);
+      const { error } = await supabase.from('interview_sessions').update({ ...dataToSave, updated_at: new Date().toISOString() }).eq('id', editingSession.id);
       if (error) { toast.error('Failed to update session'); return; }
       toast.success('Interview updated');
     } else {
-      const { error } = await supabase.from('interview_sessions').insert({ ...formData, created_by: user?.id, status: 'scheduled' });
+      const { error } = await supabase.from('interview_sessions').insert({ ...dataToSave, created_by: user?.id, status: 'scheduled' });
       if (error) { toast.error('Failed to schedule interview'); return; }
-      toast.success('Interview scheduled!');
+      toast.success('Interview scheduled with Zoom!');
     }
     setShowModal(false);
     setEditingSession(null);
@@ -542,10 +570,23 @@ export default function InterviewCalendarPage() {
   };
 
   const handleBatchSave = async (rows: Partial<InterviewSession>[]) => {
-    const inserts = rows.map(r => ({ ...r, created_by: user?.id, status: 'scheduled' as const }));
+    const inserts: Array<Partial<InterviewSession>> = [];
+    try {
+      for (const row of rows) {
+        inserts.push({
+          ...row,
+          zoom_link: row.zoom_link || await createZoomMeeting(row),
+          created_by: user?.id,
+          status: 'scheduled',
+        });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create Zoom meetings');
+      return;
+    }
     const { error } = await supabase.from('interview_sessions').insert(inserts);
     if (error) { toast.error('Failed to batch schedule'); return; }
-    toast.success(`${inserts.length} interview${inserts.length !== 1 ? 's' : ''} scheduled!`);
+    toast.success(`${inserts.length} Zoom interview${inserts.length !== 1 ? 's' : ''} scheduled!`);
     setShowBatchModal(false);
     fetchSessions();
   };
