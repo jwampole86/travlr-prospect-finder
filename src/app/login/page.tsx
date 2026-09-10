@@ -17,17 +17,9 @@ function GoogleIcon() {
   );
 }
 
-function AppleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M14.045 9.58c-.022-2.178 1.78-3.23 1.861-3.282-1.015-1.484-2.592-1.687-3.152-1.708-1.337-.136-2.617.79-3.295.79-.678 0-1.72-.773-2.832-.752-1.449.022-2.793.845-3.539 2.14-1.515 2.624-.387 6.503 1.083 8.632.72 1.038 1.574 2.2 2.694 2.158 1.086-.044 1.494-.697 2.806-.697 1.311 0 1.685.697 2.831.674 1.166-.022 1.9-1.055 2.612-2.097.826-1.2 1.163-2.364 1.18-2.424-.026-.011-2.264-.866-2.249-3.434ZM11.9 3.14C12.48 2.44 12.876 1.47 12.762.5c-.83.034-1.836.553-2.43 1.253-.534.617-.999 1.606-.874 2.553.928.072 1.876-.47 2.443-1.166Z" fill="currentColor"/>
-    </svg>
-  );
-}
-
 export default function LoginPage() {
   const router = useRouter();
-  const { user, loading, signIn, signUp, signInWithGoogle, signInWithApple } = useAuth();
+  const { user, loading, signIn, signUp, signInWithGoogle } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
@@ -35,7 +27,7 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
+  const [oauthLoading, setOauthLoading] = useState<'google' | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -75,17 +67,6 @@ export default function LoginPage() {
       await signInWithGoogle();
     } catch (err: any) {
       setError(err?.message || 'Google sign-in failed. Please try again.');
-      setOauthLoading(null);
-    }
-  }
-
-  async function handleAppleSignIn() {
-    setError('');
-    setOauthLoading('apple');
-    try {
-      await signInWithApple();
-    } catch (err: any) {
-      setError(err?.message || 'Apple sign-in failed. Please try again.');
       setOauthLoading(null);
     }
   }
@@ -191,20 +172,6 @@ export default function LoginPage() {
                 <GoogleIcon />
               )}
               Continue with Google
-            </button>
-
-            <button
-              type="button"
-              onClick={handleAppleSignIn}
-              disabled={oauthLoading !== null || submitting}
-              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-background border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted disabled:opacity-60 transition-all"
-            >
-              {oauthLoading === 'apple' ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <AppleIcon />
-              )}
-              Continue with Apple
             </button>
           </div>
 

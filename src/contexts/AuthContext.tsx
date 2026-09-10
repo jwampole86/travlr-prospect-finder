@@ -15,7 +15,6 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<any>;
-  signInWithApple: () => Promise<any>;
   getCurrentUser: () => Promise<any>;
   isEmailVerified: () => boolean;
   getUserProfile: () => Promise<any>;
@@ -190,15 +189,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return data;
   };
 
-  const signInWithApple = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) throw error;
-    return data;
-  };
-
   const getCurrentUser = async () => {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) throw error;
@@ -231,7 +221,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signIn,
     signOut,
     signInWithGoogle,
-    signInWithApple,
     getCurrentUser,
     isEmailVerified,
     getUserProfile,
