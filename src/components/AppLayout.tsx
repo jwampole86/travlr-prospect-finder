@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Menu, Phone } from 'lucide-react';
+import { ArrowLeft, Loader2, Menu, Phone } from 'lucide-react';
 import NotificationDrawer from './NotificationDrawer';
 import SyncSchedulerRunner from './SyncSchedulerRunner';
 import SyncToastEmitter from './SyncToastEmitter';
@@ -58,6 +58,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   if (!user || role === 'homeowner') return null;
 
+  // Landing pages have nowhere meaningful to go "back" to within the app.
+  const isLandingPage = pathname === '/' || pathname === '/agent-workspace';
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Mobile sidebar overlay */}
@@ -90,15 +93,41 @@ export default function AppLayout({ children }: AppLayoutProps) {
           >
             <Menu size={20} />
           </button>
+          {!isLandingPage && (
+            <button
+              onClick={() => router.back()}
+              className="flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors touch-manipulation"
+              aria-label="Go back"
+              title="Go back"
+              style={{ minWidth: '44px', minHeight: '44px' }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
           <span className="text-sm font-semibold text-foreground flex-1">TRAVLR Prospect Finder</span>
           <TimeClockWidget />
           <ProfileMenu />
         </div>
 
         {/* Desktop top bar */}
-        <div className="hidden md:flex sticky top-0 z-30 items-center justify-end gap-2 px-6 py-2 bg-card border-b border-border">
-          <TimeClockWidget />
-          <ProfileMenu />
+        <div className="hidden md:flex sticky top-0 z-30 items-center justify-between gap-2 px-6 py-2 bg-card border-b border-border">
+          <div>
+            {!isLandingPage && (
+              <button
+                onClick={() => router.back()}
+                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                aria-label="Go back"
+                title="Go back"
+              >
+                <ArrowLeft size={16} />
+                <span>Back</span>
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <TimeClockWidget />
+            <ProfileMenu />
+          </div>
         </div>
         {children}
         {/* Compliance footer */}

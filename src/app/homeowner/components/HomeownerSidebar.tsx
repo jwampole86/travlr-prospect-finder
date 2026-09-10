@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
-import { LayoutDashboard, DollarSign, Calendar, FileText, MessageSquare, Settings, LogOut, ChevronDown, Home, ChevronLeft, ChevronRight, User, Building2, Shield, Bell, Menu, X, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, DollarSign, Calendar, FileText, MessageSquare, Settings, LogOut, ChevronDown, Home, ChevronLeft, ChevronRight, User, Building2, Shield, Bell, Menu, X, ClipboardCheck, ArrowLeft } from 'lucide-react';
 
 const navItems = [
   { key: 'hw-dashboard', label: 'Dashboard', href: '/homeowner', icon: LayoutDashboard },
@@ -32,6 +32,7 @@ interface PropertyOption {
 
 export default function HomeownerSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, signOut } = useAuth();
   const supabase = createClient();
   const [collapsed, setCollapsed] = useState(false);
@@ -184,6 +185,17 @@ export default function HomeownerSidebar() {
       >
         <Menu size={16} className="text-foreground" />
       </button>
+
+      {/* Mobile back button */}
+      {pathname !== '/homeowner' && (
+        <button
+          onClick={() => router.back()}
+          className="fixed top-3 left-14 z-40 md:hidden flex items-center justify-center w-9 h-9 rounded-lg bg-card border border-border shadow-sm hover:bg-muted transition-all"
+          aria-label="Go back"
+        >
+          <ArrowLeft size={16} className="text-foreground" />
+        </button>
+      )}
 
       {/* Mobile overlay */}
       {mobileOpen && (
