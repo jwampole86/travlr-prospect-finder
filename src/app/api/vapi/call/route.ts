@@ -15,6 +15,7 @@ function normalizeE164(value: string): string | null {
 }
 
 type CallRequest = {
+  interviewId?: string;
   candidateId?: string;
   to?: string;
   candidateName?: string;
@@ -45,6 +46,19 @@ export async function POST(request: NextRequest) {
     let to = body.to ? normalizeE164(body.to) : null;
     let candidateName = body.candidateName?.trim() || undefined;
     let variableValues = body.variableValues;
+
+    if (body.interviewId) {
+      const { data: interview, error: interviewError } = await supabase
+        .from('interview_sessions')
+        .select('id, candidate_id, scheduled_at, status')
+        .eq('id', body.interviewId)
+        .single();
+      if (interviewError || !interview) return NextResponse.json({ error: 'Interview not found' }, { status: 404 });
+      if (interview.status !== 'scheduled') return NextResponse.json({ error: 'This interview is no longer scheduled' }, { status: 409 });
+      const minutesLate = (Date.now() - new Date(interview.scheduled_at).getTime()) / 60000;
+      if (minutesLate > 20) return NextResponse.json({ error: 'This interview is more than 20 minutes past its scheduled time. Reschedule it before calling.' }, { status: 409 });
+      if (!body.candidateId) body.candidateId = interview.candidate_id || undefined;
+    }
 
     if (body.candidateId) {
       const { data: candidate, error: candidateError } = await supabase
