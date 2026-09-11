@@ -37,7 +37,6 @@ async function getRescheduleAssistantOverride(apiKey: string, assistantId: strin
   const baseUrl = toolBaseUrl();
   if (!baseUrl) return { model: { messages: [{ role: 'system', content: RESCHEDULE_INSTRUCTIONS }] } };
   const toolSecret = process.env.VAPI_TOOL_SECRET || process.env.VAPI_WEBHOOK_SECRET;
-  if (!toolSecret) throw new Error('VAPI_TOOL_SECRET is not configured');
 
   const assistantResponse = await fetch(`${VAPI_BASE_URL}/assistant/${encodeURIComponent(assistantId)}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -48,7 +47,7 @@ async function getRescheduleAssistantOverride(apiKey: string, assistantId: strin
   return {
     model: {
       messages: [...existingMessages, { role: 'system', content: RESCHEDULE_INSTRUCTIONS }],
-      tools: [
+      tools: toolSecret ? [
         { type: 'endCall' },
         {
           type: 'function',
@@ -91,9 +90,25 @@ async function getRescheduleAssistantOverride(apiKey: string, assistantId: strin
           },
           server: { url: `${baseUrl}/api/interviews/vapi/reschedule`, secret: toolSecret },
         },
-      ],
+      ] : [{ type: 'endCall' }],
     },
   };
+}
+
+function providerErrorMessage(body: unknown, fallback: string) {
+  if (!body || typeof body !== 'object') return fallback;
+  const record = body as Record<string, unknown>;
+  for (const key of ['message', 'error', 'errorMessage', 'detail', 'details']) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  if (Array.isArray(record.errors) && record.errors.length > 0) {
+    return record.errors
+      .map((item) => typeof item === 'string' ? item : item && typeof item === 'object' && 'message' in item ? String((item as { message?: unknown }).message || '') : '')
+      .filter(Boolean)
+      .join('; ') || fallback;
+  }
+  return fallback;
 }
 
 export async function startVapiCall(input: StartVapiCallInput) {
@@ -124,11 +139,7 @@ export async function startVapiCall(input: StartVapiCallInput) {
 
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    const providerMessage =
-      body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
-        ? body.message
-        : 'Vapi rejected the call request';
-    throw new Error(providerMessage);
+    throw new Error(providerErrorMessage(body, 'Vapi rejected the call request'));
   }
 
   if (!body || typeof body !== 'object' || !('id' in body) || typeof body.id !== 'string') {
