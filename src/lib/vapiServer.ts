@@ -22,8 +22,83 @@ export interface StartVapiCallInput {
   variableValues?: Record<string, string>;
 }
 
+const RESCHEDULE_INSTRUCTIONS = `If the candidate says they are busy, driving, at work, unavailable, unable to talk, or asks to do the interview later, do not pressure them or score this negatively. Acknowledge them and ask whether they would like to reschedule. If they agree, use get_interview_availability with the interviewId and candidateId variables and their requested date, time of day, and timezone. Offer only slots returned by that tool, in the candidate's local timezone. Require explicit confirmation before calling reschedule_interview. Never claim a time is booked until reschedule_interview returns ok=true. If it returns SLOT_NO_LONGER_AVAILABLE, call get_interview_availability again. After a successful reschedule, confirm the exact date, time, and timezone, then end the call politely with the endCall tool. A reschedule request is not a negative interview signal.`;
+
+function toolBaseUrl() {
+  const configured = process.env.VAPI_TOOL_BASE_URL?.trim();
+  if (configured) return configured.replace(/\/$/, '');
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (appUrl) return appUrl.replace(/\/$/, '');
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  return vercelUrl ? `https://${vercelUrl}` : null;
+}
+
+async function getRescheduleAssistantOverride(apiKey: string, assistantId: string) {
+  const baseUrl = toolBaseUrl();
+  if (!baseUrl) return { model: { messages: [{ role: 'system', content: RESCHEDULE_INSTRUCTIONS }] } };
+  const toolSecret = process.env.VAPI_TOOL_SECRET || process.env.VAPI_WEBHOOK_SECRET;
+  if (!toolSecret) throw new Error('VAPI_TOOL_SECRET is not configured');
+
+  const assistantResponse = await fetch(`${VAPI_BASE_URL}/assistant/${encodeURIComponent(assistantId)}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    cache: 'no-store',
+  });
+  const assistant = await assistantResponse.json().catch(() => null);
+  const existingMessages = assistant?.model?.messages && Array.isArray(assistant.model.messages) ? assistant.model.messages : [];
+  return {
+    model: {
+      messages: [...existingMessages, { role: 'system', content: RESCHEDULE_INSTRUCTIONS }],
+      tools: [
+        { type: 'endCall' },
+        {
+          type: 'function',
+          function: {
+            name: 'get_interview_availability',
+            description: 'Retrieve real open 25-minute interview slots in the candidate local timezone.',
+            parameters: {
+              type: 'object',
+              properties: {
+                interviewId: { type: 'string' },
+                candidateId: { type: 'string' },
+                candidateTimezone: { type: 'string' },
+                preferredDate: { type: 'string' },
+                preferredTime: { type: 'string' },
+                preferredTimeOfDay: { type: 'string', enum: ['morning', 'afternoon', 'evening'] },
+                searchDays: { type: 'number' },
+              },
+              required: ['interviewId', 'candidateId'],
+            },
+          },
+          server: { url: `${baseUrl}/api/interviews/vapi/availability`, secret: toolSecret },
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'reschedule_interview',
+            description: 'Atomically book a candidate-confirmed interview slot and re-queue the canonical interview.',
+            parameters: {
+              type: 'object',
+              properties: {
+                interviewId: { type: 'string' },
+                candidateId: { type: 'string' },
+                selectedScheduledAt: { type: 'string' },
+                scheduledLocalDate: { type: 'string' },
+                scheduledLocalTime: { type: 'string' },
+                scheduledTimezone: { type: 'string' },
+              },
+              required: ['interviewId', 'candidateId', 'selectedScheduledAt', 'scheduledTimezone'],
+            },
+          },
+          server: { url: `${baseUrl}/api/interviews/vapi/reschedule`, secret: toolSecret },
+        },
+      ],
+    },
+  };
+}
+
 export async function startVapiCall(input: StartVapiCallInput) {
   const { apiKey, assistantId, phoneNumberId } = getVapiConfig();
+  const rescheduleOverride = await getRescheduleAssistantOverride(apiKey, assistantId);
 
   const response = await fetch(`${VAPI_BASE_URL}/call`, {
     method: 'POST',
@@ -40,6 +115,7 @@ export async function startVapiCall(input: StartVapiCallInput) {
       },
       assistantOverrides: {
         monitorPlan: { controlEnabled: true },
+        model: rescheduleOverride.model,
         ...(input.variableValues ? { variableValues: input.variableValues } : {}),
       },
     }),

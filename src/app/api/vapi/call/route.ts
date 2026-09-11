@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       to = normalizeE164(candidate.phone || '');
       candidateName = candidate.full_name;
       variableValues = {
+        ...(body.interviewId ? { interviewId: body.interviewId } : {}),
         candidateId: candidate.id,
         candidateName: candidate.full_name,
         roleTitle: 'TRAVLR Outreach & Business Development Agent',
