@@ -36,6 +36,7 @@ jest-test-results.json
 # Optional: if using TurboRepo or monorepo
 turbo/.env
 .env
+.env.local
 
 # Supabase CLI local cache
 supabase/.temp/
