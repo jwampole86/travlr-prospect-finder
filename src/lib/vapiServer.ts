@@ -63,3 +63,26 @@ export async function startVapiCall(input: StartVapiCallInput) {
     status: 'status' in body && typeof body.status === 'string' ? body.status : undefined,
   };
 }
+
+export async function stopVapiCall(callId: string) {
+  const { apiKey } = getVapiConfig();
+
+  const response = await fetch(`${VAPI_BASE_URL}/call/${encodeURIComponent(callId)}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ status: 'ended' }),
+    cache: 'no-store',
+  });
+
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    const providerMessage =
+      body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
+        ? body.message
+        : 'Vapi rejected the stop request';
+    throw new Error(providerMessage);
+  }
+}

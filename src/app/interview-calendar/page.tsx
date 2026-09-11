@@ -458,6 +458,7 @@ function SessionCard({
   onSendReminder,
   onStatusChange,
   onStart,
+  onStopCall,
   localTimeZone,
 }: {
   session: InterviewSession;
@@ -468,6 +469,7 @@ function SessionCard({
   onSendReminder: () => void;
   onStatusChange: (status: InterviewSession['status']) => void;
   onStart: () => void;
+  onStopCall: () => Promise<void>;
   localTimeZone: string;
 }) {
   const cfg = STATUS_CONFIG[session.status];
@@ -566,13 +568,19 @@ function SessionCard({
           </button>
         )}
         {session.status === 'in_progress' && (
-          <span
+          <button
+            type="button"
+            onClick={async () => {
+              if (window.confirm('Stop this active interview call?')) await onStopCall();
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-200 rounded-lg text-xs font-semibold"
-            aria-label="Interview is currently on call"
+            aria-label="Stop active interview call"
+            title="Stop active call"
           >
             <span className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-400 animate-pulse" /> ON CALL
             <span className="font-mono tabular-nums">{formatElapsed(session.started_at, timerNow)}</span>
-          </span>
+            <span className="ml-1 border-l border-red-300 dark:border-red-700 pl-2">Stop Call</span>
+          </button>
         )}
         {session.status === 'scheduled' && session.candidate_email && !session.reminder_sent && (
           <button onClick={onSendReminder} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -785,6 +793,21 @@ export default function InterviewCalendarPage() {
 
   const handleStatusChange = async (id: string, status: InterviewSession['status']) => {
     await supabase.from('interview_sessions').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+    fetchSessions();
+  };
+
+  const handleStopCall = async (session: InterviewSession) => {
+    const response = await fetch('/api/vapi/call/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ interviewId: session.id }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      toast.error(result.error || 'Unable to stop call');
+      return;
+    }
+    toast.success('Call stopped');
     fetchSessions();
   };
 
@@ -1052,6 +1075,7 @@ export default function InterviewCalendarPage() {
                     onSendReminder={() => handleSendReminder(session)}
                     onStatusChange={(status) => handleStatusChange(session.id, status)}
                     onStart={() => setStartChoiceSession(session)}
+                    onStopCall={() => handleStopCall(session)}
                     localTimeZone={localTimeZone}
                   />
                 ))}

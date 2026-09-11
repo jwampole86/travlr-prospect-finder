@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     if (!callId) return NextResponse.json({ ok: true, ignored: true });
 
     const db = getSupabaseAdmin();
-    const { data: session, error } = await db.from('interview_sessions').select('id, candidate_id, role_title').eq('provider_call_id', callId).maybeSingle();
+    const { data: session, error } = await db.from('interview_sessions').select('id, candidate_id, role_title, status').eq('provider_call_id', callId).maybeSingle();
     if (error || !session) {
       console.warn('vapi_webhook_unresolved', { providerCallId: callId });
       return NextResponse.json({ ok: true, unresolved: true });
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         ...(mappedStatus ? { status: mappedStatus } : {}),
         ...timestamps,
         updated_at: new Date().toISOString(),
-      }).eq('id', session.id);
+      }).eq('id', session.id).eq('status', 'in_progress');
     }
 
     if (eventType === 'end-of-call-report' || message?.artifact || message?.endedReason) {
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
       const finalStatus = mapEndedReason(timestamps.ended_reason);
       await db.from('interview_sessions').update({
-        status: finalStatus,
+        ...(session.status === 'in_progress' ? { status: finalStatus } : {}),
         ...timestamps,
         transcript: transcriptData.transcript,
         transcript_messages: transcriptData.messages,
