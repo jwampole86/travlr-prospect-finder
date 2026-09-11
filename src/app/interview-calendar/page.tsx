@@ -377,6 +377,67 @@ function BatchActionBar({
   );
 }
 
+function StartInterviewChoiceModal({
+  session,
+  onClose,
+}: {
+  session: InterviewSession;
+  onClose: () => void;
+}) {
+  const [startingAi, setStartingAi] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const teleprompterUrl = `/teleprompter/interview?role=${session.role_id}&candidate=${encodeURIComponent(session.candidate_name)}&session=${session.id}`;
+
+  const startAiInterview = async () => {
+    if (!session.candidate_id) {
+      setError('This interview is not linked to a canonical candidate record yet. Apply the interview timezone migration before starting an AI interview.');
+      return;
+    }
+    setStartingAi(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/vapi/call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateId: session.candidate_id }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Unable to start AI interview');
+      onClose();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to start AI interview');
+    } finally {
+      setStartingAi(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Start interview</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{session.candidate_name} · {session.role_title}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-300"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="space-y-3">
+          <Link href={teleprompterUrl} onClick={onClose} className="flex items-center gap-3 w-full rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <span className="w-9 h-9 rounded-lg bg-gray-900 text-white flex items-center justify-center"><Play className="w-4 h-4" /></span>
+            <span className="text-left"><span className="block text-sm font-semibold text-gray-900 dark:text-white">Interview Mode</span><span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">Open the teleprompter and conduct the interview manually.</span></span>
+          </Link>
+          <button onClick={startAiInterview} disabled={startingAi} className="flex items-center gap-3 w-full rounded-xl border border-emerald-300 dark:border-emerald-800 p-4 text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors disabled:opacity-60">
+            <span className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center"><Phone className="w-4 h-4" /></span>
+            <span><span className="block text-sm font-semibold text-gray-900 dark:text-white">AI Interview Assistant</span><span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">Call this candidate with Vapi using their stored resume context.</span></span>
+          </button>
+        </div>
+        {startingAi && <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-4">Starting AI interview...</p>}
+        {error && <p className="text-xs text-red-600 dark:text-red-300 mt-4">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
 function SessionCard({
@@ -387,6 +448,7 @@ function SessionCard({
   onDelete,
   onSendReminder,
   onStatusChange,
+  onStart,
   localTimeZone,
 }: {
   session: InterviewSession;
@@ -396,6 +458,7 @@ function SessionCard({
   onDelete: () => void;
   onSendReminder: () => void;
   onStatusChange: (status: InterviewSession['status']) => void;
+  onStart: () => void;
   localTimeZone: string;
 }) {
   const cfg = STATUS_CONFIG[session.status];
@@ -479,12 +542,12 @@ function SessionCard({
 
       <div className="flex items-center gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
         {session.status === 'scheduled' && (
-          <Link
-            href={`/teleprompter/interview?role=${session.role_id}&candidate=${encodeURIComponent(session.candidate_name)}&session=${session.id}`}
+          <button
+            onClick={onStart}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 transition-colors"
           >
             <Play className="w-3 h-3" /> Start
-          </Link>
+          </button>
         )}
         {session.status === 'in_progress' && (
           <span
@@ -597,6 +660,7 @@ export default function InterviewCalendarPage() {
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkReminderLoading, setBulkReminderLoading] = useState(false);
+  const [startChoiceSession, setStartChoiceSession] = useState<InterviewSession | null>(null);
   const [localTimeZone, setLocalTimeZone] = useState(() => (
     typeof window === 'undefined' ? 'America/Denver' : detectBrowserTimeZone()
   ));
@@ -957,6 +1021,7 @@ export default function InterviewCalendarPage() {
                     onDelete={() => handleDelete(session.id)}
                     onSendReminder={() => handleSendReminder(session)}
                     onStatusChange={(status) => handleStatusChange(session.id, status)}
+                    onStart={() => setStartChoiceSession(session)}
                     localTimeZone={localTimeZone}
                   />
                 ))}
@@ -992,6 +1057,13 @@ export default function InterviewCalendarPage() {
         <BatchScheduleModal
           onClose={() => setShowBatchModal(false)}
           onSave={handleBatchSave}
+        />
+      )}
+
+      {startChoiceSession && (
+        <StartInterviewChoiceModal
+          session={startChoiceSession}
+          onClose={() => setStartChoiceSession(null)}
         />
       )}
     </AppLayout>
