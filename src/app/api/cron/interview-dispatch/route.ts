@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
         recommendedInterviewFocus: JSON.stringify(candidate.concerns || []),
       };
       const call = await startVapiCall({ to: phone, candidateName: candidate.full_name, variableValues });
-      await db.from('interview_sessions').update({ execution_status: 'STARTED', execution_started_at: new Date().toISOString(), execution_error: null, updated_at: new Date().toISOString() }).eq('id', session.id);
+      await db.from('interview_sessions').update({ provider: 'VAPI', provider_call_id: call.id, status: 'in_progress', execution_status: 'STARTED', execution_started_at: new Date().toISOString(), execution_error: null, updated_at: new Date().toISOString() }).eq('id', session.id);
       console.info('scheduled_vapi_interview_started', { interviewId: session.id, candidateId: candidate.id, providerCallId: call.id });
       started += 1;
     } catch (dispatchError) {

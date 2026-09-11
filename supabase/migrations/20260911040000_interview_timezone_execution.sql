@@ -12,6 +12,19 @@ ALTER TABLE public.interview_sessions
   ADD COLUMN IF NOT EXISTS execution_error TEXT,
   ADD COLUMN IF NOT EXISTS last_execution_attempt_at TIMESTAMPTZ;
 
+ALTER TABLE public.interview_sessions
+  ADD COLUMN IF NOT EXISTS provider TEXT,
+  ADD COLUMN IF NOT EXISTS provider_call_id TEXT UNIQUE,
+  ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS duration_seconds INTEGER,
+  ADD COLUMN IF NOT EXISTS ended_reason TEXT,
+  ADD COLUMN IF NOT EXISTS transcript TEXT,
+  ADD COLUMN IF NOT EXISTS transcript_messages JSONB,
+  ADD COLUMN IF NOT EXISTS summary TEXT,
+  ADD COLUMN IF NOT EXISTS summary_status TEXT DEFAULT 'PENDING',
+  ADD COLUMN IF NOT EXISTS summary_generated_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS interview_sessions_auto_execution_idx
   ON public.interview_sessions (auto_start_enabled, scheduled_at, execution_status);
 

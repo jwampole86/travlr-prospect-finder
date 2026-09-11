@@ -27,6 +27,7 @@ interface InterviewSession {
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   zoom_link: string | null;
   notes: string;
+  summary: string | null;
   calendar_invite_sent: boolean;
   reminder_sent: boolean;
   candidate_email: string | null;
@@ -125,64 +126,64 @@ function ScheduleModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">{session?.id ? 'Edit Interview' : 'Schedule Interview'}</h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-            <X className="w-4 h-4 text-gray-500" />
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{session?.id ? 'Edit Interview' : 'Schedule Interview'}</h2>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <X className="w-4 h-4 text-gray-500 dark:text-gray-300" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Candidate Name *</label>
-            <input type="text" value={form.candidate_name} onChange={e => setForm(f => ({ ...f, candidate_name: e.target.value }))} placeholder="e.g. Alex Johnson" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Candidate Name *</label>
+            <input type="text" value={form.candidate_name} onChange={e => setForm(f => ({ ...f, candidate_name: e.target.value }))} placeholder="e.g. Alex Johnson" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300" required />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Candidate Email</label>
-            <input type="email" value={form.candidate_email} onChange={e => setForm(f => ({ ...f, candidate_email: e.target.value }))} placeholder="candidate@email.com" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Candidate Email</label>
+            <input type="email" value={form.candidate_email} onChange={e => setForm(f => ({ ...f, candidate_email: e.target.value }))} placeholder="candidate@email.com" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Role</label>
-            <select value={form.role_id} onChange={e => handleRoleChange(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Role</label>
+            <select value={form.role_id} onChange={e => handleRoleChange(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300 bg-white dark:bg-gray-800">
               {INTERVIEW_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Candidate local date *</label>
-              <input type="date" value={form.scheduled_local_date} onChange={e => setForm(f => ({ ...f, scheduled_local_date: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Candidate local date *</label>
+              <input type="date" value={form.scheduled_local_date} onChange={e => setForm(f => ({ ...f, scheduled_local_date: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300" required />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Candidate local time *</label>
-              <input type="time" value={form.scheduled_local_time} onChange={e => setForm(f => ({ ...f, scheduled_local_time: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Candidate local time *</label>
+              <input type="time" value={form.scheduled_local_time} onChange={e => setForm(f => ({ ...f, scheduled_local_time: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300" required />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Candidate timezone *</label>
-            <select value={form.scheduled_timezone} onChange={e => setForm(f => ({ ...f, scheduled_timezone: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" required>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Candidate timezone *</label>
+            <select value={form.scheduled_timezone} onChange={e => setForm(f => ({ ...f, scheduled_timezone: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300 bg-white dark:bg-gray-800" required>
               {['America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York'].map(zone => <option key={zone} value={zone}>{zone}</option>)}
             </select>
-            <p className="mt-1.5 text-xs text-gray-500">This time is in the candidate's local timezone.</p>
+            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">This time is in the candidate's local timezone.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Duration (min)</label>
-              <select value={form.duration_minutes} onChange={e => setForm(f => ({ ...f, duration_minutes: Number(e.target.value) }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Duration (min)</label>
+              <select value={form.duration_minutes} onChange={e => setForm(f => ({ ...f, duration_minutes: Number(e.target.value) }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300 bg-white dark:bg-gray-800">
                 {[25, 30, 45, 60, 75, 90].map(d => <option key={d} value={d}>{d} min</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Zoom Meeting</label>
-            <input type="url" value={form.zoom_link} onChange={e => setForm(f => ({ ...f, zoom_link: e.target.value }))} placeholder="Leave blank to create automatically" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
-            <p className="mt-1.5 text-xs text-gray-500">Paste an existing Zoom link, or leave this blank and TRAVLR will create one when you save.</p>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Zoom Meeting</label>
+            <input type="url" value={form.zoom_link} onChange={e => setForm(f => ({ ...f, zoom_link: e.target.value }))} placeholder="Leave blank to create automatically" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300" />
+            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">Paste an existing Zoom link, or leave this blank and TRAVLR will create one when you save.</p>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Notes</label>
-            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} placeholder="Pre-interview notes..." className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Notes</label>
+            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} placeholder="Pre-interview notes..." className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300 resize-none" />
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancel</button>
             <button type="submit" disabled={saving} className="flex-1 py-2.5 px-4 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               {session?.id ? 'Save Changes' : 'Schedule Interview'}
@@ -233,46 +234,46 @@ function BatchScheduleModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Batch Schedule Interviews</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Schedule multiple interviews at once</p>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Batch Schedule Interviews</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Schedule multiple interviews at once</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors"><X className="w-4 h-4 text-gray-500" /></button>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"><X className="w-4 h-4 text-gray-500 dark:text-gray-300" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6">
           <div className="space-y-3 mb-4">
             {rows.map((row, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 items-start bg-gray-50 rounded-xl p-3">
+              <div key={i} className="grid grid-cols-12 gap-2 items-start bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
                 <div className="col-span-3">
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Candidate *</label>
-                  <input type="text" value={row.candidate_name} onChange={e => updateRow(i, 'candidate_name', e.target.value)} placeholder="Name" className="w-full px-2.5 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                  <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Candidate *</label>
+                  <input type="text" value={row.candidate_name} onChange={e => updateRow(i, 'candidate_name', e.target.value)} placeholder="Name" className="w-full px-2.5 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300" />
                 </div>
                 <div className="col-span-3">
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Email</label>
-                  <input type="email" value={row.candidate_email} onChange={e => updateRow(i, 'candidate_email', e.target.value)} placeholder="email@example.com" className="w-full px-2.5 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                  <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Email</label>
+                  <input type="email" value={row.candidate_email} onChange={e => updateRow(i, 'candidate_email', e.target.value)} placeholder="email@example.com" className="w-full px-2.5 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300" />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Role</label>
-                  <select value={row.role_id} onChange={e => updateRow(i, 'role_id', e.target.value)} className="w-full px-2.5 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Role</label>
+                  <select value={row.role_id} onChange={e => updateRow(i, 'role_id', e.target.value)} className="w-full px-2.5 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300 bg-white dark:bg-gray-900">
                     {INTERVIEW_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Candidate local date/time *</label>
-                  <input type="date" value={row.scheduled_local_date} onChange={e => updateRow(i, 'scheduled_local_date', e.target.value)} className="w-full px-2 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900" />
-                  <input type="time" value={row.scheduled_local_time} onChange={e => updateRow(i, 'scheduled_local_time', e.target.value)} className="w-full px-2 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 mt-1" />
+                  <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Candidate local date/time *</label>
+                  <input type="date" value={row.scheduled_local_date} onChange={e => updateRow(i, 'scheduled_local_date', e.target.value)} className="w-full px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300" />
+                  <input type="time" value={row.scheduled_local_time} onChange={e => updateRow(i, 'scheduled_local_time', e.target.value)} className="w-full px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300 mt-1" />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Candidate timezone</label>
-                  <select value={row.scheduled_timezone} onChange={e => updateRow(i, 'scheduled_timezone', e.target.value)} className="w-full px-2 py-2 rounded-lg border border-gray-200 text-xs bg-white">
+                  <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Candidate timezone</label>
+                  <select value={row.scheduled_timezone} onChange={e => updateRow(i, 'scheduled_timezone', e.target.value)} className="w-full px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs bg-white dark:bg-gray-900">
                     {['America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York'].map(zone => <option key={zone} value={zone}>{zone.replace('America/', '')}</option>)}
                   </select>
                 </div>
                 <div className="col-span-1">
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Min</label>
-                  <select value={row.duration_minutes} onChange={e => updateRow(i, 'duration_minutes', Number(e.target.value))} className="w-full px-2 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Min</label>
+                  <select value={row.duration_minutes} onChange={e => updateRow(i, 'duration_minutes', Number(e.target.value))} className="w-full px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300 bg-white dark:bg-gray-900">
                     {[25, 30, 45, 60, 75, 90].map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
@@ -284,11 +285,11 @@ function BatchScheduleModal({
               </div>
             ))}
           </div>
-          <button type="button" onClick={addRow} className="flex items-center gap-2 text-xs font-semibold text-gray-600 hover:text-gray-900 transition-colors mb-6">
+          <button type="button" onClick={addRow} className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors mb-6">
             <Plus className="w-3.5 h-3.5" /> Add another row
           </button>
           <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancel</button>
             <button type="submit" disabled={saving} className="flex-1 py-2.5 px-4 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
               Schedule {rows.filter(r => r.candidate_name.trim() && r.scheduled_at).length} Interview{rows.filter(r => r.candidate_name.trim() && r.scheduled_at).length !== 1 ? 's' : ''}
@@ -404,22 +405,22 @@ function SessionCard({
 
   return (
     <div
-      className={`bg-white rounded-2xl border p-4 hover:shadow-md transition-all cursor-pointer ${selected ? 'border-gray-900 ring-2 ring-gray-900/10' : upcoming ? 'border-gray-200' : 'border-gray-100 opacity-80'}`}
+      className={`bg-white dark:bg-gray-900 rounded-2xl border p-4 hover:shadow-md transition-all cursor-pointer ${selected ? 'border-gray-900 dark:border-gray-300 ring-2 ring-gray-900/10 dark:ring-gray-300/20' : upcoming ? 'border-gray-200 dark:border-gray-700' : 'border-gray-100 dark:border-gray-800 opacity-80'}`}
       onClick={onToggleSelect}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <div className="flex-shrink-0 mt-0.5" onClick={e => { e.stopPropagation(); onToggleSelect(); }}>
             {selected
-              ? <CheckSquare className="w-4 h-4 text-gray-900" />
-              : <Square className="w-4 h-4 text-gray-300" />}
+              ? <CheckSquare className="w-4 h-4 text-gray-900 dark:text-white" />
+              : <Square className="w-4 h-4 text-gray-300 dark:text-gray-600" />}
           </div>
-          <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-            <User className="w-4 h-4 text-gray-600" />
+          <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+            <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900 truncate">{session.candidate_name}</p>
-            <p className="text-xs text-gray-500 truncate">{session.role_title}</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{session.candidate_name}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{session.role_title}</p>
           </div>
         </div>
         <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-semibold border flex-shrink-0 ${cfg.color}`}>
@@ -429,15 +430,15 @@ function SessionCard({
       </div>
 
       <div className="space-y-1.5 mb-3">
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+          <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
           <span>Your local time: {formatDate(session.scheduled_at, localTimeZone)} at {formatTime(session.scheduled_at, localTimeZone)} {getTimeZoneAbbreviation(new Date(session.scheduled_at), localTimeZone)}</span>
         </div>
         {sessionTimeZone !== localTimeZone && (
           <div className="text-[11px] text-gray-500 dark:text-gray-300 pl-5">Candidate local: {session.scheduled_local_time || formatTime(session.scheduled_at, sessionTimeZone)} {getTimeZoneAbbreviation(new Date(session.scheduled_at), sessionTimeZone)} · {sessionTimeZone}</div>
         )}
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+          <Clock className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
           <span>{AI_INTERVIEW_CONFIG.expectedDurationLabel}</span>
         </div>
         {session.zoom_link && (
@@ -449,12 +450,19 @@ function SessionCard({
           </div>
         )}
         {session.candidate_email && (
-          <div className="flex items-center gap-2 text-xs text-gray-600">
-            <Mail className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <Mail className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
             <span className="truncate">{session.candidate_email}</span>
           </div>
         )}
       </div>
+
+      {session.summary && (
+        <div className="mb-3 rounded-lg border border-emerald-200 dark:border-emerald-900/70 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">AI interview summary</p>
+          <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-200 line-clamp-4">{session.summary}</p>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 mb-3">
         {session.reminder_sent && (
@@ -479,7 +487,7 @@ function SessionCard({
           </Link>
         )}
         {session.status === 'scheduled' && session.candidate_email && !session.reminder_sent && (
-          <button onClick={onSendReminder} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors">
+          <button onClick={onSendReminder} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
             <Bell className="w-3 h-3" /> Remind
           </button>
         )}
@@ -488,7 +496,7 @@ function SessionCard({
             <CheckCircle className="w-3 h-3" /> Done
           </button>
         )}
-        <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
+        <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-300">
           <Edit3 className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-500">
@@ -533,27 +541,27 @@ function CalendarGrid({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      <div className="grid grid-cols-7 border-b border-gray-100">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-700">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} className="py-2 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{d}</div>
+          <div key={d} className="py-2 text-center text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{d}</div>
         ))}
       </div>
       <div className="grid grid-cols-7">
         {cells.map((day, i) => {
-          if (!day) return <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-gray-50" />;
+          if (!day) return <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-gray-50 dark:border-gray-800" />;
           const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
           const daySessions = sessionsByDay[day] || [];
           return (
-            <div key={day} onClick={() => onDayClick(new Date(year, month, day))} className={`min-h-[80px] border-b border-r border-gray-50 p-1.5 cursor-pointer hover:bg-gray-50 transition-colors ${isToday ? 'bg-blue-50/50' : ''}`}>
-              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold mb-1 ${isToday ? 'bg-gray-900 text-white' : 'text-gray-600'}`}>{day}</span>
+            <div key={day} onClick={() => onDayClick(new Date(year, month, day))} className={`min-h-[80px] border-b border-r border-gray-50 dark:border-gray-800 p-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${isToday ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''}`}>
+              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold mb-1 ${isToday ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900' : 'text-gray-600 dark:text-gray-300'}`}>{day}</span>
               <div className="space-y-0.5">
                 {daySessions.slice(0, 2).map(s => (
                   <div key={s.id} className={`text-[10px] font-medium px-1.5 py-0.5 rounded truncate ${s.status === 'completed' ? 'bg-green-100 text-green-700' : s.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
                     {formatTime(s.scheduled_at, localTimeZone)} {s.candidate_name.split(' ')[0]}
                   </div>
                 ))}
-                {daySessions.length > 2 && <div className="text-[10px] text-gray-400 px-1">+{daySessions.length - 2} more</div>}
+                {daySessions.length > 2 && <div className="text-[10px] text-gray-400 dark:text-gray-500 px-1">+{daySessions.length - 2} more</div>}
               </div>
             </div>
           );
@@ -864,7 +872,7 @@ export default function InterviewCalendarPage() {
             { label: 'Completed', value: completedCount, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
             { label: 'Total', value: sessions.length, icon: Calendar, color: 'text-gray-600', bg: 'bg-gray-50' },
           ].map(stat => (
-            <div key={stat.label} className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center gap-4">
+            <div key={stat.label} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-4">
               <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
                 <stat.icon className={`w-5 h-5 ${stat.color}`} />
               </div>
@@ -878,24 +886,24 @@ export default function InterviewCalendarPage() {
 
         {/* View Toggle + Filters */}
         <div className="flex items-center gap-3 mb-5 flex-wrap">
-          <div className="flex items-center bg-gray-100 rounded-xl p-1">
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
             {(['list', 'calendar'] as const).map(v => (
-              <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors capitalize ${view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors capitalize ${view === v ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                 {v === 'list' ? 'List View' : 'Calendar View'}
               </button>
             ))}
           </div>
-          <div className="flex items-center bg-gray-100 rounded-xl p-1">
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
             {(['upcoming', 'completed', 'all'] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors capitalize ${filter === f ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{f}</button>
+              <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors capitalize ${filter === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>{f}</button>
             ))}
           </div>
           <div className="flex-1 min-w-[200px] relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search candidate or role..." className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search candidate or role..." className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300" />
           </div>
           {view === 'list' && filteredSessions.length > 0 && (
-            <button onClick={toggleSelectAll} className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+            <button onClick={toggleSelectAll} className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
               {allSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
               {allSelected ? 'Deselect All' : 'Select All'}
             </button>
