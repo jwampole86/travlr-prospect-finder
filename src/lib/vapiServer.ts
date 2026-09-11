@@ -67,13 +67,35 @@ export async function startVapiCall(input: StartVapiCallInput) {
 export async function stopVapiCall(callId: string) {
   const { apiKey } = getVapiConfig();
 
-  const response = await fetch(`${VAPI_BASE_URL}/call/${encodeURIComponent(callId)}`, {
-    method: 'PATCH',
+  const callResponse = await fetch(`${VAPI_BASE_URL}/call/${encodeURIComponent(callId)}`, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
+    },
+    cache: 'no-store',
+  });
+  const callBody = await callResponse.json().catch(() => null);
+  if (!callResponse.ok) {
+    const providerMessage =
+      callBody && typeof callBody === 'object' && 'message' in callBody && typeof callBody.message === 'string'
+        ? callBody.message
+        : `Vapi could not find call ${callId}`;
+    throw new Error(providerMessage);
+  }
+
+  const controlUrl =
+    callBody && typeof callBody === 'object' && 'monitor' in callBody && callBody.monitor && typeof callBody.monitor === 'object' && 'controlUrl' in callBody.monitor && typeof callBody.monitor.controlUrl === 'string'
+      ? callBody.monitor.controlUrl
+      : null;
+  if (!controlUrl) {
+    throw new Error('Vapi did not provide a live control URL for this call. Enable call control on the interview assistant.');
+  }
+
+  const response = await fetch(controlUrl, {
+    method: 'POST',
+    headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ status: 'ended' }),
+    body: JSON.stringify({ type: 'end-call' }),
     cache: 'no-store',
   });
 
