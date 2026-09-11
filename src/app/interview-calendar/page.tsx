@@ -5,7 +5,7 @@ import AppLayout from '@/components/AppLayout';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
-import { Calendar, Plus, Clock, Video, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, Mail, Edit3, Trash2, Bell, ExternalLink, RefreshCw, Search, Play, Check, X, CheckSquare, Square, Download, Send, Layers, BarChart2,  } from 'lucide-react';
+import { Calendar, Plus, Clock, Video, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, Mail, Edit3, Trash2, Bell, ExternalLink, RefreshCw, Search, Play, Check, X, CheckSquare, Square, Download, Send, Layers, BarChart2, Phone,  } from 'lucide-react';
 import { INTERVIEW_ROLES } from '@/lib/interviewScripts';
 import { AI_INTERVIEW_CONFIG } from '@/lib/interviewConfig';
 import { detectBrowserTimeZone, formatInTimeZone, getTimeZoneAbbreviation, isoToLocalParts, localDateTimeToUtc } from '@/lib/interviewTimezone';
@@ -485,6 +485,14 @@ function SessionCard({
           >
             <Play className="w-3 h-3" /> Start
           </Link>
+        )}
+        {session.status === 'in_progress' && (
+          <span
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200 rounded-lg text-xs font-semibold"
+            aria-label="Interview is currently on call"
+          >
+            <Phone className="w-3 h-3" /> On Call
+          </span>
         )}
         {session.status === 'scheduled' && session.candidate_email && !session.reminder_sent && (
           <button onClick={onSendReminder} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
