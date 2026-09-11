@@ -24,7 +24,7 @@ interface InterviewSession {
   scheduled_local_time: string | null;
   scheduled_timezone: string | null;
   duration_minutes: number;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'in_progress' | 'completed' | 'no_answer' | 'busy' | 'failed' | 'cancelled';
   zoom_link: string | null;
   notes: string;
   summary: string | null;
@@ -43,6 +43,9 @@ const STATUS_CONFIG = {
   scheduled: { label: 'Scheduled', color: 'bg-blue-100 text-blue-700 border-blue-200', dot: 'bg-blue-500', icon: Clock },
   in_progress: { label: 'In Progress', color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500', icon: Play },
   completed: { label: 'Completed', color: 'bg-green-100 text-green-700 border-green-200', dot: 'bg-green-500', icon: CheckCircle },
+  no_answer: { label: 'No Answer', color: 'bg-orange-100 text-orange-700 border-orange-200', dot: 'bg-orange-500', icon: Phone },
+  busy: { label: 'Busy', color: 'bg-orange-100 text-orange-700 border-orange-200', dot: 'bg-orange-500', icon: Phone },
+  failed: { label: 'Failed', color: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-500', icon: XCircle },
   cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-400', icon: XCircle },
 };
 
@@ -695,6 +698,14 @@ export default function InterviewCalendarPage() {
 
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
+  useEffect(() => {
+    if (!sessions.some(session => session.status === 'in_progress')) return;
+    const refreshTimer = window.setInterval(() => {
+      fetchSessions();
+    }, 5_000);
+    return () => window.clearInterval(refreshTimer);
+  }, [sessions, fetchSessions]);
+
   const createZoomMeeting = async (session: Partial<InterviewSession>) => {
     const response = await fetch('/api/interview/zoom/create', {
       method: 'POST',
@@ -813,7 +824,7 @@ export default function InterviewCalendarPage() {
     const matchSearch = !search || s.candidate_name.toLowerCase().includes(search.toLowerCase()) || s.role_title.toLowerCase().includes(search.toLowerCase());
     if (!matchSearch) return false;
     if (filter === 'upcoming') return s.status === 'scheduled' || s.status === 'in_progress';
-    if (filter === 'completed') return s.status === 'completed' || s.status === 'cancelled';
+    if (filter === 'completed') return ['completed', 'no_answer', 'busy', 'failed', 'cancelled'].includes(s.status);
     return true;
   }).sort((first, second) => {
     const firstIsTest = first.candidate_name.trim().toUpperCase() === 'TEST';

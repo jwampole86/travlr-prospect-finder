@@ -19,6 +19,15 @@ function getTranscript(message: any) {
   };
 }
 
+function mapEndedReason(endedReason: unknown): 'completed' | 'no_answer' | 'busy' | 'failed' | 'cancelled' {
+  const reason = String(endedReason || '').toLowerCase();
+  if (reason.includes('no-answer') || reason.includes('no answer') || reason.includes('voicemail')) return 'no_answer';
+  if (reason.includes('busy') || reason.includes('line-busy')) return 'busy';
+  if (reason.includes('cancel') || reason.includes('customer-did-not-give-consent')) return 'cancelled';
+  if (reason.includes('error') || reason.includes('failed') || reason.includes('provider')) return 'failed';
+  return 'completed';
+}
+
 async function generateSummary(input: { candidateName: string; roleTitle: string; resumeSummary: string; strengths: unknown; concerns: unknown; transcript: string }) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || !input.transcript.trim()) return null;
@@ -91,7 +100,7 @@ export async function POST(request: NextRequest) {
     };
 
     if (eventType === 'status-update' || status) {
-      const mappedStatus = status === 'in-progress' ? 'in_progress' : status === 'ended' ? 'completed' : undefined;
+      const mappedStatus = status === 'in-progress' ? 'in_progress' : undefined;
       await db.from('interview_sessions').update({
         ...(mappedStatus ? { status: mappedStatus } : {}),
         ...timestamps,
@@ -113,8 +122,9 @@ export async function POST(request: NextRequest) {
         return null;
       });
 
+      const finalStatus = mapEndedReason(timestamps.ended_reason);
       await db.from('interview_sessions').update({
-        status: 'completed',
+        status: finalStatus,
         ...timestamps,
         transcript: transcriptData.transcript,
         transcript_messages: transcriptData.messages,
