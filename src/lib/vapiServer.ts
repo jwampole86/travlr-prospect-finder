@@ -117,25 +117,27 @@ export async function startVapiCall(input: StartVapiCallInput) {
   const { apiKey, assistantId, phoneNumberId } = getVapiConfig();
   const rescheduleOverride = await getRescheduleAssistantOverride(apiKey, assistantId);
 
+  const requestBody = {
+    assistantId,
+    phoneNumberId,
+    customer: {
+      number: input.to,
+      ...(input.candidateName ? { name: input.candidateName } : {}),
+    },
+    assistantOverrides: {
+      monitorPlan: { controlEnabled: true },
+      ...('model' in rescheduleOverride ? { model: rescheduleOverride.model } : {}),
+      ...(input.variableValues ? { variableValues: input.variableValues } : {}),
+    },
+  };
+
   const response = await fetch(`${VAPI_BASE_URL}/call`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      assistantId,
-      phoneNumberId,
-      customer: {
-        number: input.to,
-        ...(input.candidateName ? { name: input.candidateName } : {}),
-      },
-      assistantOverrides: {
-        monitorPlan: { controlEnabled: true },
-        ...('model' in rescheduleOverride ? { model: rescheduleOverride.model } : {}),
-        ...(input.variableValues ? { variableValues: input.variableValues } : {}),
-      },
-    }),
+    body: JSON.stringify(requestBody),
     cache: 'no-store',
   });
 
@@ -148,7 +150,19 @@ export async function startVapiCall(input: StartVapiCallInput) {
       body = responseText;
     }
   }
+
   if (!response.ok) {
+    console.error('vapi_create_call_rejected', {
+      status: response.status,
+      statusText: response.statusText,
+      rawBody: responseText,
+      assistantIdLength: assistantId.length,
+      phoneNumberIdLength: phoneNumberId.length,
+      apiKeyLast4: apiKey.slice(-4),
+      toLength: input.to.length,
+      hasVariableValues: Boolean(input.variableValues),
+      hasModelOverride: 'model' in rescheduleOverride,
+    });
     throw new Error(providerErrorMessage(body || responseText, `Vapi rejected the call request (${response.status} ${response.statusText})`));
   }
 
