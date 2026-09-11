@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { startVapiCall } from '@/lib/vapiServer';
 
+const MANUAL_START_LATE_WINDOW_MINUTES = 300;
+const LATE_WINDOW_GRACE_MINUTES = 5;
+
 function normalizeE164(value: string): string | null {
   const trimmed = value.trim();
   const digits = trimmed.replace(/\D/g, '');
@@ -56,7 +59,7 @@ export async function POST(request: NextRequest) {
       if (interviewError || !interview) return NextResponse.json({ error: 'Interview not found' }, { status: 404 });
       if (interview.status !== 'scheduled') return NextResponse.json({ error: 'This interview is no longer scheduled' }, { status: 409 });
       const minutesLate = (Date.now() - new Date(interview.scheduled_at).getTime()) / 60000;
-      if (minutesLate > 300) return NextResponse.json({ error: 'This interview is more than 5 hours past its scheduled time. Reschedule it before calling.' }, { status: 409 });
+      if (minutesLate > MANUAL_START_LATE_WINDOW_MINUTES + LATE_WINDOW_GRACE_MINUTES) return NextResponse.json({ error: 'This interview is more than 5 hours past its scheduled time. Reschedule it before calling.' }, { status: 409 });
       if (!body.candidateId) body.candidateId = interview.candidate_id || undefined;
     }
 
@@ -114,9 +117,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     const configurationError = /is not configured/.test(message);
-    console.error('vapi_call_failed', { userId: user.id, configurationError });
+    console.error('vapi_call_failed', { userId: user.id, configurationError, message });
     return NextResponse.json(
-      { error: configurationError ? 'Vapi configuration is incomplete' : 'Unable to start Vapi call' },
+      { error: configurationError ? 'Vapi configuration is incomplete' : message || 'Unable to start Vapi call' },
       { status: configurationError ? 503 : 502 },
     );
   }
