@@ -86,25 +86,57 @@ export async function stopVapiCall(callId: string) {
     callBody && typeof callBody === 'object' && 'monitor' in callBody && callBody.monitor && typeof callBody.monitor === 'object' && 'controlUrl' in callBody.monitor && typeof callBody.monitor.controlUrl === 'string'
       ? callBody.monitor.controlUrl
       : null;
-  if (!controlUrl) {
-    throw new Error('Vapi did not provide a live control URL for this call. Enable call control on the interview assistant.');
+  if (controlUrl) {
+    const response = await fetch(controlUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ type: 'end-call' }),
+      cache: 'no-store',
+    });
+
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      const providerMessage =
+        body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
+          ? body.message
+          : 'Vapi rejected the stop request';
+      throw new Error(providerMessage);
+    }
+    return;
   }
 
-  const response = await fetch(controlUrl, {
+  const providerCallId =
+    callBody && typeof callBody === 'object' && 'phoneCallProviderId' in callBody && typeof callBody.phoneCallProviderId === 'string'
+      ? callBody.phoneCallProviderId
+      : callBody && typeof callBody === 'object' && 'transport' in callBody && callBody.transport && typeof callBody.transport === 'object' && 'callSid' in callBody.transport && typeof callBody.transport.callSid === 'string'
+        ? callBody.transport.callSid
+        : null;
+  const authSid = process.env.TWILIO_ACCOUNT_SID?.trim();
+  const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
+  const accountSid = authSid?.startsWith('SK') ? process.env.TWILIO_ACCOUNT_SID_MAIN?.trim() : authSid;
+
+  if (!providerCallId || !authSid || !authToken || !accountSid) {
+    throw new Error('Vapi did not provide live control or a Twilio call ID for this call.');
+  }
+
+  const credentials = Buffer.from(`${authSid}:${authToken}`).toString('base64');
+  const twilioResponse = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${providerCallId}.json`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      Authorization: `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: JSON.stringify({ type: 'end-call' }),
+    body: new URLSearchParams({ Status: 'completed' }).toString(),
     cache: 'no-store',
   });
-
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
+  const twilioBody = await twilioResponse.json().catch(() => null);
+  if (!twilioResponse.ok) {
     const providerMessage =
-      body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
-        ? body.message
-        : 'Vapi rejected the stop request';
+      twilioBody && typeof twilioBody === 'object' && 'message' in twilioBody && typeof twilioBody.message === 'string'
+        ? twilioBody.message
+        : 'Twilio rejected the stop request';
     throw new Error(providerMessage);
   }
 }
