@@ -697,24 +697,22 @@ export default function InterviewCalendarPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const fetchSessions = useCallback(async () => {
-    setLoading(true);
+  const fetchSessions = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     const { data, error } = await supabase.from('interview_sessions').select('*').order('scheduled_at', { ascending: true });
     if (!error && data) setSessions(data as InterviewSession[]);
-    setLoading(false);
+    if (showLoading) setLoading(false);
   }, [supabase]);
 
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
   useEffect(() => {
-    // Set up real-time subscription for interview_sessions to avoid polling blinking
     const subscription = supabase
       .channel('interview_sessions_updates')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'interview_sessions' },
         (payload) => {
-          // Update sessions list with the new data from real-time event
           setSessions(prev => {
             const updated = [...prev];
             if (payload.eventType === 'INSERT') {
@@ -736,7 +734,7 @@ export default function InterviewCalendarPage() {
   useEffect(() => {
     if (!sessions.some(session => session.status === 'in_progress')) return;
     const refreshTimer = window.setInterval(() => {
-      fetchSessions();
+      fetchSessions(false);
     }, 15_000);
     return () => window.clearInterval(refreshTimer);
   }, [sessions, fetchSessions]);

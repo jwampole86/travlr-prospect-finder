@@ -14,7 +14,7 @@ interface AudioRecording {
   id: string;
   session_id: string | null;
   candidate_profile_id: string | null;
-  storage_path: string;
+  storage_path: string | null;
   file_name: string;
   file_size_bytes: number;
   duration_seconds: number;
@@ -24,6 +24,22 @@ interface AudioRecording {
   transcript_status: 'pending' | 'processing' | 'completed' | 'failed';
   timestamp_markers: TimestampMarker[];
   created_at: string;
+  source?: 'manual' | 'vapi';
+}
+
+interface VapiInterviewSession {
+  id: string;
+  candidate_name: string | null;
+  role_title: string | null;
+  provider: string | null;
+  provider_call_id: string | null;
+  transcript: string | null;
+  transcript_messages: unknown;
+  duration_seconds: number | null;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 interface TranscriptSegment {
@@ -54,6 +70,62 @@ function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getMessageText(message: Record<string, unknown>) {
+  const content = message.message ?? message.content ?? message.transcript;
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map(part => typeof part === 'string' ? part : typeof part === 'object' && part && 'text' in part ? String(part.text || '') : '')
+      .filter(Boolean)
+      .join(' ');
+  }
+  return '';
+}
+
+function buildTranscriptSegments(transcriptText: string, messages: unknown): TranscriptSegment[] {
+  if (Array.isArray(messages)) {
+    return messages
+      .map((item, index) => {
+        if (!item || typeof item !== 'object') return null;
+        const message = item as Record<string, unknown>;
+        const text = getMessageText(message).trim();
+        if (!text) return null;
+        const seconds = typeof message.secondsFromStart === 'number'
+          ? message.secondsFromStart
+          : typeof message.time === 'number'
+            ? Math.max(0, Math.floor(message.time / 1000))
+            : index * 30;
+        const speaker = typeof message.role === 'string' ? message.role : typeof message.speaker === 'string' ? message.speaker : 'Speaker';
+        return {
+          id: `vapi-${index}`,
+          speaker,
+          text,
+          timestamp: formatDuration(seconds),
+          start_seconds: seconds,
+        };
+      })
+      .filter((segment): segment is TranscriptSegment => Boolean(segment));
+  }
+
+  return transcriptText
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const splitIndex = line.indexOf(':');
+      const speaker = splitIndex > 0 ? line.slice(0, splitIndex).trim() : 'Speaker';
+      const text = splitIndex > 0 ? line.slice(splitIndex + 1).trim() : line;
+      const seconds = index * 30;
+      return {
+        id: `vapi-line-${index}`,
+        speaker,
+        text,
+        timestamp: formatDuration(seconds),
+        start_seconds: seconds,
+      };
+    });
 }
 
 // ─── Live Recorder Component ──────────────────────────────────────────────────
@@ -231,9 +303,10 @@ function RecordingCard({
   const [markerLabel, setMarkerLabel] = useState('');
   const [showMarkerInput, setShowMarkerInput] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasAudio = recording.source !== 'vapi' && Boolean(recording.storage_path);
 
   const loadAudio = async () => {
-    if (audioUrl) return;
+    if (audioUrl || !hasAudio || !recording.storage_path) return;
     setLoadingUrl(true);
     const { data } = await supabase.storage
       .from('interview-recordings')
@@ -243,6 +316,7 @@ function RecordingCard({
   };
 
   const togglePlay = async () => {
+    if (!hasAudio) return;
     await loadAudio();
     if (!audioRef.current) return;
     if (isPlaying) {
@@ -269,6 +343,7 @@ function RecordingCard({
   };
 
   const downloadRecording = async () => {
+    if (!hasAudio) return;
     await loadAudio();
     if (!audioUrl) return;
     const a = document.createElement('a');
@@ -287,24 +362,33 @@ function RecordingCard({
               <Volume2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate max-w-[200px]">{recording.file_name}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate max-w-[200px]">{recording.file_name}</p>
+                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase ${recording.source === 'vapi' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}`}>
+                  {recording.source === 'vapi' ? 'Vapi AI' : 'Manual'}
+                </span>
+              </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {formatDuration(recording.duration_seconds)} · {formatFileSize(recording.file_size_bytes)} · {new Date(recording.created_at).toLocaleDateString()}
+                {formatDuration(recording.duration_seconds)} · {hasAudio ? formatFileSize(recording.file_size_bytes) : 'Transcript only'} · {new Date(recording.created_at).toLocaleDateString()}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={downloadRecording} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400" title="Download">
-              <Download className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-gray-400 dark:text-gray-500 hover:text-red-500" title="Delete">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            {hasAudio && (
+              <>
+                <button onClick={downloadRecording} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400" title="Download">
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-gray-400 dark:text-gray-500 hover:text-red-500" title="Delete">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
         {/* Audio Player */}
-        <div className="flex items-center gap-3">
+        {hasAudio ? <div className="flex items-center gap-3">
           <button
             onClick={togglePlay}
             disabled={loadingUrl}
@@ -333,7 +417,12 @@ function RecordingCard({
           >
             + Marker
           </button>
-        </div>
+        </div> : (
+          <div className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-700/60 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+            <FileText className="w-4 h-4" />
+            AI interview transcript from Vapi. Audio playback is not available for this call.
+          </div>
+        )}
 
         {showMarkerInput && (
           <div className="flex items-center gap-2 mt-2">
@@ -471,11 +560,49 @@ export default function InterviewRecordingsPage() {
 
   const fetchRecordings = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('interview_audio_recordings')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error && data) setRecordings(data as AudioRecording[]);
+    const [manualResult, vapiResult] = await Promise.all([
+      supabase
+        .from('interview_audio_recordings')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('interview_sessions')
+        .select('id, candidate_name, role_title, provider, provider_call_id, transcript, transcript_messages, duration_seconds, started_at, ended_at, created_at, updated_at')
+        .eq('provider', 'VAPI')
+        .not('transcript', 'is', null)
+        .order('updated_at', { ascending: false }),
+    ]);
+
+    if (manualResult.error) console.error('[recordings] failed to load manual recordings', manualResult.error);
+    if (vapiResult.error) console.error('[recordings] failed to load vapi recordings', vapiResult.error);
+
+    const manualRecordings = ((manualResult.data || []) as AudioRecording[]).map(recording => ({ ...recording, source: 'manual' as const }));
+    const vapiRecordings = ((vapiResult.data || []) as VapiInterviewSession[])
+      .filter(session => (session.transcript || '').trim().length > 0)
+      .map(session => {
+        const transcriptText = session.transcript || '';
+        const startedAt = session.started_at ? new Date(session.started_at).getTime() : null;
+        const endedAt = session.ended_at ? new Date(session.ended_at).getTime() : null;
+        const calculatedDuration = startedAt && endedAt && endedAt > startedAt ? Math.round((endedAt - startedAt) / 1000) : 0;
+        return {
+          id: `vapi-${session.id}`,
+          session_id: session.id,
+          candidate_profile_id: null,
+          storage_path: null,
+          file_name: `${session.candidate_name || 'Candidate'} - Vapi AI Interview`,
+          file_size_bytes: 0,
+          duration_seconds: session.duration_seconds || calculatedDuration,
+          mime_type: 'text/plain',
+          transcript: buildTranscriptSegments(transcriptText, session.transcript_messages),
+          transcript_text: transcriptText,
+          transcript_status: 'completed' as const,
+          timestamp_markers: [],
+          created_at: session.ended_at || session.updated_at || session.created_at || new Date().toISOString(),
+          source: 'vapi' as const,
+        };
+      });
+
+    setRecordings([...manualRecordings, ...vapiRecordings].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
     setLoading(false);
   }, [supabase]);
 
@@ -521,6 +648,7 @@ export default function InterviewRecordingsPage() {
   };
 
   const handleTranscribe = async (recording: AudioRecording) => {
+    if (!recording.storage_path) return;
     // Mark as processing
     await supabase.from('interview_audio_recordings')
       .update({ transcript_status: 'processing' })
@@ -561,6 +689,7 @@ export default function InterviewRecordingsPage() {
   };
 
   const handleDelete = async (recording: AudioRecording) => {
+    if (!recording.storage_path) return;
     if (!confirm('Delete this recording?')) return;
     await supabase.storage.from('interview-recordings').remove([recording.storage_path]);
     await supabase.from('interview_audio_recordings').delete().eq('id', recording.id);
@@ -569,6 +698,7 @@ export default function InterviewRecordingsPage() {
   };
 
   const handleAddMarker = async (recording: AudioRecording, timeSeconds: number, label: string) => {
+    if (recording.source === 'vapi') return;
     const newMarker: TimestampMarker = {
       id: `m-${Date.now()}`,
       time_seconds: timeSeconds,

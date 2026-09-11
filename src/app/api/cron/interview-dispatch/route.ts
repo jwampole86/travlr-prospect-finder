@@ -1,14 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { startVapiCall } from '@/lib/vapiServer';
+import { startVapiCall, stopVapiCall } from '@/lib/vapiServer';
 
 const LATE_WINDOW_MS = 5 * 60 * 1000;
+const MAX_IN_PROGRESS_MS = 35 * 60 * 1000;
 
 function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, '');
   if (digits.length === 10) return `+1${digits}`;
   if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
   return value.startsWith('+') ? `+${digits}` : null;
+}
+
+async function stopOverlongInterviews(db: ReturnType<typeof getSupabaseAdmin>, now: number) {
+  const { data: activeSessions, error } = await db
+    .from('interview_sessions')
+    .select('id, provider_call_id, provider, started_at, execution_started_at')
+    .eq('status', 'in_progress')
+    .not('provider_call_id', 'is', null)
+    .limit(50);
+
+  if (error) throw error;
+
+  let timedOut = 0;
+  let timeoutStopFailures = 0;
+
+  for (const session of activeSessions || []) {
+    const startedAt = session.execution_started_at || session.started_at;
+    if (!startedAt || new Date(startedAt).getTime() > now - MAX_IN_PROGRESS_MS) continue;
+
+    try {
+      await stopVapiCall(session.provider_call_id);
+      const endedAt = new Date().toISOString();
+      await db
+        .from('interview_sessions')
+        .update({
+          status: 'completed',
+          ended_reason: 'auto_stopped_duration_limit',
+          execution_status: 'COMPLETED',
+          ended_at: endedAt,
+          updated_at: endedAt,
+        })
+        .eq('id', session.id)
+        .eq('status', 'in_progress');
+      timedOut += 1;
+      console.info('vapi_interview_auto_stopped_duration_limit', { interviewId: session.id, providerCallId: session.provider_call_id });
+    } catch (stopError) {
+      timeoutStopFailures += 1;
+      const message = stopError instanceof Error ? stopError.message : 'Unable to stop overlong interview';
+      await db
+        .from('interview_sessions')
+        .update({ execution_error: message, updated_at: new Date().toISOString() })
+        .eq('id', session.id)
+        .eq('status', 'in_progress');
+      console.error('vapi_interview_auto_stop_failed', { interviewId: session.id, providerCallId: session.provider_call_id, error: message });
+    }
+  }
+
+  return { timedOut, timeoutStopFailures };
 }
 
 export async function GET(request: NextRequest) {
@@ -19,6 +68,7 @@ export async function GET(request: NextRequest) {
 
   const db = getSupabaseAdmin();
   const now = Date.now();
+  const timeoutResult = await stopOverlongInterviews(db, now);
   const { data: due, error } = await db
     .from('interview_sessions')
     .select('id, candidate_id, scheduled_at, execution_status')
@@ -77,5 +127,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, inspected: due?.length || 0, started, missed });
+  return NextResponse.json({ ok: true, inspected: due?.length || 0, started, missed, ...timeoutResult });
 }
