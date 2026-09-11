@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { startVapiCall } from '@/lib/vapiServer';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 const MANUAL_START_LATE_WINDOW_MINUTES = 300;
 const LATE_WINDOW_GRACE_MINUTES = 5;
@@ -46,12 +47,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as CallRequest;
+    const db = getSupabaseAdmin();
+    let candidateId = body.candidateId;
     let to = body.to ? normalizeE164(body.to) : null;
     let candidateName = body.candidateName?.trim() || undefined;
     let variableValues = body.variableValues;
 
     if (body.interviewId) {
-      const { data: interview, error: interviewError } = await supabase
+      const { data: interview, error: interviewError } = await db
         .from('interview_sessions')
         .select('id, candidate_id, scheduled_at, status')
         .eq('id', body.interviewId)
@@ -60,14 +63,14 @@ export async function POST(request: NextRequest) {
       if (interview.status !== 'scheduled') return NextResponse.json({ error: 'This interview is no longer scheduled' }, { status: 409 });
       const minutesLate = (Date.now() - new Date(interview.scheduled_at).getTime()) / 60000;
       if (minutesLate > MANUAL_START_LATE_WINDOW_MINUTES + LATE_WINDOW_GRACE_MINUTES) return NextResponse.json({ error: 'This interview is more than 5 hours past its scheduled time. Reschedule it before calling.' }, { status: 409 });
-      if (!body.candidateId) body.candidateId = interview.candidate_id || undefined;
+      if (!candidateId) candidateId = interview.candidate_id || undefined;
     }
 
-    if (body.candidateId) {
-      const { data: candidate, error: candidateError } = await supabase
+    if (candidateId) {
+      const { data: candidate, error: candidateError } = await db
         .from('candidates')
         .select('id, full_name, phone, professional_summary, work_experience, skills, relevant_systems, strengths, concerns, resume_highlights')
-        .eq('id', body.candidateId)
+        .eq('id', candidateId)
         .single();
 
       if (candidateError || !candidate) {
@@ -91,7 +94,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!to) {
-      return NextResponse.json({ error: body.candidateId ? 'Candidate phone number is missing or invalid' : 'A valid destination phone number is required' }, { status: 400 });
+      return NextResponse.json({ error: candidateId ? 'Candidate phone number is missing or invalid' : 'A valid destination phone number is required' }, { status: 400 });
     }
 
     const call = await startVapiCall({
@@ -101,7 +104,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (body.interviewId) {
-      await supabase.from('interview_sessions').update({
+      await db.from('interview_sessions').update({
         provider: 'VAPI',
         provider_call_id: call.id,
         status: 'in_progress',
