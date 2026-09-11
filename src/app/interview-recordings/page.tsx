@@ -576,9 +576,10 @@ export default function InterviewRecordingsPage() {
     if (manualResult.error) console.error('[recordings] failed to load manual recordings', manualResult.error);
     if (vapiResult.error) console.error('[recordings] failed to load vapi recordings', vapiResult.error);
 
-    const manualRecordings = ((manualResult.data || []) as AudioRecording[]).map(recording => ({ ...recording, source: 'manual' as const }));
+    const manualRecordings = ((manualResult.data || []) as AudioRecording[]).map(recording => ({ ...recording, source: (recording.session_id ? 'vapi' : 'manual') as 'manual' | 'vapi' }));
+    const recordedSessionIds = new Set(manualRecordings.map(r => r.session_id).filter(Boolean));
     const vapiRecordings = ((vapiResult.data || []) as VapiInterviewSession[])
-      .filter(session => (session.transcript || '').trim().length > 0)
+      .filter(session => (session.transcript || '').trim().length > 0 && !recordedSessionIds.has(session.id))
       .map(session => {
         const transcriptText = session.transcript || '';
         const startedAt = session.started_at ? new Date(session.started_at).getTime() : null;

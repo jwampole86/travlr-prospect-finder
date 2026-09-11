@@ -1,9 +1,148 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { OUTREACH_BIZDEV_JOB_DESCRIPTION } from '@/lib/roles/outreachBizDevRole';
+
+const SCORECARD_COMPETENCY_KEYS = [
+  'vacation_rental_knowledge', 'property_management_knowledge', 'luxury_homeowner_communication',
+  'outbound_calling_ability', 'consultative_sales', 'discovery_questioning', 'objection_handling',
+  'closing_ability', 'follow_up_discipline', 'crm_pipeline_management', 'relationship_building',
+  'professional_communication', 'self_motivation', 'remote_work_discipline', 'coachability',
+  'operational_understanding', 'business_development', 'judgment', 'organization', 'overall_fit',
+] as const;
 
 function getMessagePayload(body: any) {
   return body?.message || body;
+}
+
+function getRecordingUrl(message: any): string | null {
+  return message?.artifact?.recordingUrl || message?.artifact?.stereoRecordingUrl
+    || message?.recordingUrl || message?.stereoRecordingUrl || message?.call?.recordingUrl || null;
+}
+
+function buildTranscriptSegments(transcriptText: string, messages: unknown) {
+  if (Array.isArray(messages)) {
+    return messages
+      .map((item: any, index: number) => {
+        const text = typeof item?.message === 'string' ? item.message : typeof item?.content === 'string' ? item.content : '';
+        if (!text.trim()) return null;
+        const seconds = typeof item?.secondsFromStart === 'number' ? item.secondsFromStart : index * 30;
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return {
+          id: `vapi-${index}`,
+          speaker: typeof item?.role === 'string' ? item.role : 'Speaker',
+          text: text.trim(),
+          timestamp: `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`,
+          start_seconds: seconds,
+        };
+      })
+      .filter(Boolean);
+  }
+  return transcriptText
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const splitIndex = line.indexOf(':');
+      return {
+        id: `vapi-line-${index}`,
+        speaker: splitIndex > 0 ? line.slice(0, splitIndex).trim() : 'Speaker',
+        text: splitIndex > 0 ? line.slice(splitIndex + 1).trim() : line,
+        timestamp: `${String(Math.floor((index * 30) / 60)).padStart(2, '0')}:${String((index * 30) % 60).padStart(2, '0')}`,
+        start_seconds: index * 30,
+      };
+    });
+}
+
+async function saveCallRecording(db: ReturnType<typeof getSupabaseAdmin>, sessionId: string, recordingUrl: string, durationSeconds: number | undefined, transcriptText: string, transcriptMessages: unknown) {
+  const audioResponse = await fetch(recordingUrl);
+  if (!audioResponse.ok) throw new Error(`Failed to download recording (${audioResponse.status})`);
+  const contentType = audioResponse.headers.get('content-type') || 'audio/wav';
+  const extension = contentType.includes('mp3') ? 'mp3' : contentType.includes('mpeg') ? 'mp3' : 'wav';
+  const buffer = Buffer.from(await audioResponse.arrayBuffer());
+  const storagePath = `vapi/${sessionId}.${extension}`;
+
+  const { error: uploadError } = await db.storage
+    .from('interview-recordings')
+    .upload(storagePath, buffer, { contentType, upsert: true });
+  if (uploadError) throw uploadError;
+
+  const segments = buildTranscriptSegments(transcriptText, transcriptMessages);
+  const recordingRow = {
+    session_id: sessionId,
+    storage_path: storagePath,
+    file_name: `vapi-interview-${sessionId}.${extension}`,
+    file_size_bytes: buffer.byteLength,
+    duration_seconds: durationSeconds || 0,
+    mime_type: contentType,
+    transcript: segments,
+    transcript_text: transcriptText,
+    transcript_status: 'completed' as const,
+    timestamp_markers: [],
+  };
+
+  const { data: existing } = await db.from('interview_audio_recordings').select('id').eq('session_id', sessionId).maybeSingle();
+  if (existing) {
+    await db.from('interview_audio_recordings').update(recordingRow).eq('id', existing.id);
+  } else {
+    await db.from('interview_audio_recordings').insert(recordingRow);
+  }
+}
+
+async function generateRoleScorecard(input: { candidateName: string; roleTitle: string; resumeSummary: string; transcript: string }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || !input.transcript.trim()) return null;
+  const client = new Anthropic({ apiKey });
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1500,
+    system: 'You are an expert interview evaluator for TRAVLR Vacation Homes. Score strictly against the provided role requirements using only evidence present in the transcript. Never fabricate evidence. Never infer protected characteristics. This is advisory only — a human always makes the final hire decision.',
+    messages: [{
+      role: 'user',
+      content: `Evaluate this AI-conducted phone interview transcript for ${input.candidateName} against the role requirements below. Score each competency 1-10 based only on evidence in the transcript. If a competency was not addressed, score conservatively (use 5) rather than fabricate evidence.
+
+ROLE REQUIREMENTS:
+${input.roleTitle === 'TRAVLR Outreach & Business Development Agent' ? OUTREACH_BIZDEV_JOB_DESCRIPTION : `Role: ${input.roleTitle}`}
+
+CANDIDATE RESUME SUMMARY:
+${input.resumeSummary}
+
+INTERVIEW TRANSCRIPT:
+${input.transcript.slice(0, 30000)}
+
+Return ONLY a valid JSON object with these integer fields (1-10 each): ${SCORECARD_COMPETENCY_KEYS.join(', ')}, plus "hire_recommendation" (one of STRONG_YES, YES, MAYBE, NO, PENDING) and "interviewer_notes" (a short evidence-based paragraph). Use PENDING if the transcript is too short or inconclusive to judge.`,
+    }],
+  });
+  const block = response.content.find((item) => item.type === 'text');
+  const rawText = block?.type === 'text' ? block.text.trim() : '';
+  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    const scores: Record<string, number> = {};
+    for (const key of SCORECARD_COMPETENCY_KEYS) {
+      const value = Number(parsed[key]);
+      scores[key] = Number.isFinite(value) ? Math.min(10, Math.max(1, Math.round(value))) : 5;
+    }
+    return {
+      ...scores,
+      hire_recommendation: ['STRONG_YES', 'YES', 'MAYBE', 'NO', 'PENDING'].includes(parsed.hire_recommendation) ? parsed.hire_recommendation : 'PENDING',
+      interviewer_notes: typeof parsed.interviewer_notes === 'string' ? `[AI-generated from Vapi interview — requires human review] ${parsed.interviewer_notes}` : '[AI-generated from Vapi interview — requires human review]',
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function saveRoleScorecard(db: ReturnType<typeof getSupabaseAdmin>, candidateId: string, scorecard: Record<string, unknown>) {
+  await db.from('candidate_scorecards').insert({ candidate_id: candidateId, ...scorecard });
+  await db.from('candidates').update({ candidate_status: 'INTERVIEWED', updated_at: new Date().toISOString() }).eq('id', candidateId);
+  await db.from('candidate_audit_events').insert({
+    candidate_id: candidateId,
+    event_type: 'INTERVIEW_COMPLETED',
+    event_data: { source: 'vapi_ai_interview', overall_fit: scorecard.overall_fit, hire_recommendation: scorecard.hire_recommendation },
+  });
 }
 
 function getCallId(message: any): string | null {
@@ -150,6 +289,30 @@ export async function POST(request: NextRequest) {
           auto_start_enabled: false,
           updated_at: new Date().toISOString(),
         }).eq('id', session.id);
+      } else {
+        const recordingUrl = getRecordingUrl(message);
+        if (recordingUrl) {
+          await saveCallRecording(db, session.id, recordingUrl, timestamps.duration_seconds, transcriptData.transcript, transcriptData.messages).catch((recordingError) => {
+            console.error('vapi_recording_save_failed', { interviewId: session.id, error: recordingError instanceof Error ? recordingError.message : 'unknown' });
+          });
+        }
+
+        if (session.candidate_id) {
+          const roleScorecard = await generateRoleScorecard({
+            candidateName: candidate?.full_name || 'Candidate',
+            roleTitle: session.role_title,
+            resumeSummary: candidate?.professional_summary || 'No resume summary available.',
+            transcript: transcriptData.transcript,
+          }).catch((scorecardError) => {
+            console.error('vapi_scorecard_failed', { interviewId: session.id, error: scorecardError instanceof Error ? scorecardError.message : 'unknown' });
+            return null;
+          });
+          if (roleScorecard) {
+            await saveRoleScorecard(db, session.candidate_id, roleScorecard).catch((saveError) => {
+              console.error('vapi_scorecard_save_failed', { interviewId: session.id, error: saveError instanceof Error ? saveError.message : 'unknown' });
+            });
+          }
+        }
       }
     }
 
