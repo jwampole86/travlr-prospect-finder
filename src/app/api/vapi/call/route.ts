@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       if (interviewError || !interview) return NextResponse.json({ error: 'Interview not found' }, { status: 404 });
       if (interview.status !== 'scheduled') return NextResponse.json({ error: 'This interview is no longer scheduled' }, { status: 409 });
       const minutesLate = (Date.now() - new Date(interview.scheduled_at).getTime()) / 60000;
-      if (minutesLate > 20) return NextResponse.json({ error: 'This interview is more than 20 minutes past its scheduled time. Reschedule it before calling.' }, { status: 409 });
+      if (minutesLate > 60) return NextResponse.json({ error: 'This interview is more than 60 minutes past its scheduled time. Reschedule it before calling.' }, { status: 409 });
       if (!body.candidateId) body.candidateId = interview.candidate_id || undefined;
     }
 

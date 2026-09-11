@@ -434,7 +434,7 @@ function StartInterviewChoiceModal({
           </Link>
           <button onClick={startAiInterview} disabled={startingAi} className="flex items-center gap-3 w-full rounded-xl border border-emerald-300 dark:border-emerald-800 p-4 text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors disabled:opacity-60">
             <span className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center"><Phone className="w-4 h-4" /></span>
-            <span><span className="block text-sm font-semibold text-gray-900 dark:text-white">AI Interview Assistant</span><span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">Call this candidate with Vapi using their stored resume context. Manual starts are allowed up to 20 minutes late.</span></span>
+            <span><span className="block text-sm font-semibold text-gray-900 dark:text-white">AI Interview Assistant</span><span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">Call this candidate with Vapi using their stored resume context. Manual starts are allowed up to 60 minutes late.</span></span>
           </button>
         </div>
         {startingAi && <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-4">Starting AI interview...</p>}
@@ -815,6 +815,11 @@ export default function InterviewCalendarPage() {
     if (filter === 'upcoming') return s.status === 'scheduled' || s.status === 'in_progress';
     if (filter === 'completed') return s.status === 'completed' || s.status === 'cancelled';
     return true;
+  }).sort((first, second) => {
+    const firstIsTest = first.candidate_name.trim().toUpperCase() === 'TEST';
+    const secondIsTest = second.candidate_name.trim().toUpperCase() === 'TEST';
+    if (firstIsTest !== secondIsTest) return firstIsTest ? 1 : -1;
+    return new Date(first.scheduled_at).getTime() - new Date(second.scheduled_at).getTime();
   });
 
   const toggleSelect = (id: string) => {
