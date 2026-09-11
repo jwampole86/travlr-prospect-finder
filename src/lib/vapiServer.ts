@@ -44,9 +44,13 @@ async function getRescheduleAssistantOverride(apiKey: string, assistantId: strin
     cache: 'no-store',
   });
   const assistant = await assistantResponse.json().catch(() => null);
-  const existingMessages = assistant?.model?.messages && Array.isArray(assistant.model.messages) ? assistant.model.messages : [];
+  const existingModel = assistant?.model && typeof assistant.model === 'object' ? assistant.model : null;
+  // Vapi requires a full model object (provider, model name, etc.) on override — omit entirely if unavailable.
+  if (!existingModel || !existingModel.provider) return {};
+  const existingMessages = Array.isArray(existingModel.messages) ? existingModel.messages : [];
   return {
     model: {
+      ...existingModel,
       messages: [...existingMessages, { role: 'system', content: RESCHEDULE_INSTRUCTIONS }],
       tools: [
         { type: 'endCall' },
