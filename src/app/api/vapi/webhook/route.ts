@@ -101,14 +101,15 @@ export async function POST(request: NextRequest) {
 
     if (eventType === 'status-update' || status) {
       const mappedStatus = status === 'in-progress' ? 'in_progress' : undefined;
+      const endedStatus = status === 'ended' ? mapEndedReason(timestamps.ended_reason) : undefined;
       await db.from('interview_sessions').update({
-        ...(mappedStatus ? { status: mappedStatus } : {}),
+        ...(mappedStatus ? { status: mappedStatus } : endedStatus ? { status: endedStatus } : {}),
         ...timestamps,
         updated_at: new Date().toISOString(),
       }).eq('id', session.id).eq('status', 'in_progress');
     }
 
-    if (eventType === 'end-of-call-report' || message?.artifact || message?.endedReason) {
+    if (eventType === 'end-of-call-report' || message?.artifact || message?.endedReason || status === 'ended') {
       const transcriptData = getTranscript(message);
       const summary = await generateSummary({
         candidateName: candidate?.full_name || 'Candidate',
