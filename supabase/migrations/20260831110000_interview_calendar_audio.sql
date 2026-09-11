@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.interview_sessions (
   role_id TEXT NOT NULL,
   role_title TEXT NOT NULL,
   scheduled_at TIMESTAMPTZ NOT NULL,
-  duration_minutes INTEGER NOT NULL DEFAULT 60,
+  duration_minutes INTEGER NOT NULL DEFAULT 25,
   status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'in_progress', 'completed', 'cancelled')),
   zoom_link TEXT,
   notes TEXT DEFAULT '',

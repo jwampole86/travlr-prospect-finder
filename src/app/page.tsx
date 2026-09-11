@@ -248,7 +248,9 @@ export default function DashboardPage() {
 
   const portfolioState = selectedPortfolio.stateCode !== 'all' ? selectedPortfolio.stateCode : undefined;
 
-  const { topLeads: rawTopLeads, stats, stageBreakdown, regulationBreakdown, topLoading, statsLoading, topLeadsError, statsError, refresh, refreshTopLeads, refreshStats } = useDashboardLeads(portfolioState, !authLoading);
+  const dashboardDataEnabled = !authLoading && Boolean(user);
+
+  const { topLeads: rawTopLeads, stats, stageBreakdown, regulationBreakdown, topLoading, statsLoading, topLeadsError, statsError, refresh, refreshTopLeads, refreshStats } = useDashboardLeads(portfolioState, dashboardDataEnabled);
 
   // Independent live revenue hook — never blocks other Dashboard sections
   const {
@@ -256,7 +258,7 @@ export default function DashboardPage() {
     loading: liveRevenueLoading,
     error: liveRevenueError,
     refresh: refreshLiveRevenue,
-  } = useLiveRevenue(portfolioState, !authLoading);
+  } = useLiveRevenue(portfolioState, dashboardDataEnabled);
 
   // Track when each section resolves
   useEffect(() => {

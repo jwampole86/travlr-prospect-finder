@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { Calendar, Plus, Clock, Video, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, Mail, Edit3, Trash2, Bell, ExternalLink, RefreshCw, Search, Play, Check, X, CheckSquare, Square, Download, Send, Layers, BarChart2,  } from 'lucide-react';
 import { INTERVIEW_ROLES } from '@/lib/interviewScripts';
+import { AI_INTERVIEW_CONFIG } from '@/lib/interviewConfig';
 import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ function ScheduleModal({
     role_id: session?.role_id || INTERVIEW_ROLES[0]?.value || '',
     role_title: session?.role_title || INTERVIEW_ROLES[0]?.label || '',
     scheduled_at: session?.scheduled_at ? formatDateTimeLocal(session.scheduled_at) : defaultDt,
-    duration_minutes: session?.duration_minutes || 60,
+    duration_minutes: session?.duration_minutes || AI_INTERVIEW_CONFIG.scheduledDurationMinutes,
     zoom_link: session?.zoom_link || '',
     candidate_email: session?.candidate_email || '',
     notes: session?.notes || '',
@@ -127,7 +128,7 @@ function ScheduleModal({
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Duration (min)</label>
               <select value={form.duration_minutes} onChange={e => setForm(f => ({ ...f, duration_minutes: Number(e.target.value) }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
-                {[30, 45, 60, 75, 90].map(d => <option key={d} value={d}>{d} min</option>)}
+                {[25, 30, 45, 60, 75, 90].map(d => <option key={d} value={d}>{d} min</option>)}
               </select>
             </div>
           </div>
@@ -163,8 +164,8 @@ function BatchScheduleModal({
   onSave: (rows: Partial<InterviewSession>[]) => Promise<void>;
 }) {
   const [rows, setRows] = useState([
-    { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', duration_minutes: 60 },
-    { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', duration_minutes: 60 },
+    { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', duration_minutes: AI_INTERVIEW_CONFIG.scheduledDurationMinutes },
+    { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', duration_minutes: AI_INTERVIEW_CONFIG.scheduledDurationMinutes },
   ]);
   const [saving, setSaving] = useState(false);
 
@@ -172,7 +173,7 @@ function BatchScheduleModal({
     setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
   };
 
-  const addRow = () => setRows(prev => [...prev, { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', duration_minutes: 60 }]);
+  const addRow = () => setRows(prev => [...prev, { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', duration_minutes: AI_INTERVIEW_CONFIG.scheduledDurationMinutes }]);
   const removeRow = (i: number) => setRows(prev => prev.filter((_, idx) => idx !== i));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -225,7 +226,7 @@ function BatchScheduleModal({
                 <div className="col-span-1">
                   <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Min</label>
                   <select value={row.duration_minutes} onChange={e => updateRow(i, 'duration_minutes', Number(e.target.value))} className="w-full px-2 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
-                    {[30, 45, 60, 75, 90].map(d => <option key={d} value={d}>{d}</option>)}
+                    {[25, 30, 45, 60, 75, 90].map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
                 <div className="col-span-1 flex items-end justify-center pb-0.5">
@@ -376,7 +377,7 @@ function SessionCard({
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-          <span>{session.duration_minutes} minutes</span>
+          <span>{AI_INTERVIEW_CONFIG.expectedDurationLabel}</span>
         </div>
         {session.zoom_link && (
           <div className="flex items-center gap-2 text-xs">

@@ -231,44 +231,41 @@ export default function HomeownerPropertiesPage() {
         const { data: user } = await supabase.auth.getUser();
         if (!user.user) return;
 
-        const { data: homeowner } = await supabase
-          .from('homeowner_profiles')
-          .select('id')
-          .eq('user_id', user.user.id)
-          .maybeSingle();
-        if (!homeowner) throw new Error('No homeowner profile');
-
         const { data: propLinks } = await supabase
           .from('property_homeowners')
-          .select('id, property_address, property_type, city, state')
-          .eq('homeowner_id', homeowner.id);
+          .select('id, lead_id, leads(id, property_address, city, state, property_type)')
+          .eq('homeowner_user_id', user.user.id);
 
         if (!propLinks || propLinks.length === 0) throw new Error('No properties');
 
-        const propIds = propLinks.map((p: any) => p.id);
+        const leadIds = propLinks.map((p: any) => p.lead_id);
 
         const [payoutsRes, bookingsRes] = await Promise.all([
-          supabase.from('payouts').select('*').in('property_id', propIds).order('payout_date', { ascending: false }),
-          supabase.from('bookings').select('*').in('property_id', propIds).order('check_in', { ascending: false }),
+          supabase.from('payouts').select('*').in('lead_id', leadIds).order('period_start', { ascending: false }),
+          supabase.from('bookings').select('*').in('lead_id', leadIds).order('check_in', { ascending: false }),
         ]);
+
+        if (payoutsRes.error) throw payoutsRes.error;
+        if (bookingsRes.error) throw bookingsRes.error;
 
         const payouts = payoutsRes.data || [];
         const bookings = bookingsRes.data || [];
 
         const summaries: PropertySummary[] = propLinks.map((p: any) => {
-          const propPayouts = payouts.filter((py: any) => py.property_id === p.id);
-          const propBookings = bookings.filter((b: any) => b.property_id === p.id);
+          const lead = p.leads;
+          const propPayouts = payouts.filter((py: any) => py.lead_id === p.lead_id);
+          const propBookings = bookings.filter((b: any) => b.lead_id === p.lead_id);
 
           const lastPayout = propPayouts.find((py: any) => py.status === 'paid') || null;
           const nextPayout = propPayouts.find((py: any) => py.status === 'pending') || null;
 
           const ytdGross = propPayouts.filter((py: any) => {
-            const y = new Date(py.payout_date).getFullYear();
+            const y = new Date(py.period_start).getFullYear();
             return y === new Date().getFullYear() && py.status === 'paid';
           }).reduce((s: number, py: any) => s + (py.gross_amount || 0), 0);
 
           const ytdNet = propPayouts.filter((py: any) => {
-            const y = new Date(py.payout_date).getFullYear();
+            const y = new Date(py.period_start).getFullYear();
             return y === new Date().getFullYear() && py.status === 'paid';
           }).reduce((s: number, py: any) => s + (py.net_amount || 0), 0);
 
@@ -314,18 +311,18 @@ export default function HomeownerPropertiesPage() {
             ? 'none' :'paid';
 
           return {
-            id: p.id,
-            property_address: p.property_address,
-            city: p.city,
-            state: p.state,
-            property_type: p.property_type,
+            id: p.lead_id,
+            property_address: lead?.property_address || p.lead_id,
+            city: lead?.city || '',
+            state: lead?.state || '',
+            property_type: lead?.property_type || 'property',
             monthly_revenue_run_rate: Math.round(avgMonthly),
             ytd_gross: ytdGross,
             ytd_net: ytdNet,
             last_payout_amount: lastPayout?.net_amount || null,
-            last_payout_date: lastPayout?.payout_date || null,
+            last_payout_date: lastPayout?.period_start || null,
             next_payout_amount: nextPayout?.net_amount || null,
-            next_payout_date: nextPayout?.payout_date || null,
+            next_payout_date: nextPayout?.period_start || null,
             payout_status: payoutStatus,
             lease_up_stage: leaseUpStage,
             lease_up_progress: leaseUpPct,

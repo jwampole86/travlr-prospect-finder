@@ -37,8 +37,8 @@ SET scheduled_at = '2026-09-11T17:30:00Z'::timestamptz,
 WHERE candidate_name = 'Darlene Ciao';
 
 UPDATE public.interview_sessions
-SET scheduled_at = '2026-09-11T17:30:00Z'::timestamptz,
-    notes = 'Friday: 1:30 PM Eastern',
+SET scheduled_at = '2026-09-11T18:30:00Z'::timestamptz,
+    notes = 'Friday: 2:30 PM Eastern',
     updated_at = now()
 WHERE candidate_name = 'Brett Allen';
 

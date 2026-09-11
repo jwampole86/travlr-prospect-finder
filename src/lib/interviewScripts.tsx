@@ -1,6 +1,8 @@
 // ─── TRAVLR Interview Scripts ─────────────────────────────────────────────────
 // Structured interview scripts for Jen Wampole to use during Zoom interviews
 
+import { AI_INTERVIEW_CONFIG } from '@/lib/interviewConfig';
+
 export interface InterviewQuestion {
   id: string;
   category: string;
@@ -40,7 +42,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
     roleTitle: 'Homeowner Outreach Agent',
     shortTitle: 'Outreach Agent',
     description: 'Front-line outreach to prospective homeowner partners',
-    totalDuration: '45–60 min',
+    totalDuration: AI_INTERVIEW_CONFIG.expectedDurationLabel,
     sections: [
       {
         id: 'intro', title: 'Introduction & Overview', duration: '5 min',
