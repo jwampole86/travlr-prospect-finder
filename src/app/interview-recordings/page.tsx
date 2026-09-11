@@ -151,11 +151,11 @@ function LiveRecorder({ onRecordingComplete }: { onRecordingComplete: (blob: Blo
     <div className="bg-white rounded-2xl border border-gray-200 p-5">
       <div className="flex items-center gap-3 mb-4">
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isRecording ? 'bg-red-100' : 'bg-gray-100'}`}>
-          <Mic className={`w-5 h-5 ${isRecording ? 'text-red-600' : 'text-gray-600'}`} />
+          <Mic className={`w-5 h-5 ${isRecording ? 'text-red-600' : 'text-gray-600 dark:text-gray-500'}`} />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-gray-900">Live Audio Recorder</h3>
-          <p className="text-xs text-gray-500">Record Zoom interview audio via browser</p>
+          <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Live Audio Recorder</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Record Zoom interview audio via browser</p>
         </div>
         {isRecording && (
           <div className="ml-auto flex items-center gap-2">
@@ -200,7 +200,7 @@ function LiveRecorder({ onRecordingComplete }: { onRecordingComplete: (blob: Blo
             </button>
           </>
         )}
-        <p className="text-xs text-gray-400 ml-2">
+        <p className="text-xs text-gray-400 dark:text-gray-500 ml-2">
           {isRecording ? (isPaused ? 'Recording paused' : 'Recording in progress...') : 'Click to start recording your Zoom interview audio'}
         </p>
       </div>
@@ -278,26 +278,26 @@ function RecordingCard({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-gray-100">
+      <div className="p-4 border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
-              <Volume2 className="w-4 h-4 text-gray-600" />
+            <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+              <Volume2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-900 truncate max-w-[200px]">{recording.file_name}</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate max-w-[200px]">{recording.file_name}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {formatDuration(recording.duration_seconds)} · {formatFileSize(recording.file_size_bytes)} · {new Date(recording.created_at).toLocaleDateString()}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={downloadRecording} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500" title="Download">
+            <button onClick={downloadRecording} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400" title="Download">
               <Download className="w-3.5 h-3.5" />
             </button>
-            <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-500" title="Delete">
+            <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-gray-400 dark:text-gray-500 hover:text-red-500" title="Delete">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -321,14 +321,14 @@ function RecordingCard({
               onChange={e => seekTo(Number(e.target.value))}
               className="w-full h-1.5 accent-gray-900"
             />
-            <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+            <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
               <span>{formatDuration(currentTime)}</span>
               <span>{formatDuration(duration)}</span>
             </div>
           </div>
           <button
             onClick={() => setShowMarkerInput(v => !v)}
-            className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            className="px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             title="Add timestamp marker"
           >
             + Marker
@@ -337,21 +337,21 @@ function RecordingCard({
 
         {showMarkerInput && (
           <div className="flex items-center gap-2 mt-2">
-            <span className="text-xs text-gray-500 font-mono">{formatDuration(currentTime)}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">{formatDuration(currentTime)}</span>
             <input
               type="text"
               value={markerLabel}
               onChange={e => setMarkerLabel(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddMarker()}
               placeholder="Marker label..."
-              className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-gray-900"
+              className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-400"
               autoFocus
             />
             <button onClick={handleAddMarker} className="p-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
               <Check className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => setShowMarkerInput(false)} className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <X className="w-3.5 h-3.5 text-gray-500" />
+            <button onClick={() => setShowMarkerInput(false)} className="p-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              <X className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
             </button>
           </div>
         )}
@@ -369,13 +369,13 @@ function RecordingCard({
       </div>
 
       {/* Transcript / Markers Tabs */}
-      <div className="border-b border-gray-100">
+      <div className="border-b border-gray-100 dark:border-gray-700">
         <div className="flex">
           {(['transcript', 'markers'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2.5 text-xs font-semibold capitalize transition-colors ${activeTab === tab ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex-1 py-2.5 text-xs font-semibold capitalize transition-colors ${activeTab === tab ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-400' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400'}`}
             >
               {tab === 'transcript' ? `Transcript ${recording.transcript_status === 'completed' ? `(${recording.transcript.length})` : ''}` : `Markers (${recording.timestamp_markers.length})`}
             </button>
@@ -388,8 +388,8 @@ function RecordingCard({
           <>
             {recording.transcript_status === 'pending' && (
               <div className="text-center py-6">
-                <FileText className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                <p className="text-sm text-gray-500 mb-3">No transcript yet</p>
+                <FileText className="w-8 h-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">No transcript yet</p>
                 <button
                   onClick={onTranscribe}
                   className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-xs font-semibold hover:bg-gray-800 transition-colors mx-auto"
@@ -399,7 +399,7 @@ function RecordingCard({
               </div>
             )}
             {recording.transcript_status === 'processing' && (
-              <div className="flex items-center justify-center gap-2 py-6 text-gray-500">
+              <div className="flex items-center justify-center gap-2 py-6 text-gray-500 dark:text-gray-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-sm">Transcribing with Whisper...</span>
               </div>
@@ -421,7 +421,7 @@ function RecordingCard({
                     >
                       {seg.timestamp}
                     </button>
-                    <p className="text-xs text-gray-700 leading-relaxed">{seg.text}</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{seg.text}</p>
                   </div>
                 ))}
               </div>
@@ -433,22 +433,22 @@ function RecordingCard({
           <>
             {recording.timestamp_markers.length === 0 ? (
               <div className="text-center py-6">
-                <Clock className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No markers yet</p>
-                <p className="text-xs text-gray-400 mt-1">Click "+ Marker" while playing to add timestamp notes</p>
+                <Clock className="w-8 h-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">No markers yet</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Click "+ Marker" while playing to add timestamp notes</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {recording.timestamp_markers.map((m, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                  <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <button
                       onClick={() => seekTo(m.time_seconds)}
-                      className="text-[10px] font-mono text-blue-500 hover:text-blue-700 flex-shrink-0 hover:underline"
+                      className="text-[10px] font-mono text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex-shrink-0 hover:underline"
                     >
                       {formatDuration(m.time_seconds)}
                     </button>
-                    <span className="text-xs font-semibold text-gray-700">{m.label}</span>
-                    {m.note && <span className="text-xs text-gray-500 truncate">{m.note}</span>}
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{m.label}</span>
+                    {m.note && <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{m.note}</span>}
                   </div>
                 ))}
               </div>
@@ -590,8 +590,8 @@ export default function InterviewRecordingsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Interview Recordings</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Record, transcribe, and review interview audio with timestamp markers</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Interview Recordings</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Record, transcribe, and review interview audio with timestamp markers</p>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/interview-calendar" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
@@ -618,21 +618,21 @@ export default function InterviewRecordingsPage() {
         {/* Recordings List */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Saved Recordings ({recordings.length})</h2>
-            <button onClick={fetchRecordings} className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
+            <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Saved Recordings ({recordings.length})</h2>
+            <button onClick={fetchRecordings} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-400">
               <RefreshCw className="w-4 h-4" />
             </button>
           </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <RefreshCw className="w-6 h-6 text-gray-400 animate-spin" />
+              <RefreshCw className="w-6 h-6 text-gray-400 dark:text-gray-500 animate-spin" />
             </div>
           ) : recordings.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
-              <Mic className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No recordings yet</p>
-              <p className="text-sm text-gray-400 mt-1">Start recording your Zoom interview audio above</p>
+            <div className="text-center py-12 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
+              <Mic className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+              <p className="text-gray-500 dark:text-gray-400 font-medium">No recordings yet</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Start recording your Zoom interview audio above</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

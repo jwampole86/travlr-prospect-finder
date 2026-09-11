@@ -707,10 +707,37 @@ export default function InterviewCalendarPage() {
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
   useEffect(() => {
+    // Set up real-time subscription for interview_sessions to avoid polling blinking
+    const subscription = supabase
+      .channel('interview_sessions_updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'interview_sessions' },
+        (payload) => {
+          // Update sessions list with the new data from real-time event
+          setSessions(prev => {
+            const updated = [...prev];
+            if (payload.eventType === 'INSERT') {
+              updated.push(payload.new as InterviewSession);
+            } else if (payload.eventType === 'UPDATE') {
+              const index = updated.findIndex(s => s.id === payload.new.id);
+              if (index >= 0) updated[index] = payload.new as InterviewSession;
+            } else if (payload.eventType === 'DELETE') {
+              return updated.filter(s => s.id !== payload.old.id);
+            }
+            return updated.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+          });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(subscription); };
+  }, [supabase]);
+
+  useEffect(() => {
     if (!sessions.some(session => session.status === 'in_progress')) return;
     const refreshTimer = window.setInterval(() => {
       fetchSessions();
-    }, 5_000);
+    }, 15_000);
     return () => window.clearInterval(refreshTimer);
   }, [sessions, fetchSessions]);
 
