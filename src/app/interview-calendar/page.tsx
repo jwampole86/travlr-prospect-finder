@@ -44,6 +44,22 @@ const STATUS_CONFIG = {
   cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-400', icon: XCircle },
 };
 
+const KNOWN_CANDIDATE_TIMEZONES: Record<string, string> = {
+  'Kelli Winkel': 'America/New_York',
+  'Caitlyn Sorrells': 'America/Chicago',
+  'Karissa Crooks': 'America/New_York',
+  'Jessica Thrasher': 'America/New_York',
+  'Gina Mattivello': 'America/New_York',
+  'Gina L. Mattivello': 'America/New_York',
+  'Margo Johnson': 'America/New_York',
+  'Darlene Ciao': 'America/Los_Angeles',
+  'Brett Allen': 'America/New_York',
+};
+
+function candidateTimeZone(session: Pick<InterviewSession, 'candidate_name' | 'scheduled_timezone'>) {
+  return session.scheduled_timezone || KNOWN_CANDIDATE_TIMEZONES[session.candidate_name] || detectBrowserTimeZone();
+}
+
 function formatDate(iso: string, timeZone: string) {
   return new Intl.DateTimeFormat('en-US', { timeZone, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(iso));
 }
@@ -384,6 +400,7 @@ function SessionCard({
   const cfg = STATUS_CONFIG[session.status];
   const StatusIcon = cfg.icon;
   const upcoming = isUpcoming(session.scheduled_at);
+  const sessionTimeZone = candidateTimeZone(session);
 
   return (
     <div
@@ -416,8 +433,8 @@ function SessionCard({
           <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
           <span>{formatDate(session.scheduled_at, localTimeZone)} at {formatTime(session.scheduled_at, localTimeZone)} {getTimeZoneAbbreviation(new Date(session.scheduled_at), localTimeZone)}</span>
         </div>
-        {session.scheduled_timezone && session.scheduled_timezone !== localTimeZone && (
-          <div className="text-[11px] text-gray-500 pl-5">Candidate local: {session.scheduled_local_time || formatTime(session.scheduled_at, session.scheduled_timezone)} {getTimeZoneAbbreviation(new Date(session.scheduled_at), session.scheduled_timezone)}</div>
+        {sessionTimeZone !== localTimeZone && (
+          <div className="text-[11px] text-gray-500 dark:text-gray-300 pl-5">Candidate local: {session.scheduled_local_time || formatTime(session.scheduled_at, sessionTimeZone)} {getTimeZoneAbbreviation(new Date(session.scheduled_at), sessionTimeZone)} · {sessionTimeZone}</div>
         )}
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
@@ -809,23 +826,23 @@ export default function InterviewCalendarPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Interview Calendar</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Schedule, track, and manage candidate interviews</p>
-            <p className="text-xs text-gray-400 mt-1">Local time: {formatTime(localNow.toISOString(), localTimeZone)} {getTimeZoneAbbreviation(localNow, localTimeZone)} · {localTimeZone}</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Interview Calendar</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-300 mt-0.5">Schedule, track, and manage candidate interviews</p>
+            <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">Local time: {formatTime(localNow.toISOString(), localTimeZone)} {getTimeZoneAbbreviation(localNow, localTimeZone)} · {localTimeZone}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Link href="/hiring-analytics" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+            <Link href="/hiring-analytics" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
               <BarChart2 className="w-4 h-4" /> Analytics
             </Link>
-            <Link href="/candidate-profiles" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+            <Link href="/candidate-profiles" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
               <User className="w-4 h-4" /> Profiles
             </Link>
-            <Link href="/teleprompter/interview" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+            <Link href="/teleprompter/interview" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
               <Play className="w-4 h-4" /> Interview Mode
             </Link>
             <button
               onClick={() => setShowBatchModal(true)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white text-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <Layers className="w-4 h-4" /> Batch Schedule
             </button>
@@ -850,8 +867,8 @@ export default function InterviewCalendarPage() {
                 <stat.icon className={`w-5 h-5 ${stat.color}`} />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-xs text-gray-500">{stat.label}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-300">{stat.label}</p>
               </div>
             </div>
           ))}
@@ -887,7 +904,7 @@ export default function InterviewCalendarPage() {
         {view === 'calendar' && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">{monthName}</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{monthName}</h2>
               <div className="flex items-center gap-2">
                 <button onClick={() => setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} className="p-2 rounded-lg hover:bg-gray-100 transition-colors"><ChevronLeft className="w-4 h-4 text-gray-600" /></button>
                 <button onClick={() => setCurrentMonth(new Date())} className="px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Today</button>
