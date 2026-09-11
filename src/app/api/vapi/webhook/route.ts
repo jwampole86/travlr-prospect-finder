@@ -134,6 +134,23 @@ export async function POST(request: NextRequest) {
         summary_generated_at: summary ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),
       }).eq('id', session.id);
+
+      // Permanent test fixture — always reset back to callable after any call ends.
+      if (candidate?.full_name?.trim().toUpperCase() === 'TEST') {
+        await db.from('interview_sessions').update({
+          status: 'scheduled',
+          provider_call_id: null,
+          started_at: null,
+          ended_at: null,
+          ended_reason: null,
+          duration_seconds: null,
+          execution_status: 'QUEUED',
+          execution_started_at: null,
+          execution_error: null,
+          auto_start_enabled: false,
+          updated_at: new Date().toISOString(),
+        }).eq('id', session.id);
+      }
     }
 
     return NextResponse.json({ ok: true });

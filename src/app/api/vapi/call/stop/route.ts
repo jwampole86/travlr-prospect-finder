@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const { data: session, error: sessionError } = await supabase
       .from('interview_sessions')
-      .select('id, provider_call_id, status')
+      .select('id, provider_call_id, status, candidate_id')
       .eq('id', body.interviewId)
       .single();
 
@@ -36,15 +36,37 @@ export async function POST(request: NextRequest) {
 
     await stopVapiCall(session.provider_call_id);
 
+    let isTestCandidate = false;
+    if (session.candidate_id) {
+      const { data: candidate } = await supabase.from('candidates').select('full_name').eq('id', session.candidate_id).maybeSingle();
+      isTestCandidate = candidate?.full_name?.trim().toUpperCase() === 'TEST';
+    }
+
     const { error: updateError } = await supabase
       .from('interview_sessions')
-      .update({
-        status: 'cancelled',
-        ended_reason: 'cancelled_by_admin',
-        execution_status: 'CANCELLED',
-        ended_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .update(
+        isTestCandidate
+          ? {
+              status: 'scheduled',
+              provider_call_id: null,
+              started_at: null,
+              ended_at: null,
+              ended_reason: null,
+              duration_seconds: null,
+              execution_status: 'QUEUED',
+              execution_started_at: null,
+              execution_error: null,
+              auto_start_enabled: false,
+              updated_at: new Date().toISOString(),
+            }
+          : {
+              status: 'cancelled',
+              ended_reason: 'cancelled_by_admin',
+              execution_status: 'CANCELLED',
+              ended_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
+      )
       .eq('id', body.interviewId)
       .eq('status', 'in_progress');
 
