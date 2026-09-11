@@ -59,7 +59,11 @@ Do not make an automatic hire or reject decision.`,
 
 export async function POST(request: NextRequest) {
   const configuredSecret = process.env.VAPI_WEBHOOK_SECRET;
-  if (configuredSecret && request.headers.get('x-vapi-secret') !== configuredSecret) {
+  const customSecret = request.headers.get('x-vapi-secret');
+  const authorization = request.headers.get('authorization');
+  const bearerSecret = authorization?.replace(/^Bearer\s+/i, '');
+  const webhookAuthorized = customSecret === configuredSecret || bearerSecret === configuredSecret;
+  if (configuredSecret && !webhookAuthorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
