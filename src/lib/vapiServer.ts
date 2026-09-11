@@ -159,6 +159,13 @@ export async function stopVapiCall(callId: string) {
     throw new Error(providerMessage);
   }
 
+  const callStatus = callBody && typeof callBody === 'object' && 'status' in callBody && typeof callBody.status === 'string'
+    ? callBody.status.toLowerCase()
+    : null;
+  if (callStatus === 'ended') return;
+
+  const stopErrors: string[] = [];
+
   const controlUrl =
     callBody && typeof callBody === 'object' && 'monitor' in callBody && callBody.monitor && typeof callBody.monitor === 'object' && 'controlUrl' in callBody.monitor && typeof callBody.monitor.controlUrl === 'string'
       ? callBody.monitor.controlUrl
@@ -174,14 +181,12 @@ export async function stopVapiCall(callId: string) {
     });
 
     const body = await response.json().catch(() => null);
-    if (!response.ok) {
-      const providerMessage =
-        body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
-          ? body.message
-          : 'Vapi rejected the stop request';
-      throw new Error(providerMessage);
-    }
-    return;
+    if (response.ok) return;
+    stopErrors.push(
+      body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
+        ? `Vapi control: ${body.message}`
+        : 'Vapi control rejected the stop request',
+    );
   }
 
   const providerCallId =
@@ -194,7 +199,6 @@ export async function stopVapiCall(callId: string) {
   const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
   const accountSid = authSid?.startsWith('SK') ? process.env.TWILIO_ACCOUNT_SID_MAIN?.trim() : authSid;
 
-  const stopErrors: string[] = [];
   if (providerCallId && authSid && authToken && accountSid) {
     const credentials = Buffer.from(`${authSid}:${authToken}`).toString('base64');
     const twilioResponse = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${providerCallId}.json`, {
