@@ -28,6 +28,7 @@ interface InterviewSession {
   zoom_link: string | null;
   notes: string;
   summary: string | null;
+  started_at: string | null;
   calendar_invite_sent: boolean;
   reminder_sent: boolean;
   candidate_email: string | null;
@@ -73,6 +74,11 @@ function formatDateTimeLocal(iso: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function isUpcoming(iso: string) { return new Date(iso) > new Date(); }
+function formatElapsed(startedAt: string | null, now: number) {
+  if (!startedAt) return '00:00';
+  const totalSeconds = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000));
+  return `${String(Math.floor(totalSeconds / 60)).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
+}
 
 // ─── Schedule Modal ───────────────────────────────────────────────────────────
 
@@ -465,6 +471,13 @@ function SessionCard({
   const StatusIcon = cfg.icon;
   const upcoming = isUpcoming(session.scheduled_at);
   const sessionTimeZone = candidateTimeZone(session);
+  const [timerNow, setTimerNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (session.status !== 'in_progress') return;
+    const timer = window.setInterval(() => setTimerNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [session.status]);
 
   return (
     <div
@@ -551,10 +564,11 @@ function SessionCard({
         )}
         {session.status === 'in_progress' && (
           <span
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200 rounded-lg text-xs font-semibold"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-200 rounded-lg text-xs font-semibold"
             aria-label="Interview is currently on call"
           >
-            <Phone className="w-3 h-3" /> On Call
+            <span className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-400 animate-pulse" /> ON CALL
+            <span className="font-mono tabular-nums">{formatElapsed(session.started_at, timerNow)}</span>
           </span>
         )}
         {session.status === 'scheduled' && session.candidate_email && !session.reminder_sent && (
@@ -1063,7 +1077,7 @@ export default function InterviewCalendarPage() {
       {startChoiceSession && (
         <StartInterviewChoiceModal
           session={startChoiceSession}
-          onClose={() => setStartChoiceSession(null)}
+          onClose={() => { setStartChoiceSession(null); fetchSessions(); }}
         />
       )}
     </AppLayout>

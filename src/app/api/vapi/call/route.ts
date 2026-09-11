@@ -96,6 +96,18 @@ export async function POST(request: NextRequest) {
       variableValues,
     });
 
+    if (body.interviewId) {
+      await supabase.from('interview_sessions').update({
+        provider: 'VAPI',
+        provider_call_id: call.id,
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
+        execution_status: 'STARTED',
+        execution_started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('id', body.interviewId);
+    }
+
     console.info('vapi_call_started', { userId: user.id, providerCallId: call.id });
     return NextResponse.json({ ok: true, callId: call.id, status: call.status ?? 'queued' });
   } catch (error) {
