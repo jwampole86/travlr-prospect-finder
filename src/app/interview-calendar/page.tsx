@@ -431,7 +431,7 @@ function SessionCard({
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-          <span>{formatDate(session.scheduled_at, localTimeZone)} at {formatTime(session.scheduled_at, localTimeZone)} {getTimeZoneAbbreviation(new Date(session.scheduled_at), localTimeZone)}</span>
+          <span>Your local time: {formatDate(session.scheduled_at, localTimeZone)} at {formatTime(session.scheduled_at, localTimeZone)} {getTimeZoneAbbreviation(new Date(session.scheduled_at), localTimeZone)}</span>
         </div>
         {sessionTimeZone !== localTimeZone && (
           <div className="text-[11px] text-gray-500 dark:text-gray-300 pl-5">Candidate local: {session.scheduled_local_time || formatTime(session.scheduled_at, sessionTimeZone)} {getTimeZoneAbbreviation(new Date(session.scheduled_at), sessionTimeZone)} · {sessionTimeZone}</div>
@@ -581,7 +581,9 @@ export default function InterviewCalendarPage() {
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkReminderLoading, setBulkReminderLoading] = useState(false);
-  const [localTimeZone, setLocalTimeZone] = useState('UTC');
+  const [localTimeZone, setLocalTimeZone] = useState(() => (
+    typeof window === 'undefined' ? 'America/Denver' : detectBrowserTimeZone()
+  ));
   const [localNow, setLocalNow] = useState(new Date());
 
   useEffect(() => {
@@ -828,7 +830,7 @@ export default function InterviewCalendarPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Interview Calendar</h1>
             <p className="text-sm text-gray-500 dark:text-gray-300 mt-0.5">Schedule, track, and manage candidate interviews</p>
-            <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">Local time: {formatTime(localNow.toISOString(), localTimeZone)} {getTimeZoneAbbreviation(localNow, localTimeZone)} · {localTimeZone}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">Your local time: {formatTime(localNow.toISOString(), localTimeZone)} {getTimeZoneAbbreviation(localNow, localTimeZone)} · {localTimeZone}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Link href="/hiring-analytics" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
