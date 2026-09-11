@@ -8,16 +8,21 @@ import Link from 'next/link';
 import { Calendar, Plus, Clock, Video, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, Mail, Edit3, Trash2, Bell, ExternalLink, RefreshCw, Search, Play, Check, X, CheckSquare, Square, Download, Send, Layers, BarChart2,  } from 'lucide-react';
 import { INTERVIEW_ROLES } from '@/lib/interviewScripts';
 import { AI_INTERVIEW_CONFIG } from '@/lib/interviewConfig';
+import { detectBrowserTimeZone, formatInTimeZone, getTimeZoneAbbreviation, isoToLocalParts, localDateTimeToUtc } from '@/lib/interviewTimezone';
 import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface InterviewSession {
   id: string;
+  candidate_id: string | null;
   candidate_name: string;
   role_id: string;
   role_title: string;
   scheduled_at: string;
+  scheduled_local_date: string | null;
+  scheduled_local_time: string | null;
+  scheduled_timezone: string | null;
   duration_minutes: number;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   zoom_link: string | null;
@@ -39,11 +44,11 @@ const STATUS_CONFIG = {
   cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-400', icon: XCircle },
 };
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function formatDate(iso: string, timeZone: string) {
+  return new Intl.DateTimeFormat('en-US', { timeZone, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(iso));
 }
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+function formatTime(iso: string, timeZone: string) {
+  return new Intl.DateTimeFormat('en-US', { timeZone, hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 }
 function formatDateTimeLocal(iso: string) {
   let d = new Date(iso);
@@ -72,6 +77,9 @@ function ScheduleModal({
     role_id: session?.role_id || INTERVIEW_ROLES[0]?.value || '',
     role_title: session?.role_title || INTERVIEW_ROLES[0]?.label || '',
     scheduled_at: session?.scheduled_at ? formatDateTimeLocal(session.scheduled_at) : defaultDt,
+    scheduled_local_date: session?.scheduled_local_date || (session?.scheduled_at ? isoToLocalParts(session.scheduled_at, session.scheduled_timezone || detectBrowserTimeZone()).date : defaultDt.slice(0, 10)),
+    scheduled_local_time: session?.scheduled_local_time || (session?.scheduled_at ? isoToLocalParts(session.scheduled_at, session.scheduled_timezone || detectBrowserTimeZone()).time : defaultDt.slice(11, 16)),
+    scheduled_timezone: session?.scheduled_timezone || detectBrowserTimeZone(),
     duration_minutes: session?.duration_minutes || AI_INTERVIEW_CONFIG.scheduledDurationMinutes,
     zoom_link: session?.zoom_link || '',
     candidate_email: session?.candidate_email || '',
@@ -90,7 +98,10 @@ function ScheduleModal({
     setSaving(true);
     await onSave({
       ...form,
-      scheduled_at: new Date(form.scheduled_at).toISOString(),
+      scheduled_at: localDateTimeToUtc(form.scheduled_local_date, form.scheduled_local_time, form.scheduled_timezone),
+      scheduled_local_date: form.scheduled_local_date,
+      scheduled_local_time: form.scheduled_local_time,
+      scheduled_timezone: form.scheduled_timezone,
       duration_minutes: Number(form.duration_minutes),
     });
     setSaving(false);
@@ -122,9 +133,22 @@ function ScheduleModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Date & Time *</label>
-              <input type="datetime-local" value={form.scheduled_at} onChange={e => setForm(f => ({ ...f, scheduled_at: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Candidate local date *</label>
+              <input type="date" value={form.scheduled_local_date} onChange={e => setForm(f => ({ ...f, scheduled_local_date: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Candidate local time *</label>
+              <input type="time" value={form.scheduled_local_time} onChange={e => setForm(f => ({ ...f, scheduled_local_time: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" required />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Candidate timezone *</label>
+            <select value={form.scheduled_timezone} onChange={e => setForm(f => ({ ...f, scheduled_timezone: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white" required>
+              {['America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York'].map(zone => <option key={zone} value={zone}>{zone}</option>)}
+            </select>
+            <p className="mt-1.5 text-xs text-gray-500">This time is in the candidate's local timezone.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Duration (min)</label>
               <select value={form.duration_minutes} onChange={e => setForm(f => ({ ...f, duration_minutes: Number(e.target.value) }))} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
@@ -164,8 +188,8 @@ function BatchScheduleModal({
   onSave: (rows: Partial<InterviewSession>[]) => Promise<void>;
 }) {
   const [rows, setRows] = useState([
-    { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', duration_minutes: AI_INTERVIEW_CONFIG.scheduledDurationMinutes },
-    { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', duration_minutes: AI_INTERVIEW_CONFIG.scheduledDurationMinutes },
+    { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', scheduled_local_date: '', scheduled_local_time: '', scheduled_timezone: detectBrowserTimeZone(), duration_minutes: AI_INTERVIEW_CONFIG.scheduledDurationMinutes },
+    { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', scheduled_local_date: '', scheduled_local_time: '', scheduled_timezone: detectBrowserTimeZone(), duration_minutes: AI_INTERVIEW_CONFIG.scheduledDurationMinutes },
   ]);
   const [saving, setSaving] = useState(false);
 
@@ -173,18 +197,18 @@ function BatchScheduleModal({
     setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
   };
 
-  const addRow = () => setRows(prev => [...prev, { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', duration_minutes: AI_INTERVIEW_CONFIG.scheduledDurationMinutes }]);
+  const addRow = () => setRows(prev => [...prev, { candidate_name: '', candidate_email: '', role_id: INTERVIEW_ROLES[0]?.value || '', scheduled_at: '', scheduled_local_date: '', scheduled_local_time: '', scheduled_timezone: detectBrowserTimeZone(), duration_minutes: AI_INTERVIEW_CONFIG.scheduledDurationMinutes }]);
   const removeRow = (i: number) => setRows(prev => prev.filter((_, idx) => idx !== i));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const valid = rows.filter(r => r.candidate_name.trim() && r.scheduled_at);
+    const valid = rows.filter(r => r.candidate_name.trim() && r.scheduled_local_date && r.scheduled_local_time && r.scheduled_timezone);
     if (valid.length === 0) { toast.error('Add at least one valid interview'); return; }
     setSaving(true);
     const mapped = valid.map(r => ({
       ...r,
       role_title: INTERVIEW_ROLES.find(x => x.value === r.role_id)?.label || r.role_id,
-      scheduled_at: new Date(r.scheduled_at).toISOString(),
+      scheduled_at: localDateTimeToUtc(r.scheduled_local_date, r.scheduled_local_time, r.scheduled_timezone),
       duration_minutes: Number(r.duration_minutes),
     }));
     await onSave(mapped);
@@ -220,8 +244,15 @@ function BatchScheduleModal({
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Date & Time *</label>
-                  <input type="datetime-local" value={row.scheduled_at} onChange={e => updateRow(i, 'scheduled_at', e.target.value)} className="w-full px-2.5 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                  <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Candidate local date/time *</label>
+                  <input type="date" value={row.scheduled_local_date} onChange={e => updateRow(i, 'scheduled_local_date', e.target.value)} className="w-full px-2 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                  <input type="time" value={row.scheduled_local_time} onChange={e => updateRow(i, 'scheduled_local_time', e.target.value)} className="w-full px-2 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 mt-1" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Candidate timezone</label>
+                  <select value={row.scheduled_timezone} onChange={e => updateRow(i, 'scheduled_timezone', e.target.value)} className="w-full px-2 py-2 rounded-lg border border-gray-200 text-xs bg-white">
+                    {['America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York'].map(zone => <option key={zone} value={zone}>{zone.replace('America/', '')}</option>)}
+                  </select>
                 </div>
                 <div className="col-span-1">
                   <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">Min</label>
@@ -262,6 +293,7 @@ function BatchActionBar({
   onBulkReminder,
   onBulkExport,
   onBulkStatusChange,
+  onAutoArm,
   bulkReminderLoading,
 }: {
   selectedIds: Set<string>;
@@ -270,6 +302,7 @@ function BatchActionBar({
   onBulkReminder: () => void;
   onBulkExport: (format: 'csv' | 'json') => void;
   onBulkStatusChange: (status: InterviewSession['status']) => void;
+  onAutoArm: () => void;
   bulkReminderLoading: boolean;
 }) {
   const count = selectedIds.size;
@@ -290,6 +323,12 @@ function BatchActionBar({
       >
         {bulkReminderLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
         Send Reminders {withEmail > 0 ? `(${withEmail})` : ''}
+      </button>
+      <button
+        onClick={onAutoArm}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-xs font-semibold transition-colors"
+      >
+        <Clock className="w-3.5 h-3.5" /> Queue AI Calls ({count})
       </button>
       <button
         onClick={() => onBulkExport('csv')}
@@ -331,6 +370,7 @@ function SessionCard({
   onDelete,
   onSendReminder,
   onStatusChange,
+  localTimeZone,
 }: {
   session: InterviewSession;
   selected: boolean;
@@ -339,6 +379,7 @@ function SessionCard({
   onDelete: () => void;
   onSendReminder: () => void;
   onStatusChange: (status: InterviewSession['status']) => void;
+  localTimeZone: string;
 }) {
   const cfg = STATUS_CONFIG[session.status];
   const StatusIcon = cfg.icon;
@@ -373,8 +414,11 @@ function SessionCard({
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-          <span>{formatDate(session.scheduled_at)} at {formatTime(session.scheduled_at)}</span>
+          <span>{formatDate(session.scheduled_at, localTimeZone)} at {formatTime(session.scheduled_at, localTimeZone)} {getTimeZoneAbbreviation(new Date(session.scheduled_at), localTimeZone)}</span>
         </div>
+        {session.scheduled_timezone && session.scheduled_timezone !== localTimeZone && (
+          <div className="text-[11px] text-gray-500 pl-5">Candidate local: {session.scheduled_local_time || formatTime(session.scheduled_at, session.scheduled_timezone)} {getTimeZoneAbbreviation(new Date(session.scheduled_at), session.scheduled_timezone)}</div>
+        )}
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
           <span>{AI_INTERVIEW_CONFIG.expectedDurationLabel}</span>
@@ -444,10 +488,12 @@ function CalendarGrid({
   sessions,
   currentMonth,
   onDayClick,
+  localTimeZone,
 }: {
   sessions: InterviewSession[];
   currentMonth: Date;
   onDayClick: (date: Date) => void;
+  localTimeZone: string;
 }) {
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -487,7 +533,7 @@ function CalendarGrid({
               <div className="space-y-0.5">
                 {daySessions.slice(0, 2).map(s => (
                   <div key={s.id} className={`text-[10px] font-medium px-1.5 py-0.5 rounded truncate ${s.status === 'completed' ? 'bg-green-100 text-green-700' : s.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                    {formatTime(s.scheduled_at)} {s.candidate_name.split(' ')[0]}
+                    {formatTime(s.scheduled_at, localTimeZone)} {s.candidate_name.split(' ')[0]}
                   </div>
                 ))}
                 {daySessions.length > 2 && <div className="text-[10px] text-gray-400 px-1">+{daySessions.length - 2} more</div>}
@@ -518,6 +564,14 @@ export default function InterviewCalendarPage() {
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkReminderLoading, setBulkReminderLoading] = useState(false);
+  const [localTimeZone, setLocalTimeZone] = useState('UTC');
+  const [localNow, setLocalNow] = useState(new Date());
+
+  useEffect(() => {
+    setLocalTimeZone(detectBrowserTimeZone());
+    const timer = window.setInterval(() => setLocalNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
@@ -547,6 +601,9 @@ export default function InterviewCalendarPage() {
   const handleSave = async (formData: Partial<InterviewSession>) => {
     const dataToSave = { ...formData };
 
+    const { data: candidate } = await supabase.from('candidates').select('id').eq('full_name', dataToSave.candidate_name || '').maybeSingle();
+    if (candidate?.id) dataToSave.candidate_id = candidate.id;
+
     if (!dataToSave.zoom_link) {
       try {
         dataToSave.zoom_link = await createZoomMeeting(dataToSave);
@@ -574,8 +631,10 @@ export default function InterviewCalendarPage() {
     const inserts: Array<Partial<InterviewSession>> = [];
     try {
       for (const row of rows) {
+        const { data: candidate } = await supabase.from('candidates').select('id').eq('full_name', row.candidate_name || '').maybeSingle();
         inserts.push({
           ...row,
+          candidate_id: candidate?.id || null,
           zoom_link: row.zoom_link || await createZoomMeeting(row),
           created_by: user?.id,
           status: 'scheduled',
@@ -719,6 +778,19 @@ export default function InterviewCalendarPage() {
     fetchSessions();
   };
 
+  const handleAutoArm = async () => {
+    const response = await fetch('/api/interviews/auto-arm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ interviewIds: Array.from(selectedIds) }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) { toast.error(result.error || 'Unable to queue interviews'); return; }
+    toast.success(`${result.armed || 0} interview${result.armed === 1 ? '' : 's'} queued. Calls will start at each candidate's local time.`);
+    setSelectedIds(new Set());
+    fetchSessions();
+  };
+
   const handleDayClick = (date: Date) => {
     const dt = new Date(date);
     dt.setHours(10, 0, 0, 0);
@@ -739,6 +811,7 @@ export default function InterviewCalendarPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Interview Calendar</h1>
             <p className="text-sm text-gray-500 mt-0.5">Schedule, track, and manage candidate interviews</p>
+            <p className="text-xs text-gray-400 mt-1">Local time: {formatTime(localNow.toISOString(), localTimeZone)} {getTimeZoneAbbreviation(localNow, localTimeZone)} · {localTimeZone}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Link href="/hiring-analytics" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
@@ -821,7 +894,7 @@ export default function InterviewCalendarPage() {
                 <button onClick={() => setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} className="p-2 rounded-lg hover:bg-gray-100 transition-colors"><ChevronRight className="w-4 h-4 text-gray-600" /></button>
               </div>
             </div>
-            <CalendarGrid sessions={sessions} currentMonth={currentMonth} onDayClick={handleDayClick} />
+            <CalendarGrid sessions={sessions} currentMonth={currentMonth} onDayClick={handleDayClick} localTimeZone={localTimeZone} />
           </div>
         )}
 
@@ -849,6 +922,7 @@ export default function InterviewCalendarPage() {
                     onDelete={() => handleDelete(session.id)}
                     onSendReminder={() => handleSendReminder(session)}
                     onStatusChange={(status) => handleStatusChange(session.id, status)}
+                    localTimeZone={localTimeZone}
                   />
                 ))}
               </div>
@@ -866,6 +940,7 @@ export default function InterviewCalendarPage() {
           onBulkReminder={handleBulkReminder}
           onBulkExport={handleBulkExport}
           onBulkStatusChange={handleBulkStatusChange}
+          onAutoArm={handleAutoArm}
           bulkReminderLoading={bulkReminderLoading}
         />
       )}
