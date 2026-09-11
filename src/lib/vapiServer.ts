@@ -52,8 +52,8 @@ async function getRescheduleAssistantOverride(apiKey: string, assistantId: strin
     model: {
       ...existingModel,
       messages: [...existingMessages, { role: 'system', content: RESCHEDULE_INSTRUCTIONS }],
+      // Assistant already has an endCall tool configured via toolIds — don't duplicate it here.
       tools: [
-        { type: 'endCall' },
         {
           type: 'function',
           function: {
