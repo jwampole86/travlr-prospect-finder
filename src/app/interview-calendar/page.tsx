@@ -752,8 +752,8 @@ function SessionCard({
           </button>
         )}
         {['completed', 'no_answer', 'busy', 'failed', 'cancelled'].includes(session.status) && (
-          <button onClick={onViewDetails} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-            <Search className="w-3 h-3" /> Details
+          <button onClick={onViewDetails} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors">
+            <Search className="w-3 h-3" /> View Details
           </button>
         )}
         <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-300">
