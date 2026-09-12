@@ -68,7 +68,10 @@ export async function GET(request: NextRequest) {
 
   const db = getSupabaseAdmin();
   const now = Date.now();
-  const timeoutResult = await stopOverlongInterviews(db, now);
+  const timeoutResult = await stopOverlongInterviews(db, now).catch((timeoutErr) => {
+    console.error('vapi_stop_overlong_check_failed', { error: timeoutErr instanceof Error ? timeoutErr.message : 'unknown' });
+    return { timedOut: 0, timeoutStopFailures: 0 };
+  });
   const { data: due, error } = await db
     .from('interview_sessions')
     .select('id, candidate_id, scheduled_at, execution_status')

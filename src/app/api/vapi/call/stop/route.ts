@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { stopVapiCall } from '@/lib/vapiServer';
 
 type StopCallRequest = {
@@ -20,7 +21,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Interview ID is required' }, { status: 400 });
     }
 
-    const { data: session, error: sessionError } = await supabase
+    const db = getSupabaseAdmin();
+    const { data: session, error: sessionError } = await db
       .from('interview_sessions')
       .select('id, provider_call_id, status, candidate_id')
       .eq('id', body.interviewId)
@@ -38,11 +40,11 @@ export async function POST(request: NextRequest) {
 
     let isTestCandidate = false;
     if (session.candidate_id) {
-      const { data: candidate } = await supabase.from('candidates').select('full_name').eq('id', session.candidate_id).maybeSingle();
+      const { data: candidate } = await db.from('candidates').select('full_name').eq('id', session.candidate_id).maybeSingle();
       isTestCandidate = candidate?.full_name?.trim().toUpperCase() === 'TEST';
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await db
       .from('interview_sessions')
       .update(
         isTestCandidate
@@ -76,9 +78,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     const configurationError = /is not configured/.test(message);
-    console.error('vapi_call_stop_failed', { userId: user.id, configurationError });
+    console.error('vapi_call_stop_failed', { userId: user.id, message, configurationError });
     return NextResponse.json(
-      { error: configurationError ? 'Vapi configuration is incomplete' : 'Unable to stop Vapi call' },
+      { error: configurationError ? 'Vapi configuration is incomplete' : message || 'Unable to stop Vapi call' },
       { status: configurationError ? 503 : 502 },
     );
   }

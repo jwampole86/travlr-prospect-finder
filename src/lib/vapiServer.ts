@@ -130,6 +130,8 @@ export async function startVapiCall(input: StartVapiCallInput) {
     },
     assistantOverrides: {
       monitorPlan: { controlEnabled: true },
+      // Hard cap on Vapi's side so the call self-ends even if our cron-based auto-stop is delayed or fails.
+      maxDurationSeconds: 35 * 60,
       ...('model' in rescheduleOverride ? { model: rescheduleOverride.model } : {}),
       ...(input.variableValues ? { variableValues: input.variableValues } : {}),
     },
@@ -191,6 +193,8 @@ export async function stopVapiCall(callId: string) {
   });
   const callBody = await callResponse.json().catch(() => null);
   if (!callResponse.ok) {
+    // Call no longer exists on Vapi's side — treat as already ended rather than a stop failure.
+    if (callResponse.status === 404) return;
     const providerMessage =
       callBody && typeof callBody === 'object' && 'message' in callBody && typeof callBody.message === 'string'
         ? callBody.message

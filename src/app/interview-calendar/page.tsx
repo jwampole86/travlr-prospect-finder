@@ -28,7 +28,12 @@ interface InterviewSession {
   zoom_link: string | null;
   notes: string;
   summary: string | null;
+  transcript: string | null;
+  ended_reason: string | null;
+  duration_seconds: number | null;
+  provider: string | null;
   started_at: string | null;
+  ended_at: string | null;
   calendar_invite_sent: boolean;
   reminder_sent: boolean;
   candidate_email: string | null;
@@ -36,6 +41,29 @@ interface InterviewSession {
   created_by: string | null;
   created_at: string;
 }
+
+const SCORECARD_COMPETENCY_LABELS: Array<{ key: string; label: string }> = [
+  { key: 'vacation_rental_knowledge', label: 'Vacation Rental Knowledge' },
+  { key: 'property_management_knowledge', label: 'Property Management' },
+  { key: 'luxury_homeowner_communication', label: 'Luxury Homeowner Communication' },
+  { key: 'outbound_calling_ability', label: 'Outbound Calling' },
+  { key: 'consultative_sales', label: 'Consultative Sales' },
+  { key: 'discovery_questioning', label: 'Discovery / Questioning' },
+  { key: 'objection_handling', label: 'Objection Handling' },
+  { key: 'closing_ability', label: 'Closing Ability' },
+  { key: 'follow_up_discipline', label: 'Follow-Up Discipline' },
+  { key: 'crm_pipeline_management', label: 'CRM / Pipeline Management' },
+  { key: 'relationship_building', label: 'Relationship Building' },
+  { key: 'professional_communication', label: 'Professional Communication' },
+  { key: 'self_motivation', label: 'Self-Motivation' },
+  { key: 'remote_work_discipline', label: 'Remote Work Discipline' },
+  { key: 'coachability', label: 'Coachability' },
+  { key: 'operational_understanding', label: 'Operational Understanding' },
+  { key: 'business_development', label: 'Business Development' },
+  { key: 'judgment', label: 'Judgment' },
+  { key: 'organization', label: 'Organization' },
+  { key: 'overall_fit', label: 'Overall Fit' },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -447,6 +475,133 @@ function StartInterviewChoiceModal({
   );
 }
 
+// ─── Session Details Modal ────────────────────────────────────────────────────
+
+type Scorecard = {
+  hire_recommendation: string | null;
+  interviewer_notes: string | null;
+  created_at: string;
+} & Record<string, unknown>;
+
+function SessionDetailsModal({
+  session,
+  onClose,
+}: {
+  session: InterviewSession;
+  onClose: () => void;
+}) {
+  const supabase = createClient();
+  const [scorecard, setScorecard] = useState<Scorecard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showTranscript, setShowTranscript] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      if (session.candidate_id) {
+        const { data } = await supabase
+          .from('candidate_scorecards')
+          .select('*')
+          .eq('candidate_id', session.candidate_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!cancelled) setScorecard((data as Scorecard) || null);
+      }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [session.candidate_id]);
+
+  const cfg = STATUS_CONFIG[session.status];
+  const duration = session.duration_seconds
+    ? `${Math.floor(session.duration_seconds / 60)}m ${session.duration_seconds % 60}s`
+    : session.started_at && session.ended_at
+      ? `${Math.round((new Date(session.ended_at).getTime() - new Date(session.started_at).getTime()) / 60000)}m`
+      : '—';
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 p-5 flex items-start justify-between gap-4 z-10">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">{session.candidate_name}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{session.role_title}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-semibold border ${cfg.color}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} /> {cfg.label}
+              </span>
+              {session.provider === 'VAPI' && <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">AI Interview · {duration}</span>}
+              {session.ended_reason && <span className="text-[11px] text-gray-400 dark:text-gray-500">({session.ended_reason})</span>}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-300"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {session.summary && (
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">AI Interview Summary</h3>
+              <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">{session.summary}</p>
+            </div>
+          )}
+
+          {session.notes && (
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Interview Notes</h3>
+              <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">{session.notes}</p>
+            </div>
+          )}
+
+          {loading && <p className="text-xs text-gray-400 dark:text-gray-500">Loading scorecard…</p>}
+
+          {scorecard && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Scorecard</h3>
+                {scorecard.hire_recommendation && (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">{String(scorecard.hire_recommendation).replace('_', ' ')}</span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                {SCORECARD_COMPETENCY_LABELS.map(field => (
+                  <div key={field.key} className="rounded-lg border border-gray-100 dark:border-gray-800 px-2.5 py-1.5">
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{field.label}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{typeof scorecard[field.key] === 'number' ? String(scorecard[field.key]) : '—'}</p>
+                  </div>
+                ))}
+              </div>
+              {scorecard.interviewer_notes && (
+                <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">{scorecard.interviewer_notes}</p>
+              )}
+            </div>
+          )}
+
+          {!loading && !scorecard && !session.summary && (
+            <p className="text-sm text-gray-400 dark:text-gray-500">No interview notes or scorecard are available for this session yet.</p>
+          )}
+
+          {session.transcript && (
+            <div>
+              <button onClick={() => setShowTranscript(v => !v)} className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                {showTranscript ? 'Hide Transcript' : 'Show Full Transcript'}
+              </button>
+              {showTranscript && (
+                <p className="mt-2 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto rounded-lg border border-gray-100 dark:border-gray-800 p-3">{session.transcript}</p>
+              )}
+            </div>
+          )}
+
+          <Link href="/interview-recordings" className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+            View audio recording / transcript <ExternalLink className="w-3 h-3" />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
 function SessionCard({
@@ -459,6 +614,7 @@ function SessionCard({
   onStatusChange,
   onStart,
   onStopCall,
+  onViewDetails,
   localTimeZone,
 }: {
   session: InterviewSession;
@@ -470,6 +626,7 @@ function SessionCard({
   onStatusChange: (status: InterviewSession['status']) => void;
   onStart: () => void;
   onStopCall: () => Promise<void>;
+  onViewDetails: () => void;
   localTimeZone: string;
 }) {
   const cfg = STATUS_CONFIG[session.status];
@@ -592,6 +749,11 @@ function SessionCard({
             <CheckCircle className="w-3 h-3" /> Done
           </button>
         )}
+        {['completed', 'no_answer', 'busy', 'failed', 'cancelled'].includes(session.status) && (
+          <button onClick={onViewDetails} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <Search className="w-3 h-3" /> Details
+          </button>
+        )}
         <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-300">
           <Edit3 className="w-3.5 h-3.5" />
         </button>
@@ -686,6 +848,7 @@ export default function InterviewCalendarPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkReminderLoading, setBulkReminderLoading] = useState(false);
   const [startChoiceSession, setStartChoiceSession] = useState<InterviewSession | null>(null);
+  const [detailsSession, setDetailsSession] = useState<InterviewSession | null>(null);
   const [localTimeZone, setLocalTimeZone] = useState(() => (
     typeof window === 'undefined' ? 'America/Denver' : detectBrowserTimeZone()
   ));
@@ -1101,6 +1264,7 @@ export default function InterviewCalendarPage() {
                     onStatusChange={(status) => handleStatusChange(session.id, status)}
                     onStart={() => setStartChoiceSession(session)}
                     onStopCall={() => handleStopCall(session)}
+                    onViewDetails={() => setDetailsSession(session)}
                     localTimeZone={localTimeZone}
                   />
                 ))}
@@ -1143,6 +1307,13 @@ export default function InterviewCalendarPage() {
         <StartInterviewChoiceModal
           session={startChoiceSession}
           onClose={() => { setStartChoiceSession(null); fetchSessions(); }}
+        />
+      )}
+
+      {detailsSession && (
+        <SessionDetailsModal
+          session={detailsSession}
+          onClose={() => setDetailsSession(null)}
         />
       )}
     </AppLayout>
