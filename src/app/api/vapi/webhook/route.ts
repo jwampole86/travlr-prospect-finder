@@ -16,7 +16,9 @@ function getMessagePayload(body: any) {
 }
 
 function getRecordingUrl(message: any): string | null {
-  return message?.artifact?.recordingUrl || message?.artifact?.stereoRecordingUrl
+  // presignedMonoUrl/presignedStereoUrl are directly downloadable; recordingUrl/stereoRecordingUrl require additional signing and 400 on plain GET.
+  return message?.artifact?.presignedMonoUrl || message?.artifact?.presignedStereoUrl
+    || message?.artifact?.recordingUrl || message?.artifact?.stereoRecordingUrl
     || message?.recordingUrl || message?.stereoRecordingUrl || message?.call?.recordingUrl || null;
 }
 
@@ -181,12 +183,17 @@ async function fetchFinalizedCallArtifact(callId: string) {
       const artifact = body?.artifact;
       if (!artifact) continue;
       const transcript = typeof artifact.transcript === 'string' ? artifact.transcript : '';
-      const recordingUrl = artifact.recordingUrl || artifact.stereoRecordingUrl || null;
+      const recordingUrl = artifact.presignedMonoUrl || artifact.presignedStereoUrl || artifact.recordingUrl || artifact.stereoRecordingUrl || null;
+      const startedAt = body?.startedAt ? new Date(body.startedAt).getTime() : null;
+      const endedAt = body?.endedAt ? new Date(body.endedAt).getTime() : null;
+      const computedDuration = startedAt && endedAt && endedAt > startedAt ? Math.round((endedAt - startedAt) / 1000) : undefined;
       const result = {
         transcript,
         messages: artifact.messages || null,
         recordingUrl,
-        durationSeconds: typeof body?.durationSeconds === 'number' ? body.durationSeconds : undefined,
+        startedAt: body?.startedAt || undefined,
+        endedAt: body?.endedAt || undefined,
+        durationSeconds: typeof body?.durationSeconds === 'number' ? body.durationSeconds : computedDuration,
         endedReason: body?.endedReason || undefined,
       };
       // Keep polling briefly until both transcript and recording are ready, otherwise return whatever we have on the last attempt.
@@ -297,6 +304,8 @@ export async function POST(request: NextRequest) {
       };
       if (finalizedArtifact?.durationSeconds) timestamps.duration_seconds = finalizedArtifact.durationSeconds;
       if (finalizedArtifact?.endedReason) timestamps.ended_reason = finalizedArtifact.endedReason;
+      if (finalizedArtifact?.startedAt) timestamps.started_at = finalizedArtifact.startedAt;
+      if (finalizedArtifact?.endedAt) timestamps.ended_at = finalizedArtifact.endedAt;
 
       const summary = await generateSummary({
         candidateName: candidate?.full_name || 'Candidate',
