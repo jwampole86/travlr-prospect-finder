@@ -132,6 +132,8 @@ export async function startVapiCall(input: StartVapiCallInput) {
       monitorPlan: { controlEnabled: true },
       // Hard cap on Vapi's side so the call self-ends even if our cron-based auto-stop is delayed or fails.
       maxDurationSeconds: 35 * 60,
+      // Default Vapi silence timeout is too aggressive for a real interview conversation (thinking pauses, etc).
+      silenceTimeoutSeconds: 60,
       ...('model' in rescheduleOverride ? { model: rescheduleOverride.model } : {}),
       ...(input.variableValues ? { variableValues: input.variableValues } : {}),
     },
