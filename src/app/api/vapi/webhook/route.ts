@@ -158,6 +158,46 @@ function getTranscript(message: any) {
   };
 }
 
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Vapi's webhook payload can arrive before the recording/transcript artifact finishes processing.
+// Poll the call directly so we always persist the finalized transcript, messages, and recording URL.
+async function fetchFinalizedCallArtifact(callId: string) {
+  const apiKey = process.env.VAPI_PRIVATE_API_KEY;
+  if (!apiKey) return null;
+
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) await sleep(2500);
+    try {
+      const response = await fetch(`https://api.vapi.ai/call/${encodeURIComponent(callId)}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        cache: 'no-store',
+      });
+      if (!response.ok) continue;
+      const body = await response.json().catch(() => null);
+      const artifact = body?.artifact;
+      if (!artifact) continue;
+      const transcript = typeof artifact.transcript === 'string' ? artifact.transcript : '';
+      const recordingUrl = artifact.recordingUrl || artifact.stereoRecordingUrl || null;
+      const result = {
+        transcript,
+        messages: artifact.messages || null,
+        recordingUrl,
+        durationSeconds: typeof body?.durationSeconds === 'number' ? body.durationSeconds : undefined,
+        endedReason: body?.endedReason || undefined,
+      };
+      // Keep polling briefly until both transcript and recording are ready, otherwise return whatever we have on the last attempt.
+      if ((transcript && recordingUrl) || attempt === maxAttempts - 1) return result;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 function mapEndedReason(endedReason: unknown): 'completed' | 'no_answer' | 'busy' | 'failed' | 'cancelled' {
   const reason = String(endedReason || '').toLowerCase();
   if (reason.includes('no-answer') || reason.includes('no answer') || reason.includes('voicemail')) return 'no_answer';
@@ -249,7 +289,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (eventType === 'end-of-call-report' || message?.artifact || message?.endedReason || status === 'ended') {
-      const transcriptData = getTranscript(message);
+      const finalizedArtifact = await fetchFinalizedCallArtifact(callId).catch(() => null);
+      const webhookTranscript = getTranscript(message);
+      const transcriptData = {
+        transcript: finalizedArtifact?.transcript || webhookTranscript.transcript,
+        messages: finalizedArtifact?.messages || webhookTranscript.messages,
+      };
+      if (finalizedArtifact?.durationSeconds) timestamps.duration_seconds = finalizedArtifact.durationSeconds;
+      if (finalizedArtifact?.endedReason) timestamps.ended_reason = finalizedArtifact.endedReason;
+
       const summary = await generateSummary({
         candidateName: candidate?.full_name || 'Candidate',
         roleTitle: session.role_title,
@@ -290,7 +338,7 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         }).eq('id', session.id);
       } else {
-        const recordingUrl = getRecordingUrl(message);
+        const recordingUrl = finalizedArtifact?.recordingUrl || getRecordingUrl(message);
         if (recordingUrl) {
           await saveCallRecording(db, session.id, recordingUrl, timestamps.duration_seconds, transcriptData.transcript, transcriptData.messages).catch((recordingError) => {
             console.error('vapi_recording_save_failed', { interviewId: session.id, error: recordingError instanceof Error ? recordingError.message : 'unknown' });
