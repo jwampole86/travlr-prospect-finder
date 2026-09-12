@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
       }).eq('id', session.id).eq('status', 'in_progress');
     }
 
-    if (eventType === 'end-of-call-report' || message?.artifact || message?.endedReason || status === 'ended') {
+    if (eventType === 'end-of-call-report' || status === 'ended') {
       const finalizedArtifact = await fetchFinalizedCallArtifact(callId).catch(() => null);
       const webhookTranscript = getTranscript(message);
       const transcriptData = {
