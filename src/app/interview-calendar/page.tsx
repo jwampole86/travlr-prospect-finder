@@ -633,6 +633,7 @@ function SessionCard({
   const StatusIcon = cfg.icon;
   const upcoming = isUpcoming(session.scheduled_at);
   const sessionTimeZone = candidateTimeZone(session);
+  const isTerminalStatus = ['completed', 'no_answer', 'busy', 'failed', 'cancelled'].includes(session.status);
   const [timerNow, setTimerNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -644,7 +645,8 @@ function SessionCard({
   return (
     <div
       className={`bg-white dark:bg-gray-900 rounded-2xl border p-4 hover:shadow-md transition-all cursor-pointer ${selected ? 'border-gray-900 dark:border-gray-300 ring-2 ring-gray-900/10 dark:ring-gray-300/20' : upcoming ? 'border-gray-200 dark:border-gray-700' : 'border-gray-100 dark:border-gray-800 opacity-80'}`}
-      onClick={onToggleSelect}
+      onClick={isTerminalStatus ? onViewDetails : onToggleSelect}
+      title={isTerminalStatus ? 'Click to view interview details' : undefined}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-start gap-3 flex-1 min-w-0">
