@@ -60,6 +60,39 @@ async function stopOverlongInterviews(db: ReturnType<typeof getSupabaseAdmin>, n
   return { timedOut, timeoutStopFailures };
 }
 
+// Safety net: the TEST candidate must always stay callable in "scheduled" — never linger as completed/failed/etc,
+// regardless of any webhook timing/race condition.
+async function resetTestCandidateSessions(db: ReturnType<typeof getSupabaseAdmin>) {
+  const { data: testCandidates } = await db.from('candidates').select('id').ilike('full_name', 'TEST');
+  const testCandidateIds = (testCandidates || []).map((c) => c.id);
+  if (testCandidateIds.length === 0) return 0;
+
+  const { data: stray } = await db
+    .from('interview_sessions')
+    .select('id')
+    .in('candidate_id', testCandidateIds)
+    .neq('status', 'scheduled');
+  if (!stray || stray.length === 0) return 0;
+
+  await db.from('interview_sessions').update({
+    status: 'scheduled',
+    provider_call_id: null,
+    started_at: null,
+    ended_at: null,
+    ended_reason: null,
+    duration_seconds: null,
+    summary: null,
+    summary_status: null,
+    execution_status: 'QUEUED',
+    execution_started_at: null,
+    execution_error: null,
+    auto_start_enabled: false,
+    updated_at: new Date().toISOString(),
+  }).in('id', stray.map((s) => s.id));
+
+  return stray.length;
+}
+
 export async function GET(request: NextRequest) {
   const expected = process.env.CRON_SECRET;
   if (!expected || request.headers.get('authorization') !== `Bearer ${expected}`) {
@@ -71,6 +104,10 @@ export async function GET(request: NextRequest) {
   const timeoutResult = await stopOverlongInterviews(db, now).catch((timeoutErr) => {
     console.error('vapi_stop_overlong_check_failed', { error: timeoutErr instanceof Error ? timeoutErr.message : 'unknown' });
     return { timedOut: 0, timeoutStopFailures: 0 };
+  });
+  const testCandidatesReset = await resetTestCandidateSessions(db).catch((testErr) => {
+    console.error('vapi_test_candidate_reset_failed', { error: testErr instanceof Error ? testErr.message : 'unknown' });
+    return 0;
   });
   const { data: due, error } = await db
     .from('interview_sessions')
@@ -130,5 +167,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, inspected: due?.length || 0, started, missed, ...timeoutResult });
+  return NextResponse.json({ ok: true, inspected: due?.length || 0, started, missed, testCandidatesReset, ...timeoutResult });
 }

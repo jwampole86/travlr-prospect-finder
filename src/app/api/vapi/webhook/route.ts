@@ -293,6 +293,23 @@ export async function POST(request: NextRequest) {
         ...timestamps,
         updated_at: new Date().toISOString(),
       }).eq('id', session.id).eq('status', 'in_progress');
+
+      // Permanent test fixture — reset immediately so it never lingers as "completed", even briefly.
+      if (endedStatus && candidate?.full_name?.trim().toUpperCase() === 'TEST') {
+        await db.from('interview_sessions').update({
+          status: 'scheduled',
+          provider_call_id: null,
+          started_at: null,
+          ended_at: null,
+          ended_reason: null,
+          duration_seconds: null,
+          execution_status: 'QUEUED',
+          execution_started_at: null,
+          execution_error: null,
+          auto_start_enabled: false,
+          updated_at: new Date().toISOString(),
+        }).eq('id', session.id);
+      }
     }
 
     if (eventType === 'end-of-call-report' || status === 'ended') {

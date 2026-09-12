@@ -1036,8 +1036,10 @@ export default function InterviewCalendarPage() {
   const filteredSessions = sessions.filter(s => {
     const matchSearch = !search || s.candidate_name.toLowerCase().includes(search.toLowerCase()) || s.role_title.toLowerCase().includes(search.toLowerCase());
     if (!matchSearch) return false;
-    if (filter === 'upcoming') return s.status === 'scheduled' || s.status === 'in_progress';
-    if (filter === 'completed') return ['completed', 'no_answer', 'busy', 'failed', 'cancelled'].includes(s.status);
+    // TEST is a permanent fixture for call verification — always treat it as upcoming, never completed.
+    const isTestCandidate = s.candidate_name.trim().toUpperCase() === 'TEST';
+    if (filter === 'upcoming') return isTestCandidate || s.status === 'scheduled' || s.status === 'in_progress';
+    if (filter === 'completed') return !isTestCandidate && ['completed', 'no_answer', 'busy', 'failed', 'cancelled'].includes(s.status);
     return true;
   }).sort((first, second) => {
     const firstIsTest = first.candidate_name.trim().toUpperCase() === 'TEST';
