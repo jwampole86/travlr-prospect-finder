@@ -32,17 +32,21 @@ export default function LoginPage() {
   const [oauthLoading, setOauthLoading] = useState<'google' | null>(null);
   const [error, setError] = useState('');
   const [intendedPlan, setIntendedPlan] = useState<string | null>(null);
+  const [intendedBilling, setIntendedBilling] = useState<string | null>(null);
 
   useEffect(() => {
-    const plan = new URLSearchParams(window.location.search).get('plan');
+    const params = new URLSearchParams(window.location.search);
+    const plan = params.get('plan');
     if (plan) setIntendedPlan(plan);
+    const billing = params.get('billing');
+    if (billing) setIntendedBilling(billing);
   }, []);
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace(intendedPlan ? `/billing?plan=${intendedPlan}` : '/');
+      router.replace(intendedPlan ? `/billing?plan=${intendedPlan}${intendedBilling ? `&billing=${intendedBilling}` : ''}` : '/');
     }
-  }, [user, loading, router, intendedPlan]);
+  }, [user, loading, router, intendedPlan, intendedBilling]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,7 +55,7 @@ export default function LoginPage() {
     try {
       if (mode === 'login') {
         await signIn(email, password);
-        router.replace(intendedPlan ? `/billing?plan=${intendedPlan}` : '/');
+        router.replace(intendedPlan ? `/billing?plan=${intendedPlan}${intendedBilling ? `&billing=${intendedBilling}` : ''}` : '/');
       } else {
         if (!fullName.trim()) {
           setError('Full name is required.');
@@ -59,7 +63,7 @@ export default function LoginPage() {
           return;
         }
         await signUp(email, password, { fullName });
-        router.replace(intendedPlan ? `/billing?plan=${intendedPlan}` : '/');
+        router.replace(intendedPlan ? `/billing?plan=${intendedPlan}${intendedBilling ? `&billing=${intendedBilling}` : ''}` : '/');
       }
     } catch (err: any) {
       setError(err?.message || 'Something went wrong. Please try again.');

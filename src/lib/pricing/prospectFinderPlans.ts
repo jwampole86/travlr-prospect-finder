@@ -16,6 +16,8 @@ export interface ProspectFinderPlan {
   tagline: string;
   /** Monthly price in USD. `null` means pricing is custom / contact sales. */
   monthlyPrice: number | null;
+  /** Total annual price in USD, billed yearly (2 months free vs. paying monthly). `null` means custom / contact sales. */
+  annualPrice: number | null;
   contactSales?: boolean;
   fullAccess?: boolean;
   highlighted?: boolean;
@@ -32,6 +34,8 @@ export interface ProspectFinderPlan {
   features: string[];
   /** Name of the env var that will hold this plan's Stripe Price ID once configured server-side. */
   stripePriceEnvVar: string;
+  /** Name of the env var that will hold this plan's annual Stripe Price ID once configured server-side. */
+  annualStripePriceEnvVar: string;
 }
 
 export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
@@ -40,6 +44,7 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
     name: 'Starter',
     tagline: 'For individual operators and small teams getting started with homeowner prospecting.',
     monthlyPrice: 149,
+    annualPrice: 1490,
     ctaLabel: 'Get Started',
     ctaHref: '/login?plan=starter',
     limits: {
@@ -65,12 +70,14 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       'Standard support',
     ],
     stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_STARTER',
+    annualStripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_STARTER_ANNUAL',
   },
   pro: {
     id: 'pro',
     name: 'Pro',
     tagline: 'For growing vacation rental and property management teams.',
     monthlyPrice: 399,
+    annualPrice: 3990,
     ctaLabel: 'Start Pro',
     ctaHref: '/login?plan=pro',
     limits: {
@@ -98,12 +105,14 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       'Priority support',
     ],
     stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_PRO',
+    annualStripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_PRO_ANNUAL',
   },
   business: {
     id: 'business',
     name: 'Business',
     tagline: 'For established teams scaling homeowner acquisition and operations.',
     monthlyPrice: 999,
+    annualPrice: 9990,
     highlighted: true,
     badge: 'Most Popular',
     ctaLabel: 'Start Business',
@@ -137,12 +146,14 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       'Priority support',
     ],
     stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_BUSINESS',
+    annualStripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_BUSINESS_ANNUAL',
   },
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
     tagline: 'For large operators, multi-market property managers, and organizations that need the complete Prospect Finder platform.',
     monthlyPrice: null,
+    annualPrice: null,
     contactSales: true,
     fullAccess: true,
     badge: 'Full Platform Access',
@@ -180,10 +191,28 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       'Custom data workflows',
     ],
     stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_ENTERPRISE',
+    annualStripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_ENTERPRISE_ANNUAL',
   },
 };
 
 export const PLAN_ORDER: PlanId[] = ['starter', 'pro', 'business', 'enterprise'];
+
+export type BillingPeriod = 'monthly' | 'annual';
+
+/** Effective monthly-equivalent price for display, given the selected billing period. */
+export function getDisplayMonthlyPrice(plan: ProspectFinderPlan, period: BillingPeriod): number | null {
+  if (period === 'monthly') return plan.monthlyPrice;
+  if (plan.annualPrice == null) return null;
+  return Math.round(plan.annualPrice / 12);
+}
+
+/** Percentage saved by paying annually instead of monthly (rounded), or null if not applicable. */
+export function getAnnualSavingsPercent(plan: ProspectFinderPlan): number | null {
+  if (plan.monthlyPrice == null || plan.annualPrice == null) return null;
+  const monthlyTotal = plan.monthlyPrice * 12;
+  if (monthlyTotal <= 0) return null;
+  return Math.round((1 - plan.annualPrice / monthlyTotal) * 100);
+}
 
 /** Comparison-table cell value: full access, restricted access, or unavailable. */
 export type FeatureAvailability = 'yes' | 'limited' | 'no';

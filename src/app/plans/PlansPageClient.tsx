@@ -11,8 +11,11 @@ import {
   PLAN_ORDER,
   PROSPECT_FINDER_PLANS,
   FEATURE_CATEGORIES,
+  getDisplayMonthlyPrice,
+  getAnnualSavingsPercent,
   type PlanId,
   type FeatureAvailability,
+  type BillingPeriod,
 } from '@/lib/pricing/prospectFinderPlans';
 
 const CAPABILITIES = [
@@ -55,11 +58,13 @@ function PricingCard({
   id,
   highlightedId,
   isLoggedIn,
+  billingPeriod,
   cardRef,
 }: {
   id: PlanId;
   highlightedId: PlanId;
   isLoggedIn: boolean;
+  billingPeriod: BillingPeriod;
   cardRef: (el: HTMLDivElement | null) => void;
 }) {
   const plan = PROSPECT_FINDER_PLANS[id];
@@ -70,9 +75,11 @@ function PricingCard({
   const dedupedFeatures = plan.features.filter((feature) => !REDUNDANT_LIMIT_PATTERN.test(feature.trim()));
   const visibleFeatures = expanded ? dedupedFeatures : dedupedFeatures.slice(0, previewCount);
   const hasMore = dedupedFeatures.length > previewCount;
+  const displayPrice = getDisplayMonthlyPrice(plan, billingPeriod);
+  const savingsPercent = getAnnualSavingsPercent(plan);
 
   const ctaLabel = isEnterprise ? plan.ctaLabel : isLoggedIn ? `Upgrade to ${plan.name}` : plan.ctaLabel;
-  const ctaHref = isEnterprise ? plan.ctaHref : isLoggedIn ? `/billing?plan=${id}` : plan.ctaHref;
+  const ctaHref = isEnterprise ? plan.ctaHref : isLoggedIn ? `/billing?plan=${id}&billing=${billingPeriod}` : `${plan.ctaHref}&billing=${billingPeriod}`;
 
   return (
     <div
@@ -106,10 +113,20 @@ function PricingCard({
         {plan.contactSales ? (
           <p className={`text-2xl font-bold ${isEnterprise ? 'text-background' : 'text-foreground'}`}>Custom</p>
         ) : (
-          <p className={`text-3xl font-bold ${isEnterprise ? 'text-background' : 'text-foreground'}`}>
-            ${plan.monthlyPrice}
-            <span className={`text-sm font-medium ${isEnterprise ? 'text-background/70' : 'text-muted-foreground'}`}>/month</span>
-          </p>
+          <>
+            <p className={`text-3xl font-bold ${isEnterprise ? 'text-background' : 'text-foreground'}`}>
+              ${displayPrice}
+              <span className={`text-sm font-medium ${isEnterprise ? 'text-background/70' : 'text-muted-foreground'}`}>/month</span>
+            </p>
+            {billingPeriod === 'annual' && plan.annualPrice != null && (
+              <p className={`text-xs mt-1 ${isEnterprise ? 'text-background/70' : 'text-muted-foreground'}`}>
+                ${plan.annualPrice} billed annually
+                {savingsPercent != null && (
+                  <span className="ml-1.5 font-semibold text-primary">Save {savingsPercent}%</span>
+                )}
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -283,6 +300,7 @@ export default function PlansPageClient() {
   const { user } = useAuth();
   const isLoggedIn = Boolean(user);
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('business');
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
   const cardRefs = useRef<Partial<Record<PlanId, HTMLDivElement | null>>>({});
 
   const handleSelectPlan = (id: PlanId) => {
@@ -316,6 +334,26 @@ export default function PlansPageClient() {
           ))}
         </div>
         <p className="mt-4 text-center text-sm text-muted-foreground max-w-xl mx-auto">{selectedPlanConfig.tagline}</p>
+
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <div className="inline-flex items-center gap-1 bg-muted rounded-full p-1" role="tablist" aria-label="Billing period">
+            <button
+              onClick={() => setBillingPeriod('monthly')}
+              aria-pressed={billingPeriod === 'monthly'}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold motion-safe:transition-all ${billingPeriod === 'monthly' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingPeriod('annual')}
+              aria-pressed={billingPeriod === 'annual'}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold motion-safe:transition-all flex items-center gap-1.5 ${billingPeriod === 'annual' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Annual
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">Save ~17%</span>
+            </button>
+          </div>
+        </div>
       </section>
 
 
@@ -328,6 +366,7 @@ export default function PlansPageClient() {
               id={id}
               highlightedId={selectedPlan}
               isLoggedIn={isLoggedIn}
+              billingPeriod={billingPeriod}
               cardRef={(el) => { cardRefs.current[id] = el; }}
             />
           ))}
