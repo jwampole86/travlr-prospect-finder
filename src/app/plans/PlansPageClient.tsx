@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 import PricingFaq from '@/app/prospect-finder/components/PricingFaq';
+import PlanPreviewShowcase from '@/app/plans/components/PlanPreviewShowcase';
 import {
   PLAN_ORDER,
   PROSPECT_FINDER_PLANS,
@@ -334,6 +335,10 @@ export default function PlansPageClient() {
           ))}
         </div>
         <p className="mt-4 text-center text-sm text-muted-foreground max-w-xl mx-auto">{selectedPlanConfig.tagline}</p>
+
+        <div className="mt-6">
+          <PlanPreviewShowcase planId={selectedPlan} />
+        </div>
 
         <div className="mt-6 flex items-center justify-center gap-3">
           <div className="inline-flex items-center gap-1 bg-muted rounded-full p-1" role="tablist" aria-label="Billing period">
