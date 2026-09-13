@@ -4,6 +4,7 @@ import { Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, ArrowRight,
 import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 import PricingFaq from '@/app/prospect-finder/components/PricingFaq';
+import ProductShowcase from '@/app/welcome/components/ProductShowcase';
 
 export const metadata: Metadata = {
   title: 'VAYO | AI-Powered Growth for Property Managers',
@@ -61,6 +62,15 @@ export default function WelcomePage() {
           </Link>
         </div>
         <p className="mt-4 text-xs text-muted-foreground">Already have an account? <Link href="/login" className="text-primary hover:underline">Sign in here</Link>.</p>
+      </section>
+
+      {/* Product Showcase */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">See VAYO in Action</h2>
+          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">A real look at the dashboard, pipeline, and the AI tools that set VAYO apart — live call coaching, AI candidate interviews, and STR compliance intelligence.</p>
+        </div>
+        <ProductShowcase />
       </section>
 
       {/* Modules */}

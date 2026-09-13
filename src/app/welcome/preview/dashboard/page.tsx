@@ -1,12 +1,8 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
-import KPIBentoGrid from '@/app/components/KPIBentoGrid';
-import RegulationPieChart from '@/app/components/RegulationPieChart';
-import StageFunnelChart from '@/app/components/StageFunnelChart';
-import TopLeadsTable from '@/app/components/TopLeadsTable';
-import { mockLeads } from '@/data/mockLeads';
+import DashboardWidgets from '../_shared/DashboardWidgets';
 import { LIGHT_VARS, DARK_VARS } from '../_theme';
 
 // Renders the REAL dashboard widgets (KPIBentoGrid, RegulationPieChart, StageFunnelChart,
@@ -14,26 +10,6 @@ import { LIGHT_VARS, DARK_VARS } from '../_theme';
 // to the live product. Includes a light/dark toggle so both themes can be captured.
 export default function DashboardPreviewPage() {
   const [dark, setDark] = useState(false);
-
-  // Scale the small fixture set up so the funnel/pie read like an active portfolio
-  const SCALE = 34;
-
-  const stageBreakdown = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const lead of mockLeads) counts[lead.stage] = (counts[lead.stage] || 0) + 1;
-    return Object.entries(counts).map(([stage, count]) => ({ stage, count: count * SCALE }));
-  }, []);
-
-  const regulationBreakdown = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const lead of mockLeads) counts[lead.regulationStatus] = (counts[lead.regulationStatus] || 0) + 1;
-    return Object.entries(counts).map(([status, count]) => ({ status, count: count * SCALE }));
-  }, []);
-
-  const topLeads = useMemo(
-    () => [...mockLeads].sort((a, b) => b.prospectScore - a.prospectScore),
-    []
-  );
 
   return (
     <div className={dark ? 'dark' : ''} style={dark ? DARK_VARS : LIGHT_VARS}>
@@ -54,36 +30,10 @@ export default function DashboardPreviewPage() {
             </button>
           </div>
 
-          <KPIBentoGrid
-            totalLeads={1248}
-            regulationFriendly={412}
-            avgScore={78}
-            activeLeads={340}
-            actionNeededLeads={94}
-            estimatedMonthlyRevenue={186400}
-            highPriority={94}
-            fullyVerified={812}
-            unassignedPriority={37}
-            assignedLeads={905}
-            verifiedOwner={940}
-            verifiedNumber={870}
-            phoneAvailable={1020}
-            newLeads={86}
-          />
-
-          <RegulationPieChart regulationBreakdown={regulationBreakdown} />
-
-          <div>
-            <div className="mb-2">
-              <span className="text-sm font-semibold text-foreground">Pipeline by Stage</span>
-              <span className="ml-2 text-xs text-muted-foreground">Lead distribution across funnel</span>
-            </div>
-            <StageFunnelChart stageBreakdown={stageBreakdown} />
-          </div>
-
-          <TopLeadsTable leads={topLeads} />
+          <DashboardWidgets />
         </div>
       </div>
     </div>
   );
 }
+
