@@ -5,7 +5,7 @@ import KPIBentoGrid from '@/app/components/KPIBentoGrid';
 import RegulationPieChart from '@/app/components/RegulationPieChart';
 import StageFunnelChart from '@/app/components/StageFunnelChart';
 import TopLeadsTable from '@/app/components/TopLeadsTable';
-import { mockLeads } from '@/data/mockLeads';
+import { SHOWCASE_LEADS } from './showcaseLeads';
 
 // Shared dashboard widget content (real KPIBentoGrid/RegulationPieChart/StageFunnelChart/
 // TopLeadsTable) so the standalone preview route and the embedded /welcome showcase render
@@ -15,18 +15,18 @@ export default function DashboardWidgets() {
 
   const stageBreakdown = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const lead of mockLeads) counts[lead.stage] = (counts[lead.stage] || 0) + 1;
+    for (const lead of SHOWCASE_LEADS) counts[lead.stage] = (counts[lead.stage] || 0) + 1;
     return Object.entries(counts).map(([stage, count]) => ({ stage, count: count * SCALE }));
   }, []);
 
   const regulationBreakdown = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const lead of mockLeads) counts[lead.regulationStatus] = (counts[lead.regulationStatus] || 0) + 1;
+    for (const lead of SHOWCASE_LEADS) counts[lead.regulationStatus] = (counts[lead.regulationStatus] || 0) + 1;
     return Object.entries(counts).map(([status, count]) => ({ status, count: count * SCALE }));
   }, []);
 
   const topLeads = useMemo(
-    () => [...mockLeads].sort((a, b) => b.prospectScore - a.prospectScore),
+    () => [...SHOWCASE_LEADS].sort((a, b) => b.prospectScore - a.prospectScore),
     []
   );
 

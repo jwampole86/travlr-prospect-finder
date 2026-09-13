@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { Building2 } from 'lucide-react';
 import KPIBentoGrid from '@/app/components/KPIBentoGrid';
 import TopLeadsTable from '@/app/components/TopLeadsTable';
-import { mockLeads } from '@/data/mockLeads';
+import { SHOWCASE_LEADS } from '@/app/welcome/preview/_shared/showcaseLeads';
 import { PROSPECT_FINDER_PLANS, type PlanId } from '@/lib/pricing/prospectFinderPlans';
 
 interface PlanPreviewStats {
@@ -51,11 +51,11 @@ const PLAN_PREVIEW_STATS: Record<PlanId, PlanPreviewStats> = {
     scaleLabel: 'Multi-agent team · 6 markets',
   },
   enterprise: {
-    totalLeads: 5420, regulationFriendly: 1980, avgScore: 82, activeLeads: 1640,
-    actionNeededLeads: 412, estimatedMonthlyRevenue: 742000, highPriority: 388,
-    fullyVerified: 3860, unassignedPriority: 61, assignedLeads: 4750, verifiedOwner: 4980,
-    verifiedNumber: 4610, phoneAvailable: 5120, newLeads: 340,
-    scaleLabel: 'Enterprise rollup · 14 markets · 42 agents',
+    totalLeads: 8600, regulationFriendly: 3100, avgScore: 84, activeLeads: 2450,
+    actionNeededLeads: 560, estimatedMonthlyRevenue: 1480000, highPriority: 540,
+    fullyVerified: 6100, unassignedPriority: 74, assignedLeads: 7900, verifiedOwner: 7800,
+    verifiedNumber: 7300, phoneAvailable: 8100, newLeads: 520,
+    scaleLabel: 'Enterprise rollup · 22 markets · 68 agents',
     scopeBadge: 'Multi-Org Rollup',
   },
 };
@@ -66,7 +66,7 @@ export default function PlanPreviewShowcase({ planId }: { planId: PlanId }) {
 
   // Enterprise gets the full sorted set (more rows to imply larger scale); other tiers show fewer.
   const topLeads = useMemo(() => {
-    const sorted = [...mockLeads].sort((a, b) => b.prospectScore - a.prospectScore);
+    const sorted = [...SHOWCASE_LEADS].sort((a, b) => b.prospectScore - a.prospectScore);
     return planId === 'enterprise' ? sorted : sorted.slice(0, 4);
   }, [planId]);
 
