@@ -348,8 +348,8 @@ function RecordingCard({
   const seekTo = (seconds: number) => {
     if (audioRef.current) {
       audioRef.current.currentTime = seconds;
-      setCurrentTime(seconds);
     }
+    setCurrentTime(seconds);
   };
 
   const handleAddMarker = () => {
@@ -435,41 +435,45 @@ function RecordingCard({
         )}
 
         {/* Audio Player */}
-        {hasAudio ? <div className="flex items-center gap-3">
-          <button
-            onClick={togglePlay}
-            disabled={loadingUrl}
-            className="w-9 h-9 rounded-xl bg-gray-900 text-white flex items-center justify-center hover:bg-gray-800 transition-colors disabled:opacity-50"
-          >
-            {loadingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-          </button>
-          <div className="flex-1">
-            <input
-              type="range"
-              min={0}
-              max={duration || 1}
-              value={currentTime}
-              onChange={e => seekTo(Number(e.target.value))}
-              className="w-full h-1.5 accent-gray-900"
-            />
-            <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-              <span>{formatDuration(currentTime)}</span>
-              <span>{formatDuration(duration)}</span>
+        <div className="flex items-center gap-3">
+          {hasAudio ? (
+            <>
+              <button
+                onClick={togglePlay}
+                disabled={loadingUrl}
+                className="w-9 h-9 rounded-xl bg-gray-900 text-white flex items-center justify-center hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                {loadingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              </button>
+              <div className="flex-1">
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 1}
+                  value={currentTime}
+                  onChange={e => seekTo(Number(e.target.value))}
+                  className="w-full h-1.5 accent-gray-900"
+                />
+                <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                  <span>{formatDuration(currentTime)}</span>
+                  <span>{formatDuration(duration)}</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-700/60 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+              <FileText className="w-4 h-4" />
+              AI interview transcript from Vapi. Audio playback is not available for this call.
             </div>
-          </div>
+          )}
           <button
             onClick={() => setShowMarkerInput(v => !v)}
-            className="px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            title="Add timestamp marker"
+            className="px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-shrink-0"
+            title="Add a timestamp note"
           >
             + Marker
           </button>
-        </div> : (
-          <div className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-700/60 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300">
-            <FileText className="w-4 h-4" />
-            AI interview transcript from Vapi. Audio playback is not available for this call.
-          </div>
-        )}
+        </div>
 
         {showMarkerInput && (
           <div className="flex items-center gap-2 mt-2">
@@ -759,10 +763,6 @@ export default function InterviewRecordingsPage() {
   };
 
   const handleAddMarker = async (recording: AudioRecording, timeSeconds: number, label: string) => {
-    if (!recording.storage_path) {
-      toast.error('Markers require a saved audio recording — this entry is transcript-only.');
-      return;
-    }
     const newMarker: TimestampMarker = {
       id: `m-${Date.now()}`,
       time_seconds: timeSeconds,
@@ -771,12 +771,45 @@ export default function InterviewRecordingsPage() {
       created_at: new Date().toISOString(),
     };
     const updatedMarkers = [...recording.timestamp_markers, newMarker];
-    await supabase.from('interview_audio_recordings')
+
+    // Transcript-only Vapi interviews (no downloaded audio yet) don't have a real
+    // interview_audio_recordings row — create one now so the marker actually persists.
+    if (recording.source === 'vapi' && recording.session_id && recording.id === `vapi-${recording.session_id}`) {
+      const { data: inserted, error } = await supabase
+        .from('interview_audio_recordings')
+        .insert({
+          session_id: recording.session_id,
+          storage_path: '',
+          file_name: recording.file_name,
+          duration_seconds: recording.duration_seconds,
+          mime_type: 'text/plain',
+          transcript: recording.transcript,
+          transcript_text: recording.transcript_text,
+          transcript_status: 'completed',
+          timestamp_markers: updatedMarkers,
+        })
+        .select('id')
+        .single();
+      if (error || !inserted) {
+        toast.error(error?.message || 'Failed to save marker');
+        return;
+      }
+      setRecordings(prev => prev.map(r => r.id === recording.id ? { ...r, id: inserted.id, timestamp_markers: updatedMarkers } : r));
+      toast.success('Marker added');
+      return;
+    }
+
+    const { error } = await supabase.from('interview_audio_recordings')
       .update({ timestamp_markers: updatedMarkers })
       .eq('id', recording.id);
+    if (error) {
+      toast.error(error.message || 'Failed to save marker');
+      return;
+    }
     setRecordings(prev => prev.map(r => r.id === recording.id ? { ...r, timestamp_markers: updatedMarkers } : r));
     toast.success('Marker added');
   };
+
 
   return (
     <AppLayout>
