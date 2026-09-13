@@ -142,6 +142,44 @@
   --teleprompter-highlight: #fde047;
 }
 
+/* ─── Dark Mode Contrast Safety Net ─────────────────────────────────────────
+ * Many pages hardcode light-mode-only Tailwind gray/white utilities (e.g.
+ * text-gray-900, bg-white) with no dark: variant, which makes titles and
+ * body text unreadable in dark mode (dark text on a dark background). Rather
+ * than hand-edit every page, remap the most common offending utilities to
+ * theme-aware colors whenever dark mode is active. Unlayered rules like this
+ * take precedence over @tailwind utilities regardless of source order, so
+ * this reliably fixes contrast without touching component markup. */
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-black {
+  color: var(--foreground);
+}
+.dark .text-gray-700,
+.dark .text-gray-600,
+.dark .text-gray-500 {
+  color: var(--muted-foreground);
+}
+.dark .bg-white {
+  background-color: var(--card);
+}
+.dark .bg-gray-50,
+.dark .bg-gray-100 {
+  background-color: var(--muted);
+}
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: var(--border);
+}
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover {
+  background-color: var(--muted);
+}
+.dark .hover\:text-gray-900:hover {
+  color: var(--foreground);
+}
+
 @layer base {
   * {
     box-sizing: border-box;

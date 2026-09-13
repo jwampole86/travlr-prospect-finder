@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Loader2, Menu, Phone } from 'lucide-react';
-import NotificationDrawer from './NotificationDrawer';
+import NotificationDrawer, { BellButton } from './NotificationDrawer';
 import SyncSchedulerRunner from './SyncSchedulerRunner';
 import SyncToastEmitter from './SyncToastEmitter';
 import Link from 'next/link';
@@ -106,6 +106,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           )}
           <span className="text-sm font-semibold text-foreground flex-1">TRAVLR Prospect Finder</span>
           <TimeClockWidget />
+          <BellButton />
           <ProfileMenu />
         </div>
 
@@ -126,6 +127,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
           <div className="flex items-center gap-2">
             <TimeClockWidget />
+            <BellButton />
             <ProfileMenu />
           </div>
         </div>
