@@ -35,6 +35,7 @@ interface VapiInterviewSession {
   provider_call_id: string | null;
   transcript: string | null;
   transcript_messages: unknown;
+  summary: string | null;
   duration_seconds: number | null;
   started_at: string | null;
   ended_at: string | null;
@@ -342,6 +343,15 @@ function RecordingCard({
     setShowMarkerInput(false);
   };
 
+  const scorecardValues = recording.scorecard
+    ? ['vacation_rental_knowledge', 'property_management_knowledge', 'luxury_homeowner_communication', 'outbound_calling_ability', 'consultative_sales', 'discovery_questioning', 'objection_handling', 'closing_ability', 'follow_up_discipline', 'crm_pipeline_management', 'relationship_building', 'professional_communication', 'self_motivation', 'remote_work_discipline', 'coachability', 'operational_understanding', 'business_development', 'judgment', 'organization', 'overall_fit']
+      .map(key => Number(recording.scorecard?.[key]))
+      .filter(Number.isFinite)
+    : [];
+  const averageScore = scorecardValues.length > 0
+    ? scorecardValues.reduce((sum, value) => sum + value, 0) / scorecardValues.length
+    : null;
+
   const downloadRecording = async () => {
     if (!hasAudio) return;
     await loadAudio();
@@ -386,6 +396,27 @@ function RecordingCard({
             )}
           </div>
         </div>
+
+        {(recording.summary || recording.scorecard) && (
+          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto] rounded-xl border border-emerald-200 dark:border-emerald-900/70 bg-emerald-50/70 dark:bg-emerald-950/20 p-3">
+            {recording.summary && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Interview Summary</p>
+                <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-200 whitespace-pre-wrap line-clamp-5">{recording.summary}</p>
+                {recording.role_title && <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2">Evaluated for: {recording.role_title}</p>}
+              </div>
+            )}
+            {recording.scorecard && (
+              <div className="flex items-center gap-3 md:flex-col md:items-end md:justify-center border-t md:border-t-0 md:border-l border-emerald-200 dark:border-emerald-900/70 pt-2 md:pt-0 md:pl-3">
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Role Match</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{typeof recording.scorecard.overall_fit === 'number' ? recording.scorecard.overall_fit : averageScore?.toFixed(1) || '—'}<span className="text-xs font-medium text-gray-500 dark:text-gray-400">/10</span></p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">{String(recording.scorecard.hire_recommendation || 'PENDING').replace(/_/g, ' ')}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Audio Player */}
         {hasAudio ? <div className="flex items-center gap-3">
@@ -503,14 +534,12 @@ function RecordingCard({
             {recording.transcript_status === 'completed' && recording.transcript.length > 0 && (
               <div className="space-y-2">
                 {recording.transcript.map((seg, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <button
-                      onClick={() => seekTo(seg.start_seconds || 0)}
-                      className="text-[10px] font-mono text-blue-500 hover:text-blue-700 flex-shrink-0 mt-0.5 hover:underline"
-                    >
-                      {seg.timestamp}
-                    </button>
-                    <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{seg.text}</p>
+                  <div key={i} className={`flex items-start gap-3 rounded-xl px-3 py-2.5 ${seg.speaker === 'Candidate' ? 'bg-blue-50/70 dark:bg-blue-950/20' : 'bg-gray-50 dark:bg-gray-700/50'}`}>
+                    <button onClick={() => seekTo(seg.start_seconds || 0)} className="text-[10px] font-mono text-blue-500 hover:text-blue-700 dark:text-blue-400 flex-shrink-0 mt-0.5 hover:underline">{seg.timestamp}</button>
+                    <div className="min-w-0">
+                      <p className={`text-[10px] font-bold uppercase tracking-wide mb-0.5 ${seg.speaker === 'Candidate' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300'}`}>{seg.speaker}</p>
+                      <p className="text-xs text-gray-700 dark:text-gray-200 leading-relaxed">{seg.text}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -560,21 +589,33 @@ export default function InterviewRecordingsPage() {
 
   const fetchRecordings = useCallback(async () => {
     setLoading(true);
-    const [manualResult, vapiResult] = await Promise.all([
+    const [manualResult, vapiResult, scorecardsResult] = await Promise.all([
       supabase
         .from('interview_audio_recordings')
         .select('*')
         .order('created_at', { ascending: false }),
       supabase
         .from('interview_sessions')
-        .select('id, candidate_name, role_title, provider, provider_call_id, transcript, transcript_messages, duration_seconds, started_at, ended_at, created_at, updated_at')
+        .select('id, candidate_id, candidate_name, role_title, provider, provider_call_id, transcript, transcript_messages, duration_seconds, started_at, ended_at, summary, created_at, updated_at')
         .eq('provider', 'VAPI')
         .not('transcript', 'is', null)
         .order('updated_at', { ascending: false }),
+      supabase
+        .from('candidate_scorecards')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200),
     ]);
 
     if (manualResult.error) console.error('[recordings] failed to load manual recordings', manualResult.error);
     if (vapiResult.error) console.error('[recordings] failed to load vapi recordings', vapiResult.error);
+    if (scorecardsResult.error) console.error('[recordings] failed to load scorecards', scorecardsResult.error);
+
+    const latestScorecardByCandidate = new Map<string, Record<string, unknown>>();
+    for (const scorecard of (scorecardsResult.data || []) as Array<Record<string, unknown>>) {
+      const candidateId = typeof scorecard.candidate_id === 'string' ? scorecard.candidate_id : null;
+      if (candidateId && !latestScorecardByCandidate.has(candidateId)) latestScorecardByCandidate.set(candidateId, scorecard);
+    }
 
     const manualRecordings = ((manualResult.data || []) as AudioRecording[]).map(recording => ({ ...recording, source: (recording.session_id ? 'vapi' : 'manual') as 'manual' | 'vapi' }));
     const recordedSessionIds = new Set(manualRecordings.map(r => r.session_id).filter(Boolean));
@@ -600,6 +641,9 @@ export default function InterviewRecordingsPage() {
           timestamp_markers: [],
           created_at: session.ended_at || session.updated_at || session.created_at || new Date().toISOString(),
           source: 'vapi' as const,
+          role_title: session.role_title,
+          summary: session.summary,
+          scorecard: session.candidate_id ? latestScorecardByCandidate.get(session.candidate_id) || null : null,
         };
       });
 
