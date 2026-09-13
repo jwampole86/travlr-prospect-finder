@@ -1,12 +1,13 @@
 /**
- * Twilio Voice SDK Service — Client-side VoIP scaffold
+ * Twilio Voice SDK Service — Client-side VoIP
  *
  * Manages Twilio Voice Device lifecycle for in-browser calling.
  * Credentials are fetched server-side via /api/twilio/voice/token.
- *
- * Status: SCAFFOLD — Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN,
- * TWILIO_TWIML_APP_SID to .env to activate real VoIP calls.
+ * The TwiML App's Voice URL (see /api/twilio/voice/twiml) dials the
+ * external "To" number, bridging it to this browser's WebRTC leg.
  */
+
+import { Device, Call } from '@twilio/voice-sdk';
 
 export interface VoiceCallState {
   status: 'idle' | 'connecting' | 'ringing' | 'in-call' | 'ended' | 'error';
@@ -178,6 +179,88 @@ export async function placeOutboundCall(params: OutboundCallParams): Promise<{
       configured: false,
       error: err instanceof Error ? err.message : 'Unknown error',
     };
+  }
+}
+
+// ─── Do Not Contact pre-flight check ───────────────────────────────────────────
+// Runs the same DNC validation as /api/twilio/voice/call without placing a
+// duplicate REST call, since the actual audio connection now goes through the
+// Voice SDK Device below.
+
+export async function checkDoNotContact(params: { to: string; leadId?: string; agentId?: string }): Promise<{
+  blocked: boolean;
+  error?: string;
+}> {
+  try {
+    const to = normalizePhoneForTwilio(params.to);
+    const res = await fetch('/api/twilio/voice/call', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...params, to, dryRun: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { blocked: true, error: data.error || 'Unable to verify Do Not Contact status' };
+    }
+    return { blocked: false };
+  } catch (err) {
+    return { blocked: true, error: err instanceof Error ? err.message : 'Unable to verify Do Not Contact status' };
+  }
+}
+
+// ─── Voice SDK Device (real browser WebRTC audio) ──────────────────────────────
+
+let deviceInstance: Device | null = null;
+let deviceIdentity: string | null = null;
+
+export async function getOrCreateDevice(identity = 'agent'): Promise<{ device: Device | null; configured: boolean; message?: string }> {
+  if (deviceInstance && deviceIdentity === identity) {
+    return { device: deviceInstance, configured: true };
+  }
+
+  const tokenResult = await fetchVoiceToken(identity);
+  if (!tokenResult.token) {
+    return { device: null, configured: false, message: tokenResult.message };
+  }
+
+  if (deviceInstance) {
+    try { deviceInstance.destroy(); } catch { /* ignore */ }
+  }
+
+  const device = new Device(tokenResult.token, { logLevel: 'error' });
+  deviceInstance = device;
+  deviceIdentity = identity;
+
+  device.on('tokenWillExpire', async () => {
+    const refreshed = await fetchVoiceToken(identity);
+    if (refreshed.token) device.updateToken(refreshed.token);
+  });
+
+  await device.register();
+  return { device, configured: true };
+}
+
+export function getActiveDevice(): Device | null {
+  return deviceInstance;
+}
+
+export async function connectVoiceCall(params: OutboundCallParams): Promise<{ call: Call | null; error?: string }> {
+  const { device, configured, message } = await getOrCreateDevice(params.agentId || 'agent');
+  if (!configured || !device) {
+    return { call: null, error: message || 'Twilio Voice SDK is not configured' };
+  }
+  try {
+    const to = normalizePhoneForTwilio(params.to);
+    const call = await device.connect({
+      params: {
+        To: to,
+        ...(params.leadId ? { leadId: params.leadId } : {}),
+        ...(params.agentId ? { agentId: params.agentId } : {}),
+      },
+    });
+    return { call };
+  } catch (err) {
+    return { call: null, error: err instanceof Error ? err.message : 'Unable to connect call' };
   }
 }
 

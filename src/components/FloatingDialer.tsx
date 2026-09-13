@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Phone, PhoneOff, X, Minimize2, Delete, Clock, Star, StarOff, Mic, MicOff, Volume2, VolumeX, ChevronRight, Hash, RotateCcw, Search, Filter, Play, Loader2, Maximize2 } from 'lucide-react';
 import {
   getFavorites, addFavorite, removeFavorite, isFavorite,
-  placeOutboundCall, formatDuration, formatPhoneDisplay,
+  checkDoNotContact, connectVoiceCall,
+  formatDuration, formatPhoneDisplay,
   type FavoriteContact,
 } from '@/lib/services/twilioVoiceService';
+import type { Call } from '@twilio/voice-sdk';
 import {
   callSessionService,
   type CallSession,
@@ -81,6 +83,7 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
   }>({});
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeCallRef = useRef<Call | null>(null);
 
   // Load recent sessions from Supabase
   const loadRecentSessions = useCallback(async () => {
@@ -137,6 +140,13 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
     setCurrentCallTo(number);
     setCallStatus('connecting');
 
+    const dnc = await checkDoNotContact({ to: number, leadId });
+    if (dnc.blocked) {
+      setCallStatus('error');
+      setTimeout(() => setCallStatus('idle'), 3000);
+      return;
+    }
+
     // Create Supabase session
     const session = await callSessionService.create({
       phoneNumber: number,
@@ -146,19 +156,17 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
     });
     if (session) setCurrentSessionId(session.id);
 
-    const result = await placeOutboundCall({ to: number, leadId });
+    const { call, error } = await connectVoiceCall({ to: number, leadId });
 
-    if (result.error && result.status === 'error') {
+    if (error || !call) {
       setCallStatus('error');
       if (session) await callSessionService.update(session.id, { isInProgress: false });
       setTimeout(() => setCallStatus('idle'), 3000);
       return;
     }
 
-    if (result.callSid && session) {
-      await callSessionService.update(session.id, { callSid: result.callSid });
-    }
-    setCallSid(result.callSid);
+    activeCallRef.current = call;
+    setCallSid(call.parameters?.CallSid || null);
     setCurrentLeadInfo({
       contactName: contactName,
       address: address,
@@ -167,25 +175,40 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
       sessionId: session?.id,
     });
 
-    if (!result.configured) {
-      setTimeout(() => {
-        setCallStatus('in-call');
-        setTimeout(() => {
-          setCallStatus('ended');
-          setPendingCallInfo({ contactName, address, duration: 5 });
-          setShowOutcomeModal(true);
-        }, 5000);
-      }, 1500);
-    } else {
-      setCallStatus('in-call');
+    call.on('accept', () => setCallStatus('in-call'));
+    call.on('disconnect', () => {
+      activeCallRef.current = null;
+      setCallStatus('ended');
+      setPendingCallInfo(prev => prev ?? { contactName, address, duration: callDuration });
+      setShowOutcomeModal(true);
+    });
+    call.on('error', () => {
+      activeCallRef.current = null;
+      setCallStatus('error');
+      setTimeout(() => setCallStatus('idle'), 3000);
+    });
+    call.on('mute', (isMuted: boolean) => setMuted(isMuted));
+
+    if (call.parameters?.CallSid && session) {
+      await callSessionService.update(session.id, { callSid: call.parameters.CallSid });
     }
-  }, [dialInput]);
+  }, [dialInput, callDuration]);
 
   const handleHangUp = useCallback(() => {
+    if (activeCallRef.current) {
+      activeCallRef.current.disconnect();
+      return;
+    }
     setCallStatus('ended');
     setPendingCallInfo({ duration: callDuration });
     setShowOutcomeModal(true);
   }, [callDuration]);
+
+  const toggleMute = useCallback(() => {
+    const next = !muted;
+    activeCallRef.current?.mute(next);
+    setMuted(next);
+  }, [muted]);
 
   const handleOutcomeSubmit = useCallback(async (outcome: CallOutcome, dispositionNotes: string) => {
     setSavingOutcome(true);
@@ -322,7 +345,7 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
           muted={muted}
           speakerOff={speakerOff}
           recording={recording}
-          onMuteToggle={() => setMuted(m => !m)}
+          onMuteToggle={toggleMute}
           onSpeakerToggle={() => setSpeakerOff(s => !s)}
           onRecordingToggle={() => setRecording(r => !r)}
           onHangUp={() => { setImmersiveOpen(false); handleHangUp(); }}
@@ -361,7 +384,7 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
             <p className="text-xs text-green-300 font-medium truncate">{formatPhoneDisplay(currentCallTo)}</p>
             <div className="flex items-center gap-2 mt-2">
               <button
-                onClick={() => setMuted(m => !m)}
+                onClick={toggleMute}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   muted ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-white/10 text-white hover:bg-white/20'
                 }`}

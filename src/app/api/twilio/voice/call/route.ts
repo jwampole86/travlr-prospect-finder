@@ -13,11 +13,12 @@ import { getTwilioConfigStatus } from '@/lib/services/twilioService';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { to, from, leadId, agentId } = body as {
+    const { to, from, leadId, agentId, dryRun } = body as {
       to?: string;
       from?: string;
       leadId?: string;
       agentId?: string;
+      dryRun?: boolean;
     };
 
     if (!to) {
@@ -101,6 +102,12 @@ export async function POST(req: NextRequest) {
       }
     }
     // ── End DNC Check ─────────────────────────────────────────────────────────
+
+    // Voice SDK Device connections handle the actual dial themselves via the
+    // TwiML App's Voice URL — this request is only validating DNC status first.
+    if (dryRun) {
+      return NextResponse.json({ ok: true, leadId, agentId });
+    }
 
     const fromNumber = from || process.env.TWILIO_FROM_NUMBER;
     const status = getTwilioConfigStatus();
