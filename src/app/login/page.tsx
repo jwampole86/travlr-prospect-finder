@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import AppLogo from '@/components/ui/AppLogo';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
@@ -29,12 +30,18 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | null>(null);
   const [error, setError] = useState('');
+  const [intendedPlan, setIntendedPlan] = useState<string | null>(null);
+
+  useEffect(() => {
+    const plan = new URLSearchParams(window.location.search).get('plan');
+    if (plan) setIntendedPlan(plan);
+  }, []);
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace('/');
+      router.replace(intendedPlan ? `/billing?plan=${intendedPlan}` : '/');
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, intendedPlan]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +50,7 @@ export default function LoginPage() {
     try {
       if (mode === 'login') {
         await signIn(email, password);
-        router.replace('/');
+        router.replace(intendedPlan ? `/billing?plan=${intendedPlan}` : '/');
       } else {
         if (!fullName.trim()) {
           setError('Full name is required.');
@@ -51,7 +58,7 @@ export default function LoginPage() {
           return;
         }
         await signUp(email, password, { fullName });
-        router.replace('/');
+        router.replace(intendedPlan ? `/billing?plan=${intendedPlan}` : '/');
       }
     } catch (err: any) {
       setError(err?.message || 'Something went wrong. Please try again.');
@@ -83,12 +90,17 @@ export default function LoginPage() {
     <div className="min-h-screen flex bg-background">
       {/* Left panel — branding */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 bg-card border-r border-border">
-        <div className="flex items-center gap-3">
-          <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={36} />
-          <div>
-            <p className="text-base font-bold text-foreground tracking-tight">TRAVLR</p>
-            <p className="text-xs text-muted-foreground">Prospect Finder</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={36} />
+            <div>
+              <p className="text-base font-bold text-foreground tracking-tight">TRAVLR</p>
+              <p className="text-xs text-muted-foreground">Prospect Finder</p>
+            </div>
           </div>
+          <Link href="/plans" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+            View Plans →
+          </Link>
         </div>
 
         <div className="space-y-6">
@@ -124,12 +136,17 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile logo */}
-          <div className="flex lg:hidden items-center gap-3 justify-center">
-            <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={32} />
-            <div>
-              <p className="text-sm font-bold text-foreground">TRAVLR</p>
-              <p className="text-xs text-muted-foreground">Prospect Finder</p>
+          <div className="flex lg:hidden items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={32} />
+              <div>
+                <p className="text-sm font-bold text-foreground">TRAVLR</p>
+                <p className="text-xs text-muted-foreground">Prospect Finder</p>
+              </div>
             </div>
+            <Link href="/plans" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Plans
+            </Link>
           </div>
 
           <div>
@@ -139,6 +156,11 @@ export default function LoginPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {mode === 'login' ? 'Sign in to access your workspace.' : 'Set up your account to get started.'}
             </p>
+            {intendedPlan && (
+              <p className="mt-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 capitalize">
+                {intendedPlan} plan selected — you'll continue to billing after {mode === 'login' ? 'signing in' : 'creating your account'}.
+              </p>
+            )}
           </div>
 
           {/* Tab toggle */}

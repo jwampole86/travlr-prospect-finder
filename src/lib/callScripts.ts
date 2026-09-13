@@ -741,6 +741,30 @@ export const SCRIPT_OPTIONS: { value: ScriptId; label: string; goal: string }[] 
   { value: 'candidate_next_steps', label: 'Candidate Next Steps', goal: candidateNextSteps.goal },
 ];
 
+// Lead pipeline stage → the next homeowner call script in the outreach lifecycle.
+// Drives the dynamic "Schedule <stage>" call button shown on lead lists/records
+// (never used for candidate_next_steps — that script is homeowner-call script list is excluded from).
+const LEAD_STAGE_TO_SCRIPT: Record<string, ScriptId> = {
+  'New Lead': 'initial_outreach',
+  'Contacted': 'follow_up',
+  'Interested': 'questionnaire_handoff',
+  'Proposal Sent': 'proposal',
+  'Under Contract': 'closing_contract',
+};
+
+/** Returns the next homeowner call script for a lead based on its current pipeline stage. */
+export function getNextScriptForLeadStage(stage?: string | null): ScriptId {
+  if (!stage) return 'initial_outreach';
+  return LEAD_STAGE_TO_SCRIPT[stage] || 'initial_outreach';
+}
+
+/** Returns the "Schedule <Script Label>" button copy for a lead's current pipeline stage. */
+export function getScheduleCallLabel(stage?: string | null): string {
+  const scriptId = getNextScriptForLeadStage(stage);
+  const option = SCRIPT_OPTIONS.find((opt) => opt.value === scriptId);
+  return `Schedule ${option?.label || 'Initial Outreach'}`;
+}
+
 /**
  * Build a flat text version of a script for feeding into the Claude system prompt.
  * Variables must already be resolved before calling this.

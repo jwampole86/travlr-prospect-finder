@@ -25,6 +25,17 @@ const nextConfig = {
   // Enable gzip/brotli compression
   compress: true,
 
+  // The original pricing page location was consolidated into the richer /plans experience.
+  async redirects() {
+    return [
+      {
+        source: '/prospect-finder/pricing',
+        destination: '/plans',
+        permanent: false,
+      },
+    ];
+  },
+
   // Experimental: optimize package imports to reduce bundle size
   experimental: {
     // The Next 15.5 dev segment explorer references a missing bundled module in Webpack mode.

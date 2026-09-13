@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import SMSSendModal from '@/app/lead-profile/components/SMSSendModal';
 import BreadcrumbNav from '@/components/ui/BreadcrumbNav';
 import { getPropertyListingUrl } from '@/lib/addressUtils';
+import { getNextScriptForLeadStage, getScheduleCallLabel } from '@/lib/callScripts';
 import CallRecordingsPanel from './CallRecordingsPanel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -877,12 +878,12 @@ export default function LeadRecordContent() {
             </button>
 
             <a
-              href={`/teleprompter?leadId=${lead.id}`}
+              href={`/teleprompter?leadId=${lead.id}&scriptId=${getNextScriptForLeadStage(currentStage)}`}
               onClick={() => logCadenceTouchpoint('call', 'Call initiated from Lead Record')}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
             >
               <Phone size={12} />
-              Call
+              {getScheduleCallLabel(currentStage)}
             </a>
 
             <ListingLinkButton lead={lead} />

@@ -228,6 +228,30 @@ export const FEATURE_COMPARISON: FeatureComparisonRow[] = [
   { key: 'custom_limits', label: 'Custom Limits', values: { starter: 'no', pro: 'no', business: 'no', enterprise: 'yes' } },
 ];
 
+export interface FeatureCategoryGroup {
+  category: string;
+  rows: FeatureComparisonRow[];
+}
+
+function rowsFor(keys: string[]): FeatureComparisonRow[] {
+  return keys.map((key) => FEATURE_COMPARISON.find((row) => row.key === key)).filter((row): row is FeatureComparisonRow => Boolean(row));
+}
+
+// Grouped view of the exact same FEATURE_COMPARISON rows above — the comparison
+// table and the collapsible-category view on /plans both read from this single
+// source of truth, so marketing copy can never drift from the underlying data.
+export const FEATURE_CATEGORIES: FeatureCategoryGroup[] = [
+  { category: 'Core Platform', rows: rowsFor(['lead_management', 'dashboard', 'property_profiles', 'csv_imports']) },
+  { category: 'Lead Management', rows: rowsFor(['lead_search', 'lead_filtering', 'lead_assignment', 'pipeline_management', 'multiple_portfolios', 'team_members']) },
+  { category: 'Property & Contact Intelligence', rows: rowsFor(['verified_contact_workflows', 'property_enrichment']) },
+  { category: 'AI & Automation', rows: rowsFor(['ai_assisted_workflows', 'automation_rules', 'bulk_workflows']) },
+  { category: 'Interviews & Team Tools', rows: rowsFor(['ai_interview_assistant', 'automated_interview_scheduling', 'bulk_interview_scheduling', 'interview_calendar', 'zoom_integration']) },
+  { category: 'Analytics', rows: rowsFor(['advanced_analytics']) },
+  { category: 'Integrations', rows: rowsFor(['api_access', 'custom_integrations']) },
+  { category: 'Security & Admin', rows: rowsFor(['audit_logs', 'sso', 'custom_roles', 'custom_limits']) },
+  { category: 'Support', rows: rowsFor(['priority_support', 'dedicated_support']) },
+];
+
 /** Reusable upgrade-gate messaging for logged-in users who hit a feature outside their plan. */
 export function getFeatureGateMessage(featureLabel: string, minimumPlan: PlanId): { title: string; body: string } {
   if (minimumPlan === 'enterprise') {

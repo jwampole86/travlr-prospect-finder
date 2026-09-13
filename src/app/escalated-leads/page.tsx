@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Phone, MessageSquare, MapPin, Clock, TrendingUp, RefreshCw, Flame, ChevronDown, ChevronRight, Mail, Activity, User, ArrowRight, Search, Filter, PlayCircle, FileText, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { getNextScriptForLeadStage, getScheduleCallLabel } from '@/lib/callScripts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -267,7 +268,7 @@ function EscalatedLeadCard({ lead, onCall, onSMS }: {
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 transition-colors font-medium"
               >
                 <Phone size={12} />
-                Call Now
+                {getScheduleCallLabel(lead.stage)}
               </button>
               <button
                 onClick={() => onSMS(lead)}
@@ -433,7 +434,7 @@ export default function EscalatedLeadsPage() {
       body: JSON.stringify({ lead_id: lead.id, channel: 'call', notes: 'Call initiated from Escalated Leads dashboard' }),
     });
     toast.success(`Calling ${[lead.first_name, lead.last_name].filter(Boolean).join(' ')}…`);
-    window.location.href = `/teleprompter?leadId=${lead.id}`;
+    window.location.href = `/teleprompter?leadId=${lead.id}&scriptId=${getNextScriptForLeadStage(lead.stage)}`;
   }
 
   async function handleSMS(lead: EscalatedLead) {

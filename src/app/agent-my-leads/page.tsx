@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { getNextScriptForLeadStage, getScheduleCallLabel } from '@/lib/callScripts';
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -147,7 +148,7 @@ function LeadCard({ lead }: { lead: AgentLead }) {
           View Profile
         </Link>
         <Link
-          href={`/teleprompter?leadId=${lead.id}`}
+          href={`/teleprompter?leadId=${lead.id}&scriptId=${getNextScriptForLeadStage(lead.stage)}`}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-1 justify-center ${
             lead.do_not_contact
               ? 'bg-muted text-muted-foreground cursor-not-allowed pointer-events-none'
@@ -156,7 +157,7 @@ function LeadCard({ lead }: { lead: AgentLead }) {
           onClick={e => lead.do_not_contact && e.preventDefault()}
         >
           <PhoneCall size={11} />
-          {lead.do_not_contact ? 'DNC' : 'Start Call'}
+          {lead.do_not_contact ? 'DNC' : getScheduleCallLabel(lead.stage)}
         </Link>
       </div>
     </div>

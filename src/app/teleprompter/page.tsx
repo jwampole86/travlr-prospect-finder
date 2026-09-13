@@ -1220,7 +1220,7 @@ function SuggestionPanel({
 interface CallSetupFormProps {
   onStart: (lead: LeadContext, agentName: string, scriptId: ScriptId) => void;
   prefill?: {
-    contactName?: string; address?: string; city?: string; state?: string; phone?: string; agentName?: string; leadId?: string;
+    contactName?: string; address?: string; city?: string; state?: string; phone?: string; agentName?: string; leadId?: string; scriptId?: ScriptId;
     candidateId?: string; roleTitle?: string; interviewSummary?: string | null; overallFit?: number | null; hireRecommendation?: string | null;
   };
 }
@@ -1257,7 +1257,7 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
   const [phone, setPhone] = useState(prefill?.phone || '');
   const [selectedLeadId, setSelectedLeadId] = useState(prefill?.leadId);
   const [agentName, setAgentName] = useState(prefill?.agentName || '');
-  const [scriptId, setScriptId] = useState<ScriptId>(isCandidateFollowUp ? 'candidate_next_steps' : 'initial_outreach');
+  const [scriptId, setScriptId] = useState<ScriptId>(isCandidateFollowUp ? 'candidate_next_steps' : (prefill?.scriptId || 'initial_outreach'));
   const [showDialpad, setShowDialpad] = useState(false);
   const [showCallLog, setShowCallLog] = useState(false);
   const [callCount, setCallCount] = useState(0);
@@ -1510,7 +1510,7 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
         <div>
           <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Call Script</label>
           <div className="space-y-2">
-            {(isCandidateFollowUp ? SCRIPT_OPTIONS.filter(o => o.value === 'candidate_next_steps') : SCRIPT_OPTIONS).map(opt => (
+            {(isCandidateFollowUp ? SCRIPT_OPTIONS.filter(o => o.value === 'candidate_next_steps') : SCRIPT_OPTIONS.filter(o => o.value !== 'candidate_next_steps')).map(opt => (
               <button key={opt.value} onClick={() => setScriptId(opt.value)} className={`w-full text-left px-4 py-3 rounded-xl border transition-colors touch-manipulation ${scriptId === opt.value ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-foreground hover:border-primary/60 hover:bg-muted/50'}`}>
                 <p className="text-sm font-semibold">{opt.label}</p>
                 <p className={`text-xs mt-0.5 ${scriptId === opt.value ? 'text-background/75' : 'text-muted-foreground'}`}>{opt.goal}</p>
@@ -1735,6 +1735,12 @@ function TeleprompterPageInner() {
     state: searchParams.get('state') || undefined,
     phone: searchParams.get('phone') || candidateContext?.candidate.phone || undefined,
     leadId: searchParams.get('leadId') || undefined,
+    // A scriptId in the URL only ever applies to homeowner call scripts — candidate_next_steps
+    // is never selectable this way and always requires candidateId (see CallSetupForm below).
+    scriptId: (() => {
+      const requested = searchParams.get('scriptId') as ScriptId | null;
+      return requested && requested !== 'candidate_next_steps' ? requested : undefined;
+    })(),
     candidateId,
     roleTitle: candidateContext?.roleTitle,
     interviewSummary: candidateContext?.interviewSummary,
