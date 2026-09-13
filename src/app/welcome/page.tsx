@@ -67,10 +67,62 @@ export default function WelcomePage() {
       {/* Product Showcase */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
         <div className="text-center mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">See VAYO in Action</h2>
-          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">A real look at the dashboard, pipeline, and the AI tools that set VAYO apart — live call coaching, AI candidate interviews, and STR compliance intelligence.</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">One Platform. Your Entire Growth Operation.</h2>
+          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">From discovering high-value homeowner opportunities to outreach, automation, team operations, and performance intelligence, VAYO brings your growth workflow together in one platform.</p>
         </div>
         <ProductShowcase />
+      </section>
+
+      {/* Platform Workflow */}
+      <section className="max-w-5xl mx-auto px-6 pb-16">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">The Homeowner Acquisition Workflow</h2>
+          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">VAYO connects the entire homeowner acquisition workflow so information doesn&apos;t disappear between disconnected tools.</p>
+        </div>
+        <div className="flex flex-wrap items-stretch justify-center gap-2">
+          {[
+            { step: 'Discover', body: 'Property opportunities' },
+            { step: 'Enrich', body: 'Property + owner intelligence' },
+            { step: 'Prioritize', body: 'Lead scoring + verification' },
+            { step: 'Engage', body: 'Calling + AI-assisted teleprompter' },
+            { step: 'Convert', body: 'CRM + pipeline' },
+            { step: 'Automate', body: 'Follow-up + workflows' },
+            { step: 'Analyze', body: 'Performance intelligence' },
+          ].map((s, i, arr) => (
+            <div key={s.step} className="flex items-stretch">
+              <div className="bg-card border border-border rounded-xl px-4 py-3 text-center w-36">
+                <p className="text-xs font-bold text-foreground uppercase tracking-wide">{s.step}</p>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{s.body}</p>
+              </div>
+              {i < arr.length - 1 && <ArrowRight className="w-4 h-4 text-muted-foreground/50 self-center mx-1.5 shrink-0" />}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Talent Workflow */}
+      <section className="max-w-5xl mx-auto px-6 pb-16">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Build the Team Behind Your Growth</h2>
+          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">VAYO doesn&apos;t just help you acquire homeowners — it can also help you build the team responsible for growth.</p>
+        </div>
+        <div className="flex flex-wrap items-stretch justify-center gap-2 mb-6">
+          {[
+            'Candidate', 'Resume Intelligence', 'AI Interview', 'Scorecard', 'Human Interview', 'Decision',
+          ].map((s, i, arr) => (
+            <div key={s} className="flex items-stretch">
+              <div className="bg-card border border-border rounded-xl px-4 py-3 text-center w-36 flex items-center justify-center">
+                <p className="text-xs font-bold text-foreground uppercase tracking-wide leading-snug">{s}</p>
+              </div>
+              {i < arr.length - 1 && <ArrowRight className="w-4 h-4 text-muted-foreground/50 self-center mx-1.5 shrink-0" />}
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {['Candidate Profiles', 'AI Interview Assistant', 'Interview Calendar', 'AI Voice Interviews', 'Interview Scoring', 'Zoom Interviews', 'Hiring Pipeline'].map((cap) => (
+            <span key={cap} className="text-xs font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground">{cap}</span>
+          ))}
+        </div>
       </section>
 
       {/* Modules */}
