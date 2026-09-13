@@ -47,6 +47,10 @@ function PlanPill({ id, active, onSelect }: { id: PlanId; active: boolean; onSel
   );
 }
 
+// Limit-related bullets (e.g. "1 User", "Up to 5 portfolios") are already surfaced in the
+// compact stat row above the feature list, so we drop them here to avoid repeating the same number twice.
+const REDUNDANT_LIMIT_PATTERN = /^(up to )?[\d,]+\s+(users?|portfolios?|leads?)$/i;
+
 function PricingCard({
   id,
   highlightedId,
@@ -63,8 +67,9 @@ function PricingCard({
   const isEnterprise = id === 'enterprise';
   const isSelected = highlightedId === id;
   const previewCount = 8;
-  const visibleFeatures = expanded ? plan.features : plan.features.slice(0, previewCount);
-  const hasMore = plan.features.length > previewCount;
+  const dedupedFeatures = plan.features.filter((feature) => !REDUNDANT_LIMIT_PATTERN.test(feature.trim()));
+  const visibleFeatures = expanded ? dedupedFeatures : dedupedFeatures.slice(0, previewCount);
+  const hasMore = dedupedFeatures.length > previewCount;
 
   const ctaLabel = isEnterprise ? plan.ctaLabel : isLoggedIn ? `Upgrade to ${plan.name}` : plan.ctaLabel;
   const ctaHref = isEnterprise ? plan.ctaHref : isLoggedIn ? `/billing?plan=${id}` : plan.ctaHref;
@@ -108,17 +113,17 @@ function PricingCard({
         )}
       </div>
 
-      <div className={`grid grid-cols-3 gap-2 mb-6 text-center text-[11px] ${isEnterprise ? 'text-background/80' : 'text-muted-foreground'}`}>
+      <div className={`grid grid-cols-3 gap-2 mb-6 text-center text-[11px] font-medium ${isEnterprise ? 'text-background/80' : 'text-muted-foreground'}`}>
         <div className={`rounded-lg py-2 ${isEnterprise ? 'bg-background/10' : 'bg-muted/60'}`}>
-          <p className="font-bold text-sm">{plan.limits.users.split(' ')[0] === 'Up' ? plan.limits.users.replace('Up to ', '') : plan.limits.users}</p>
+          <p className={`font-bold text-sm ${isEnterprise ? 'text-background' : 'text-foreground'}`}>{plan.limits.users.replace(/^Up to /, '').replace(/\s+users?$/i, '')}</p>
           <p>Users</p>
         </div>
         <div className={`rounded-lg py-2 ${isEnterprise ? 'bg-background/10' : 'bg-muted/60'}`}>
-          <p className="font-bold text-sm">{plan.limits.portfolios.replace('Up to ', '')}</p>
+          <p className={`font-bold text-sm ${isEnterprise ? 'text-background' : 'text-foreground'}`}>{plan.limits.portfolios.replace(/^Up to /, '').replace(/\s+portfolios?$/i, '')}</p>
           <p>Portfolios</p>
         </div>
         <div className={`rounded-lg py-2 ${isEnterprise ? 'bg-background/10' : 'bg-muted/60'}`}>
-          <p className="font-bold text-sm">{plan.limits.leads.replace('Up to ', '')}</p>
+          <p className={`font-bold text-sm ${isEnterprise ? 'text-background' : 'text-foreground'}`}>{plan.limits.leads.replace(/^Up to /, '').replace(/\s+leads?$/i, '')}</p>
           <p>Leads</p>
         </div>
       </div>
@@ -177,12 +182,6 @@ function CategoryAccordion() {
 
   return (
     <div className="rounded-2xl border border-border overflow-hidden">
-      <div className="hidden sm:grid grid-cols-[1fr_repeat(4,110px)] bg-muted/40 border-b border-border sticky top-[57px] z-10">
-        <div className="px-5 py-3 font-semibold text-foreground text-sm">Feature</div>
-        {PLAN_ORDER.map((id) => (
-          <div key={id} className="px-3 py-3 font-semibold text-foreground text-sm text-center">{PROSPECT_FINDER_PLANS[id].name}</div>
-        ))}
-      </div>
       {FEATURE_CATEGORIES.map((group) => {
         const isOpen = openCategories.has(group.category);
         return (
@@ -199,6 +198,14 @@ function CategoryAccordion() {
               <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-200">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[640px] text-sm">
+                    <thead>
+                      <tr className="bg-muted/10 border-b border-border">
+                        <th className="px-5 py-2 text-left text-xs font-semibold text-muted-foreground">Feature</th>
+                        {PLAN_ORDER.map((id) => (
+                          <th key={id} className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground w-[110px] min-w-[110px]">{PROSPECT_FINDER_PLANS[id].name}</th>
+                        ))}
+                      </tr>
+                    </thead>
                     <tbody>
                       {group.rows.map((row, idx) => (
                         <tr key={row.key} className={idx % 2 === 1 ? 'bg-muted/10' : ''}>
@@ -290,7 +297,7 @@ export default function PlansPageClient() {
       <MarketingHeader />
 
       {/* Hero */}
-      <section className="max-w-4xl mx-auto px-6 pt-16 pb-10 text-center">
+      <section className="max-w-4xl mx-auto px-6 pt-14 pb-8 text-center">
         <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">TRAVLR Prospect Finder</p>
         <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">
           Choose the Right Plan for Your Growth
@@ -298,11 +305,11 @@ export default function PlansPageClient() {
         <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
           From building your homeowner pipeline to automating outreach, enrichment, team workflows, and AI-powered operations, choose the Prospect Finder plan that fits your business today and scale as you grow.
         </p>
-        <p className="mt-3 text-sm font-medium text-foreground/80">Enterprise unlocks the complete Prospect Finder platform.</p>
+        <span className="mt-5 inline-block text-xs font-semibold text-foreground bg-muted px-3.5 py-1.5 rounded-full">Enterprise unlocks the complete Prospect Finder platform</span>
       </section>
 
       {/* Plan Selector */}
-      <section className="max-w-4xl mx-auto px-6 pb-8">
+      <section className="max-w-4xl mx-auto px-6 pb-6">
         <div className="flex items-center justify-center gap-2 flex-wrap" role="tablist" aria-label="Select a plan to preview">
           {PLAN_ORDER.map((id) => (
             <PlanPill key={id} id={id} active={selectedPlan === id} onSelect={handleSelectPlan} />
@@ -311,8 +318,9 @@ export default function PlansPageClient() {
         <p className="mt-4 text-center text-sm text-muted-foreground max-w-xl mx-auto">{selectedPlanConfig.tagline}</p>
       </section>
 
+
       {/* Pricing Cards */}
-      <section id="pricing" className="max-w-6xl mx-auto px-6 pb-16">
+      <section id="pricing" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
           {PLAN_ORDER.map((id) => (
             <PricingCard
@@ -344,7 +352,7 @@ export default function PlansPageClient() {
       </section>
 
       {/* Comparison */}
-      <section id="compare" className="max-w-6xl mx-auto px-6 pb-16">
+      <section id="compare" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Compare Plans</h2>
           <p className="mt-2 text-sm text-muted-foreground">Enterprise is the only plan with full access to every Prospect Finder feature category.</p>
@@ -356,7 +364,7 @@ export default function PlansPageClient() {
       </section>
 
       {/* Capability Section */}
-      <section id="value" className="max-w-6xl mx-auto px-6 pb-16">
+      <section id="value" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">
         <div className="text-center mb-10">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Built to Grow With Your Operation</h2>
         </div>
@@ -371,7 +379,7 @@ export default function PlansPageClient() {
       </section>
 
       {/* Enterprise Callout */}
-      <section id="enterprise" className="max-w-6xl mx-auto px-6 pb-16">
+      <section id="enterprise" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">
         <div className="rounded-3xl bg-foreground text-background p-8 sm:p-12 text-center">
           <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-background text-foreground mb-5">
             Full Platform Access
@@ -392,7 +400,7 @@ export default function PlansPageClient() {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="max-w-6xl mx-auto px-6 pb-20">
+      <section id="faq" className="max-w-6xl mx-auto px-6 pb-20 scroll-mt-20">
         <div className="text-center mb-6">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Frequently Asked Questions</h2>
         </div>
