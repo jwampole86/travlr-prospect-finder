@@ -336,10 +336,6 @@ export default function PlansPageClient() {
         </div>
         <p className="mt-4 text-center text-sm text-muted-foreground max-w-xl mx-auto">{selectedPlanConfig.tagline}</p>
 
-        <div className="mt-6">
-          <PlanPreviewShowcase planId={selectedPlan} />
-        </div>
-
         <div className="mt-6 flex items-center justify-center gap-3">
           <div className="inline-flex items-center gap-1 bg-muted rounded-full p-1" role="tablist" aria-label="Billing period">
             <button
@@ -376,6 +372,15 @@ export default function PlansPageClient() {
             />
           ))}
         </div>
+      </section>
+
+      {/* Plan Preview Showcase — shown below actual pricing, not above it */}
+      <section className="max-w-4xl mx-auto px-6 pb-16">
+        <div className="text-center mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">See What {selectedPlanConfig.name} Looks Like</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Switch plans above to preview how scale changes as you grow.</p>
+        </div>
+        <PlanPreviewShowcase planId={selectedPlan} />
       </section>
 
       {/* Upgrade Path */}
