@@ -756,6 +756,14 @@ function SessionCard({
             <Search className="w-3 h-3" /> View Details
           </button>
         )}
+        {session.status === 'completed' && session.candidate_id && (
+          <Link
+            href={`/teleprompter?candidateId=${session.candidate_id}`}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
+          >
+            <Phone className="w-3 h-3" /> Schedule Follow-Up Call
+          </Link>
+        )}
         <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-300">
           <Edit3 className="w-3.5 h-3.5" />
         </button>

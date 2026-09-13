@@ -57,6 +57,21 @@ interface LeadContext {
   portfolioState: string;
   localBlurb: string;
   phone?: string;
+  // Candidate follow-up call context — set when this session was launched from a completed interview.
+  candidateId?: string;
+  roleTitle?: string;
+  interviewSummary?: string | null;
+  overallFit?: number | null;
+  hireRecommendation?: string | null;
+}
+
+interface CandidateFollowUpContext {
+  candidate: { id: string; fullName: string; phone: string | null; email: string | null };
+  roleTitle: string;
+  interviewSummary: string | null;
+  overallFit: number | null;
+  hireRecommendation: string | null;
+  interviewerNotes: string | null;
 }
 
 type CallPhase = 'setup' | 'headset' | 'consent' | 'active' | 'ended';
@@ -1204,7 +1219,10 @@ function SuggestionPanel({
 
 interface CallSetupFormProps {
   onStart: (lead: LeadContext, agentName: string, scriptId: ScriptId) => void;
-  prefill?: { contactName?: string; address?: string; city?: string; state?: string; phone?: string; agentName?: string; leadId?: string };
+  prefill?: {
+    contactName?: string; address?: string; city?: string; state?: string; phone?: string; agentName?: string; leadId?: string;
+    candidateId?: string; roleTitle?: string; interviewSummary?: string | null; overallFit?: number | null; hireRecommendation?: string | null;
+  };
 }
 
 interface AssignedLeadOption {
@@ -1231,6 +1249,7 @@ const DEMO_LEAD_DETAILS = {
 
 function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
   const { user, session, role } = useAuth();
+  const isCandidateFollowUp = Boolean(prefill?.candidateId);
   const [contactName, setContactName] = useState(prefill?.contactName || '');
   const [address, setAddress] = useState(prefill?.address || '');
   const [city, setCity] = useState(prefill?.city || '');
@@ -1238,7 +1257,7 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
   const [phone, setPhone] = useState(prefill?.phone || '');
   const [selectedLeadId, setSelectedLeadId] = useState(prefill?.leadId);
   const [agentName, setAgentName] = useState(prefill?.agentName || '');
-  const [scriptId, setScriptId] = useState<ScriptId>('initial_outreach');
+  const [scriptId, setScriptId] = useState<ScriptId>(isCandidateFollowUp ? 'candidate_next_steps' : 'initial_outreach');
   const [showDialpad, setShowDialpad] = useState(false);
   const [showCallLog, setShowCallLog] = useState(false);
   const [callCount, setCallCount] = useState(0);
@@ -1265,6 +1284,7 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
   // Load verified, phone-ready leads for the address dropdown.
   // Agents are scoped server-side to their assigned leads; admins receive the full verified list.
   useEffect(() => {
+    if (isCandidateFollowUp) return;
     let cancelled = false;
 
     const loadLeadOptions = async () => {
@@ -1298,7 +1318,7 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
     });
 
     return () => { cancelled = true; };
-  }, [session]);
+  }, [session, isCandidateFollowUp]);
 
   // Load call count for this lead
   useEffect(() => {
@@ -1346,21 +1366,27 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
   };
 
   const handleStart = () => {
-    if (!address.trim()) { toast.error('Property address is required — check the lead record before starting a call'); return; }
+    if (!isCandidateFollowUp && !address.trim()) { toast.error('Property address is required — check the lead record before starting a call'); return; }
     if (!agentName.trim()) { toast.error('Please enter your name before starting'); return; }
+    if (isCandidateFollowUp && !phone.trim()) { toast.error('This candidate has no phone number on file'); return; }
     const { localBlurb } = resolveVariables(
       { contactName: contactName.trim(), address: address.trim(), city: city.trim(), state },
       { senderName: agentName.trim() }
     );
     onStart({
       contactName: contactName.trim() || 'there',
-      address: address.trim(),
+      address: address.trim() || prefill?.roleTitle || 'Candidate Follow-Up Call',
       city: city.trim(),
       state,
       portfolioState: state,
       localBlurb,
       phone: phone || prefill?.phone,
       leadId: selectedLeadId || prefill?.leadId,
+      candidateId: prefill?.candidateId,
+      roleTitle: prefill?.roleTitle,
+      interviewSummary: prefill?.interviewSummary,
+      overallFit: prefill?.overallFit,
+      hireRecommendation: prefill?.hireRecommendation,
     }, agentName.trim(), scriptId);
   };
 
@@ -1372,8 +1398,41 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-6 sm:py-8">
+      {/* Candidate Follow-Up Context — replaces the lead card when launched from a completed interview */}
+      {isCandidateFollowUp && (
+        <div className="mb-5 bg-card rounded-2xl border border-emerald-200 dark:border-emerald-900/70 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+              <Phone className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-foreground">Candidate Follow-Up Call</p>
+              <p className="text-xs text-muted-foreground">{prefill?.contactName} · {prefill?.roleTitle || 'Role not specified'}</p>
+            </div>
+          </div>
+          {(prefill?.overallFit != null || prefill?.hireRecommendation) && (
+            <div className="flex items-center gap-2 mb-3">
+              {prefill?.overallFit != null && (
+                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">Overall Fit: {prefill.overallFit}/10</span>
+              )}
+              {prefill?.hireRecommendation && (
+                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300">{String(prefill.hireRecommendation).replace(/_/g, ' ')}</span>
+              )}
+            </div>
+          )}
+          {prefill?.interviewSummary ? (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">AI Interview Summary</p>
+              <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap max-h-40 overflow-y-auto">{prefill.interviewSummary}</p>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">No AI interview summary is available for this candidate yet.</p>
+          )}
+        </div>
+      )}
+
       {/* Mobile Lead Card — shown when coming from lead record */}
-      {hasPrefill && (
+      {hasPrefill && !isCandidateFollowUp && (
         <div className="mb-5">
           <MobileLeadCard
             lead={{
@@ -1422,7 +1481,7 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
       </div>
 
       {/* Interview Mode Entry Card — admin only */}
-      {canAccessInterviewMode && (
+      {canAccessInterviewMode && !isCandidateFollowUp && (
         <Link
           href="/teleprompter/interview"
           className="block mb-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-5 text-white hover:from-gray-800 hover:to-gray-700 transition-all group"
@@ -1451,7 +1510,7 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
         <div>
           <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Call Script</label>
           <div className="space-y-2">
-            {SCRIPT_OPTIONS.map(opt => (
+            {(isCandidateFollowUp ? SCRIPT_OPTIONS.filter(o => o.value === 'candidate_next_steps') : SCRIPT_OPTIONS).map(opt => (
               <button key={opt.value} onClick={() => setScriptId(opt.value)} className={`w-full text-left px-4 py-3 rounded-xl border transition-colors touch-manipulation ${scriptId === opt.value ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-foreground hover:border-primary/60 hover:bg-muted/50'}`}>
                 <p className="text-sm font-semibold">{opt.label}</p>
                 <p className={`text-xs mt-0.5 ${scriptId === opt.value ? 'text-background/75' : 'text-muted-foreground'}`}>{opt.goal}</p>
@@ -1459,6 +1518,7 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
             ))}
           </div>
         </div>
+        {!isCandidateFollowUp && (
         <div className="border-t border-border pt-4 flex items-center justify-between gap-3">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lead Details</p>
           <button
@@ -1470,12 +1530,15 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
             Autofill
           </button>
         </div>
+        )}
         <div>
           <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Your Name (Agent)</label>
           <input type="text" value={agentName} onChange={e => setAgentName(e.target.value)} autoComplete="name" placeholder="e.g. Sarah" className="w-full px-3 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation" />
           {user && <p className="mt-1 text-xs text-muted-foreground">Auto-filled from your account — edit if needed</p>}
         </div>
         <div className="relative">
+          {!isCandidateFollowUp && (
+          <>
           <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Property Address <span className="text-danger">*</span></label>
           <input
             type="text"
@@ -1509,9 +1572,11 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
               ))}
             </div>
           )}
+          </>
+          )}
         </div>
         <div>
-          <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Homeowner / Contact Name</label>
+          <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{isCandidateFollowUp ? 'Candidate Name' : 'Homeowner / Contact Name'}</label>
           <input type="text" value={contactName} onChange={e => setContactName(e.target.value)} autoComplete="name" placeholder="e.g. John Smith (leave blank to use 'there')" className="w-full px-3 py-3 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation" />
           {selectedLeadId && <p className="mt-1 text-xs text-muted-foreground">Auto-filled from the selected lead</p>}
         </div>
@@ -1521,6 +1586,8 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
             <input type="text" value={phone} onChange={e => setPhone(e.target.value)} autoComplete="tel" className="w-full px-3 py-3 rounded-xl border border-input bg-background text-foreground text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation" />
           </div>
         )}
+        {!isCandidateFollowUp && (
+        <>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">City</label>
@@ -1538,6 +1605,8 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
             <p className="text-xs font-semibold text-primary mb-1">Local Blurb Preview</p>
             <p className="text-xs text-foreground">{resolveVariables({ contactName, address, city, state }, { senderName: agentName }).localBlurb}</p>
           </div>
+        )}
+        </>
         )}
         <button onClick={handleStart} className="w-full py-3.5 px-6 bg-foreground text-background rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 touch-manipulation">
           <Headphones className="w-4 h-4" />
@@ -1637,14 +1706,40 @@ function TeleprompterPageInner() {
   const searchParams = useSearchParams();
   const [phase, setPhase] = useState<CallPhase>('setup');
   const [lead, setLead] = useState<LeadContext | null>(null);
+  const candidateId = searchParams.get('candidateId') || undefined;
+  const [candidateContext, setCandidateContext] = useState<CandidateFollowUpContext | null>(null);
+  const [candidateContextLoading, setCandidateContextLoading] = useState(Boolean(candidateId));
+
+  useEffect(() => {
+    if (!candidateId) return;
+    setCandidateContextLoading(true);
+    createClient().auth.getSession().then(async ({ data }) => {
+      const token = data.session?.access_token;
+      const res = await fetch(`/api/candidates/${candidateId}/followup-context`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      }).catch(() => null);
+      if (res?.ok) {
+        const json = await res.json();
+        setCandidateContext(json);
+      } else {
+        toast.error('Unable to load candidate follow-up context');
+      }
+      setCandidateContextLoading(false);
+    });
+  }, [candidateId]);
 
   const prefill = {
-    contactName: searchParams.get('contactName') || undefined,
+    contactName: searchParams.get('contactName') || candidateContext?.candidate.fullName || undefined,
     address: searchParams.get('address') || undefined,
     city: searchParams.get('city') || undefined,
     state: searchParams.get('state') || undefined,
-    phone: searchParams.get('phone') || undefined,
+    phone: searchParams.get('phone') || candidateContext?.candidate.phone || undefined,
     leadId: searchParams.get('leadId') || undefined,
+    candidateId,
+    roleTitle: candidateContext?.roleTitle,
+    interviewSummary: candidateContext?.interviewSummary,
+    overallFit: candidateContext?.overallFit,
+    hireRecommendation: candidateContext?.hireRecommendation,
   };
 
   const [agentName, setAgentName] = useState('');
@@ -1670,7 +1765,7 @@ function TeleprompterPageInner() {
   const [headsetConnected, setHeadsetConnected] = useState(true);
   const [showDialpad, setShowDialpad] = useState(false);
   const [showCallLog, setShowCallLog] = useState(false);
-  const [rightPanelTab, setRightPanelTab] = useState<'suggestion' | 'ai-prep' | 'estimate'>('suggestion');
+  const [rightPanelTab, setRightPanelTab] = useState<'suggestion' | 'ai-prep' | 'estimate' | 'candidate-info'>('suggestion');
   const [showEnrichmentSidebar, setShowEnrichmentSidebar] = useState(true);
 
   // Reliability state
@@ -1920,6 +2015,7 @@ function TeleprompterPageInner() {
     setLead(leadCtx);
     setAgentName(agent);
     setScriptId(sid);
+    if (leadCtx.candidateId) setRightPanelTab('candidate-info');
     const vars = resolveVariables(
       { contactName: leadCtx.contactName, address: leadCtx.address, city: leadCtx.city, state: leadCtx.state },
       { senderName: agent }
@@ -2142,6 +2238,16 @@ function TeleprompterPageInner() {
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
+  if (phase === 'setup' && candidateContextLoading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          Loading candidate interview context…
+        </div>
+      </div>
+    );
+  }
   if (phase === 'setup') return <div className="min-h-screen bg-background text-foreground"><CallSetupForm onStart={handleSetupComplete} prefill={prefill} /></div>;
   if (phase === 'headset') return <div className="min-h-screen bg-background text-foreground"><HeadsetSetupPanel onComplete={handleHeadsetComplete} userId={userId} /></div>;
   if (phase === 'consent' && lead) return <div className="min-h-screen bg-background text-foreground"><ConsentGate onAccept={handleConsentAccepted} lead={lead} /></div>;
@@ -2291,6 +2397,17 @@ function TeleprompterPageInner() {
         <div className="w-72 sm:w-80 xl:w-96 flex flex-col bg-card overflow-hidden flex-shrink-0">
           {/* Tab bar */}
           <div className="flex items-center border-b border-border flex-shrink-0">
+            {lead?.candidateId && (
+              <button
+                onClick={() => setRightPanelTab('candidate-info')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
+                  rightPanelTab === 'candidate-info' ?'text-emerald-600 border-b-2 border-emerald-600' :'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Interview Summary
+              </button>
+            )}
             <button
               onClick={() => setRightPanelTab('suggestion')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
@@ -2320,7 +2437,32 @@ function TeleprompterPageInner() {
             </button>
           </div>
 
-          {rightPanelTab === 'suggestion' ? (
+          {rightPanelTab === 'candidate-info' ? (
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div>
+                <p className="text-xs font-bold text-foreground">{lead?.contactName}</p>
+                <p className="text-xs text-muted-foreground">{lead?.roleTitle}</p>
+              </div>
+              {(lead?.overallFit != null || lead?.hireRecommendation) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {lead?.overallFit != null && (
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">Overall Fit: {lead.overallFit}/10</span>
+                  )}
+                  {lead?.hireRecommendation && (
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300">{String(lead.hireRecommendation).replace(/_/g, ' ')}</span>
+                  )}
+                </div>
+              )}
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">AI Interview Summary</p>
+                {lead?.interviewSummary ? (
+                  <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap">{lead.interviewSummary}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">No AI interview summary is available for this candidate.</p>
+                )}
+              </div>
+            </div>
+          ) : rightPanelTab === 'suggestion' ? (
             <>
               <div className="p-3 border-b border-border flex-shrink-0">
                 <CallOutlineTracker
