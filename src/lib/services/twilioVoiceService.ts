@@ -22,6 +22,7 @@ export interface OutboundCallParams {
   leadId?: string;
   agentId?: string;
   agentName?: string;
+  sessionId?: string;
 }
 
 export interface RecentCall {
@@ -256,6 +257,7 @@ export async function connectVoiceCall(params: OutboundCallParams): Promise<{ ca
         To: to,
         ...(params.leadId ? { leadId: params.leadId } : {}),
         ...(params.agentId ? { agentId: params.agentId } : {}),
+        ...(params.sessionId ? { sessionId: params.sessionId } : {}),
       },
     });
     return { call };

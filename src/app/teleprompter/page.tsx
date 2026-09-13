@@ -1946,6 +1946,34 @@ function TeleprompterPageInner() {
     setCoveredBeats(new Set());
     setLowConfidenceCount(0);
 
+    let createdSessionId: string | null = null;
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && lead) {
+        const res = await fetch('/api/teleprompter/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            leadId: lead.leadId,
+            leadAddress: lead.address,
+            leadState: lead.state,
+            phoneNumber: lead.phone,
+            agentName,
+            contactName: lead.contactName,
+            portfolioState: lead.portfolioState,
+            baseScriptVariant: scriptId,
+          }),
+        });
+        const data = await res.json();
+        if (data.sessionId) {
+          createdSessionId = data.sessionId;
+          setSessionId(data.sessionId);
+        }
+      }
+    } catch { /* non-blocking */ }
+
     if (lead?.phone) {
       setVoiceCallStatus('connecting');
       const dnc = await checkDoNotContact({ to: lead.phone, leadId: lead.leadId });
@@ -1953,7 +1981,7 @@ function TeleprompterPageInner() {
         setVoiceCallStatus('error');
         toast.error(dnc.error || 'Call blocked — Do Not Contact');
       } else {
-        const { call, error } = await connectVoiceCall({ to: lead.phone, leadId: lead.leadId, agentName });
+        const { call, error } = await connectVoiceCall({ to: lead.phone, leadId: lead.leadId, agentName, sessionId: createdSessionId ?? undefined });
         if (error || !call) {
           setVoiceCallStatus('error');
           toast.error(error || 'Unable to connect the call — you can still run the session and dial manually');
@@ -1965,28 +1993,6 @@ function TeleprompterPageInner() {
         }
       }
     }
-
-    try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && lead) {
-        const res = await fetch('/api/teleprompter/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user.id,
-            leadAddress: lead.address,
-            leadState: lead.state,
-            agentName,
-            contactName: lead.contactName,
-            portfolioState: lead.portfolioState,
-            baseScriptVariant: scriptId,
-          }),
-        });
-        const data = await res.json();
-        if (data.sessionId) setSessionId(data.sessionId);
-      }
-    } catch { /* non-blocking */ }
 
     if (resolvedVars && lead) {
       const script = CALL_SCRIPTS[scriptId];
@@ -2170,6 +2176,11 @@ function TeleprompterPageInner() {
             <Clock className="w-3.5 h-3.5" />
             <span className="font-mono font-medium text-foreground">{formatElapsed(elapsed)}</span>
           </div>
+          {lead?.phone && voiceCallStatus !== 'idle' && (
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-500/10 text-red-600">
+              <Radio className="w-3 h-3" /> Phone recording
+            </span>
+          )}
           {voiceCallStatus !== 'idle' && (
             <span className={`hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
               voiceCallStatus === 'connected' ? 'bg-emerald-500/10 text-emerald-600' : voiceCallStatus === 'connecting' ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-600'

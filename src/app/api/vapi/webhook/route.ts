@@ -15,10 +15,21 @@ function getRecordingUrl(message: any): string | null {
     || message?.recordingUrl || message?.stereoRecordingUrl || message?.call?.recordingUrl || null;
 }
 
-function buildTranscriptSegments(transcriptText: string, messages: unknown) {
+function normalizeSpeaker(rawRole: string, candidateFirstName: string): { label: string } | null {
+  const role = rawRole.toLowerCase();
+  if (role === 'system') return null;
+  if (role === 'user' || role === 'customer') return { label: candidateFirstName };
+  if (role === 'bot' || role === 'assistant') return { label: 'AI Interviewer' };
+  return { label: rawRole || 'Speaker' };
+}
+
+function buildTranscriptSegments(transcriptText: string, messages: unknown, candidateFirstName: string) {
   if (Array.isArray(messages)) {
     return messages
       .map((item: any, index: number) => {
+        const rawRole = typeof item?.role === 'string' ? item.role : 'Speaker';
+        const normalized = normalizeSpeaker(rawRole, candidateFirstName);
+        if (!normalized) return null;
         const text = typeof item?.message === 'string' ? item.message : typeof item?.content === 'string' ? item.content : '';
         if (!text.trim()) return null;
         const seconds = typeof item?.secondsFromStart === 'number' ? item.secondsFromStart : index * 30;
@@ -26,7 +37,7 @@ function buildTranscriptSegments(transcriptText: string, messages: unknown) {
         const secs = Math.floor(seconds % 60);
         return {
           id: `vapi-${index}`,
-          speaker: typeof item?.role === 'string' ? item.role : 'Speaker',
+          speaker: normalized.label,
           text: text.trim(),
           timestamp: `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`,
           start_seconds: seconds,
@@ -40,17 +51,21 @@ function buildTranscriptSegments(transcriptText: string, messages: unknown) {
     .filter(Boolean)
     .map((line, index) => {
       const splitIndex = line.indexOf(':');
+      const rawSpeaker = splitIndex > 0 ? line.slice(0, splitIndex).trim() : 'Speaker';
+      const normalized = normalizeSpeaker(rawSpeaker, candidateFirstName);
+      if (!normalized) return null;
       return {
         id: `vapi-line-${index}`,
-        speaker: splitIndex > 0 ? line.slice(0, splitIndex).trim() : 'Speaker',
+        speaker: normalized.label,
         text: splitIndex > 0 ? line.slice(splitIndex + 1).trim() : line,
         timestamp: `${String(Math.floor((index * 30) / 60)).padStart(2, '0')}:${String((index * 30) % 60).padStart(2, '0')}`,
         start_seconds: index * 30,
       };
-    });
+    })
+    .filter(Boolean);
 }
 
-async function saveCallRecording(db: ReturnType<typeof getSupabaseAdmin>, sessionId: string, recordingUrl: string, durationSeconds: number | undefined, transcriptText: string, transcriptMessages: unknown) {
+async function saveCallRecording(db: ReturnType<typeof getSupabaseAdmin>, sessionId: string, recordingUrl: string, durationSeconds: number | undefined, transcriptText: string, transcriptMessages: unknown, candidateFirstName: string) {
   const audioResponse = await fetch(recordingUrl);
   if (!audioResponse.ok) throw new Error(`Failed to download recording (${audioResponse.status})`);
   const contentType = audioResponse.headers.get('content-type') || 'audio/wav';
@@ -63,7 +78,7 @@ async function saveCallRecording(db: ReturnType<typeof getSupabaseAdmin>, sessio
     .upload(storagePath, buffer, { contentType, upsert: true });
   if (uploadError) throw uploadError;
 
-  const segments = buildTranscriptSegments(transcriptText, transcriptMessages);
+  const segments = buildTranscriptSegments(transcriptText, transcriptMessages, candidateFirstName);
   const recordingRow = {
     session_id: sessionId,
     storage_path: storagePath,
@@ -362,7 +377,8 @@ export async function POST(request: NextRequest) {
       } else {
         const recordingUrl = finalizedArtifact?.recordingUrl || getRecordingUrl(message);
         if (recordingUrl) {
-          await saveCallRecording(db, session.id, recordingUrl, timestamps.duration_seconds, transcriptData.transcript, transcriptData.messages).catch((recordingError) => {
+          const candidateFirstName = (candidate?.full_name || 'Candidate').trim().split(/\s+/)[0];
+          await saveCallRecording(db, session.id, recordingUrl, timestamps.duration_seconds, transcriptData.transcript, transcriptData.messages, candidateFirstName).catch((recordingError) => {
             console.error('vapi_recording_save_failed', { interviewId: session.id, error: recordingError instanceof Error ? recordingError.message : 'unknown' });
           });
         }

@@ -50,6 +50,7 @@ interface TranscriptSegment {
   timestamp: string;
   start_seconds?: number;
   end_seconds?: number;
+  isCandidate?: boolean;
 }
 
 interface TimestampMarker {
@@ -85,7 +86,15 @@ function getMessageText(message: Record<string, unknown>) {
   return '';
 }
 
-function buildTranscriptSegments(transcriptText: string, messages: unknown): TranscriptSegment[] {
+function normalizeSpeaker(rawRole: string, candidateFirstName: string): { label: string; isCandidate: boolean } | null {
+  const role = rawRole.toLowerCase();
+  if (role === 'system') return null;
+  if (role === 'user' || role === 'customer') return { label: candidateFirstName, isCandidate: true };
+  if (role === 'bot' || role === 'assistant') return { label: 'AI Interviewer', isCandidate: false };
+  return { label: rawRole || 'Speaker', isCandidate: false };
+}
+
+function buildTranscriptSegments(transcriptText: string, messages: unknown, candidateFirstName = 'Candidate'): TranscriptSegment[] {
   if (Array.isArray(messages)) {
     return messages
       .map((item, index) => {
@@ -98,10 +107,13 @@ function buildTranscriptSegments(transcriptText: string, messages: unknown): Tra
           : typeof message.time === 'number'
             ? Math.max(0, Math.floor(message.time / 1000))
             : index * 30;
-        const speaker = typeof message.role === 'string' ? message.role : typeof message.speaker === 'string' ? message.speaker : 'Speaker';
+        const rawRole = typeof message.role === 'string' ? message.role : typeof message.speaker === 'string' ? message.speaker : 'Speaker';
+        const normalized = normalizeSpeaker(rawRole, candidateFirstName);
+        if (!normalized) return null;
         return {
           id: `vapi-${index}`,
-          speaker,
+          speaker: normalized.label,
+          isCandidate: normalized.isCandidate,
           text,
           timestamp: formatDuration(seconds),
           start_seconds: seconds,
@@ -116,17 +128,21 @@ function buildTranscriptSegments(transcriptText: string, messages: unknown): Tra
     .filter(Boolean)
     .map((line, index) => {
       const splitIndex = line.indexOf(':');
-      const speaker = splitIndex > 0 ? line.slice(0, splitIndex).trim() : 'Speaker';
+      const rawSpeaker = splitIndex > 0 ? line.slice(0, splitIndex).trim() : 'Speaker';
       const text = splitIndex > 0 ? line.slice(splitIndex + 1).trim() : line;
       const seconds = index * 30;
+      const normalized = normalizeSpeaker(rawSpeaker, candidateFirstName);
+      if (!normalized || !text) return null;
       return {
         id: `vapi-line-${index}`,
-        speaker,
+        speaker: normalized.label,
+        isCandidate: normalized.isCandidate,
         text,
         timestamp: formatDuration(seconds),
         start_seconds: seconds,
       };
-    });
+    })
+    .filter((segment): segment is TranscriptSegment => Boolean(segment));
 }
 
 // ─── Live Recorder Component ──────────────────────────────────────────────────
@@ -304,7 +320,7 @@ function RecordingCard({
   const [markerLabel, setMarkerLabel] = useState('');
   const [showMarkerInput, setShowMarkerInput] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const hasAudio = recording.source !== 'vapi' && Boolean(recording.storage_path);
+  const hasAudio = Boolean(recording.storage_path);
 
   const loadAudio = async () => {
     if (audioUrl || !hasAudio || !recording.storage_path) return;
@@ -534,10 +550,10 @@ function RecordingCard({
             {recording.transcript_status === 'completed' && recording.transcript.length > 0 && (
               <div className="space-y-2">
                 {recording.transcript.map((seg, i) => (
-                  <div key={i} className={`flex items-start gap-3 rounded-xl px-3 py-2.5 ${seg.speaker === 'Candidate' ? 'bg-blue-50/70 dark:bg-blue-950/20' : 'bg-gray-50 dark:bg-gray-700/50'}`}>
+                  <div key={i} className={`flex items-start gap-3 rounded-xl px-3 py-2.5 ${seg.isCandidate ? 'bg-blue-50/70 dark:bg-blue-950/20' : 'bg-gray-50 dark:bg-gray-700/50'}`}>
                     <button onClick={() => seekTo(seg.start_seconds || 0)} className="text-[10px] font-mono text-blue-500 hover:text-blue-700 dark:text-blue-400 flex-shrink-0 mt-0.5 hover:underline">{seg.timestamp}</button>
                     <div className="min-w-0">
-                      <p className={`text-[10px] font-bold uppercase tracking-wide mb-0.5 ${seg.speaker === 'Candidate' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300'}`}>{seg.speaker}</p>
+                      <p className={`text-[10px] font-bold uppercase tracking-wide mb-0.5 ${seg.isCandidate ? 'text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300'}`}>{seg.speaker}</p>
                       <p className="text-xs text-gray-700 dark:text-gray-200 leading-relaxed">{seg.text}</p>
                     </div>
                   </div>
@@ -635,7 +651,7 @@ export default function InterviewRecordingsPage() {
           file_size_bytes: 0,
           duration_seconds: session.duration_seconds || calculatedDuration,
           mime_type: 'text/plain',
-          transcript: buildTranscriptSegments(transcriptText, session.transcript_messages),
+          transcript: buildTranscriptSegments(transcriptText, session.transcript_messages, (session.candidate_name || 'Candidate').split(' ')[0]),
           transcript_text: transcriptText,
           transcript_status: 'completed' as const,
           timestamp_markers: [],
@@ -743,7 +759,10 @@ export default function InterviewRecordingsPage() {
   };
 
   const handleAddMarker = async (recording: AudioRecording, timeSeconds: number, label: string) => {
-    if (recording.source === 'vapi') return;
+    if (!recording.storage_path) {
+      toast.error('Markers require a saved audio recording — this entry is transcript-only.');
+      return;
+    }
     const newMarker: TimestampMarker = {
       id: `m-${Date.now()}`,
       time_seconds: timeSeconds,

@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
     const recordingSid = formData.get('RecordingSid') as string | null;
     const recordingStatus = formData.get('RecordingStatus') as string | null;
     const recordingDuration = formData.get('RecordingDuration') as string | null;
+    const sessionId = new URL(req.url).searchParams.get('sessionId');
 
     console.info('[TwilioRecording] Status callback received:', {
       callSid,
@@ -41,13 +42,13 @@ export async function POST(req: NextRequest) {
           .eq('call_sid', callSid);
 
         // Update call_sessions
-        await supabase
+        const callSessionUpdate = supabase
           .from('call_sessions')
           .update({
             recording_url: recordingUrl,
             recording_sid: recordingSid ?? null,
-          })
-          .eq('call_sid', callSid);
+          });
+        await (sessionId ? callSessionUpdate.eq('id', sessionId) : callSessionUpdate.eq('call_sid', callSid));
 
         console.info('[TwilioRecording] Recording URL saved for callSid:', callSid);
       } catch (dbErr) {
