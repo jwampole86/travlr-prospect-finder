@@ -1,6 +1,6 @@
 'use client';
 
-import { Brain, Award, ThumbsUp, AlertCircle, Sparkles } from 'lucide-react';
+import { Brain, Award, ThumbsUp, AlertCircle, Sparkles, CalendarClock, Video, Phone } from 'lucide-react';
 
 const SCORES: { label: string; value: number }[] = [
   { label: 'Vacation Rental Knowledge', value: 8 },
@@ -9,10 +9,17 @@ const SCORES: { label: string; value: number }[] = [
   { label: 'Coachability', value: 9 },
 ];
 
+const UPCOMING: { name: string; role: string; when: string; type: 'AI Voice' | 'Zoom' }[] = [
+  { name: 'Candidate — Business Development', role: 'Homeowner Outreach Agent', when: 'Tomorrow · 11:00 AM ET', type: 'AI Voice' },
+  { name: 'Candidate — Team Lead', role: 'Regional Acquisition Manager', when: 'Tomorrow · 2:30 PM ET', type: 'Zoom' },
+  { name: 'Candidate — Support Specialist', role: 'Homeowner Success', when: 'Thu · 9:15 AM ET', type: 'AI Voice' },
+];
+
 // Static, sanitized mock of the AI voice interview + candidate scorecard workflow — a
 // differentiator vs. competitors that don't offer built-in AI hiring/interview tooling.
 export default function InterviewShowcase() {
   return (
+    <div className="space-y-4">
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-4">
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
@@ -73,6 +80,31 @@ export default function InterviewShowcase() {
           </div>
         </div>
       </div>
+    </div>
+
+    <div className="bg-card rounded-xl border border-border overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+        <CalendarClock size={13} className="text-primary" />
+        <span className="text-xs font-semibold text-foreground">Upcoming Interviews</span>
+      </div>
+      <div className="divide-y divide-border">
+        {UPCOMING.map((item) => (
+          <div key={item.name} className="flex items-center gap-3 px-4 py-3">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              {item.type === 'Zoom' ? <Video size={14} className="text-primary" /> : <Phone size={14} className="text-primary" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-foreground truncate">{item.name}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{item.role}</p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-[11px] font-medium text-foreground">{item.when}</p>
+              <p className="text-[10px] text-muted-foreground">{item.type}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
     </div>
   );
 }

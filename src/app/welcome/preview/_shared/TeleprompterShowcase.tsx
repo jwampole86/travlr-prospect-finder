@@ -1,17 +1,27 @@
 'use client';
 
-import { Mic, Zap, Shield, ThumbsUp, ThumbsDown, User, Home } from 'lucide-react';
+import { Mic, Zap, Shield, ThumbsUp, ThumbsDown, User, Home, CheckCircle2, Circle } from 'lucide-react';
 
 const TRANSCRIPT = [
   { speaker: 'Agent', text: 'Hi, is this Dana? This is Alex with VAYO Property Group — I help homeowners in the Vail area explore vacation rental management.' },
   { speaker: 'Homeowner', text: "Oh, hi. I've actually looked into short-term rentals before but wasn't sure about the local rules." },
   { speaker: 'Agent', text: "Totally fair question — Vail allows short-term rentals with a registered permit, which we handle for owners we manage." },
+  { speaker: 'Homeowner', text: 'That actually sounds easier than I expected. What would managing it actually look like day to day?' },
+];
+
+const CALL_OUTLINE = [
+  { label: 'Introduction & rapport', done: true },
+  { label: 'Property & goals discovery', done: true },
+  { label: 'Regulation & permit objection', done: true },
+  { label: 'Revenue estimate walkthrough', done: false },
+  { label: 'Next steps & scheduling', done: false },
 ];
 
 // Static, sanitized mock of the Live Call Teleprompter's real-time AI suggestion panel —
 // a key differentiator vs. competing CRMs that don't coach agents live during calls.
 export default function TeleprompterShowcase() {
   return (
+    <div className="space-y-4">
     <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -63,6 +73,19 @@ export default function TeleprompterShowcase() {
           <span className="text-[11px] text-muted-foreground">Listening — live transcription active</span>
         </div>
       </div>
+    </div>
+
+    <div className="bg-card rounded-xl border border-border p-4">
+      <p className="text-xs font-semibold text-foreground mb-3">Call Outline</p>
+      <div className="flex items-center gap-4 flex-wrap">
+        {CALL_OUTLINE.map((item) => (
+          <div key={item.label} className="flex items-center gap-1.5">
+            {item.done ? <CheckCircle2 size={13} className="text-emerald-500" /> : <Circle size={13} className="text-muted-foreground" />}
+            <span className={`text-xs ${item.done ? 'text-foreground' : 'text-muted-foreground'}`}>{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
     </div>
   );
 }

@@ -15,6 +15,14 @@ const AGENTS = [
   { name: 'Agent C', calls: 39, converted: 11 },
 ];
 
+const FUNNEL = [
+  { stage: 'New Lead', count: 1248, pct: 100 },
+  { stage: 'Contacted', count: 799, pct: 64 },
+  { stage: 'Interested', count: 412, pct: 33 },
+  { stage: 'Proposal Sent', count: 218, pct: 17 },
+  { stage: 'Under Contract', count: 94, pct: 8 },
+];
+
 // Sanitized mock of VAYO Analytics — process/activity metrics only (no fabricated revenue,
 // ARR, or customer-outcome claims), matching the kind of conversion/performance reporting
 // already present in the app (call-analytics, conversion-analytics, team-performance).
@@ -44,6 +52,22 @@ export default function AnalyticsShowcase() {
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, (a.converted / a.calls) * 100 * 4)}%` }} />
               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border">
+          <p className="text-xs font-semibold text-foreground">Pipeline Conversion Funnel</p>
+        </div>
+        <div className="p-4 space-y-2.5">
+          {FUNNEL.map((f) => (
+            <div key={f.stage} className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground w-28 shrink-0">{f.stage}</span>
+              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full" style={{ width: `${f.pct}%` }} />
+              </div>
+              <span className="text-xs font-semibold text-foreground w-16 text-right shrink-0">{f.count.toLocaleString()}</span>
             </div>
           ))}
         </div>

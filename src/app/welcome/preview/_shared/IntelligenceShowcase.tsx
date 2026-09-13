@@ -80,6 +80,26 @@ export default function IntelligenceShowcase() {
       </div>
 
       <div>
+        <p className="text-xs font-semibold text-foreground mb-2">Verification Timeline</p>
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="space-y-3">
+            {[
+              { label: 'Address matched to county records', time: '6 days ago' },
+              { label: 'Owner identity confirmed via public records', time: '4 days ago' },
+              { label: 'Phone number verified as active/reachable', time: '2 days ago' },
+              { label: 'STR regulation status confirmed for jurisdiction', time: '2 days ago' },
+            ].map((step) => (
+              <div key={step.label} className="flex items-center gap-2.5">
+                <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
+                <span className="text-xs text-foreground flex-1">{step.label}</span>
+                <span className="text-[10px] text-muted-foreground shrink-0">{step.time}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div>
         <p className="text-xs font-semibold text-foreground mb-2">STR Regulation Intelligence</p>
         <RegulationShowcase />
       </div>

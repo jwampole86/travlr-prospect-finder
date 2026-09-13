@@ -22,8 +22,30 @@ export default function PipelineWidgets() {
       .map((stage) => ({ stage, leads: byStage[stage] || [] }));
   }, []);
 
+  const summary = useMemo(() => {
+    const active = SHOWCASE_LEADS.filter((l) => l.stage !== 'Not a Fit');
+    const pipelineValue = active.reduce((sum, l) => sum + l.estimatedNetMonthly, 0);
+    const avgScore = Math.round(active.reduce((sum, l) => sum + l.prospectScore, 0) / active.length);
+    return { activeCount: active.length, pipelineValue, avgScore };
+  }, []);
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-card rounded-xl border border-border p-3 text-center">
+          <p className="text-lg font-bold text-foreground">{summary.activeCount}</p>
+          <p className="text-[10px] text-muted-foreground">Active Opportunities</p>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-3 text-center">
+          <p className="text-lg font-bold text-foreground">${summary.pipelineValue.toLocaleString()}/mo</p>
+          <p className="text-[10px] text-muted-foreground">Est. Pipeline Value</p>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-3 text-center">
+          <p className="text-lg font-bold text-foreground">{summary.avgScore}</p>
+          <p className="text-[10px] text-muted-foreground">Avg. Prospect Score</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4">
       {columns.map(({ stage, leads }) => (
         <div key={stage} className="bg-card rounded-xl border border-border overflow-hidden">
           <div className="px-3 py-3 border-b border-border flex items-center justify-between gap-2">
@@ -48,6 +70,7 @@ export default function PipelineWidgets() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

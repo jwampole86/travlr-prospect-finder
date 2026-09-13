@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Loader2, Menu, Phone } from 'lucide-react';
+import { ArrowLeft, Menu, Phone } from 'lucide-react';
 import NotificationDrawer, { BellButton } from './NotificationDrawer';
 import SyncSchedulerRunner from './SyncSchedulerRunner';
 import SyncToastEmitter from './SyncToastEmitter';
@@ -14,6 +14,7 @@ import ProfileMenu from './ProfileMenu';
 import FirstLoginPlatformGuide from './FirstLoginPlatformGuide';
 import TimeClockWidget from './TimeClockWidget';
 import TimeClockIdleMonitor from './TimeClockIdleMonitor';
+import VayoLoader from './ui/VayoLoader';
 
 // ── Lazy-load FloatingDialer — Twilio Voice SDK is heavy and should only
 //    initialize when the agent actually opens the dialer, not on every page load.
@@ -53,7 +54,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <VayoLoader label="Loading…" />
       </div>
     );
   }

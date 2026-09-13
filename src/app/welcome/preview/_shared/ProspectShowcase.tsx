@@ -12,6 +12,8 @@ const FILTERS = [
   { id: 'luxury', label: 'Luxury', icon: Gem },
 ] as const;
 
+const DATA_SOURCES = ['MLS', 'Zillow', 'Airbnb', 'VRBO', 'Direct', 'Referral'];
+
 // Sanitized mock of VAYO Prospect — discovery/filtering + lead scoring, using the real
 // TopLeadsTable component so the row layout matches the live app.
 export default function ProspectShowcase() {
@@ -27,6 +29,11 @@ export default function ProspectShowcase() {
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2">
+        <Search size={13} className="text-muted-foreground shrink-0" />
+        <span className="text-xs text-muted-foreground">Search by address, city, or owner name…</span>
+        <span className="ml-auto text-[11px] font-semibold text-foreground shrink-0">{leads.length} matched</span>
+      </div>
       <div className="flex items-center gap-2 flex-wrap">
         {FILTERS.map((f) => (
           <button
@@ -39,6 +46,12 @@ export default function ProspectShowcase() {
             <f.icon size={12} />
             {f.label}
           </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-[10px] text-muted-foreground">Data sources:</span>
+        {DATA_SOURCES.map((src) => (
+          <span key={src} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{src}</span>
         ))}
       </div>
       <TopLeadsTable leads={leads} />
