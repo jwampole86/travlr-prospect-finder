@@ -19,7 +19,8 @@ import EnrichmentSidebar from './components/EnrichmentSidebar';
 import TeleprompterRegulationPanel from './components/TeleprompterRegulationPanel';
 import PropertyEstimatePanel from './components/PropertyEstimatePanel';
 import { PORTFOLIO_STATES } from '@/lib/localBlurbs';
-import { placeOutboundCall } from '@/lib/services/twilioVoiceService';
+import { checkDoNotContact, connectVoiceCall } from '@/lib/services/twilioVoiceService';
+import type { Call } from '@twilio/voice-sdk';
 
 type BrowserSpeechRecognition = typeof window extends never ? never : {
   continuous: boolean;
@@ -110,15 +111,21 @@ function TouchDialpad({ phone, onClose }: { phone?: string; onClose: () => void 
   const handleCall = async () => {
     if (!digits.trim()) return;
     setCalling(true);
-    const result = await placeOutboundCall({ to: digits });
+    const dnc = await checkDoNotContact({ to: digits });
+    if (dnc.blocked) {
+      setCalling(false);
+      toast.error(dnc.error || 'Call blocked — Do Not Contact');
+      return;
+    }
+    const { call, error } = await connectVoiceCall({ to: digits });
     setCalling(false);
 
-    if (result.error && result.status === 'error') {
-      toast.error(result.error);
+    if (error || !call) {
+      toast.error(error || 'Unable to connect call');
       return;
     }
 
-    toast.success(result.configured ? `Calling ${digits}…` : `Dialer opened in placeholder mode for ${digits}`);
+    toast.success(`Calling ${digits}…`);
     onClose();
   };
 
@@ -1681,6 +1688,8 @@ function TeleprompterPageInner() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const suggestionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const voiceCallRef = useRef<Call | null>(null);
+  const [voiceCallStatus, setVoiceCallStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const lastSuggestionRef = useRef<string>('');
   const isSuggestingRef = useRef(false);
 
@@ -1937,6 +1946,26 @@ function TeleprompterPageInner() {
     setCoveredBeats(new Set());
     setLowConfidenceCount(0);
 
+    if (lead?.phone) {
+      setVoiceCallStatus('connecting');
+      const dnc = await checkDoNotContact({ to: lead.phone, leadId: lead.leadId });
+      if (dnc.blocked) {
+        setVoiceCallStatus('error');
+        toast.error(dnc.error || 'Call blocked — Do Not Contact');
+      } else {
+        const { call, error } = await connectVoiceCall({ to: lead.phone, leadId: lead.leadId, agentName });
+        if (error || !call) {
+          setVoiceCallStatus('error');
+          toast.error(error || 'Unable to connect the call — you can still run the session and dial manually');
+        } else {
+          voiceCallRef.current = call;
+          call.on('accept', () => setVoiceCallStatus('connected'));
+          call.on('disconnect', () => { voiceCallRef.current = null; setVoiceCallStatus('idle'); });
+          call.on('error', () => { voiceCallRef.current = null; setVoiceCallStatus('error'); });
+        }
+      }
+    }
+
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -1975,6 +2004,8 @@ function TeleprompterPageInner() {
     stopListening();
     if (timerRef.current) clearInterval(timerRef.current);
     if (abortControllerRef.current) abortControllerRef.current.abort();
+    if (voiceCallRef.current) { voiceCallRef.current.disconnect(); voiceCallRef.current = null; }
+    setVoiceCallStatus('idle');
     setPhase('ended');
 
     if (transcript.length > 0) {
@@ -2139,6 +2170,13 @@ function TeleprompterPageInner() {
             <Clock className="w-3.5 h-3.5" />
             <span className="font-mono font-medium text-foreground">{formatElapsed(elapsed)}</span>
           </div>
+          {voiceCallStatus !== 'idle' && (
+            <span className={`hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+              voiceCallStatus === 'connected' ? 'bg-emerald-500/10 text-emerald-600' : voiceCallStatus === 'connecting' ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-600'
+            }`}>
+              {voiceCallStatus === 'connected' ? 'Call Connected' : voiceCallStatus === 'connecting' ? 'Connecting…' : 'Call Failed'}
+            </span>
+          )}
           {lead && (
             <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground min-w-0">
               <span className="text-muted-foreground/50">·</span>
