@@ -1045,6 +1045,13 @@ export default function InterviewCalendarPage() {
     const firstIsTest = first.candidate_name.trim().toUpperCase() === 'TEST';
     const secondIsTest = second.candidate_name.trim().toUpperCase() === 'TEST';
     if (firstIsTest !== secondIsTest) return firstIsTest ? 1 : -1;
+
+    // Future-dated interviews always take priority over past/overdue ones, soonest first.
+    const now = Date.now();
+    const firstIsFuture = new Date(first.scheduled_at).getTime() >= now;
+    const secondIsFuture = new Date(second.scheduled_at).getTime() >= now;
+    if (firstIsFuture !== secondIsFuture) return firstIsFuture ? -1 : 1;
+
     return new Date(first.scheduled_at).getTime() - new Date(second.scheduled_at).getTime();
   });
 

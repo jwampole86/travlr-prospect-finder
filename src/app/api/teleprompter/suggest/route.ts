@@ -67,6 +67,7 @@ const SCRIPT_GOALS: Record<string, string> = {
   questionnaire_handoff: 'Walk a warm/interested homeowner through starting the qualification questionnaire live, or send the link.',
   proposal: 'Walk a qualified homeowner through proposed partnership terms, building toward the Proposal Introduction email/agreement.',
   closing_contract: 'Confirm the homeowner is ready to sign and walk them through next steps before sending the DocuSign agreement.',
+  candidate_next_steps: 'Follow up with a candidate after their AI interview to discuss the outcome, offer letter, compensation, and next steps.',
 };
 
 // Confidence threshold below which we suppress LLM generation

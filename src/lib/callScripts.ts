@@ -8,7 +8,7 @@
 
 export type ScriptId =
   | 'initial_outreach' |'follow_up' |'questionnaire_handoff' |'proposal' |'closing_contract'
-  | 'landing_page_inbound';
+  | 'landing_page_inbound' | 'candidate_next_steps';
 
 export interface CallScript {
   id: ScriptId;
@@ -636,6 +636,91 @@ const landingPageInbound: CallScript = {
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
+// Candidate Next Steps is intentionally generic — the agent references the live
+// Interview Summary / Overall Assessment side panel (populated from that candidate's
+// actual AI interview) rather than baking free-text AI output into spoken lines.
+const candidateNextSteps: CallScript = {
+  id: 'candidate_next_steps',
+  label: 'Candidate Next Steps',
+  goal: 'Follow up with a candidate after their AI interview to discuss the outcome, offer letter, compensation, and next steps.',
+  sections: [
+    {
+      id: 'opening',
+      title: 'Opening',
+      lines: [
+        {
+          id: 'cns-open-1',
+          type: 'spoken',
+          text: 'Hi, is this {contactName}? Hi {contactName}, this is {senderName} calling from TRAVLR Vacation Homes — following up after your interview. Do you have a few minutes?',
+        },
+      ],
+    },
+    {
+      id: 'recap',
+      title: 'Recap the Interview',
+      lines: [
+        { id: 'cns-recap-1', type: 'instruction', text: 'Reference the Interview Summary and Overall Assessment panel for real, specific details from their actual interview before saying this.' },
+        {
+          id: 'cns-recap-2',
+          type: 'spoken',
+          text: 'Thanks again for taking the time to interview with us. I wanted to personally follow up and share where things stand, and walk you through next steps.',
+        },
+      ],
+    },
+    {
+      id: 'offer_details',
+      title: 'Offer Letter & Compensation',
+      lines: [
+        { id: 'cns-offer-1', type: 'instruction', text: 'Have the role title, compensation, and start date ready before this call. Do not commit to numbers you have not confirmed internally.' },
+        {
+          id: 'cns-offer-2',
+          type: 'agent_fill',
+          text: 'We\'d love to move forward with you for the [enter role title] role. The compensation for this position is [enter compensation], and we\'d be looking at a start date around [enter start date].',
+          hasAgentFill: true,
+        },
+        {
+          id: 'cns-offer-3',
+          type: 'spoken',
+          text: 'You\'ll receive a formal offer letter by email with all of these details in writing so you can review everything at your own pace.',
+        },
+      ],
+    },
+    {
+      id: 'questions',
+      title: 'Answer Questions',
+      lines: [
+        {
+          id: 'cns-q-1',
+          type: 'spoken',
+          text: 'What questions do you have for me about the role, the compensation, or what it\'s like working with TRAVLR day to day?',
+        },
+      ],
+    },
+    {
+      id: 'close_accept',
+      title: 'Close — If Ready to Move Forward',
+      lines: [
+        {
+          id: 'cns-ca-1',
+          type: 'spoken',
+          text: 'That\'s great to hear. I\'ll get your offer letter sent over right away — once you sign, we\'ll get you set up with onboarding and everything you need before your start date.',
+        },
+      ],
+    },
+    {
+      id: 'close_hesitant',
+      title: 'Close — If They Need Time',
+      lines: [
+        {
+          id: 'cns-ch-1',
+          type: 'spoken',
+          text: 'Totally understandable — take the time you need. I\'ll send the offer letter over so you have all the details in writing, and feel free to reach out with any questions in the meantime.',
+        },
+      ],
+    },
+  ],
+};
+
 export const CALL_SCRIPTS: Record<ScriptId, CallScript> = {
   initial_outreach: initialOutreach,
   follow_up: followUp,
@@ -643,6 +728,7 @@ export const CALL_SCRIPTS: Record<ScriptId, CallScript> = {
   proposal: proposal,
   closing_contract: closingContract,
   landing_page_inbound: landingPageInbound,
+  candidate_next_steps: candidateNextSteps,
 };
 
 export const SCRIPT_OPTIONS: { value: ScriptId; label: string; goal: string }[] = [
@@ -652,6 +738,7 @@ export const SCRIPT_OPTIONS: { value: ScriptId; label: string; goal: string }[] 
   { value: 'proposal', label: 'Proposal', goal: proposal.goal },
   { value: 'closing_contract', label: 'Closing / Contract', goal: closingContract.goal },
   { value: 'landing_page_inbound', label: 'Landing Page Inbound', goal: landingPageInbound.goal },
+  { value: 'candidate_next_steps', label: 'Candidate Next Steps', goal: candidateNextSteps.goal },
 ];
 
 /**
