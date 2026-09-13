@@ -13,10 +13,7 @@ export default function MarketingHeader() {
       <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
         <Link href="/plans" className="flex items-center gap-2.5">
           <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={26} />
-          <div>
-            <span className="text-sm font-bold text-foreground">TRAVLR</span>
-            <span className="text-xs text-muted-foreground ml-2">Prospect Finder</span>
-          </div>
+          <span className="text-sm font-bold text-foreground">VAYO</span>
         </Link>
         <nav className="hidden sm:flex items-center gap-6 text-sm font-medium">
           <Link href="/plans#value" className="text-muted-foreground hover:text-foreground transition-colors">Features</Link>

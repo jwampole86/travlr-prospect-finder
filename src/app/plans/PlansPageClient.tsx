@@ -298,14 +298,14 @@ export default function PlansPageClient() {
 
       {/* Hero */}
       <section className="max-w-4xl mx-auto px-6 pt-14 pb-8 text-center">
-        <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">TRAVLR Prospect Finder</p>
+        <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">VAYO</p>
         <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">
-          Choose the Right Plan for Your Growth
+          Choose the Right VAYO Plan for Your Growth
         </h1>
         <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          From building your homeowner pipeline to automating outreach, enrichment, team workflows, and AI-powered operations, choose the Prospect Finder plan that fits your business today and scale as you grow.
+          From building your homeowner pipeline to automating outreach, enrichment, team workflows, and AI-powered operations, choose the VAYO plan that fits your business today and scale as you grow.
         </p>
-        <span className="mt-5 inline-block text-xs font-semibold text-foreground bg-muted px-3.5 py-1.5 rounded-full">Enterprise unlocks the complete Prospect Finder platform</span>
+        <span className="mt-5 inline-block text-xs font-semibold text-foreground bg-muted px-3.5 py-1.5 rounded-full">Enterprise unlocks the complete VAYO platform</span>
       </section>
 
       {/* Plan Selector */}

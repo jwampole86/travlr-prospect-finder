@@ -436,8 +436,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
         <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={28} />
         {!collapsed && (
           <div className="flex flex-col leading-none min-w-0 flex-1">
-            <span className="text-sm font-semibold text-foreground truncate">TRAVLR</span>
-            <span className="text-xs text-muted-foreground truncate">Prospect Finder</span>
+            <span className="text-sm font-semibold text-foreground truncate">VAYO</span>
+            <span className="text-xs text-muted-foreground truncate">Growth & Operations</span>
           </div>
         )}
         {onClose && !collapsed && (

@@ -94,8 +94,8 @@ export default function LoginPage() {
           <div className="flex items-center gap-3">
             <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={36} />
             <div>
-              <p className="text-base font-bold text-foreground tracking-tight">TRAVLR</p>
-              <p className="text-xs text-muted-foreground">Prospect Finder</p>
+              <p className="text-base font-bold text-foreground tracking-tight">VAYO</p>
+              <p className="text-xs text-muted-foreground">Growth & Operations Platform</p>
             </div>
           </div>
           <Link href="/plans" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -105,11 +105,11 @@ export default function LoginPage() {
 
         <div className="space-y-6">
           <h1 className="text-4xl font-bold text-foreground leading-tight">
-            STR Lead Intelligence<br />
-            <span className="text-primary">for Operators</span>
+            AI-Powered Growth<br />
+            <span className="text-primary">for Property Managers</span>
           </h1>
           <p className="text-muted-foreground text-base leading-relaxed max-w-sm">
-            Score, track, and convert short-term rental prospects with AI-powered insights, regulation compliance, and automated outreach cadences.
+            Find more high-value homeowners and turn them into management contracts — with AI-powered scoring, regulation compliance, and automated outreach cadences.
           </p>
 
           <div className="space-y-3">
@@ -129,7 +129,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">© 2026 TRAVLR Prospect Finder. All rights reserved.</p>
+        <p className="text-xs text-muted-foreground">© 2026 VAYO. All rights reserved.</p>
       </div>
 
       {/* Right panel — form */}
@@ -140,8 +140,8 @@ export default function LoginPage() {
             <div className="flex items-center gap-3">
               <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={32} />
               <div>
-                <p className="text-sm font-bold text-foreground">TRAVLR</p>
-                <p className="text-xs text-muted-foreground">Prospect Finder</p>
+                <p className="text-sm font-bold text-foreground">VAYO</p>
+                <p className="text-xs text-muted-foreground">Growth & Operations Platform</p>
               </div>
             </div>
             <Link href="/plans" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -154,7 +154,7 @@ export default function LoginPage() {
               {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {mode === 'login' ? 'Sign in to access your workspace.' : 'Set up your account to get started.'}
+              {mode === 'login' ? 'Sign in to VAYO to access your workspace.' : 'Create your VAYO account to get started.'}
             </p>
             {intendedPlan && (
               <p className="mt-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 capitalize">

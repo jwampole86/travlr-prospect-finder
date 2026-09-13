@@ -15,9 +15,20 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'TRAVLR Prospect Finder — STR Lead Intelligence for Operators',
+  title: 'VAYO | AI-Powered Growth for Property Managers',
   description:
-    'Upload FRBO leads, score by regulation compliance and revenue potential, and prioritize outreach for short-term rental conversion.',
+    'VAYO is the AI-powered growth and operations platform for vacation rental and property management companies.',
+  openGraph: {
+    title: 'VAYO | AI-Powered Growth for Property Managers',
+    description: 'VAYO is the AI-powered growth and operations platform for vacation rental and property management companies.',
+    images: ['/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'VAYO | AI-Powered Growth for Property Managers',
+    description: 'VAYO is the AI-powered growth and operations platform for vacation rental and property management companies.',
+    images: ['/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG'],
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

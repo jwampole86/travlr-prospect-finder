@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
           </div>` : ''}
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
           <p style="color: #9ca3af; font-size: 11px; margin: 0;">
-            Sent by TRAVLR Prospect Finder · Schedule ID: ${scheduleId ?? 'manual'} · ${new Date().toUTCString()}
+            Sent by VAYO · Schedule ID: ${scheduleId ?? 'manual'} · ${new Date().toUTCString()}
           </p>
         </div>
       </div>

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 export async function GET(_req: NextRequest) {
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>TRAVLR Prospect Finder call system. Connecting you now.</Say>
+  <Say>VAYO call system. Connecting you now.</Say>
 </Response>`;
 
   return new NextResponse(twiml, {

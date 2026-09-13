@@ -114,7 +114,7 @@ const STEPS = [
     badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300',
     items: [
       'Add property to OwnerRez (PMS/channel manager)',
-      'Log lead and property details in TRAVLR Prospect Finder',
+      'Log lead and property details in VAYO',
       'Set up cleaning/turnover vendor and supply stocking',
       'Install smart locks (Yale or August), noise monitors (Layla), thermostats (Nest)',
       'Set up guest communication templates and check-in instructions',

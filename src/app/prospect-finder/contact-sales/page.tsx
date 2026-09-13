@@ -4,8 +4,8 @@ import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 import EnterpriseInquiryForm from '@/app/prospect-finder/components/EnterpriseInquiryForm';
 
 export const metadata: Metadata = {
-  title: 'Contact Sales | TRAVLR Prospect Finder Enterprise',
-  description: 'Talk to our sales team about TRAVLR Prospect Finder Enterprise — full platform access with custom limits, integrations, and dedicated support.',
+  title: 'Contact Sales | VAYO Enterprise',
+  description: 'Talk to our sales team about VAYO Enterprise — full platform access with custom limits, integrations, and dedicated support.',
 };
 
 export default function ContactSalesPage() {
@@ -19,7 +19,7 @@ export default function ContactSalesPage() {
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Talk to Sales About Enterprise</h1>
           <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-            Enterprise is the only Prospect Finder plan with full access to every feature — custom usage limits, full AI suite, API access, custom integrations, SSO, audit logs, and dedicated support.
+            Enterprise is the only VAYO plan with full access to every feature — custom usage limits, full AI suite, API access, custom integrations, SSO, audit logs, and dedicated support.
           </p>
         </div>
         <EnterpriseInquiryForm />

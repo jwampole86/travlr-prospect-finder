@@ -20,7 +20,7 @@ interface HelpChatPanelProps {
 
 // ─── System Prompt ────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are the TRAVLR Pro AI assistant — a knowledgeable, concise support agent for the TRAVLR short-term rental (STR) lead management platform. Your goal is to make separate human training unnecessary by giving accurate, specific answers about how this exact platform works.
+const SYSTEM_PROMPT = `You are the VAYO AI assistant — a knowledgeable, concise support agent for the VAYO growth and operations platform. Your goal is to make separate human training unnecessary by giving accurate, specific answers about how this exact platform works.
 
 PLATFORM ROLES:
 - Admin/Owner: full access — data sync, scoring config, integrations, team/agent management, hiring, billing, compliance.
@@ -104,7 +104,7 @@ export default function HelpChatPanel({ onClose, embedded = false }: HelpChatPan
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: "Hi! I'm the TRAVLR AI assistant. Ask me anything about the platform — features, compliance, workflows, or how to use any module.",
+      content: "Hi! I'm the VAYO AI assistant. Ask me anything about the platform — features, compliance, workflows, or how to use any module.",
       timestamp: new Date(),
     },
   ]);
@@ -164,7 +164,7 @@ export default function HelpChatPanel({ onClose, embedded = false }: HelpChatPan
     setMessages([
       {
         role: 'assistant',
-        content: "Hi! I'm the TRAVLR AI assistant. Ask me anything about the platform — features, compliance, workflows, or how to use any module.",
+        content: "Hi! I'm the VAYO AI assistant. Ask me anything about the platform — features, compliance, workflows, or how to use any module.",
         timestamp: new Date(),
       },
     ]);
@@ -184,7 +184,7 @@ export default function HelpChatPanel({ onClose, embedded = false }: HelpChatPan
             <Bot size={14} className="text-emerald-600" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-foreground">TRAVLR AI Assistant</p>
+            <p className="text-xs font-semibold text-foreground">VAYO AI Assistant</p>
             <p className="text-[10px] text-muted-foreground">Powered by Claude</p>
           </div>
         </div>
@@ -259,7 +259,7 @@ export default function HelpChatPanel({ onClose, embedded = false }: HelpChatPan
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything about TRAVLR…"
+            placeholder="Ask anything about VAYO…"
             rows={1}
             disabled={isLoading}
             className="flex-1 resize-none text-xs bg-muted/40 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/60 disabled:opacity-60 max-h-24 overflow-y-auto scrollbar-thin"

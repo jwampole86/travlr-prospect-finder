@@ -104,7 +104,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <ArrowLeft size={20} />
             </button>
           )}
-          <span className="text-sm font-semibold text-foreground flex-1">TRAVLR Prospect Finder</span>
+          <span className="text-sm font-semibold text-foreground flex-1">VAYO</span>
           <TimeClockWidget />
           <BellButton />
           <ProfileMenu />

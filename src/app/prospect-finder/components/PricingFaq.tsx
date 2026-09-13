@@ -5,12 +5,12 @@ import { ChevronDown } from 'lucide-react';
 
 const FAQS: Array<{ q: string; a: string }> = [
   {
-    q: 'What is TRAVLR Prospect Finder?',
-    a: 'TRAVLR Prospect Finder is a homeowner prospecting and lead management platform for vacation rental operators and property management teams — covering lead discovery, enrichment, pipeline management, outreach, and (on higher plans) AI-assisted interview tools for hiring.',
+    q: 'What is VAYO?',
+    a: 'VAYO is the AI-powered growth and operations platform for vacation rental operators and property management teams — covering lead discovery, enrichment, pipeline management, outreach, and (on higher plans) AI-assisted interview tools for hiring.',
   },
   {
     q: 'Can I change plans later?',
-    a: 'Yes. You can upgrade or downgrade your Prospect Finder plan at any time from your account billing settings. Changes apply to your next billing cycle.',
+    a: 'Yes. You can upgrade or downgrade your VAYO plan at any time from your account billing settings. Changes apply to your next billing cycle.',
   },
   {
     q: 'What happens if I reach my plan limit?',
@@ -22,7 +22,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Which plan includes the complete platform?',
-    a: 'Enterprise is the only Prospect Finder plan that includes full access to all platform features, advanced tools, integrations, and custom usage limits.',
+    a: 'Enterprise is the only VAYO plan that includes full access to all platform features, advanced tools, integrations, and custom usage limits.',
   },
   {
     q: 'Can I add more users?',
@@ -37,8 +37,8 @@ const FAQS: Array<{ q: string; a: string }> = [
     a: 'API Access is included on the Business and Enterprise plans. Enterprise also includes custom integration support.',
   },
   {
-    q: 'Does Prospect Finder include homeowner data?',
-    a: 'Prospect Finder gives you access to available property and contact intelligence based on your enabled data sources and plan allowances. It does not guarantee a verified phone number, owner identity, or other enriched data for every lead.',
+    q: 'Does VAYO include homeowner data?',
+    a: 'VAYO gives you access to available property and contact intelligence based on your enabled data sources and plan allowances. It does not guarantee a verified phone number, owner identity, or other enriched data for every lead.',
   },
   {
     q: 'How does Enterprise pricing work?',

@@ -1,5 +1,5 @@
 /**
- * Single source of truth for TRAVLR Prospect Finder subscription plans.
+ * Single source of truth for VAYO subscription plans.
  * Both the pricing cards and the comparison table render from this config.
  *
  * Internal plan identifiers (starter | pro | business | enterprise) are stable

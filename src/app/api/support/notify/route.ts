@@ -39,7 +39,7 @@ function buildEmailHtml(payload: NotifyPayload): string {
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; margin: 0; padding: 24px;">
   <div style="max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
     <div style="background: #1e1b4b; padding: 24px 28px;">
-      <p style="color: #a5b4fc; font-size: 12px; margin: 0 0 4px;">TRAVLR Prospect Finder</p>
+      <p style="color: #a5b4fc; font-size: 12px; margin: 0 0 4px;">VAYO</p>
       <h1 style="color: #ffffff; font-size: 18px; margin: 0; font-weight: 600;">
         ${isCreated ? 'Support Ticket Created' : 'Ticket Status Updated'}
       </h1>
@@ -76,12 +76,12 @@ function buildEmailHtml(payload: NotifyPayload): string {
         You can also track your tickets in the <strong>My Tickets</strong> section of the Support page.
       </p>` : `
       <p style="margin: 20px 0 0; font-size: 13px; color: #6b7280; line-height: 1.6;">
-        Your support ticket status has been updated. Log in to TRAVLR Prospect Finder to view the full details.
+        Your support ticket status has been updated. Log in to VAYO to view the full details.
       </p>`}
     </div>
     <div style="padding: 16px 28px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
       <p style="margin: 0; font-size: 11px; color: #9ca3af;">
-        This is an automated notification from TRAVLR Prospect Finder. Reply to <a href="mailto:support@travlr.com" style="color: #4f46e5;">support@travlr.com</a> for assistance.
+        This is an automated notification from VAYO. Reply to <a href="mailto:support@travlr.com" style="color: #4f46e5;">support@travlr.com</a> for assistance.
       </p>
     </div>
   </div>
