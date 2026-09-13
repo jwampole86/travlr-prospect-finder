@@ -12,7 +12,7 @@ export default function MarketingHeader() {
     <header className="border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-20">
       <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
         <Link href="/plans" className="flex items-center gap-2.5">
-          <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={26} />
+          <AppLogo size={26} />
           <span className="text-sm font-bold text-foreground">VAYO</span>
         </Link>
         <nav className="hidden sm:flex items-center gap-6 text-sm font-medium">

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import AppLogo from '@/components/ui/AppLogo';
+import VayoLoader from '@/components/ui/VayoLoader';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 
 function GoogleIcon() {
@@ -81,7 +82,7 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <VayoLoader label="Loading VAYO…" />
       </div>
     );
   }
@@ -92,7 +93,7 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 bg-card border-r border-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={36} />
+            <AppLogo size={36} />
             <div>
               <p className="text-base font-bold text-foreground tracking-tight">VAYO</p>
               <p className="text-xs text-muted-foreground">Growth & Operations Platform</p>
@@ -138,7 +139,7 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center justify-between">
             <div className="flex items-center gap-3">
-              <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={32} />
+              <AppLogo size={32} />
               <div>
                 <p className="text-sm font-bold text-foreground">VAYO</p>
                 <p className="text-xs text-muted-foreground">Growth & Operations Platform</p>

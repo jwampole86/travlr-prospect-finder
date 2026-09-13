@@ -433,7 +433,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
     >
       {/* Logo + mobile close */}
       <div className="flex items-center gap-3 px-4 py-4 border-b border-border h-[60px] overflow-hidden">
-        <AppLogo src="/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG" size={28} />
+        <AppLogo size={28} />
         {!collapsed && (
           <div className="flex flex-col leading-none min-w-0 flex-1">
             <span className="text-sm font-semibold text-foreground truncate">VAYO</span>

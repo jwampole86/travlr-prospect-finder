@@ -21,21 +21,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'VAYO | AI-Powered Growth for Property Managers',
     description: 'VAYO is the AI-powered growth and operations platform for vacation rental and property management companies.',
-    images: ['/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG'],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'VAYO | AI-Powered Growth for Property Managers',
     description: 'VAYO is the AI-powered growth and operations platform for vacation rental and property management companies.',
-    images: ['/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG'],
-  },
-  icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG', type: 'image/png', sizes: '1254x1254' },
-    ],
-    shortcut: ['/favicon.ico'],
-    apple: [{ url: '/assets/images/EFB407B4-CD49-4BC9-9A8E-9894DB058712-1786579880495.PNG', type: 'image/png', sizes: '1254x1254' }],
   },
 };
 
