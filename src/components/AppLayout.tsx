@@ -35,7 +35,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace('/login');
+      // Anonymous visitors hitting the dashboard root see the public VAYO landing page first,
+      // rather than being dropped straight onto the sign-in form.
+      router.replace(pathname === '/' ? '/welcome' : '/login');
       return;
     }
     if (!loading && user && role === 'homeowner') {

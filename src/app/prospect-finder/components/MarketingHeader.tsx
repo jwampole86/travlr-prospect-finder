@@ -7,16 +7,23 @@ import AppLogo from '@/components/ui/AppLogo';
 export default function MarketingHeader() {
   const pathname = usePathname();
   const isPlans = pathname === '/plans';
+  const isHome = pathname === '/welcome';
 
   return (
     <header className="border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-20">
       <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-        <Link href="/plans" className="flex items-center gap-2.5">
+        <Link href="/welcome" className="flex items-center gap-2.5">
           <AppLogo size={26} />
           <span className="text-sm font-bold text-foreground">VAYO</span>
         </Link>
         <nav className="hidden sm:flex items-center gap-6 text-sm font-medium">
-          <Link href="/plans#value" className="text-muted-foreground hover:text-foreground transition-colors">Features</Link>
+          <Link
+            href="/welcome"
+            aria-current={isHome ? 'page' : undefined}
+            className={isHome ? 'text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground transition-colors'}
+          >
+            Home
+          </Link>
           <Link
             href="/plans"
             aria-current={isPlans ? 'page' : undefined}
@@ -31,10 +38,10 @@ export default function MarketingHeader() {
             Sign In
           </Link>
           <Link
-            href="/prospect-finder/contact-sales"
-            className="px-3 py-1.5 text-xs sm:text-sm border border-border rounded-lg hover:bg-muted transition-colors font-medium"
+            href="/plans"
+            className="px-3 py-1.5 text-xs sm:text-sm bg-foreground text-background rounded-lg hover:opacity-90 transition-opacity font-medium"
           >
-            Contact Sales
+            Plans
           </Link>
         </div>
       </div>

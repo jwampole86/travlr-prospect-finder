@@ -40,6 +40,8 @@ export default function LoginPage() {
     if (plan) setIntendedPlan(plan);
     const billing = params.get('billing');
     if (billing) setIntendedBilling(billing);
+    const mode = params.get('mode');
+    if (mode === 'signup') setMode('signup');
   }, []);
 
   useEffect(() => {
