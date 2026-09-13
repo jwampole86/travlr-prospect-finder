@@ -16,7 +16,7 @@ export default function MarketingHeader() {
           <AppLogo size={26} />
           <span className="text-sm font-bold text-foreground">VAYO</span>
         </Link>
-        <nav className="hidden sm:flex items-center gap-6 text-sm font-medium">
+        <nav className="hidden md:flex items-center gap-5 text-sm font-medium shrink-0">
           <Link
             href="/welcome"
             aria-current={isHome ? 'page' : undefined}
