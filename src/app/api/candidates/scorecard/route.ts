@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { syncCandidatePipelineFields } from '@/lib/candidatePipeline';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -70,6 +71,10 @@ export async function POST(req: NextRequest) {
       .from('candidates')
       .update({ candidate_status: 'INTERVIEWED', updated_at: new Date().toISOString() })
       .eq('id', candidateId);
+
+    await syncCandidatePipelineFields(supabase, candidateId).catch((syncErr) => {
+      console.error('[scorecard] pipeline sync error:', syncErr);
+    });
 
     await supabase.from('candidate_audit_events').insert({
       candidate_id: candidateId,

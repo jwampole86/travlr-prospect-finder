@@ -2,14 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { OUTREACH_BIZDEV_JOB_DESCRIPTION } from '@/lib/roles/outreachBizDevRole';
-
-const SCORECARD_COMPETENCY_KEYS = [
-  'vacation_rental_knowledge', 'property_management_knowledge', 'luxury_homeowner_communication',
-  'outbound_calling_ability', 'consultative_sales', 'discovery_questioning', 'objection_handling',
-  'closing_ability', 'follow_up_discipline', 'crm_pipeline_management', 'relationship_building',
-  'professional_communication', 'self_motivation', 'remote_work_discipline', 'coachability',
-  'operational_understanding', 'business_development', 'judgment', 'organization', 'overall_fit',
-] as const;
+import { SCORECARD_COMPETENCY_KEYS, syncCandidatePipelineFields } from '@/lib/candidatePipeline';
 
 function getMessagePayload(body: any) {
   return body?.message || body;
@@ -140,6 +133,9 @@ Return ONLY a valid JSON object with these integer fields (1-10 each): ${SCORECA
 async function saveRoleScorecard(db: ReturnType<typeof getSupabaseAdmin>, candidateId: string, scorecard: Record<string, unknown>) {
   await db.from('candidate_scorecards').insert({ candidate_id: candidateId, ...scorecard });
   await db.from('candidates').update({ candidate_status: 'INTERVIEWED', updated_at: new Date().toISOString() }).eq('id', candidateId);
+  await syncCandidatePipelineFields(db, candidateId).catch((syncErr) => {
+    console.error('vapi_pipeline_sync_failed', { candidateId, error: syncErr instanceof Error ? syncErr.message : 'unknown' });
+  });
   await db.from('candidate_audit_events').insert({
     candidate_id: candidateId,
     event_type: 'INTERVIEW_COMPLETED',
