@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
+import PricingFaq from '@/app/prospect-finder/components/PricingFaq';
 
 export const metadata: Metadata = {
   title: 'VAYO | AI-Powered Growth for Property Managers',
@@ -10,13 +11,22 @@ export const metadata: Metadata = {
 };
 
 const MODULES = [
-  { icon: Search, name: 'Prospect', body: 'Discover homeowner opportunities, verify owner and contact data, and score every lead.' },
-  { icon: Users, name: 'CRM', body: 'Manage your pipeline, assignments, notes, and follow-up in one place.' },
-  { icon: Database, name: 'Intelligence', body: 'Revenue estimates, market intelligence, and STR regulations at your fingertips.' },
-  { icon: Zap, name: 'Engage', body: 'Voice, SMS, email, and AI-assisted outreach — including a live call teleprompter.' },
-  { icon: Brain, name: 'Talent', body: 'AI voice interviews, scorecards, and a full hiring pipeline for your team.' },
-  { icon: TrendingUp, name: 'Automate', body: 'Workflow automation, lead routing, and AI agents that handle the busywork.' },
-  { icon: BarChart2, name: 'Analytics', body: 'Acquisition funnel, agent performance, and revenue opportunity reporting.' },
+  { icon: Search, name: 'Prospect', body: 'Discover homeowner opportunities, verify owner and contact data, and score every lead.', points: ['Property discovery & lead generation', 'Owner/contact intelligence & data enrichment', 'Verification workflows & lead scoring'] },
+  { icon: Users, name: 'CRM', body: 'Manage your pipeline, assignments, notes, and follow-up in one place.', points: ['Pipeline & assignment management', 'Notes, tasks & activity history', 'Owner and property profiles'] },
+  { icon: Database, name: 'Intelligence', body: 'Revenue estimates, market intelligence, and STR regulations at your fingertips.', points: ['Property & revenue intelligence', 'Market intelligence & opportunity scoring', 'STR regulation lookups by city/state'] },
+  { icon: Zap, name: 'Engage', body: 'Voice, SMS, email, and AI-assisted outreach — including a live call teleprompter.', points: ['Voice, SMS & email outreach', 'Live call teleprompter with AI suggestions', 'Campaigns & appointment scheduling'] },
+  { icon: Brain, name: 'Talent', body: 'AI voice interviews, scorecards, and a full hiring pipeline for your team.', points: ['AI voice interviews & scheduling', 'Candidate scorecards & role plays', 'Interview calendar & Zoom integration'] },
+  { icon: TrendingUp, name: 'Automate', body: 'Workflow automation, lead routing, and AI agents that handle the busywork.', points: ['Workflow triggers & actions', 'AI agents & lead routing', 'Automated follow-up & notifications'] },
+  { icon: BarChart2, name: 'Analytics', body: 'Acquisition funnel, agent performance, and revenue opportunity reporting.', points: ['Acquisition funnel & lead conversion', 'Agent & team performance', 'Market and portfolio reporting'] },
+];
+
+const HOW_IT_WORKS = [
+  { step: '1', title: 'Discover', body: 'Find homeowner opportunities across your target markets and portfolios.' },
+  { step: '2', title: 'Enrich', body: 'Build stronger property and owner profiles from your enabled data sources.' },
+  { step: '3', title: 'Prioritize', body: 'Score and rank opportunities so your team calls the right homeowners first.' },
+  { step: '4', title: 'Engage', body: 'Reach out by voice, SMS, or email, with AI-assisted scripts and follow-up.' },
+  { step: '5', title: 'Convert', body: 'Move opportunities through your pipeline from first contact to signed contract.' },
+  { step: '6', title: 'Analyze', body: 'Track what is actually converting and where your team should focus next.' },
 ];
 
 const WHO_ITS_FOR = [
@@ -60,13 +70,38 @@ export default function WelcomePage() {
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">VAYO organizes everything your team needs into one coherent platform.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {MODULES.map(({ icon: Icon, name, body }) => (
+          {MODULES.map(({ icon: Icon, name, body, points }) => (
             <div key={name} className="bg-card border border-border rounded-2xl p-6 hover:border-primary/40 hover:shadow-md transition-all">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <Icon className="w-5 h-5 text-primary" />
               </div>
               <h3 className="text-sm font-bold text-foreground mb-1.5">VAYO {name}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{body}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-3">{body}</p>
+              <ul className="space-y-1.5">
+                {points.map((point) => (
+                  <li key={point} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">How VAYO Works</h2>
+          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">From first discovery to a signed management contract, in one workflow.</p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {HOW_IT_WORKS.map(({ step, title, body }) => (
+            <div key={step} className="text-center">
+              <div className="w-9 h-9 rounded-full bg-foreground text-background flex items-center justify-center text-sm font-bold mx-auto mb-3">{step}</div>
+              <h3 className="text-sm font-bold text-foreground mb-1">{title}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
             </div>
           ))}
         </div>
@@ -106,6 +141,39 @@ export default function WelcomePage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* Responsible Data & Compliance */}
+      <section className="max-w-4xl mx-auto px-6 pb-16">
+        <div className="bg-card border border-border rounded-2xl p-8 sm:p-10">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">Responsible Data & Compliance</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              'Access available property and contact intelligence based on your enabled data sources and plan allowances',
+              'Verified contact workflows help you prioritize outreach with confidence',
+              'Channel-specific consent and opt-out controls for SMS, email, and voice outreach',
+              'No guaranteed owner identity, phone number, or outcome on every lead',
+            ].map((point) => (
+              <div key={point} className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                <span className="text-sm text-foreground">{point}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Frequently Asked Questions</h2>
+        </div>
+        <PricingFaq />
       </section>
 
       {/* CTA banner */}
