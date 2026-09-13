@@ -144,6 +144,11 @@ export async function POST(req: NextRequest) {
           Url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/twilio/voice/twiml`,
           Record: 'true',
           RecordingChannels: 'dual',
+          MachineDetection: 'DetectMessageEnd',
+          MachineDetectionTimeout: '8',
+          StatusCallback: `${process.env.NEXT_PUBLIC_SITE_URL}/api/twilio/voice/status?leadId=${encodeURIComponent(leadId || '')}&agentId=${encodeURIComponent(agentId || '')}`,
+          StatusCallbackMethod: 'POST',
+          StatusCallbackEvent: 'initiated ringing answered completed',
         }).toString(),
       }
     );
