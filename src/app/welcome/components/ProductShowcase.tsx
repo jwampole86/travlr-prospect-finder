@@ -90,7 +90,7 @@ export default function ProductShowcase() {
           <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-          <span className="ml-3 text-[11px] text-muted-foreground truncate">app.vayo.io</span>
+          <span className="ml-3 text-[11px] text-muted-foreground truncate">app.vayoai.io</span>
         </div>
         <div className="p-4 sm:p-5 bg-background">
           <ActiveBody />
