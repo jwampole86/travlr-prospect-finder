@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
@@ -8,6 +9,14 @@ export default function MarketingHeader() {
   const pathname = usePathname();
   const isPlans = pathname === '/plans';
   const isHome = pathname === '/welcome';
+
+  // Always land at the top of the destination page when navigating between marketing
+  // pages (Home/Plans) — only skip this when a hash is present (e.g. #enterprise),
+  // so anchor links still scroll to their target section instead of the top.
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.location.hash) return;
+    window.requestAnimationFrame(() => window.scrollTo(0, 0));
+  }, [pathname]);
 
   return (
     <header className="border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-20">
