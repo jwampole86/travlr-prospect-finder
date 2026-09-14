@@ -27,7 +27,7 @@ const CAPABILITIES = [
   { icon: Zap, title: 'Automate Workflows', body: 'Cut repetitive lead-management and follow-up work with automation.' },
   { icon: Brain, title: 'Build Your Team', body: 'Use AI-assisted and live interview workflows to support hiring and growth.' },
   { icon: BarChart2, title: 'Analyze Performance', body: 'Understand pipeline activity, conversion, and team performance at a glance.' },
-  { icon: Link2, title: 'Connect Your Systems', body: 'Integrate Prospect Finder with the tools your team already relies on.' },
+  { icon: Link2, title: 'Connect Your Systems', body: 'Integrate VAYO with the tools your team already relies on.' },
 ];
 
 function AvailabilityCell({ value }: { value: FeatureAvailability }) {
@@ -404,7 +404,7 @@ export default function PlansPageClient() {
       <section id="compare" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Compare Plans</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Enterprise is the only plan with full access to every Prospect Finder feature category.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Enterprise is the only plan with full access to every VAYO feature category.</p>
         </div>
         <div className="hidden sm:block">
           <CategoryAccordion />
@@ -433,9 +433,9 @@ export default function PlansPageClient() {
           <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-background text-foreground mb-5">
             Full Platform Access
           </span>
-          <h2 className="text-2xl sm:text-3xl font-bold">Need the Complete Prospect Finder Platform?</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold">Need the Complete VAYO Platform?</h2>
           <p className="mt-4 text-sm sm:text-base text-background/75 max-w-2xl mx-auto leading-relaxed">
-            Enterprise gives larger teams full access to Prospect Finder with custom usage limits, advanced integrations, security controls, onboarding, and priority support.
+            Enterprise gives larger teams full access to VAYO with custom usage limits, advanced integrations, security controls, onboarding, and priority support.
           </p>
           <div className="mt-7 flex items-center justify-center gap-3 flex-wrap">
             <Link href="/prospect-finder/contact-sales" className="px-6 py-3 rounded-xl text-sm font-semibold bg-background text-foreground hover:opacity-90 motion-safe:transition-opacity">

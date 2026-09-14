@@ -13,21 +13,12 @@ export const metadata: Metadata = {
 
 const MODULES = [
   { icon: Search, name: 'Prospect', body: 'Discover homeowner opportunities, verify owner and contact data, and score every lead.', points: ['Property discovery & lead generation', 'Owner/contact intelligence & data enrichment', 'Verification workflows & lead scoring'] },
-  { icon: Users, name: 'CRM', body: 'Manage your pipeline, assignments, notes, and follow-up in one place.', points: ['Pipeline & assignment management', 'Notes, tasks & activity history', 'Owner and property profiles'] },
   { icon: Database, name: 'Intelligence', body: 'Revenue estimates, market intelligence, and STR regulations at your fingertips.', points: ['Property & revenue intelligence', 'Market intelligence & opportunity scoring', 'STR regulation lookups by city/state'] },
+  { icon: Users, name: 'CRM', body: 'Manage your pipeline, assignments, notes, and follow-up in one place.', points: ['Pipeline & assignment management', 'Notes, tasks & activity history', 'Owner and property profiles'] },
   { icon: Zap, name: 'Engage', body: 'Voice, SMS, email, and AI-assisted outreach — including a live call teleprompter.', points: ['Voice, SMS & email outreach', 'Live call teleprompter with AI suggestions', 'Campaigns & appointment scheduling'] },
-  { icon: Brain, name: 'Talent', body: 'AI voice interviews, scorecards, and a full hiring pipeline for your team.', points: ['AI voice interviews & scheduling', 'Candidate scorecards & role plays', 'Interview calendar & Zoom integration'] },
   { icon: TrendingUp, name: 'Automate', body: 'Workflow automation, lead routing, and AI agents that handle the busywork.', points: ['Workflow triggers & actions', 'AI agents & lead routing', 'Automated follow-up & notifications'] },
+  { icon: Brain, name: 'Talent', body: 'AI voice interviews, scorecards, and a full hiring pipeline for your team.', points: ['AI voice interviews & scheduling', 'Candidate scorecards & role plays', 'Interview calendar & Zoom integration'] },
   { icon: BarChart2, name: 'Analytics', body: 'Acquisition funnel, agent performance, and revenue opportunity reporting.', points: ['Acquisition funnel & lead conversion', 'Agent & team performance', 'Market and portfolio reporting'] },
-];
-
-const HOW_IT_WORKS = [
-  { step: '1', title: 'Discover', body: 'Find homeowner opportunities across your target markets and portfolios.' },
-  { step: '2', title: 'Enrich', body: 'Build stronger property and owner profiles from your enabled data sources.' },
-  { step: '3', title: 'Prioritize', body: 'Score and rank opportunities so your team calls the right homeowners first.' },
-  { step: '4', title: 'Engage', body: 'Reach out by voice, SMS, or email, with AI-assisted scripts and follow-up.' },
-  { step: '5', title: 'Convert', body: 'Move opportunities through your pipeline from first contact to signed contract.' },
-  { step: '6', title: 'Analyze', body: 'Track what is actually converting and where your team should focus next.' },
 ];
 
 const WHO_ITS_FOR = [
@@ -124,7 +115,7 @@ export default function WelcomePage() {
       {/* Modules */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
         <div className="text-center mb-10">
-          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">One Platform, Every Growth Workflow</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">What's Inside VAYO</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">VAYO organizes everything your team needs into one coherent platform.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -143,23 +134,6 @@ export default function WelcomePage() {
                   </li>
                 ))}
               </ul>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="max-w-6xl mx-auto px-6 pb-16">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">How VAYO Works</h2>
-          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">From first discovery to a signed management contract, in one workflow.</p>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {HOW_IT_WORKS.map(({ step, title, body }) => (
-            <div key={step} className="text-center">
-              <div className="w-9 h-9 rounded-full bg-foreground text-background flex items-center justify-center text-sm font-bold mx-auto mb-3">{step}</div>
-              <h3 className="text-sm font-bold text-foreground mb-1">{title}</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
             </div>
           ))}
         </div>

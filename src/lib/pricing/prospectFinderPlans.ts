@@ -55,7 +55,7 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       aiInterviews: 'Not included',
     },
     features: [
-      'Core Prospect Finder access',
+      'Core VAYO access',
       'Lead Management',
       'Basic Dashboard',
       'Property Profiles',
@@ -151,7 +151,7 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
-    tagline: 'For large operators, multi-market property managers, and organizations that need the complete Prospect Finder platform.',
+    tagline: 'For large operators, multi-market property managers, and organizations that need the complete VAYO platform.',
     monthlyPrice: null,
     annualPrice: null,
     contactSales: true,
@@ -167,7 +167,7 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       aiInterviews: 'Custom',
     },
     features: [
-      'Full Prospect Finder platform',
+      'Full VAYO platform',
       'All Starter features',
       'All Pro features',
       'All Business features',
@@ -224,7 +224,7 @@ export interface FeatureComparisonRow {
 }
 
 // Enterprise is intentionally 'yes' on every single row — it is the only plan
-// with complete access to every Prospect Finder feature.
+// with complete access to every VAYO feature.
 export const FEATURE_COMPARISON: FeatureComparisonRow[] = [
   { key: 'lead_management', label: 'Lead Management', values: { starter: 'yes', pro: 'yes', business: 'yes', enterprise: 'yes' } },
   { key: 'dashboard', label: 'Dashboard', values: { starter: 'limited', pro: 'yes', business: 'yes', enterprise: 'yes' } },
@@ -286,7 +286,7 @@ export function getFeatureGateMessage(featureLabel: string, minimumPlan: PlanId)
   if (minimumPlan === 'enterprise') {
     return {
       title: 'Enterprise Feature',
-      body: `${featureLabel} is available with Enterprise Prospect Finder. Contact Sales to unlock full platform access.`,
+      body: `${featureLabel} is available with VAYO Enterprise. Contact Sales to unlock full platform access.`,
     };
   }
   const planName = PROSPECT_FINDER_PLANS[minimumPlan].name;

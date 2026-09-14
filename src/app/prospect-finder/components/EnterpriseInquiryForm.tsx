@@ -75,7 +75,7 @@ export default function EnterpriseInquiryForm() {
           <CheckCircle className="w-6 h-6 text-primary" />
         </div>
         <h2 className="text-lg font-bold text-foreground mb-1.5">Thanks — we've got your request</h2>
-        <p className="text-sm text-muted-foreground">A member of our sales team will reach out to {form.workEmail} shortly to discuss Enterprise Prospect Finder.</p>
+        <p className="text-sm text-muted-foreground">A member of our sales team will reach out to {form.workEmail} shortly to discuss VAYO Enterprise.</p>
       </div>
     );
   }
