@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/server';
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
     // Dynamic import to avoid SSR issues
-    const pdfParse = (await import('pdf-parse')).default;
+    const pdfModule = await import('pdf-parse');
+    const pdfParse = (pdfModule as unknown as ((input: Buffer) => Promise<{ text?: string }>));
     const result = await pdfParse(buffer);
     return result.text || '';
   } catch (err) {

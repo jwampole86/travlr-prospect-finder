@@ -186,7 +186,7 @@ export default function DuplicateAuditPage() {
   const loadLeads = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await leadsService.getLeads();
+      const data = await leadsService.getAll();
       setLeads(data);
     } catch {
       // fallback to empty
@@ -380,7 +380,7 @@ export default function DuplicateAuditPage() {
                             )}
                             <div className="flex items-center gap-1">
                               <Star size={10} className="text-amber-500" />
-                              <span className="text-[11px] font-semibold text-foreground">{lead.score ?? '—'}</span>
+                              <span className="text-[11px] font-semibold text-foreground">{lead.prospectScore ?? '—'}</span>
                             </div>
                             <span className="text-[11px] text-muted-foreground capitalize hidden md:block">{lead.stage}</span>
                             <span className="text-[11px] text-muted-foreground hidden lg:block">{lead.source}</span>

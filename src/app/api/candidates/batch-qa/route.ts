@@ -165,7 +165,7 @@ async function runQAForCandidate(
     result.candidateSpecificQuestions.push({
       question: sq.question,
       resumeBasis: sq.resumeBasis,
-      hasEvidence: hasBasis,
+      hasEvidence: Boolean(hasBasis),
       evidenceStrength,
     });
 

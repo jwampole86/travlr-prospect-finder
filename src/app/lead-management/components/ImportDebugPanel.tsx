@@ -75,7 +75,7 @@ const DENVER_ADDRESSES = [
 
 function generateListingUrl(sourceKey: string, address: string, index: number): string | null {
   const slug = address.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-  const urlMap: Record<string, string> = {
+  const urlMap: Record<string, string | null> = {
     trulia: `https://www.trulia.com/rental/${slug}-${index}`,
     rentcom: `https://www.rent.com/colorado/denver-apartments/${slug}-${index}`,
     realtorcom: `https://www.realtor.com/realestateandhomes-detail/${slug}-${index}`,

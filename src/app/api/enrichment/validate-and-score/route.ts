@@ -275,7 +275,7 @@ export async function POST(req: NextRequest) {
             const fieldScore = fieldScores.find((f: any) => f.field === rule.target_field);
             if (fieldScore) {
               actualValue = fieldScore.confidence;
-              fired = actualValue < rule.threshold_value;
+              fired = (actualValue ?? 0) < rule.threshold_value;
             }
           }
           break;

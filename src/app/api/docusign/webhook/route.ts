@@ -380,7 +380,7 @@ export async function POST(req: NextRequest) {
             await supabase.rpc('increment_agent_commission', {
               p_agent_id: leadData.assigned_agent_id,
               p_amount: commissionAmount,
-            }).catch(() => {
+            }).then(undefined, () => {
               // RPC may not exist yet — non-fatal, the individual record is already created
             });
 

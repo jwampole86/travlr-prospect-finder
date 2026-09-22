@@ -65,14 +65,14 @@ export default function RetagPortfolioModal({ selectedIds, onClose, onComplete }
           .from('leads')
           .update(updatePayload)
           .in('id', batch)
-          .select('id', { count: 'exact', head: true });
+          .select('id');
 
         if (error) {
           toast.error(`Batch update failed: ${error.message}`);
           setSaving(false);
           return;
         }
-        totalUpdated += count ?? batch.length;
+        totalUpdated += batch.length;
       }
 
       setUpdatedCount(totalUpdated);

@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
     const results: { leadId: string; email: string; success: boolean; resendId?: string; error?: string }[] = [];
     const outreachRows: Record<string, unknown>[] = [];
     const deliveryEventRows: Record<string, unknown>[] = [];
-    const campaignId: string | null = (body as Record<string, unknown>).campaignId as string | null || null;
+    const campaignId: string | null = (body as unknown as Record<string, unknown>).campaignId as string | null || null;
 
     for (const lead of eligible) {
       const filledSubject = fillVariables(tpl.subject, lead, senderName);

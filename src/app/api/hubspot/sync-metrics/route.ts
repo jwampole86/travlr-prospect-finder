@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.action === 'push_conversion') {
-      await pushConversionOutcome(body as {
+      await pushConversionOutcome(body as unknown as {
         contactId: string;
         dealId?: string;
         leadAddress: string;

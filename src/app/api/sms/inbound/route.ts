@@ -247,7 +247,7 @@ function detectIntent(message: string): 'stop' | 'help' | 'interested' | 'other'
 }
 
 async function logAdminEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   data: { event_type: string; lead_id: string; title: string; description?: string; severity?: string; new_value?: Record<string, unknown> }
 ) {
   await supabase.from('admin_event_log').insert({

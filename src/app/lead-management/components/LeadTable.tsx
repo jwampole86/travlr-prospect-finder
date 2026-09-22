@@ -87,8 +87,7 @@ function EnrichmentStatusCell({ status }: { status?: EnrichmentStatus }) {
       <div className="flex items-center gap-0.5 flex-wrap">
         {stages.map(s => (
           <span
-            key={s.key}
-            title={s.done ? `${s.label} enriched via ${s.provider || 'unknown'}` : `${s.label} not enriched`}
+            key={s.key} aria-label={s.done ? `${s.label} enriched via ${s.provider || 'unknown'}` : `${s.label} not enriched`}
             className={`inline-flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border ${
               s.done
                 ? 'bg-success/10 text-success border-success/20' :'bg-muted/50 text-muted-foreground border-border'
@@ -249,7 +248,7 @@ const LeadRow = memo(function LeadRow({
             return (
               <>
                 <div className="flex items-center gap-1 flex-wrap">
-                  {isIncomplete && <AlertTriangle size={10} className="text-amber-500 shrink-0" title="Address incomplete — listing ID detected" />}
+                  {isIncomplete && <AlertTriangle size={10} className="text-amber-500 shrink-0" aria-label="Address incomplete — listing ID detected" />}
                   {!canAct && (
                     <span title="Assigned to another agent" className="shrink-0">
                       <svg className="w-2.5 h-2.5 text-muted-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -282,8 +281,7 @@ const LeadRow = memo(function LeadRow({
                   {/* Property Verification badge */}
                   {(lead as any).verificationStatus === 'VERIFIED' && ((lead as any).verificationScore ?? 0) >= 75 ? (
                     <span
-                      className="shrink-0 inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-semibold bg-green-500/12 text-green-600 border border-green-500/25"
-                      title={`Verified property — Score: ${(lead as any).verificationScore ?? 0}/100`}
+                      className="shrink-0 inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-semibold bg-green-500/12 text-green-600 border border-green-500/25" aria-label={`Verified property — Score: ${(lead as any).verificationScore ?? 0}/100`}
                     >
                       <CheckCircle2 size={7} />
                       ADDR ✓
@@ -369,8 +367,7 @@ const LeadRow = memo(function LeadRow({
           <RegulationBadge status={lead.regulationStatus} size="sm" />
           <button
             onClick={() => onShowRegulation(lead.city)}
-            className="text-muted-foreground hover:text-primary transition-colors p-1 min-h-[44px] flex items-center"
-            title={`View ${lead.city} STR regulations`}
+            className="text-muted-foreground hover:text-primary transition-colors p-1 min-h-[44px] flex items-center" aria-label={`View ${lead.city} STR regulations`}
           >
             <Info size={11} />
           </button>
@@ -411,32 +408,28 @@ const LeadRow = memo(function LeadRow({
           <button
             onClick={() => canAct && onSendSMS?.(lead)}
             disabled={!canAct}
-            className="p-2 rounded text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-all min-h-[44px] flex items-center disabled:opacity-30 disabled:cursor-not-allowed"
-            title={canAct ? 'Send SMS' : 'Assigned to another agent'}
+            className="p-2 rounded text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-all min-h-[44px] flex items-center disabled:opacity-30 disabled:cursor-not-allowed" aria-label={canAct ? 'Send SMS' : 'Assigned to another agent'}
           >
             <MessageSquare size={12} />
           </button>
           <button
             onClick={() => canAct && onRefresh(lead.id)}
             disabled={!canAct}
-            className="p-2 rounded text-muted-foreground hover:text-primary hover:bg-muted transition-all min-h-[44px] flex items-center disabled:opacity-30 disabled:cursor-not-allowed"
-            title={canAct ? 'Refresh listing data' : 'Assigned to another agent'}
+            className="p-2 rounded text-muted-foreground hover:text-primary hover:bg-muted transition-all min-h-[44px] flex items-center disabled:opacity-30 disabled:cursor-not-allowed" aria-label={canAct ? 'Refresh listing data' : 'Assigned to another agent'}
           >
             <RefreshCw size={12} />
           </button>
           <button
             onClick={() => canAct && onOpenEstimator(lead)}
             disabled={!canAct}
-            className="p-2 rounded text-muted-foreground hover:text-primary hover:bg-muted transition-all min-h-[44px] flex items-center disabled:opacity-30 disabled:cursor-not-allowed"
-            title={canAct ? 'Revenue estimator' : 'Assigned to another agent'}
+            className="p-2 rounded text-muted-foreground hover:text-primary hover:bg-muted transition-all min-h-[44px] flex items-center disabled:opacity-30 disabled:cursor-not-allowed" aria-label={canAct ? 'Revenue estimator' : 'Assigned to another agent'}
           >
             <BarChart2 size={12} />
           </button>
           <button
             onClick={() => canAct && onConfirmDelete(lead.id)}
             disabled={!canAct}
-            className="p-2 rounded text-muted-foreground hover:text-danger hover:bg-danger-bg transition-all min-h-[44px] flex items-center disabled:opacity-30 disabled:cursor-not-allowed"
-            title={canAct ? 'Delete lead' : 'Assigned to another agent'}
+            className="p-2 rounded text-muted-foreground hover:text-danger hover:bg-danger-bg transition-all min-h-[44px] flex items-center disabled:opacity-30 disabled:cursor-not-allowed" aria-label={canAct ? 'Delete lead' : 'Assigned to another agent'}
           >
             <Trash2 size={12} />
           </button>

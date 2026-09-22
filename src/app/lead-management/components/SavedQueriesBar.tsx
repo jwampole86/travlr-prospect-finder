@@ -226,8 +226,7 @@ export default function SavedQueriesBar({
             return (
               <button
                 key={q.id}
-                onClick={() => applyQuery(q)}
-                title={q.description || q.name}
+                onClick={() => applyQuery(q)} aria-label={q.description || q.name}
                 className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium border rounded-full transition-all ${colors.chip}`}
               >
                 <QueryIcon icon={q.icon} size={10} />
@@ -286,8 +285,7 @@ export default function SavedQueriesBar({
                     <button
                       key={c.value}
                       onClick={() => setSaveColor(c.value)}
-                      className={`w-4 h-4 rounded-full ${c.cls} transition-all ${saveColor === c.value ? 'ring-2 ring-offset-1 ring-offset-card ring-white/60 scale-110' : 'opacity-60 hover:opacity-100'}`}
-                      title={c.label}
+                      className={`w-4 h-4 rounded-full ${c.cls} transition-all ${saveColor === c.value ? 'ring-2 ring-offset-1 ring-offset-card ring-white/60 scale-110' : 'opacity-60 hover:opacity-100'}`} aria-label={c.label}
                     />
                   ))}
                 </div>
@@ -457,7 +455,7 @@ function QueryRow({
           <div className="flex items-center gap-1">
             <QueryIcon icon={query.icon} size={10} />
             <p className={`text-xs font-medium truncate ${isActive ? 'text-primary' : 'text-foreground'}`}>{query.name}</p>
-            {query.is_shared && <Share2 size={9} className="text-primary shrink-0" title="Shared" />}
+            {query.is_shared && <Share2 size={9} className="text-primary shrink-0" aria-label="Shared" />}
             {query.is_pinned && <Pin size={9} className="text-amber-500 shrink-0" />}
           </div>
           {query.description && (
@@ -472,7 +470,7 @@ function QueryRow({
       {/* Actions */}
       {isOwn && !isEditing && (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={onTogglePin} className={`p-1 rounded transition-colors ${query.is_pinned ? 'text-amber-500 hover:text-amber-400' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`} title={query.is_pinned ? 'Unpin' : 'Pin to bar'}>
+          <button onClick={onTogglePin} className={`p-1 rounded transition-colors ${query.is_pinned ? 'text-amber-500 hover:text-amber-400' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`} aria-label={query.is_pinned ? 'Unpin' : 'Pin to bar'}>
             {query.is_pinned ? <PinOff size={10} /> : <Pin size={10} />}
           </button>
           <button onClick={onStartEdit} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Rename">

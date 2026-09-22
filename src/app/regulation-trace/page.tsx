@@ -169,19 +169,19 @@ export default function RegulationTracePage() {
                       </div>
                     ))}
                   </div>
-                  {canonicalReg.source_url && (
+                  {Boolean(canonicalReg.source_url) && (
                     <a href={canonicalReg.source_url as string} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-primary hover:underline">
                       <ExternalLink size={11} />
                       View Official Source
                     </a>
                   )}
-                  {canonicalReg.summary && (
+                  {Boolean(canonicalReg.summary) && (
                     <div className="bg-muted/20 rounded-lg p-3">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Summary</p>
                       <p className="text-xs text-foreground">{canonicalReg.summary as string}</p>
                     </div>
                   )}
-                  {canonicalReg.agent_summary && (
+                  {Boolean(canonicalReg.agent_summary) && (
                     <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3">
                       <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider mb-1">Agent Summary</p>
                       <p className="text-xs text-foreground italic">"{canonicalReg.agent_summary as string}"</p>

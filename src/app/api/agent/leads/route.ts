@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 403 });
     }
 
-    const effectiveRole = profile.app_role || profile.role || user.user_metadata?.role || user.raw_user_meta_data?.role || 'admin';
+    const effectiveRole = profile.app_role || profile.role || user.user_metadata?.role || 'admin';
     const isAdmin = ['admin', 'owner', 'operator', 'super_admin'].includes(effectiveRole);
     const isAgent = effectiveRole === 'agent';
 
