@@ -162,7 +162,7 @@ export const KPI_METRIC_DEFINITIONS: Record<MetricId, KpiMetricDefinition> = {
  * Caller adds additional filters (e.g. primary_agent_id IS NULL for unassigned).
  */
 export function applyHighPriorityBaseScope(
-  query: ReturnType<ReturnType<typeof createClient>['from']>,
+  query: any,
   pState?: string | null
 ) {
   let q = query
@@ -174,6 +174,20 @@ export function applyHighPriorityBaseScope(
     q = q.eq('state', pState);
   }
   return q;
+}
+
+async function withRetry<T>(operation: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts - 1) break;
+      await new Promise(resolve => setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 /**
@@ -220,7 +234,7 @@ export async function fetchCanonicalKpiCounts(
       strEligibleRes,
       // AVG_SCORE: server-side RPC — full population, no row cap
       avgScoreRpcRes,
-    ] = await Promise.all([
+    ] = await withRetry(() => Promise.all([
       // TOTAL_LEADS
       (() => {
         let q = supabase
@@ -336,7 +350,7 @@ export async function fetchCanonicalKpiCounts(
       // by PostgREST default → biased sample average (96) ≠ true average (93).
       // get_canonical_avg_score() uses SQL AVG() over ALL rows in one pass.
       supabase.rpc('get_canonical_avg_score', { p_state: ps ?? 'all' }),
-    ]);
+    ]));
 
     // Extract avg_score from RPC response
     let canonicalAvgScore = 0;

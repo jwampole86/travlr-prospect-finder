@@ -37,7 +37,7 @@ const API_BATCH_SIZE = 500;
 const PARSE_CHUNK_SIZE = 1024 * 1024;
 const TUS_CHUNK_SIZE = 6 * 1024 * 1024;
 const STORAGE_PART_SIZE = 40 * 1024 * 1024;
-const MAX_FILE_SIZE = 1024 * 1024 * 1024;
+const MAX_FILE_SIZE = 10 * 1024 * 1024 * 1024;
 
 function uploadObjectResumable(file: Blob, storagePath: string, contentType: string, accessToken: string, onProgress: (uploaded: number, total: number) => void) {
   return new Promise<void>((resolve, reject) => {
@@ -222,7 +222,7 @@ export default function MasterHomeownerUploadModal({ open, onClose, onComplete }
 
   const selectFiles = (selected: File[]) => {
     const accepted = selected.filter(file => /\.(csv|txt)$/i.test(file.name) && file.size <= MAX_FILE_SIZE);
-    if (accepted.length !== selected.length) toast.error('Only CSV or TXT files up to 1 GB are supported');
+    if (accepted.length !== selected.length) toast.error('Only CSV or TXT files up to 10 GB are supported');
     setFiles(accepted.slice(0, 20));
     setResults([]);
   };
@@ -280,7 +280,7 @@ export default function MasterHomeownerUploadModal({ open, onClose, onComplete }
         <button type="button" onClick={() => inputRef.current?.click()} className="w-full min-h-32 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5 transition-colors">
           <Upload className="w-6 h-6 text-primary" />
           <span className="text-sm font-semibold text-foreground">Choose multiple CSV or TXT files</span>
-          <span className="text-xs text-muted-foreground text-center px-4">Up to 20 files, 1 GB each. Large files upload resumably and parse in bounded-memory chunks.</span>
+          <span className="text-xs text-muted-foreground text-center px-4">Up to 20 files, 10 GB each. Large files upload resumably and parse in bounded-memory chunks.</span>
         </button>
         <input ref={inputRef} type="file" accept=".csv,.txt,text/csv,text/plain" multiple className="hidden" onChange={event => selectFiles(Array.from(event.target.files || []))} />
 

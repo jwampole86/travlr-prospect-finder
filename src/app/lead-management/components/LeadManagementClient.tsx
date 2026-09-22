@@ -79,6 +79,9 @@ export interface FilterState {
   outreachStatus?: string;
   enrichmentStatus?: string;
   priorityTier?: string;
+  propertyReachEnriched?: boolean;
+  needsEnrichment?: boolean;
+  enrichmentReviewRequired?: boolean;
   // Source type filter: 'ALL' | 'MANUAL_CSV' | 'LINK_SYNC' | 'MULTI_SOURCE'
   ingestionSource?: string;
   // Luxury filters
@@ -108,6 +111,9 @@ export const defaultFilters: FilterState = {
   outreachStatus: '',
   enrichmentStatus: '',
   priorityTier: '',
+  propertyReachEnriched: false,
+  needsEnrichment: false,
+  enrichmentReviewRequired: false,
   ingestionSource: 'ALL',
   luxury: false,
   fullyVerified: false,
@@ -230,7 +236,7 @@ export default function LeadManagementClient({
   const [networkError, setNetworkError] = useState(false);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [sortKey, setSortKey] = useState<keyof Lead>('prospectScore');
-  const [sortDir, setSortDir] = useState<'asc\' | \'desc'>('desc');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [estimatorLead, setEstimatorLead] = useState<Lead | null>(null);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
@@ -306,7 +312,7 @@ export default function LeadManagementClient({
     page: number,
     currentFilters: FilterState,
     currentSortKey: keyof Lead,
-    currentSortDir: 'asc\' | \'desc',
+    currentSortDir: 'asc' | 'desc',
     stateCode: string
   ) => {
     setServerLoading(true);
@@ -339,7 +345,14 @@ export default function LeadManagementClient({
       if (currentFilters.verifiedNumberOnly) params.set('verifiedNumberOnly', 'true');
       if (currentFilters.phoneAvailableOnly) params.set('phoneAvailableOnly', 'true');
       if (currentFilters.assignmentStatus) params.set('assignmentStatus', currentFilters.assignmentStatus);
+      if (currentFilters.ownerAgentId) params.set('ownerAgentId', currentFilters.ownerAgentId);
+      if (currentFilters.manualImportOnly) params.set('manualImportOnly', 'true');
+      if (currentFilters.outreachStatus) params.set('outreachStatus', currentFilters.outreachStatus);
+      if (currentFilters.enrichmentStatus) params.set('enrichmentStatus', currentFilters.enrichmentStatus);
       if (currentFilters.priorityTier) params.set('priorityTier', currentFilters.priorityTier);
+      if (currentFilters.propertyReachEnriched) params.set('propertyReachEnriched', 'true');
+      if (currentFilters.needsEnrichment) params.set('needsEnrichment', 'true');
+      if (currentFilters.enrichmentReviewRequired) params.set('enrichmentReviewRequired', 'true');
       // NOTE: Do NOT send isSynthetic param by default.
       // The API defaults isSynthetic=null which means "show all leads" (no synthetic filter).
       // This ensures leads with is_synthetic=NULL (e.g. newly imported) are always visible.
@@ -731,74 +744,8 @@ export default function LeadManagementClient({
   const filteredLeads = useMemo(() => {
     let result = [...leads];
 
-    // Owner / agent filter (client-side only — not in server API)
-    if (filters.ownerAgentId) {
-      if (filters.ownerAgentId === 'unassigned') {
-        result = result.filter((l) => !assignmentMap[l.id]);
-      } else {
-        const agentName = agents.find(a => a.id === filters.ownerAgentId)?.full_name;
-        result = result.filter((l) => assignmentMap[l.id] === agentName);
-      }
-    }
-
-    // Assignment status filter (client-side only)
-    if (filters.assignmentStatus === 'assigned') {
-      result = result.filter((l) => !!assignmentMap[l.id]);
-    } else if (filters.assignmentStatus === 'unassigned') {
-      result = result.filter((l) => !assignmentMap[l.id]);
-    }
-
-    // Verified Only filter — show only leads with confirmed property verification
-    // Uses fully_verified DB column (generated column: verified_owner AND verified_number AND verified_address set)
-    if (filters.verifiedOnly) {
-      result = result.filter((l) =>
-        (l as any).fully_verified === true ||
-        (l as any).fullyVerified === true
-      );
-    }
-
-    // Verified Owner filter
-    if ((filters as any).verifiedOwnerOnly) {
-      result = result.filter((l) => (l as any).verified_owner === true || (l as any).verifiedOwner === true);
-    }
-
-    // Verified Number / Phone Available filter
-    if ((filters as any).verifiedNumberOnly || (filters as any).phoneAvailableOnly) {
-      result = result.filter((l) =>
-        (l as any).verified_number === true ||
-        (l as any).verifiedNumber === true ||
-        (l as any).has_phone === true ||
-        !!(l.contactPhone)
-      );
-    }
-
-    // Manual verified import filter
-    if ((filters as any).manualImportOnly) {
-      result = result.filter((l) =>
-        (l as any).source_type === 'MANUAL_VERIFIED_IMPORT' ||
-        (l as any).is_verified_lead === true ||
-        (l.tags || []).includes('MANUAL_VERIFIED_IMPORT')
-      );
-    }
-
-    // Outreach status filter
-    if ((filters as any).outreachStatus) {
-      result = result.filter((l) => (l as any).outreach_status === (filters as any).outreachStatus);
-    }
-
-    // Enrichment status filter
-    if ((filters as any).enrichmentStatus) {
-      result = result.filter((l) => (l as any).enrichment_status === (filters as any).enrichmentStatus);
-    }
-
-    // Priority tier filter
-    if ((filters as any).priorityTier) {
-      const tier = parseInt((filters as any).priorityTier);
-      result = result.filter((l) => (l as any).priority_tier === tier);
-    }
-
     return result;
-  }, [leads, filters, assignmentMap, agents]);
+  }, [leads]);
 
   // With server-side pagination, paginatedLeads IS filteredLeads (already paginated by server)
   const paginatedLeads = useMemo(() => {
@@ -1014,7 +961,7 @@ export default function LeadManagementClient({
           showErrorWithRetry({
             message: `Enrichment failed: ${lead.address}`,
             detail: result.message,
-            onRetry: () => enrichmentService.runStage1(lead.id, lead.address, lead.prospectScore),
+            onRetry: async () => { await enrichmentService.runStage1(lead.id, lead.address, lead.prospectScore); },
           });
         }
       } catch (err) {
@@ -1023,7 +970,7 @@ export default function LeadManagementClient({
         showErrorWithRetry({
           message: `Enrichment error: ${lead.address}`,
           detail,
-          onRetry: () => enrichmentService.runStage1(lead.id, lead.address, lead.prospectScore),
+          onRetry: async () => { await enrichmentService.runStage1(lead.id, lead.address, lead.prospectScore); },
         });
       }
     }

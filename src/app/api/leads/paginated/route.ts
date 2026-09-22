@@ -30,6 +30,13 @@ interface LeadQueryParams {
   phoneAvailableOnly?: boolean | null;
   assignmentStatus?: string;
   priorityTier?: string;
+  ownerAgentId?: string;
+  manualImportOnly?: boolean | null;
+  outreachStatus?: string;
+  enrichmentStatus?: string;
+  propertyReachEnriched?: boolean | null;
+  needsEnrichment?: boolean | null;
+  enrichmentReviewRequired?: boolean | null;
 }
 
 function applyLeadFilters(query: any, params: LeadQueryParams) {
@@ -60,6 +67,19 @@ function applyLeadFilters(query: any, params: LeadQueryParams) {
   if (params.verifiedOwnerOnly === true) filtered = filtered.eq('verified_owner', true);
   if (params.verifiedNumberOnly === true) filtered = filtered.eq('verified_number', true);
   if (params.phoneAvailableOnly === true) filtered = filtered.eq('has_phone', true);
+
+  if (params.ownerAgentId) {
+    if (params.ownerAgentId === 'unassigned') filtered = filtered.or('primary_agent_id.is.null,primary_agent_id.eq.');
+    else filtered = filtered.eq('primary_agent_id', params.ownerAgentId);
+  }
+  if (params.manualImportOnly === true) {
+    filtered = filtered.or('source_type.eq.MANUAL_VERIFIED_IMPORT,is_verified_lead.eq.true,ingestion_source.eq.MANUAL_RESEARCH_CSV');
+  }
+  if (params.outreachStatus) filtered = filtered.eq('outreach_status', params.outreachStatus);
+  if (params.enrichmentStatus) filtered = filtered.eq('enrichment_status', params.enrichmentStatus);
+  if (params.propertyReachEnriched === true) filtered = filtered.not('property_reach_id', 'is', null);
+  if (params.needsEnrichment === true) filtered = filtered.or('verified_owner.eq.false,verified_number.eq.false,property_reach_id.is.null');
+  if (params.enrichmentReviewRequired === true) filtered = filtered.eq('enrichment_status', 'REVIEW_REQUIRED');
 
   if (params.assignmentStatus === 'assigned') {
     filtered = filtered.not('primary_agent_id', 'is', null).neq('primary_agent_id', '');
@@ -126,6 +146,13 @@ export async function GET(req: NextRequest) {
       phoneAvailableOnly: parseBool('phoneAvailableOnly'),
       assignmentStatus: searchParams.get('assignmentStatus') || '',
       priorityTier: searchParams.get('priorityTier') || '',
+      ownerAgentId: searchParams.get('ownerAgentId') || '',
+      manualImportOnly: parseBool('manualImportOnly'),
+      outreachStatus: searchParams.get('outreachStatus') || '',
+      enrichmentStatus: searchParams.get('enrichmentStatus') || '',
+      propertyReachEnriched: parseBool('propertyReachEnriched'),
+      needsEnrichment: parseBool('needsEnrichment'),
+      enrichmentReviewRequired: parseBool('enrichmentReviewRequired'),
     };
 
     const supabase = createServerClient(
@@ -160,6 +187,7 @@ export async function GET(req: NextRequest) {
       'verified_number_source', 'verified_number_method',
       'verified_owner_source', 'verified_owner_method',
       'owner_source', 'phone_source',
+      'property_reach_id',
       // Assignment
       'primary_agent_id',
     ].join(',');

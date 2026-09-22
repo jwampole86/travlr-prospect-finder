@@ -168,6 +168,9 @@ export default function LeadFiltersBar({ filters, onChange, leads: _leads, agent
       outreachStatus: '',
       enrichmentStatus: '',
       priorityTier: '',
+      propertyReachEnriched: false,
+      needsEnrichment: false,
+      enrichmentReviewRequired: false,
       ingestionSource: 'ALL',
       luxury: false,
       fullyVerified: false,
@@ -182,6 +185,9 @@ export default function LeadFiltersBar({ filters, onChange, leads: _leads, agent
     outreachStatus?: string;
     enrichmentStatus?: string;
     priorityTier?: string;
+    propertyReachEnriched?: boolean;
+    needsEnrichment?: boolean;
+    enrichmentReviewRequired?: boolean;
   };
 
   const hasFilters =
@@ -205,6 +211,9 @@ export default function LeadFiltersBar({ filters, onChange, leads: _leads, agent
     (f.outreachStatus ?? '') !== '' ||
     (f.enrichmentStatus ?? '') !== '' ||
     (f.priorityTier ?? '') !== '' ||
+    (f.propertyReachEnriched ?? false) ||
+    (f.needsEnrichment ?? false) ||
+    (f.enrichmentReviewRequired ?? false) ||
     (filters.luxury ?? false) ||
     (filters.fullyVerified ?? false);
 
@@ -228,6 +237,9 @@ export default function LeadFiltersBar({ filters, onChange, leads: _leads, agent
     (f.outreachStatus ?? '') !== '' ? 1 : 0,
     (f.enrichmentStatus ?? '') !== '' ? 1 : 0,
     (f.priorityTier ?? '') !== '' ? 1 : 0,
+    (f.propertyReachEnriched ?? false) ? 1 : 0,
+    (f.needsEnrichment ?? false) ? 1 : 0,
+    (f.enrichmentReviewRequired ?? false) ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
   return (
