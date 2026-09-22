@@ -1239,16 +1239,8 @@ interface AssignedLeadOption {
   verified_number?: boolean;
 }
 
-const DEMO_LEAD_DETAILS = {
-  contactName: 'Jordan Avery',
-  address: '1287 Silver King Dr',
-  city: 'Aspen',
-  state: 'CO',
-  phone: '(970) 555-0184',
-};
-
 function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
-  const { user, session, role } = useAuth();
+  const { user, session, role, loading } = useAuth();
   const isCandidateFollowUp = Boolean(prefill?.candidateId);
   const [contactName, setContactName] = useState(prefill?.contactName || '');
   const [address, setAddress] = useState(prefill?.address || '');
@@ -1355,20 +1347,19 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
       return;
     }
 
-    setSelectedLeadId(undefined);
-    setContactName(DEMO_LEAD_DETAILS.contactName);
-    setAddress(DEMO_LEAD_DETAILS.address);
-    setCity(DEMO_LEAD_DETAILS.city);
-    setState(DEMO_LEAD_DETAILS.state);
-    setPhone(DEMO_LEAD_DETAILS.phone);
-    setShowAddressDropdown(false);
-    toast.success('Lead details auto-filled');
+    toast.error('No verified assigned leads are available to call');
   };
 
   const handleStart = () => {
+    if (loading) { toast.error('Checking your session — please try again in a moment'); return; }
+    if (!user || !session?.access_token) { toast.error('Sign in before starting a teleprompter call'); return; }
     if (!isCandidateFollowUp && !address.trim()) { toast.error('Property address is required — check the lead record before starting a call'); return; }
     if (!agentName.trim()) { toast.error('Please enter your name before starting'); return; }
     if (isCandidateFollowUp && !phone.trim()) { toast.error('This candidate has no phone number on file'); return; }
+    if (role === 'agent' && !selectedLeadId && !prefill?.leadId) {
+      toast.error('Select one of your assigned verified leads before starting a call');
+      return;
+    }
     const { localBlurb } = resolveVariables(
       { contactName: contactName.trim(), address: address.trim(), city: city.trim(), state },
       { senderName: agentName.trim() }
@@ -2043,39 +2034,40 @@ function TeleprompterPageInner() {
   };
 
   const handleConsentAccepted = async () => {
+    let createdSessionId: string | null = null;
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !lead) throw new Error('Sign in before starting a teleprompter call');
+      const res = await fetch('/api/teleprompter/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          leadId: lead.leadId,
+          leadAddress: lead.address,
+          leadState: lead.state,
+          phoneNumber: lead.phone,
+          agentName,
+          contactName: lead.contactName,
+          portfolioState: lead.portfolioState,
+          baseScriptVariant: scriptId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.sessionId) throw new Error(data.error || 'Unable to create a call session');
+      createdSessionId = data.sessionId;
+      setSessionId(data.sessionId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to create a call session');
+      return;
+    }
+
     setPhase('active');
     const now = new Date();
     setCallStartTime(now);
     setCoveredBeats(new Set());
     setLowConfidenceCount(0);
-
-    let createdSessionId: string | null = null;
-    try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && lead) {
-        const res = await fetch('/api/teleprompter/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user.id,
-            leadId: lead.leadId,
-            leadAddress: lead.address,
-            leadState: lead.state,
-            phoneNumber: lead.phone,
-            agentName,
-            contactName: lead.contactName,
-            portfolioState: lead.portfolioState,
-            baseScriptVariant: scriptId,
-          }),
-        });
-        const data = await res.json();
-        if (data.sessionId) {
-          createdSessionId = data.sessionId;
-          setSessionId(data.sessionId);
-        }
-      }
-    } catch { /* non-blocking */ }
 
     if (lead?.phone) {
       setVoiceCallStatus('connecting');
