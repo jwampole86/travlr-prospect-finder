@@ -253,6 +253,7 @@ export default function LeadManagementClient({
   const [currentPage, setCurrentPage] = useState(1);
   const [serverTotal, setServerTotal] = useState(totalLeads);
   const [serverTotalPages, setServerTotalPages] = useState(Math.ceil(totalLeads / 50));
+  const [bandCounts, setBandCounts] = useState({ hot: 0, warm: 0, cold: 0 });
   const [serverLoading, setServerLoading] = useState(false);
   const PAGE_SIZE = 50;
   // Debounce ref for filter changes — prevents server fetch on every filter keystroke
@@ -416,6 +417,7 @@ export default function LeadManagementClient({
       setAllLeads(mapped);
       setServerTotal(json.total ?? 0);
       setServerTotalPages(json.totalPages ?? 1);
+      setBandCounts(json.bandCounts ?? { hot: 0, warm: 0, cold: 0 });
     } catch (err) {
       const isNetworkErr = err instanceof TypeError;
       if (isNetworkErr) setNetworkError(true);
@@ -1344,7 +1346,7 @@ export default function LeadManagementClient({
         <div className="mb-3 flex items-center justify-between gap-3 px-3 py-2.5 bg-card border border-border rounded-xl">
           <div className="flex items-center gap-3 flex-wrap">
             {(['hot', 'warm', 'cold'] as const).map(band => {
-              const count = paginatedLeads.filter(l => getConfidenceBand(l.prospectScore) === band).length;
+              const count = bandCounts[band];
               const colors: Record<string, string> = {
                 hot: 'text-orange-600 bg-orange-500/10 border-orange-500/20',
                 warm: 'text-amber-600 bg-amber-500/10 border-amber-500/20',

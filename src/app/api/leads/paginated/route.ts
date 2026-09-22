@@ -32,6 +32,53 @@ interface LeadQueryParams {
   priorityTier?: string;
 }
 
+function applyLeadFilters(query: any, params: LeadQueryParams) {
+  let filtered = query;
+
+  if (params.stateCode && params.stateCode !== 'all' && params.stateCode !== 'ALL') filtered = filtered.eq('state', params.stateCode);
+  if (params.search) {
+    const term = `%${params.search}%`;
+    filtered = filtered.or(`address.ilike.${term},city.ilike.${term},notes.ilike.${term},contact_name.ilike.${term},contact_phone.ilike.${term}`);
+  }
+  if (params.cities.length > 0) filtered = filtered.in('city', params.cities);
+  if (params.sources.length > 0) filtered = filtered.in('source', params.sources);
+  if (params.regulationStatuses.length > 0) filtered = filtered.in('regulation_status', params.regulationStatuses);
+  if (params.stages.length > 0) filtered = filtered.in('stage', params.stages);
+
+  if (params.ingestionSource && params.ingestionSource !== 'ALL') {
+    if (params.ingestionSource === 'MANUAL_CSV') {
+      filtered = filtered.or('ingestion_source.eq.MANUAL_CSV,ingestion_source.eq.MANUAL_RESEARCH_CSV,ingestion_source.eq.CSV_IMPORT,source_type.eq.MANUAL_VERIFIED_IMPORT,source_type.eq.MANUAL_RESEARCH_CSV');
+    } else if (params.ingestionSource === 'LINK_SYNC') {
+      filtered = filtered.eq('ingestion_source', 'LINK_SYNC').is('import_batch_id', null);
+    } else if (params.ingestionSource === 'MULTI_SOURCE') {
+      filtered = filtered.eq('is_multi_source', true);
+    }
+  }
+
+  if (params.luxury === true) filtered = filtered.eq('luxury', true);
+  if (params.fullyVerified === true) filtered = filtered.eq('fully_verified', true);
+  if (params.verifiedOwnerOnly === true) filtered = filtered.eq('verified_owner', true);
+  if (params.verifiedNumberOnly === true) filtered = filtered.eq('verified_number', true);
+  if (params.phoneAvailableOnly === true) filtered = filtered.eq('has_phone', true);
+
+  if (params.assignmentStatus === 'assigned') {
+    filtered = filtered.not('primary_agent_id', 'is', null).neq('primary_agent_id', '');
+  } else if (params.assignmentStatus === 'unassigned') {
+    filtered = filtered.or('primary_agent_id.is.null,primary_agent_id.eq.');
+  }
+  if (params.priorityTier) filtered = filtered.eq('priority_tier', parseInt(params.priorityTier, 10));
+  if (params.beds) filtered = filtered.eq('beds', parseInt(params.beds, 10));
+  if (params.priceMin) filtered = filtered.gte('price', parseInt(params.priceMin, 10));
+  if (params.priceMax) filtered = filtered.lte('price', parseInt(params.priceMax, 10));
+  if (params.scoreMin) filtered = filtered.gte('prospect_score', parseInt(params.scoreMin, 10));
+  if (params.dateFrom) filtered = filtered.gte('created_at', params.dateFrom);
+  if (params.dateTo) filtered = filtered.lte('created_at', `${params.dateTo}T23:59:59Z`);
+  if (params.isSynthetic === true) filtered = filtered.eq('is_synthetic', true);
+  else if (params.isSynthetic === false) filtered = filtered.or('is_synthetic.is.null,is_synthetic.eq.false');
+
+  return filtered;
+}
+
 // ─── GET /api/leads/paginated ─────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -135,126 +182,7 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from('leads')
       .select(selectCols, { count: 'exact' });
-
-    // ── Portfolio / state filter ───────────────────────────────────────────
-    // IMPORTANT: Only filter by state when a real state code is provided.
-    // 'all' or empty string means "All Portfolios" — no state restriction.
-    if (params.stateCode && params.stateCode !== 'all' && params.stateCode !== 'ALL') {
-      query = query.eq('state', params.stateCode);
-    }
-
-    // ── Text search ────────────────────────────────────────────────────────
-    if (params.search) {
-      const term = `%${params.search}%`;
-      query = query.or(
-        `address.ilike.${term},city.ilike.${term},notes.ilike.${term},contact_name.ilike.${term},contact_phone.ilike.${term}`
-      );
-    }
-
-    // ── Multi-select filters ───────────────────────────────────────────────
-    if (params.cities.length > 0) {
-      query = query.in('city', params.cities);
-    }
-    if (params.sources.length > 0) {
-      query = query.in('source', params.sources);
-    }
-    if (params.regulationStatuses.length > 0) {
-      query = query.in('regulation_status', params.regulationStatuses);
-    }
-    if (params.stages.length > 0) {
-      query = query.in('stage', params.stages);
-    }
-
-    // ── Ingestion source filter ────────────────────────────────────────────
-    // Source category normalization:
-    //   MANUAL_CSV / MANUAL_RESEARCH_CSV / MANUAL_VERIFIED_IMPORT / CSV_IMPORT → "Manual CSV" UI category
-    //   LINK_SYNC → "Link Sync" UI category
-    //   MULTI_SOURCE → "Multi-Source" UI category
-    if (params.ingestionSource && params.ingestionSource !== 'ALL') {
-      if (params.ingestionSource === 'MANUAL_CSV') {
-        // Match all known manual/CSV import source variants
-        query = query.or(
-          'ingestion_source.eq.MANUAL_CSV,ingestion_source.eq.MANUAL_RESEARCH_CSV,ingestion_source.eq.CSV_IMPORT,source_type.eq.MANUAL_VERIFIED_IMPORT,source_type.eq.MANUAL_RESEARCH_CSV'
-        );
-      } else if (params.ingestionSource === 'LINK_SYNC') {
-        query = query.eq('ingestion_source', 'LINK_SYNC')
-          .is('import_batch_id', null);
-      } else if (params.ingestionSource === 'MULTI_SOURCE') {
-        query = query.eq('is_multi_source', true);
-      }
-    }
-
-    // ── Luxury filter (server-side, real DB column) ────────────────────────
-    if (params.luxury === true) {
-      query = query.eq('luxury', true);
-    }
-
-    // ── Fully Verified filter ──────────────────────────────────────────────
-    if (params.fullyVerified === true) {
-      query = query.eq('fully_verified', true);
-    }
-
-    // ── Verified Owner filter ──────────────────────────────────────────────
-    if (params.verifiedOwnerOnly === true) {
-      query = query.eq('verified_owner', true);
-    }
-
-    // ── Verified Number / Phone filter ─────────────────────────────────────
-    if (params.verifiedNumberOnly === true) {
-      query = query.eq('verified_number', true);
-    }
-
-    // ── Phone Available filter ─────────────────────────────────────────────
-    if (params.phoneAvailableOnly === true) {
-      query = query.eq('has_phone', true);
-    }
-
-    // ── Assignment status filter ───────────────────────────────────────────
-    if (params.assignmentStatus === 'assigned') {
-      query = query.not('primary_agent_id', 'is', null).neq('primary_agent_id', '');
-    } else if (params.assignmentStatus === 'unassigned') {
-      query = query.or('primary_agent_id.is.null,primary_agent_id.eq.');
-    }
-
-    // ── Priority tier filter ───────────────────────────────────────────────
-    if (params.priorityTier && params.priorityTier !== '') {
-      query = query.eq('priority_tier', parseInt(params.priorityTier, 10));
-    }
-
-    // ── Numeric filters ────────────────────────────────────────────────────
-    if (params.beds) {
-      query = query.eq('beds', parseInt(params.beds, 10));
-    }
-    if (params.priceMin) {
-      query = query.gte('price', parseInt(params.priceMin, 10));
-    }
-    if (params.priceMax) {
-      query = query.lte('price', parseInt(params.priceMax, 10));
-    }
-    if (params.scoreMin) {
-      query = query.gte('prospect_score', parseInt(params.scoreMin, 10));
-    }
-
-    // ── Date range filter ──────────────────────────────────────────────────
-    if (params.dateFrom) {
-      query = query.gte('created_at', params.dateFrom);
-    }
-    if (params.dateTo) {
-      query = query.lte('created_at', params.dateTo + 'T23:59:59Z');
-    }
-
-    // ── Synthetic data filter ──────────────────────────────────────────────
-    // CRITICAL FIX: PostgreSQL's != operator excludes NULL rows.
-    // Using neq('is_synthetic', true) would silently drop all leads where
-    // is_synthetic IS NULL (e.g. newly imported leads that never had this set).
-    // Instead, we explicitly include rows where is_synthetic is NULL or false.
-    if (params.isSynthetic === true) {
-      query = query.eq('is_synthetic', true);
-    } else if (params.isSynthetic === false) {
-      // Explicitly requested non-synthetic only — include NULL and false
-      query = query.or('is_synthetic.is.null,is_synthetic.eq.false');
-    }
-    // isSynthetic === null → no filter, show all leads (canonical default)
+    query = applyLeadFilters(query, params);
 
     // ── Sort + Pagination ──────────────────────────────────────────────────
     const from = (params.page - 1) * params.pageSize;
@@ -272,7 +200,23 @@ export async function GET(req: NextRequest) {
         .range(from, to);
     }
 
-    const { data, error, count } = await query;
+    const countByBand = (minimum: number, maximum?: number) => {
+      let bandQuery = applyLeadFilters(
+        supabase.from('leads').select('id', { count: 'exact', head: true }),
+        params
+      ).gte('prospect_score', minimum);
+      if (maximum !== undefined) bandQuery = bandQuery.lte('prospect_score', maximum);
+      return bandQuery;
+    };
+
+    const [pageResult, hotResult, warmResult, coldResult] = await Promise.all([
+      query,
+      countByBand(80),
+      countByBand(60, 79),
+      countByBand(0, 59),
+    ]);
+    const { data, error, count } = pageResult;
+    const bandCountError = hotResult.error || warmResult.error || coldResult.error;
 
     const queryDurationMs = Date.now() - requestStart;
 
@@ -291,6 +235,10 @@ export async function GET(req: NextRequest) {
       console.error('[leads/paginated] Query error:', error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+    if (bandCountError) {
+      console.error('[leads/paginated] Band count error:', bandCountError.message);
+      return NextResponse.json({ error: bandCountError.message }, { status: 500 });
+    }
 
     const response = NextResponse.json({
       leads: data || [],
@@ -298,6 +246,11 @@ export async function GET(req: NextRequest) {
       page: params.page,
       pageSize: params.pageSize,
       totalPages: Math.ceil((count ?? 0) / params.pageSize),
+      bandCounts: {
+        hot: hotResult.count ?? 0,
+        warm: warmResult.count ?? 0,
+        cold: coldResult.count ?? 0,
+      },
       _meta: {
         requestId,
         durationMs: queryDurationMs,
