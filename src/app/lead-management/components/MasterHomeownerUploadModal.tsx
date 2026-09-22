@@ -36,9 +36,10 @@ interface ImportTotals {
 const API_BATCH_SIZE = 500;
 const PARSE_CHUNK_SIZE = 1024 * 1024;
 const TUS_CHUNK_SIZE = 6 * 1024 * 1024;
+const STORAGE_PART_SIZE = 40 * 1024 * 1024;
 const MAX_FILE_SIZE = 1024 * 1024 * 1024;
 
-function uploadResumable(file: File, storagePath: string, accessToken: string, onProgress: (percentage: number) => void) {
+function uploadObjectResumable(file: Blob, storagePath: string, contentType: string, accessToken: string, onProgress: (uploaded: number, total: number) => void) {
   return new Promise<void>((resolve, reject) => {
     const projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -54,14 +55,15 @@ function uploadResumable(file: File, storagePath: string, accessToken: string, o
       uploadDataDuringCreation: true,
       removeFingerprintOnSuccess: true,
       chunkSize: TUS_CHUNK_SIZE,
+      fingerprint: () => Promise.resolve(`master-homeowner-${storagePath}-${file.size}`),
       metadata: {
         bucketName: 'master-homeowner-data',
         objectName: storagePath,
-        contentType: file.type || 'text/plain',
+        contentType,
         cacheControl: '3600',
       },
       onError: reject,
-      onProgress: (uploaded, total) => onProgress(total > 0 ? Math.round((uploaded / total) * 100) : 0),
+      onProgress,
       onSuccess: () => resolve(),
     });
     upload.findPreviousUploads().then(previous => {
@@ -69,6 +71,55 @@ function uploadResumable(file: File, storagePath: string, accessToken: string, o
       upload.start();
     }).catch(reject);
   });
+}
+
+async function archiveFileResumable(file: File, basePath: string, accessToken: string, onProgress: (percentage: number) => void) {
+  const contentType = file.type || 'text/plain';
+  if (file.size <= STORAGE_PART_SIZE) {
+    await uploadObjectResumable(file, basePath, contentType, accessToken, (uploaded, total) => {
+      onProgress(total > 0 ? Math.round((uploaded / total) * 100) : 0);
+    });
+    return basePath;
+  }
+
+  const archivePath = `${basePath}.parts`;
+  const partCount = Math.ceil(file.size / STORAGE_PART_SIZE);
+  const parts: Array<{ path: string; size: number }> = [];
+  let completedBytes = 0;
+
+  for (let index = 0; index < partCount; index += 1) {
+    const start = index * STORAGE_PART_SIZE;
+    const end = Math.min(start + STORAGE_PART_SIZE, file.size);
+    const part = file.slice(start, end, contentType);
+    const partPath = `${archivePath}/part-${String(index + 1).padStart(5, '0')}`;
+    await uploadObjectResumable(part, partPath, contentType, accessToken, uploaded => {
+      onProgress(Math.round(((completedBytes + uploaded) / file.size) * 100));
+    });
+    completedBytes += part.size;
+    parts.push({ path: partPath, size: part.size });
+  }
+
+  const manifestPath = `${archivePath}/manifest.json`;
+  const manifest = new Blob([JSON.stringify({
+    version: 1,
+    filename: file.name,
+    size: file.size,
+    contentType,
+    partSize: STORAGE_PART_SIZE,
+    parts,
+  })], { type: 'application/json' });
+  await uploadObjectResumable(manifest, manifestPath, 'text/plain', accessToken, () => {});
+  onProgress(100);
+  return manifestPath;
+}
+
+function formatImportError(error: unknown) {
+  const message = error instanceof Error ? error.message : 'Import failed';
+  if (/413|maximum size exceeded/i.test(message)) {
+    return 'A storage part exceeded the Supabase project limit. Retry after refreshing; large files are now split into sub-40 MB parts.';
+  }
+  if (/network|fetch|timeout/i.test(message)) return 'Upload interrupted by the network. Retry to resume the archived parts.';
+  return message.length > 280 ? `${message.slice(0, 277)}...` : message;
 }
 
 async function postImport(payload: Record<string, unknown>) {
@@ -189,8 +240,8 @@ export default function MasterHomeownerUploadModal({ open, onClose, onComplete }
     for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
       const file = files[fileIndex];
       try {
-        const storagePath = `${session.user.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-z0-9._-]+/gi, '-')}`;
-        await uploadResumable(file, storagePath, session.access_token, percentage => {
+        const baseStoragePath = `${session.user.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-z0-9._-]+/gi, '-')}`;
+        const storagePath = await archiveFileResumable(file, baseStoragePath, session.access_token, percentage => {
           setProgress(`Uploading ${file.name} (${fileIndex + 1}/${files.length}): ${percentage}%`);
         });
         const totals = await streamFileRows(file, storagePath, minimumScore, useAnthropic, createQualifiedLeads, processed => {
@@ -200,7 +251,7 @@ export default function MasterHomeownerUploadModal({ open, onClose, onComplete }
       } catch (error) {
         completed.push({
           name: file.name, rows: 0, qualified: 0, matched: 0, enriched: 0, leadsCreated: 0,
-          error: error instanceof Error ? error.message : 'Import failed',
+          error: formatImportError(error),
         });
       }
       setResults([...completed]);
