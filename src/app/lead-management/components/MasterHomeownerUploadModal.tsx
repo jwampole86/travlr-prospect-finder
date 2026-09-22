@@ -151,7 +151,6 @@ async function streamFileRows(
     let failed = false;
     Papa.parse<Record<string, unknown>>(file, {
       header: true,
-      worker: true,
       skipEmptyLines: 'greedy',
       chunkSize: PARSE_CHUNK_SIZE,
       chunk: (result: ParseResult<Record<string, unknown>>, parser: Parser) => {
