@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { createClient } from '@/lib/supabase/server';
+import { requireApiActor } from '@/lib/auth/apiAuthorization';
 import {
   MASTER_FIELDS,
   inferMasterFieldMapping,
@@ -45,9 +45,10 @@ function text(row: RawRow, mapping: MasterFieldMapping, field: keyof MasterField
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authorization = await requireApiActor(request);
+  if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
+  const supabase = authorization.actor.client;
+  const user = authorization.actor.user;
 
   try {
     const body = await request.json() as Record<string, unknown>;

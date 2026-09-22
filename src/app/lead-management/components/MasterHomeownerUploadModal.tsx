@@ -115,6 +115,9 @@ async function archiveFileResumable(file: File, basePath: string, accessToken: s
 
 function formatImportError(error: unknown) {
   const message = error instanceof Error ? error.message : 'Import failed';
+  if (/^unauthorized$/i.test(message) || /session expired|sign-in session/i.test(message)) {
+    return 'Your sign-in session expired during the import. Sign in again and retry; completed chunks are safely deduplicated.';
+  }
   if (/413|maximum size exceeded/i.test(message)) {
     return 'A storage part exceeded the Supabase project limit. Retry after refreshing; large files are now split into sub-40 MB parts.';
   }
@@ -122,15 +125,26 @@ function formatImportError(error: unknown) {
   return message.length > 280 ? `${message.slice(0, 277)}...` : message;
 }
 
-async function postImport(payload: Record<string, unknown>) {
-  const response = await fetch('/api/leads/master-homeowner-import', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Master homeowner import failed');
-  return data;
+type AccessTokenProvider = () => Promise<string>;
+
+async function postImport(payload: Record<string, unknown>, getAccessToken: AccessTokenProvider) {
+  const send = async () => {
+    const accessToken = await getAccessToken();
+    const response = await fetch('/api/leads/master-homeowner-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+    return { response, data };
+  };
+
+  let result = await send();
+  // Supabase can refresh a browser session between large CSV chunks. Retry once
+  // with the latest token before interrupting an otherwise resumable import.
+  if (result.response.status === 401) result = await send();
+  if (!result.response.ok) throw new Error(result.data.error || 'Master homeowner import failed');
+  return result.data;
 }
 
 async function streamFileRows(
@@ -140,6 +154,7 @@ async function streamFileRows(
   useAnthropic: boolean,
   propertyOnly: boolean,
   createQualifiedLeads: boolean,
+  getAccessToken: AccessTokenProvider,
   onProgress: (processed: number) => void,
 ) {
   let fileId = '';
@@ -164,7 +179,7 @@ async function streamFileRows(
                 action: 'initialize', filename: file.name, storagePath,
                 contentType: file.type || 'text/plain', sizeBytes: file.size,
                 headers, useAnthropic, propertyOnly,
-              });
+              }, getAccessToken);
               fileId = initialized.fileId;
               mapping = initialized.mapping;
             }
@@ -177,7 +192,7 @@ async function streamFileRows(
               const chunk = await postImport({
                 action: 'chunk', fileId, rows, rowOffset, mapping,
                 minimumScore, propertyOnly, createQualifiedLeads,
-              });
+              }, getAccessToken);
               rowOffset += rows.length;
               totals.rows += chunk.processed || 0;
               totals.qualified += chunk.qualified || 0;
@@ -206,7 +221,7 @@ async function streamFileRows(
     action: 'complete', fileId, rowCount: totals.rows,
     qualifiedCount: totals.qualified, matchedCount: totals.matched,
     leadsCreated: totals.leadsCreated,
-  });
+  }, getAccessToken);
   return totals;
 }
 
@@ -240,6 +255,12 @@ export default function MasterHomeownerUploadModal({ open, onClose, onComplete }
       return;
     }
 
+    const getAccessToken = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data.session?.access_token) throw new Error('Your sign-in session expired. Sign in again, then retry the import.');
+      return data.session.access_token;
+    };
+
     const completed: FileResult[] = [];
     for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
       const file = files[fileIndex];
@@ -250,7 +271,7 @@ export default function MasterHomeownerUploadModal({ open, onClose, onComplete }
           : await archiveFileResumable(file, baseStoragePath, session.access_token, percentage => {
               setProgress(`Uploading ${file.name} (${fileIndex + 1}/${files.length}): ${percentage}%`);
             });
-        const totals = await streamFileRows(file, storagePath, minimumScore, useAnthropic, propertyOnly, createQualifiedLeads, processed => {
+        const totals = await streamFileRows(file, storagePath, minimumScore, useAnthropic, propertyOnly, createQualifiedLeads, getAccessToken, processed => {
           setProgress(`Matching ${file.name}: ${processed.toLocaleString()} rows processed`);
         });
         completed.push({ name: file.name, ...totals });
