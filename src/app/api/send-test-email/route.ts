@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 
 export async function POST(req: NextRequest) {
   try {
+    const authorization = await requireAdminActor(req);
+    if (!authorization.actor) {
+      return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
+    }
     const { to, subject, html } = await req.json();
     const resend = getResendClient();
     const from = getResendFrom();
