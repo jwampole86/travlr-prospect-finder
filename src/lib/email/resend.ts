@@ -22,9 +22,14 @@ export function getResendFrom(): string {
 }
 
 export function getResendConfigStatus() {
+  const senderEmail = process.env.RESEND_FROM_EMAIL;
+  const senderDomain = senderEmail?.split('@')[1] || null;
+  const senderIsSandbox = senderDomain === 'resend.dev';
   return {
     apiKeyConfigured: isConfigured(process.env.RESEND_API_KEY),
-    senderConfigured: isConfigured(process.env.RESEND_FROM_EMAIL),
-    senderDomain: process.env.RESEND_FROM_EMAIL?.split('@')[1] || null,
+    senderConfigured: isConfigured(senderEmail),
+    senderDomain,
+    senderIsSandbox,
+    productionReady: isConfigured(process.env.RESEND_API_KEY) && isConfigured(senderEmail) && !senderIsSandbox,
   };
 }

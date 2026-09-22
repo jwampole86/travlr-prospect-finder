@@ -18,6 +18,18 @@ export async function GET() {
     }, { status: 503 });
   }
 
+  if (status.senderIsSandbox) {
+    return NextResponse.json({
+      ok: false,
+      configured: true,
+      productionReady: false,
+      sender: getResendFrom(),
+      senderDomain: status.senderDomain,
+      providerReachable: false,
+      error: 'RESEND_FROM_EMAIL uses Resend\'s sandbox domain. Configure a verified sender on your domain before sending homeowner outreach.',
+    }, { status: 503 });
+  }
+
   try {
     const response = await fetch('https://api.resend.com/domains', {
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
@@ -29,6 +41,7 @@ export async function GET() {
     return NextResponse.json({
       ok: response.ok || isSendOnlyRestrictedKey,
       configured: true,
+      productionReady: status.productionReady,
       sender: getResendFrom(),
       senderDomain: status.senderDomain,
       providerReachable: response.ok || isSendOnlyRestrictedKey,
@@ -44,6 +57,7 @@ export async function GET() {
     return NextResponse.json({
       ok: false,
       configured: true,
+      productionReady: status.productionReady,
       sender: getResendFrom(),
       senderDomain: status.senderDomain,
       providerReachable: false,
