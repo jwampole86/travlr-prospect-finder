@@ -8,10 +8,6 @@
     {
       "path": "/api/cron/listing-verification",
       "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/property-refresh",
-      "schedule": "*/15 * * * *"
     }
   ]
 }
