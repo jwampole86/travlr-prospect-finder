@@ -1926,6 +1926,7 @@ function TeleprompterPageInner() {
             sessionId,
             suggestionId: currentSuggestionId,
             suggestionText: lastSuggestionRef.current,
+            usageSignal: signal,
             source: suggestionMeta.source,
             objectionId: suggestionMeta.objectionId,
             scriptId,

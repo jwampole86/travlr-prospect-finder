@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Phone, PhoneOff, ChevronRight, ChevronLeft, CheckCircle2, FileText, Clock, Save, X, CheckSquare, Square, Loader2, PhoneCall, PhoneMissed, PhoneIncoming, MessageSquare, StickyNote } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { CALL_SCRIPTS, SCRIPT_OPTIONS, ScriptId } from '@/lib/callScripts';
@@ -59,6 +60,7 @@ export default function LiveTeleprompterPanel({
   onClose,
   defaultScriptId = 'initial_outreach',
 }: LiveTeleprompterPanelProps) {
+  const router = useRouter();
   const supabase = createClient();
 
   // Script state
@@ -114,14 +116,16 @@ export default function LiveTeleprompterPanel({
   // ── Start / End Call ───────────────────────────────────────────────────────
 
   const handleStartCall = () => {
-    setCallPhase('active');
-    setCallStartTime(new Date());
-    setElapsed(0);
-    setActiveSectionIdx(0);
-    setCoveredLines(new Set());
-    setSelectedOutcome(null);
-    setOutcomeNotes('');
-    setOutcomeSaved(false);
+    const params = new URLSearchParams({
+      leadId: lead.id,
+      contactName: lead.contactName,
+      address: lead.address,
+      city: lead.city,
+      state: lead.state,
+      scriptId,
+    });
+    if (lead.phone) params.set('phone', lead.phone);
+    router.push(`/teleprompter?${params.toString()}`);
   };
 
   const handleEndCall = () => {
@@ -236,7 +240,7 @@ export default function LiveTeleprompterPanel({
               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
             >
               <Phone size={12} />
-              Start Call
+              Open Call Workspace
             </button>
           )}
           {callPhase === 'active' && (

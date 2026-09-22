@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 
 // Supplies everything the Live Call Teleprompter needs to help an agent conduct
 // a human follow-up call with a candidate: contact info, the AI interview summary,
 // and the overall scorecard assessment from their most recent interview.
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authorization = await requireAdminActor(request);
+  if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
 
   const db = getSupabaseAdmin();
 

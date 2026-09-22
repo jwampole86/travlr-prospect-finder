@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +17,11 @@ export async function POST(request: NextRequest) {
       portfolioState,
       baseScriptVariant,
     } = body;
+
+    if (leadId) {
+      const authorization = await requireLeadAccess(request, leadId);
+      if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
+    }
 
     const { data, error } = await supabase
       .from('call_sessions')
@@ -56,6 +62,14 @@ export async function PATCH(request: NextRequest) {
     if (!sessionId) {
       return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
     }
+
+    const { data: existingSession } = await supabase
+      .from('call_sessions')
+      .select('id')
+      .eq('id', sessionId)
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+    if (!existingSession) return NextResponse.json({ error: 'Call session not found' }, { status: 404 });
 
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (transcript !== undefined) updateData.transcript = transcript;

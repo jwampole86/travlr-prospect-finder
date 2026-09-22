@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { completion } from '@rocketnew/llm-sdk';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 import { activityService } from '@/lib/services/activityService';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const SUMMARY_SYSTEM_PROMPT = `You are a call summarizer for TRAVLR, a vacation rental property management company. 
 Given a call transcript between a TRAVLR agent and a homeowner prospect, produce a concise, structured summary.
@@ -25,6 +20,9 @@ Be factual and concise. Do not invent details not present in the transcript.`;
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const {
       sessionId,
       transcript,
@@ -38,8 +36,18 @@ export async function POST(request: NextRequest) {
       agentName,
     } = await request.json();
 
-    if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
-      return NextResponse.json({ error: 'transcript required' }, { status: 400 });
+    if (!sessionId || !transcript || !Array.isArray(transcript) || transcript.length < 2) {
+      return NextResponse.json({ error: 'sessionId and at least two transcript entries are required' }, { status: 400 });
+    }
+
+    const { data: callSession } = await supabase
+      .from('call_sessions')
+      .select('id, lead_id')
+      .eq('id', sessionId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!callSession || (leadId && callSession.lead_id && leadId !== callSession.lead_id)) {
+      return NextResponse.json({ error: 'Call session not found' }, { status: 404 });
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;

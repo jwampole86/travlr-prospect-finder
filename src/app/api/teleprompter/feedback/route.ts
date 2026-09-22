@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createClient } from '@/lib/supabase/server';
 
 /**
  * POST /api/teleprompter/feedback
@@ -22,6 +17,9 @@ const supabase = createClient(
  */
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const {
       sessionId,
       suggestionId,
@@ -31,14 +29,27 @@ export async function POST(request: NextRequest) {
       objectionId,
       scriptId,
       leadId,
+      usageSignal: requestedUsageSignal,
     } = await request.json();
 
     if (!sessionId || !suggestionText) {
       return NextResponse.json({ error: 'sessionId and suggestionText required' }, { status: 400 });
     }
 
+    const { data: callSession } = await supabase
+      .from('call_sessions')
+      .select('id, lead_id')
+      .eq('id', sessionId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!callSession || (leadId && callSession.lead_id && leadId !== callSession.lead_id)) {
+      return NextResponse.json({ error: 'Call session not found' }, { status: 404 });
+    }
+
     // Compute rough usage signal: did the agent's next line closely match the suggestion?
-    const usageSignal = computeUsageSignal(suggestionText, nextAgentLine || '');
+    const usageSignal = ['used', 'modified', 'ignored'].includes(requestedUsageSignal)
+      ? requestedUsageSignal
+      : computeUsageSignal(suggestionText, nextAgentLine || '');
 
     const { error } = await supabase.from('teleprompter_suggestion_feedback').insert({
       session_id: sessionId,
@@ -69,10 +80,22 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('sessionId');
     const scriptId = searchParams.get('scriptId');
     const limit = parseInt(searchParams.get('limit') || '50');
+
+    if (!sessionId) return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
+    const { data: callSession } = await supabase
+      .from('call_sessions')
+      .select('id')
+      .eq('id', sessionId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!callSession) return NextResponse.json({ error: 'Call session not found' }, { status: 404 });
 
     let query = supabase
       .from('teleprompter_suggestion_feedback')
@@ -80,7 +103,7 @@ export async function GET(request: NextRequest) {
       .order('recorded_at', { ascending: false })
       .limit(limit);
 
-    if (sessionId) query = query.eq('session_id', sessionId);
+    query = query.eq('session_id', sessionId);
     if (scriptId) query = query.eq('script_id', scriptId);
 
     const { data, error } = await query;
@@ -130,7 +153,7 @@ function computeUsageSignal(suggestion: string, agentLine: string): 'used' | 'mo
   // Extract the actual suggested text (strip formatting)
   const suggestionClean = suggestion
     .replace(/^(Suggested next line:|Option [AB]:)/gm, '')
-    .replace(/^"(.*)"$/s, '$1')
+    .replace(/^"([\s\S]*)"$/, '$1')
     .replace(/\[Note:.*\]/g, '')
     .toLowerCase()
     .trim();
