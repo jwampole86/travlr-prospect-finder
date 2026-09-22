@@ -39,13 +39,14 @@ export async function POST(req: NextRequest) {
         );
 
         // Check leads table
-        const { data: lead } = await supabase
+        const { data: lead, error: leadError } = await supabase
           .from('leads')
-          .select('do_not_contact')
+          .select('sms_opt_in')
           .eq('id', leadId)
           .single();
 
-        if (lead?.do_not_contact) {
+        if (leadError) throw leadError;
+        if (lead?.sms_opt_in === false) {
           // Log the blocked attempt to outreach_history
           await supabase.from('outreach_history').insert({
             lead_id: leadId,

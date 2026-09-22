@@ -139,7 +139,7 @@ export default function AgentWorkspacePage() {
   const fetchFollowUps = useCallback(async () => {
     if (!session?.access_token) return;
     try {
-      const res = await fetch('/api/agent/leads?limit=20&follow_up_due=true', {
+      const res = await fetch('/api/agent/leads?limit=1000&follow_up_due=true', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.ok) {
@@ -189,6 +189,12 @@ export default function AgentWorkspacePage() {
       if (refreshRef.current) clearInterval(refreshRef.current);
     };
   }, [user, session]);
+
+  useEffect(() => {
+    const refreshOnFocus = () => { fetchLeads(); fetchFollowUps(); fetchKPIs(); };
+    window.addEventListener('focus', refreshOnFocus);
+    return () => window.removeEventListener('focus', refreshOnFocus);
+  }, [fetchLeads, fetchFollowUps, fetchKPIs]);
 
   const priorityLeads = leads.filter(l => l.is_high_priority || l.luxury);
   const displayLeads = activeTab === 'priority' ? priorityLeads : activeTab === 'followup' ? followUpLeads : leads;

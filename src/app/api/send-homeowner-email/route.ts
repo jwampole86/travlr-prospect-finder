@@ -20,6 +20,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields: to, message, leadId' }, { status: 400 });
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+    const serviceKey = serviceRoleKey && !serviceRoleKey.includes('your-supabase-service-role-key')
+      ? serviceRoleKey : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabase = supabaseUrl && serviceKey ? createClient(supabaseUrl, serviceKey) : null;
+    const { data: enrichment } = supabase ? await supabase.from('lead_enrichments').select('do_not_contact').eq('lead_id', leadId).maybeSingle() : { data: null };
+    if (enrichment?.do_not_contact === true) {
+      return NextResponse.json({ error: 'Email blocked: this lead is marked Do Not Contact.' }, { status: 422 });
+    }
+
     const emailSubject = subject || `TRAVLR Vacation Homes — ${propertyAddress}`;
     const escapedMessage = escapeHtml(message).replace(/\n/g, '<br/>');
     const { data, error } = await getResendClient().emails.send({
@@ -35,18 +45,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
+      await supabase?.from('outreach_history').insert({ lead_id: leadId, channel: 'email', subject: emailSubject, body_preview: message.slice(0, 200), status: 'failed', recipient_email: to, agent_id: agentId || null, sent_at: new Date().toISOString(), metadata: { error: error.message } });
       return NextResponse.json({ error: error.message || 'Failed to send email' }, { status: 500 });
     }
 
     // Log to outreach_history using service role (server-side)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-    const serviceKey = serviceRoleKey && !serviceRoleKey.includes('your-supabase-service-role-key')
-      ? serviceRoleKey
-      : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (supabaseUrl && serviceKey) {
-      const supabase = createClient(supabaseUrl, serviceKey);
+    if (supabase) {
       await supabase.from('outreach_history').insert({
           lead_id: leadId,
           channel: 'email',
