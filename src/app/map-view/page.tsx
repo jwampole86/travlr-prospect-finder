@@ -5,6 +5,11 @@ import { createClient as createServerClient } from '@supabase/supabase-js';
 import type { Lead } from '@/data/mockLeads';
 import { Suspense } from 'react';
 
+// The map reads a large live lead population. Rendering it dynamically prevents
+// Vercel builds from timing out while it waits for external database pages.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const MAP_PAGE_SIZE = 1000;
 
 const CITY_CENTERS: Record<string, { lat: number; lng: number }> = {
