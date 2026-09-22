@@ -6,6 +6,11 @@ import { cityRegulations } from '@/data/regulations';
 import { createClient as createServerClient } from '@supabase/supabase-js';
 import type { Lead, LeadSource } from '@/data/mockLeads';
 
+// Lead data is user-specific and can be slow to query during a Supabase outage.
+// Render it dynamically; the client paginated API supplies the recoverable data path.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 async function fetchInitialLeads(): Promise<{ leads: Lead[]; total: number }> {
   try {
     const supabase = createServerClient(

@@ -10,9 +10,10 @@ const ADMIN_ROLES = ['admin', 'owner', 'operator', 'super_admin'];
  * 2. Logged-in admins — via their Supabase session cookie (no secret ever sent to the browser).
  */
 export async function verifyJobRequest(req: NextRequest): Promise<{ authorized: boolean; reason?: string }> {
-  const secret = process.env.SEQUENCE_JOB_SECRET;
+  const secret = process.env.SEQUENCE_JOB_SECRET || process.env.CRON_SECRET;
   const headerSecret = req.headers.get('x-job-secret');
-  if (secret && headerSecret === secret) {
+    const authorization = req.headers.get('authorization');
+    if (secret && (headerSecret === secret || authorization === `Bearer ${secret}`)) {
     return { authorized: true };
   }
   if (!secret && !headerSecret) {

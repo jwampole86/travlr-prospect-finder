@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { verifyJobRequest } from '@/lib/jobAuth';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
 
 /**
  * POST /api/cron/property-refresh
@@ -13,16 +14,18 @@ import { verifyJobRequest } from '@/lib/jobAuth';
  * Protected by SEQUENCE_JOB_SECRET header (cron) or an authenticated admin session (UI).
  */
 
-export async function POST(req: NextRequest) {
+async function runPropertyRefresh(req: NextRequest) {
   const auth = await verifyJobRequest(req);
   if (!auth.authorized) {
     return NextResponse.json({ error: auth.reason || 'Unauthorized' }, { status: 401 });
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  let supabase;
+  try {
+    supabase = getSupabaseAdmin();
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Supabase admin configuration is incomplete' }, { status: 503 });
+  }
 
   const runId = `run_${Date.now()}`;
   const startedAt = new Date().toISOString();
@@ -39,12 +42,16 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    // ── 1. Load all active leads ──────────────────────────────────────────────
+    // Process a bounded priority slice per run. Loading every lead turns a
+    // routine rescore into a slow, failure-prone full-table operation.
+    const batchSize = Math.min(Math.max(Number(new URL(req.url).searchParams.get('limit') || 500), 1), 500);
     const { data: leads, error: leadsErr } = await supabase
       .from('leads')
-      .select('id, prospect_score, last_contacted_at, created_at, enrichment_status, stage, address, city, state')
+      .select('id, prospect_score, last_contacted_at, created_at, enrichment_status, stage, address, city, state, beds, baths, price, estimated_net_monthly, estimated_gross_monthly, estimated_adr, regulation_status, verified_owner, verified_number, verified_address, contact_phone, luxury, days_on_market')
       .not('stage', 'eq', 'Not a Fit')
-      .not('stage', 'eq', 'Closed');
+      .not('stage', 'eq', 'Closed')
+      .order('updated_at', { ascending: true })
+      .limit(batchSize);
 
     if (leadsErr) {
       results.errors.push(`Failed to load leads: ${leadsErr.message}`);
@@ -62,23 +69,27 @@ export async function POST(req: NextRequest) {
     const reenrichIds: string[] = [];
 
     for (const lead of allLeads) {
-      // ── 2. Recalculate prospect score ───────────────────────────────────────
-      // Score is computed from available fields; a real implementation would
-      // call the ML scoring service. Here we apply a lightweight heuristic
-      // refresh that bumps stale scores by ±1 to signal freshness.
-      const currentScore = lead.prospect_score ?? 50;
-      const hasAddress = Boolean(lead.address && lead.city && lead.state);
-      const isEnriched = lead.enrichment_status === 'enriched';
-
-      // Recalculate: base score + bonuses for data completeness
-      let newScore = currentScore;
-      if (hasAddress && !isEnriched) newScore = Math.max(0, currentScore - 2);
-      if (isEnriched) newScore = Math.min(100, currentScore + 1);
-      newScore = Math.round(Math.min(100, Math.max(0, newScore)));
+      // ── 2. Recalculate using the same deterministic factor model as the AI API ──
+      const score = calculateProspectScore({
+        estimatedNetMonthly: lead.estimated_net_monthly,
+        estimatedGrossMonthly: lead.estimated_gross_monthly,
+        estimatedADR: lead.estimated_adr,
+        price: lead.price,
+        beds: lead.beds,
+        baths: lead.baths,
+        regulationStatus: lead.regulation_status,
+        verifiedOwner: lead.verified_owner,
+        verifiedNumber: lead.verified_number,
+        verifiedAddress: lead.verified_address,
+        contactPhone: lead.contact_phone,
+        daysOnMarket: lead.days_on_market,
+        stage: lead.stage,
+        luxury: lead.luxury,
+      });
 
       scoreUpdates.push({
         id: lead.id,
-        prospect_score: newScore,
+        prospect_score: score.score,
         score_refreshed_at: new Date().toISOString(),
       });
 
@@ -94,23 +105,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Batch score updates (chunks of 100) ───────────────────────────────────
-    const CHUNK = 100;
-    for (let i = 0; i < scoreUpdates.length; i += CHUNK) {
-      const chunk = scoreUpdates.slice(i, i + CHUNK);
-      const { error: scoreErr } = await supabase
-        .from('leads')
-        .upsert(chunk, { onConflict: 'id' });
-
-      if (scoreErr) {
-        results.errors.push(`Score update chunk ${i / CHUNK}: ${scoreErr.message}`);
-      } else {
-        results.scoresRecalculated += chunk.length;
-      }
+    // Use limited concurrent updates; each row has a distinct score and this
+    // avoids a large upsert payload that can contend with normal lead traffic.
+    const SCORE_CONCURRENCY = 20;
+    for (let i = 0; i < scoreUpdates.length; i += SCORE_CONCURRENCY) {
+      const chunk = scoreUpdates.slice(i, i + SCORE_CONCURRENCY);
+      const updates = await Promise.all(chunk.map(update => supabase.from('leads').update({ prospect_score: update.prospect_score, score_refreshed_at: update.score_refreshed_at }).eq('id', update.id)));
+      updates.forEach((result, index) => {
+        if (result.error) results.errors.push(`Score update ${chunk[index].id}: ${result.error.message}`);
+        else results.scoresRecalculated += 1;
+      });
     }
 
     // ── Batch re-enrichment flags ─────────────────────────────────────────────
     if (reenrichIds.length > 0) {
+      const CHUNK = 100;
       for (let i = 0; i < reenrichIds.length; i += CHUNK) {
         const chunk = reenrichIds.slice(i, i + CHUNK);
         const { error: enrichErr } = await supabase
@@ -152,15 +161,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
-  return NextResponse.json({
-    description: 'Property refresh cron job — POST to trigger a run',
-    schedule: 'Hourly',
-    usage: 'POST /api/cron/property-refresh with x-job-secret header',
-    actions: [
-      'Refreshes property data for all active leads',
-      'Recalculates prospect scores',
-      'Triggers re-enrichment on leads not contacted in 7+ days',
-    ],
-  });
+export async function POST(req: NextRequest) {
+  return runPropertyRefresh(req);
+}
+
+// Vercel Cron invokes routes with GET and a Bearer CRON_SECRET header.
+export async function GET(req: NextRequest) {
+  return runPropertyRefresh(req);
 }

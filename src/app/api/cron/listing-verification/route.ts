@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
 
 const DOMAINS = ['zillow.com', 'realtor.com', 'trulia.com', 'redfin.com'];
 
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
   const now = new Date().toISOString();
   await db.from('listing_verification_jobs').update({ status: 'processing', claimed_at: now, updated_at: now }).eq('id', job.id);
   try {
-    const { data: lead } = await db.from('leads').select('id,address,city,state,zip,prospect_score').eq('id', job.lead_id).single();
+    const { data: lead } = await db.from('leads').select('id,address,city,state,zip,prospect_score,beds,baths,price,estimated_net_monthly,estimated_gross_monthly,estimated_adr,regulation_status,verified_owner,verified_number,verified_address,contact_phone,luxury,days_on_market,stage').eq('id', job.lead_id).single();
     if (!lead) throw new Error('Lead not found');
     const client = new Anthropic({ apiKey });
     const fullAddress = [lead.address, lead.city, lead.state, lead.zip].filter(Boolean).join(', ');
@@ -80,6 +81,24 @@ export async function GET(request: NextRequest) {
       const rentPoints = assessment.askingRent >= 5000 ? 10 : assessment.askingRent >= 3000 ? 7 : 4;
       Object.assign(update, { listing_status: 'Active', rent_listing_status: 'ACTIVE', current_asking_rent: assessment.askingRent, current_monthly_rent: assessment.askingRent, rent_source: domain, rent_price_source: domain, rent_retrieved_at: now, listing_source_url: sourceUrl, listing_url: sourceUrl, listing_status_source: domain, listing_status_retrieved_at: now, prospect_score: Math.min(100, Math.max(Number(lead.prospect_score || 0), 70) + rentPoints) });
     }
+    const score = calculateProspectScore({
+      estimatedNetMonthly: lead.estimated_net_monthly,
+      estimatedGrossMonthly: lead.estimated_gross_monthly,
+      estimatedADR: lead.estimated_adr,
+      price: assessment.askingRent || lead.price,
+      beds: lead.beds,
+      baths: lead.baths,
+      regulationStatus: lead.regulation_status,
+      verifiedOwner: lead.verified_owner,
+      verifiedNumber: lead.verified_number,
+      verifiedAddress: lead.verified_address,
+      contactPhone: lead.contact_phone,
+      daysOnMarket: lead.days_on_market,
+      stage: lead.stage,
+      luxury: lead.luxury,
+    });
+    update.prospect_score = score.score;
+    update.score_refreshed_at = now;
     await db.from('leads').update(update).eq('id', job.lead_id);
     await db.from('listing_verification_jobs').update({ status: 'completed', completed_at: now, updated_at: now, last_error: null }).eq('id', job.id);
     return NextResponse.json({ ok: true, processed: 1, status: assessment.status, confidence: assessment.confidence });
