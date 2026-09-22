@@ -3,10 +3,10 @@ export type MasterField = (typeof MASTER_FIELDS)[number];
 export type MasterFieldMapping = Partial<Record<MasterField, string>>;
 
 const ALIASES: Record<MasterField, string[]> = {
-  address: ['address', 'property_address', 'property address', 'street', 'street_address', 'site_address', 'situs_address'],
-  city: ['city', 'property_city', 'site_city', 'situs_city'],
-  state: ['state', 'state_code', 'property_state', 'site_state'],
-  zip: ['zip', 'zipcode', 'zip_code', 'postal_code', 'property_zip'],
+  address: ['address', 'property_address', 'property address', 'property_address_1', 'address_1', 'address1', 'street', 'street_address', 'site_address', 'situs_address', 'property_street'],
+  city: ['city', 'property_city', 'site_city', 'situs_city', 'city_name'],
+  state: ['state', 'state_code', 'property_state', 'site_state', 'state_name', 'state_abbreviation', 'st'],
+  zip: ['zip', 'zipcode', 'zip_code', 'zip5', 'postal_code', 'property_zip', 'postal'],
   county: ['county', 'property_county'],
   residence_type: ['residence_type', 'residence type', 'property_type', 'dwelling_type'],
   home_age: ['home_age', 'home age', 'property_age'],
@@ -29,7 +29,7 @@ export function isPostOfficeBoxAddress(value: string) {
 }
 
 export function inferMasterFieldMapping(headers: string[]): MasterFieldMapping {
-  const normalized = new Map(headers.map(header => [normalizedHeader(header), header]));
+  const normalized = new Map(headers.map(header => [normalizedHeader(header.replace(/^\uFEFF/, '')), header]));
   const mapping: MasterFieldMapping = {};
   for (const field of MASTER_FIELDS) {
     for (const alias of ALIASES[field]) {
@@ -38,6 +38,15 @@ export function inferMasterFieldMapping(headers: string[]): MasterFieldMapping {
         mapping[field] = original;
         break;
       }
+    }
+    if (!mapping[field] && ['address', 'city', 'state', 'zip'].includes(field)) {
+      const fuzzy = [...normalized.entries()].find(([header]) =>
+        field === 'address' ? /(^|_)(address|street|situs)(_|$)/.test(header) :
+        field === 'city' ? /(^|_)city(_|$)/.test(header) :
+        field === 'state' ? /(^|_)(state|st)(_|$)/.test(header) :
+        /(^|_)(zip|postal)(_|$)/.test(header)
+      );
+      if (fuzzy) mapping[field] = fuzzy[1];
     }
   }
   return mapping;
