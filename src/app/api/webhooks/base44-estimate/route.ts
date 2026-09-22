@@ -68,8 +68,8 @@ export async function POST(req: NextRequest) {
   const smsConsent =
     rawBody.sms_consent === true ||
     rawBody.smsConsent === true ||
-    rawBody.sms_consent === 'true' ||
-    rawBody.smsConsent === 'true';
+    String(rawBody.sms_consent) === 'true' ||
+    String(rawBody.smsConsent) === 'true';
 
   // ── 2. Validate required fields ──────────────────────────────────────────
   if (!address || !email) {
