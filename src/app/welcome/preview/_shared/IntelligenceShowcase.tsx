@@ -100,7 +100,7 @@ export default function IntelligenceShowcase() {
       </div>
 
       <div>
-        <p className="text-xs font-semibold text-foreground mb-2">STR Regulation Intelligence</p>
+        <p className="text-xs font-semibold text-foreground mb-2">STR Regulation Coverage Examples</p>
         <RegulationShowcase />
       </div>
     </div>

@@ -15,6 +15,7 @@ import SavedQueriesBar from './SavedQueriesBar';
 import RevenueEstimatorPanel from './RevenueEstimatorPanel';
 import CSVUploadModal from './CSVUploadModal';
 import TPSCSVImportModal from './TPSCSVImportModal';
+import MasterHomeownerUploadModal from './MasterHomeownerUploadModal';
 import RegulationDetailModal from './RegulationDetailModal';
 import LeadDetailPanel from './LeadDetailPanel';
 import BulkReassignModal from './BulkReassignModal';
@@ -234,6 +235,7 @@ export default function LeadManagementClient({
   const [estimatorLead, setEstimatorLead] = useState<Lead | null>(null);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [tpsCsvModalOpen, setTpsCsvModalOpen] = useState(false);
+  const [masterDataModalOpen, setMasterDataModalOpen] = useState(false);
   const [csvAssignModalOpen, setCsvAssignModalOpen] = useState(false);
   const [regulationCity, setRegulationCity] = useState<string | null>(null);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
@@ -1211,6 +1213,7 @@ export default function LeadManagementClient({
           totalCount={serverTotal}
           filteredCount={serverTotal}
           onOpenCSV={() => setCsvModalOpen(true)}
+          onOpenMasterData={isAdminOrTeamLead ? () => setMasterDataModalOpen(true) : undefined}
           onLeadsRefreshed={loadLeads}
           onExportFiltered={() => {
             exportLeads(filteredLeads, 'csv');
@@ -1556,6 +1559,15 @@ export default function LeadManagementClient({
           loadLeads();
           // Refresh again after 3s to catch any async DB writes
           setTimeout(() => loadLeads(), 3000);
+        }}
+      />
+
+      <MasterHomeownerUploadModal
+        open={masterDataModalOpen}
+        onClose={() => setMasterDataModalOpen(false)}
+        onComplete={() => {
+          loadLeads();
+          setTimeout(() => loadLeads(), 2000);
         }}
       />
 

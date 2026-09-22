@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { startVapiCall, stopVapiCall } from '@/lib/vapiServer';
+import { sendInterviewNotification } from '@/lib/email/interviewNotification';
 
 const LATE_WINDOW_MS = 5 * 60 * 1000;
 const MAX_IN_PROGRESS_MS = 35 * 60 * 1000;
+const REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, '');
@@ -93,6 +95,48 @@ async function resetTestCandidateSessions(db: ReturnType<typeof getSupabaseAdmin
   return stray.length;
 }
 
+async function sendDueFollowUpReminders(db: ReturnType<typeof getSupabaseAdmin>, now: number) {
+  const { data: sessions, error } = await db
+    .from('interview_sessions')
+    .select('id, candidate_name, candidate_email, interviewer_email, role_title, scheduled_at, scheduled_timezone, duration_minutes, zoom_link')
+    .eq('session_type', 'candidate_follow_up')
+    .eq('status', 'scheduled')
+    .eq('reminder_sent', false)
+    .gt('scheduled_at', new Date(now).toISOString())
+    .lte('scheduled_at', new Date(now + REMINDER_WINDOW_MS).toISOString())
+    .limit(25);
+  if (error) throw error;
+
+  let remindersSent = 0;
+  for (const session of sessions || []) {
+    try {
+      const result = await sendInterviewNotification({
+        id: session.id,
+        candidateName: session.candidate_name,
+        candidateEmail: session.candidate_email,
+        interviewerEmail: session.interviewer_email,
+        interviewerName: 'TRAVLR Hiring Team',
+        roleTitle: session.role_title,
+        scheduledAt: session.scheduled_at,
+        timeZone: session.scheduled_timezone,
+        durationMinutes: session.duration_minutes,
+        meetingUrl: session.zoom_link,
+        eventType: 'candidate_follow_up',
+        purpose: 'reminder',
+      });
+      if (result.skipped) continue;
+      await db.from('interview_sessions').update({ reminder_sent: true, updated_at: new Date().toISOString() }).eq('id', session.id);
+      remindersSent += 1;
+    } catch (reminderError) {
+      console.error('candidate_follow_up_reminder_failed', {
+        interviewId: session.id,
+        error: reminderError instanceof Error ? reminderError.message : 'unknown',
+      });
+    }
+  }
+  return remindersSent;
+}
+
 export async function GET(request: NextRequest) {
   const expected = process.env.CRON_SECRET;
   if (!expected || request.headers.get('authorization') !== `Bearer ${expected}`) {
@@ -107,6 +151,10 @@ export async function GET(request: NextRequest) {
   });
   const testCandidatesReset = await resetTestCandidateSessions(db).catch((testErr) => {
     console.error('vapi_test_candidate_reset_failed', { error: testErr instanceof Error ? testErr.message : 'unknown' });
+    return 0;
+  });
+  const remindersSent = await sendDueFollowUpReminders(db, now).catch((reminderError) => {
+    console.error('candidate_follow_up_reminder_check_failed', { error: reminderError instanceof Error ? reminderError.message : 'unknown' });
     return 0;
   });
   const { data: due, error } = await db
@@ -167,5 +215,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, inspected: due?.length || 0, started, missed, testCandidatesReset, ...timeoutResult });
+  return NextResponse.json({ ok: true, inspected: due?.length || 0, started, missed, remindersSent, testCandidatesReset, ...timeoutResult });
 }

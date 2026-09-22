@@ -84,6 +84,8 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activeCallRef = useRef<Call | null>(null);
+  const callStartedAtRef = useRef<number | null>(null);
+  const callAttemptInProgressRef = useRef(false);
 
   // Load recent sessions from Supabase
   const loadRecentSessions = useCallback(async () => {
@@ -117,12 +119,21 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
   // Call timer
   useEffect(() => {
     if (callStatus === 'in-call') {
-      timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
+      const updateDuration = () => {
+        const startedAt = callStartedAtRef.current;
+        if (startedAt !== null) setCallDuration(Math.floor((Date.now() - startedAt) / 1000));
+      };
+      updateDuration();
+      timerRef.current = setInterval(updateDuration, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
-      setCallDuration(0);
+      timerRef.current = null;
+      if (callStatus === 'idle' || callStatus === 'connecting') setCallDuration(0);
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+    };
   }, [callStatus]);
 
   const handleKeyPress = useCallback((digit: string) => {
@@ -135,13 +146,17 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
 
   const handleCall = useCallback(async (to?: string, contactName?: string, address?: string, leadId?: string) => {
     const number = to || dialInput;
-    if (!number.trim()) return;
+    if (!number.trim() || callStatus !== 'idle' || callAttemptInProgressRef.current || activeCallRef.current) return;
 
+    callAttemptInProgressRef.current = true;
+    callStartedAtRef.current = null;
+    setCallDuration(0);
     setCurrentCallTo(number);
     setCallStatus('connecting');
 
     const dnc = await checkDoNotContact({ to: number, leadId });
     if (dnc.blocked) {
+      callAttemptInProgressRef.current = false;
       setCallStatus('error');
       setTimeout(() => setCallStatus('idle'), 3000);
       return;
@@ -159,6 +174,7 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
     const { call, error } = await connectVoiceCall({ to: number, leadId });
 
     if (error || !call) {
+      callAttemptInProgressRef.current = false;
       setCallStatus('error');
       if (session) await callSessionService.update(session.id, { isInProgress: false });
       setTimeout(() => setCallStatus('idle'), 3000);
@@ -175,15 +191,27 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
       sessionId: session?.id,
     });
 
-    call.on('accept', () => setCallStatus('in-call'));
+    call.on('accept', () => {
+      callAttemptInProgressRef.current = false;
+      callStartedAtRef.current = Date.now();
+      setCallDuration(0);
+      setCallStatus('in-call');
+    });
     call.on('disconnect', () => {
+      const startedAt = callStartedAtRef.current;
+      const finalDuration = startedAt === null ? 0 : Math.floor((Date.now() - startedAt) / 1000);
+      callAttemptInProgressRef.current = false;
       activeCallRef.current = null;
+      callStartedAtRef.current = null;
+      setCallDuration(finalDuration);
       setCallStatus('ended');
-      setPendingCallInfo(prev => prev ?? { contactName, address, duration: callDuration });
+      setPendingCallInfo(prev => prev ?? { contactName, address, duration: finalDuration });
       setShowOutcomeModal(true);
     });
     call.on('error', () => {
+      callAttemptInProgressRef.current = false;
       activeCallRef.current = null;
+      callStartedAtRef.current = null;
       setCallStatus('error');
       setTimeout(() => setCallStatus('idle'), 3000);
     });
@@ -192,7 +220,7 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
     if (call.parameters?.CallSid && session) {
       await callSessionService.update(session.id, { callSid: call.parameters.CallSid });
     }
-  }, [dialInput, callDuration]);
+  }, [dialInput, callStatus]);
 
   const handleHangUp = useCallback(() => {
     if (activeCallRef.current) {

@@ -9,6 +9,7 @@ import { Calendar, Plus, Clock, Video, User, CheckCircle, XCircle, ChevronLeft, 
 import { INTERVIEW_ROLES } from '@/lib/interviewScripts';
 import { AI_INTERVIEW_CONFIG } from '@/lib/interviewConfig';
 import { detectBrowserTimeZone, formatInTimeZone, getTimeZoneAbbreviation, isoToLocalParts, localDateTimeToUtc } from '@/lib/interviewTimezone';
+import { createGoogleCalendarUrl, createInterviewIcs, createOutlookCalendarUrl, type InterviewCalendarEvent } from '@/lib/interviewCalendar';
 import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -38,6 +39,9 @@ interface InterviewSession {
   reminder_sent: boolean;
   candidate_email: string | null;
   candidate_profile_id: string | null;
+  session_type: 'initial_interview' | 'candidate_follow_up';
+  source_interview_id: string | null;
+  interviewer_email: string | null;
   created_by: string | null;
   created_at: string;
 }
@@ -105,6 +109,26 @@ function formatDateTimeLocal(iso: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function isUpcoming(iso: string) { return new Date(iso) > new Date(); }
+function toCalendarEvent(session: InterviewSession): InterviewCalendarEvent {
+  return {
+    id: session.id,
+    candidateName: session.candidate_name,
+    roleTitle: session.role_title,
+    scheduledAt: session.scheduled_at,
+    durationMinutes: session.duration_minutes,
+    meetingUrl: session.zoom_link,
+    eventType: session.session_type,
+  };
+}
+function downloadCalendarEvent(session: InterviewSession) {
+  const blob = new Blob([createInterviewIcs(toCalendarEvent(session))], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `TRAVLR-follow-up-${session.candidate_name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 function formatElapsed(startedAt: string | null, now: number) {
   if (!startedAt) return '00:00';
   const totalSeconds = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000));
@@ -140,6 +164,7 @@ function ScheduleModal({
     notes: session?.notes || '',
   });
   const [saving, setSaving] = useState(false);
+  const isFollowUp = session?.session_type === 'candidate_follow_up';
 
   const handleRoleChange = (roleId: string) => {
     const role = INTERVIEW_ROLES.find(r => r.value === roleId);
@@ -165,7 +190,7 @@ function ScheduleModal({
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{session?.id ? 'Edit Interview' : 'Schedule Interview'}</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{session?.id ? 'Edit Interview' : isFollowUp ? 'Schedule Follow-Up Call' : 'Schedule Interview'}</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <X className="w-4 h-4 text-gray-500 dark:text-gray-300" />
           </button>
@@ -223,7 +248,7 @@ function ScheduleModal({
             <button type="button" onClick={onClose} className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancel</button>
             <button type="submit" disabled={saving} className="flex-1 py-2.5 px-4 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {session?.id ? 'Save Changes' : 'Schedule Interview'}
+              {session?.id ? 'Save Changes' : isFollowUp ? 'Schedule Follow-Up' : 'Schedule Interview'}
             </button>
           </div>
         </form>
@@ -424,6 +449,27 @@ function StartInterviewChoiceModal({
   const [startingAi, setStartingAi] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const teleprompterUrl = `/teleprompter/interview?role=${session.role_id}&candidate=${encodeURIComponent(session.candidate_name)}&session=${session.id}`;
+  const followUpUrl = `/teleprompter?candidateId=${session.candidate_id || ''}`;
+
+  if (session.session_type === 'candidate_follow_up') {
+    return (
+      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-md p-6">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Start follow-up call</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{session.candidate_name} · prior interview context will be loaded</p>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-300"><X className="w-4 h-4" /></button>
+          </div>
+          <Link href={followUpUrl} onClick={onClose} className="flex items-center gap-3 w-full rounded-xl border border-emerald-300 dark:border-emerald-800 p-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors">
+            <span className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center"><Phone className="w-4 h-4" /></span>
+            <span className="text-left"><span className="block text-sm font-semibold text-gray-900 dark:text-white">Open Follow-Up Teleprompter</span><span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">Uses the initial summary, scorecard, candidate details, and next-steps script.</span></span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const startAiInterview = async () => {
     if (!session.candidate_id) {
@@ -615,6 +661,7 @@ function SessionCard({
   onStart,
   onStopCall,
   onViewDetails,
+  onScheduleFollowUp,
   localTimeZone,
 }: {
   session: InterviewSession;
@@ -627,6 +674,7 @@ function SessionCard({
   onStart: () => void;
   onStopCall: () => Promise<void>;
   onViewDetails: () => void;
+  onScheduleFollowUp: () => void;
   localTimeZone: string;
 }) {
   const cfg = STATUS_CONFIG[session.status];
@@ -726,6 +774,13 @@ function SessionCard({
             <Play className="w-3 h-3" /> Start
           </button>
         )}
+        {session.status === 'scheduled' && session.session_type === 'candidate_follow_up' && (
+          <>
+            <a href={createGoogleCalendarUrl(toCalendarEvent(session))} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-300" title="Add to Google Calendar"><Calendar className="w-3.5 h-3.5" /></a>
+            <a href={createOutlookCalendarUrl(toCalendarEvent(session))} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-300" title="Add to Outlook Calendar"><ExternalLink className="w-3.5 h-3.5" /></a>
+            <button onClick={() => downloadCalendarEvent(session)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-300" title="Download for Apple Calendar or another calendar"><Download className="w-3.5 h-3.5" /></button>
+          </>
+        )}
         {session.status === 'in_progress' && (
           <button
             type="button"
@@ -757,12 +812,12 @@ function SessionCard({
           </button>
         )}
         {session.status === 'completed' && session.candidate_id && (
-          <Link
-            href={`/teleprompter?candidateId=${session.candidate_id}`}
+          <button
+            onClick={onScheduleFollowUp}
             className="flex items-center gap-1.5 px-3 py-1.5 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
           >
             <Phone className="w-3 h-3" /> Schedule Follow-Up Call
-          </Link>
+          </button>
         )}
         <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-300">
           <Edit3 className="w-3.5 h-3.5" />
@@ -929,7 +984,7 @@ export default function InterviewCalendarPage() {
   };
 
   const handleSave = async (formData: Partial<InterviewSession>) => {
-    const dataToSave = { ...formData };
+    const dataToSave = { ...formData, interviewer_email: formData.interviewer_email || user?.email || null };
 
     const { data: candidate } = await supabase.from('candidates').select('id').eq('full_name', dataToSave.candidate_name || '').maybeSingle();
     if (candidate?.id) dataToSave.candidate_id = candidate.id;
@@ -948,9 +1003,37 @@ export default function InterviewCalendarPage() {
       if (error) { toast.error('Failed to update session'); return; }
       toast.success('Interview updated');
     } else {
-      const { error } = await supabase.from('interview_sessions').insert({ ...dataToSave, created_by: user?.id, status: 'scheduled' });
+      const { data: inserted, error } = await supabase.from('interview_sessions').insert({ ...dataToSave, created_by: user?.id, status: 'scheduled' }).select('*').single();
       if (error) { toast.error('Failed to schedule interview'); return; }
-      toast.success('Interview scheduled with Zoom!');
+      if (inserted && dataToSave.session_type === 'candidate_follow_up') {
+        try {
+          const inviteResponse = await fetch('/api/interview/send-reminder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: inserted.id,
+              candidateName: inserted.candidate_name,
+              roleTitle: inserted.role_title,
+              scheduledAt: inserted.scheduled_at,
+              durationMinutes: inserted.duration_minutes,
+              zoomLink: inserted.zoom_link,
+              candidateEmail: inserted.candidate_email,
+              interviewerEmail: inserted.interviewer_email,
+              interviewerName: user?.user_metadata?.full_name || 'Jen Wampole',
+              timeZone: inserted.scheduled_timezone,
+              sessionType: inserted.session_type,
+              purpose: 'invite',
+            }),
+          });
+          if (!inviteResponse.ok) throw new Error('Calendar invite delivery failed');
+          await supabase.from('interview_sessions').update({ calendar_invite_sent: true }).eq('id', inserted.id);
+          toast.success('Follow-up scheduled and calendar invites sent');
+        } catch {
+          toast.warning('Follow-up scheduled, but calendar invite delivery needs attention');
+        }
+      } else {
+        toast.success('Interview scheduled with Zoom!');
+      }
     }
     setShowModal(false);
     setEditingSession(null);
@@ -1024,6 +1107,10 @@ export default function InterviewCalendarPage() {
           zoomLink: session.zoom_link,
           candidateEmail: session.candidate_email,
           interviewerName: user?.user_metadata?.full_name || 'Jen Wampole',
+          interviewerEmail: session.interviewer_email || user?.email,
+          timeZone: session.scheduled_timezone,
+          sessionType: session.session_type,
+          purpose: 'reminder',
         }),
       });
       const data = await res.json();
@@ -1284,6 +1371,23 @@ export default function InterviewCalendarPage() {
                     onStart={() => setStartChoiceSession(session)}
                     onStopCall={() => handleStopCall(session)}
                     onViewDetails={() => setDetailsSession(session)}
+                    onScheduleFollowUp={() => {
+                      setEditingSession({
+                        candidate_id: session.candidate_id,
+                        candidate_name: session.candidate_name,
+                        candidate_email: session.candidate_email,
+                        role_id: session.role_id,
+                        role_title: session.role_title,
+                        scheduled_timezone: candidateTimeZone(session),
+                        duration_minutes: 30,
+                        zoom_link: '',
+                        notes: `Follow-up to interview completed ${formatDate(session.scheduled_at, localTimeZone)}.`,
+                        session_type: 'candidate_follow_up',
+                        source_interview_id: session.id,
+                        interviewer_email: user?.email || null,
+                      });
+                      setShowModal(true);
+                    }}
                     localTimeZone={localTimeZone}
                   />
                 ))}

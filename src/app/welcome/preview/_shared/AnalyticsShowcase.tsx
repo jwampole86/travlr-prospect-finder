@@ -47,10 +47,10 @@ export default function AnalyticsShowcase() {
             <div key={a.name} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-foreground font-medium">{a.name}</span>
-                <span className="text-muted-foreground">{a.calls} calls · {a.converted} converted</span>
+                <span className="text-muted-foreground">{a.calls} calls · {a.converted} converted · {Math.round((a.converted / a.calls) * 100)}%</span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, (a.converted / a.calls) * 100 * 4)}%` }} />
+                <div className="h-full bg-primary rounded-full" style={{ width: `${(a.converted / a.calls) * 100}%` }} />
               </div>
             </div>
           ))}

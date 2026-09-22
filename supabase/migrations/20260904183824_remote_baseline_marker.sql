@@ -1,0 +1,2 @@
+-- Migration was applied remotely before CLI history was reconciled.
+-- The remote schema is the source of truth; this marker preserves its version.

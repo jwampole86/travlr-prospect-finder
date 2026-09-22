@@ -1,6 +1,6 @@
 'use client';
 
-import { Mic, Zap, Shield, ThumbsUp, ThumbsDown, User, Home, CheckCircle2, Circle } from 'lucide-react';
+import { Mic, Zap, BriefcaseBusiness, ThumbsUp, ThumbsDown, User, Home, CheckCircle2, Circle } from 'lucide-react';
 
 const TRANSCRIPT = [
   { speaker: 'Agent', text: 'Hi, is this Dana? This is Alex with VAYO Property Group — I help homeowners in the Vail area explore vacation rental management.' },
@@ -47,17 +47,17 @@ export default function TeleprompterShowcase() {
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-primary/5">
           <Zap size={13} className="text-primary" />
           <span className="text-xs font-semibold text-foreground">AI Suggestion</span>
-          <span className="ml-auto text-[10px] text-muted-foreground">Objection detected</span>
+          <span className="ml-auto text-[10px] text-muted-foreground">Management question detected</span>
         </div>
         <div className="p-4 space-y-3">
           <p className="text-sm font-medium text-foreground leading-relaxed">
-            &ldquo;Great question — Vail currently allows short-term rentals with a registered permit, and we handle that entire registration process for the homeowners we manage, so there&apos;s nothing extra for you to file.&rdquo;
+            &ldquo;Day to day, our team handles guest communication, pricing, cleaning coordination, maintenance, and permit compliance. You keep visibility into performance without having to run the property yourself.&rdquo;
           </p>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-              <Shield size={10} /> Regulation objection
+              <BriefcaseBusiness size={10} /> Service scope
             </span>
-            <span className="text-[10px] text-muted-foreground">Source: Objection Library</span>
+            <span className="text-[10px] text-muted-foreground">Source: Live conversation + property context</span>
           </div>
           <div className="flex items-center gap-2 pt-1">
             <button className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border border-border text-muted-foreground">

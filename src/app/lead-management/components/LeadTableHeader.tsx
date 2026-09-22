@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Upload, RefreshCw, Download, ShieldCheck } from 'lucide-react';
+import { Upload, RefreshCw, Download, ShieldCheck, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { showErrorWithRetry } from '@/lib/hooks/useRetryToast';
@@ -12,6 +12,7 @@ interface LeadTableHeaderProps {
   totalCount: number;
   filteredCount: number;
   onOpenCSV: () => void;
+  onOpenMasterData?: () => void;
   onLeadsRefreshed?: () => void;
   onExportFiltered?: () => void;
 }
@@ -20,6 +21,7 @@ export default function LeadTableHeader({
   totalCount,
   filteredCount,
   onOpenCSV,
+  onOpenMasterData,
   onLeadsRefreshed,
   onExportFiltered,
 }: LeadTableHeaderProps) {
@@ -113,6 +115,17 @@ export default function LeadTableHeader({
         )}
       </div>
       <div className="flex items-center gap-2 flex-wrap">
+        {onOpenMasterData && (
+          <button
+            onClick={onOpenMasterData}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-semibold text-blue-700 border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 transition-all duration-150 min-h-[44px]"
+            title="Upload master homeowner CSV or TXT databases for lead matching and enrichment"
+          >
+            <Database size={13} />
+            <span className="hidden sm:inline">Master Data</span>
+            <span className="sm:hidden">Master</span>
+          </button>
+        )}
         {/* Verified Priority quick-access view */}
         <Link
           href="/lead-management?view=verified-priority"
