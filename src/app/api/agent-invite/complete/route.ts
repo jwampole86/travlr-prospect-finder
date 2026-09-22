@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       status: 'active',
       avatar_initials: initials,
       bio: '',
-    }).catch(() => {}); // Non-fatal if already exists
+    }).then(undefined, () => {}); // Non-fatal if already exists
 
     return NextResponse.json({ success: true, userId, email: invite.email });
   } catch (err: unknown) {

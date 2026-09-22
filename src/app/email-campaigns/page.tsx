@@ -369,7 +369,7 @@ export default function EmailCampaignsPage() {
             total_failed: data.failed,
             total_skipped: data.skipped,
             status: data.failed > 0 ? 'partial' : 'completed',
-          }).eq('id', campaignId).catch(() => {});
+          }).eq('id', campaignId).then(undefined, () => {});
         } else if (!campaignErr) {
           // Fallback: insert if not already created
           await supabase.from('email_campaigns').insert({
@@ -381,7 +381,7 @@ export default function EmailCampaignsPage() {
             status: data.failed > 0 ? 'partial' : 'completed',
             filters_used: { stages: filterStages, portfolio: filterPortfolio, minScore: filterMinScore, verifiedOnly: filterVerifiedOnly },
             created_by: user?.id,
-          }).catch(() => {});
+          }).then(undefined, () => {});
         }
 
         toast.success(`Campaign sent: ${data.sent} emails delivered`);
@@ -389,7 +389,7 @@ export default function EmailCampaignsPage() {
       } else {
         // Mark campaign as failed
         if (campaignId) {
-          await supabase.from('email_campaigns').update({ status: 'failed' }).eq('id', campaignId).catch(() => {});
+          await supabase.from('email_campaigns').update({ status: 'failed' }).eq('id', campaignId).then(undefined, () => {});
         }
         toast.error(data.error || 'Send failed');
       }

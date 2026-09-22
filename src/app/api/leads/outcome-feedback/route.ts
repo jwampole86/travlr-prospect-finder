@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       event_type: 'outcome_feedback',
       description: `Deal ${outcome === 'converted' ? 'closed (converted)' : 'lost'} — score ${prospectScore} in ${leadRegion}`,
       metadata: { outcome, region: leadRegion, propertyType: leadPropertyType, prospectScore },
-    }).catch(() => {});
+    }).then(undefined, () => {});
 
     return NextResponse.json({
       success: true,

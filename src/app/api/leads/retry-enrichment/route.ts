@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     for (const leadId of idsToRetry) {
       const lead = leads?.find(l => l.id === leadId);
       const currentCount = (lead?.enrichment_retry_count as number) || 0;
-      await Promise.resolve(supabase.from('leads').update({ enrichment_retry_count: currentCount + 1 }).eq('id', leadId)).catch(() => {});
+      await Promise.resolve(supabase.from('leads').update({ enrichment_retry_count: currentCount + 1 }).eq('id', leadId)).then(undefined, () => {});
     }
 
     // Log retry events in enrichment_error_logs
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (retryLogEntries.length > 0) {
-      await Promise.resolve(supabase.from('enrichment_error_logs').insert(retryLogEntries)).catch(() => {});
+      await Promise.resolve(supabase.from('enrichment_error_logs').insert(retryLogEntries)).then(undefined, () => {});
     }
 
     return NextResponse.json({

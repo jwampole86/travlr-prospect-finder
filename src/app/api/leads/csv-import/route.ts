@@ -785,7 +785,7 @@ export async function POST(req: NextRequest) {
               description: `Prospect enriched from CSV import (batch: ${importBatchId}). Match strategy: ${matchStrategy}.`,
               metadata: { importBatchId, importFilename, matchStrategy, matchConfidence, fieldsUpdated: Object.keys(updateData) },
               created_at: now,
-            })).catch(() => {});
+            })).then(undefined, () => {});
           }
         } else {
           // ── 5d. CREATE new prospect ───────────────────────────────────────
@@ -997,7 +997,7 @@ export async function POST(req: NextRequest) {
     if (rowOutcomes.length > 0) {
       // Insert in chunks of 100
       for (let i = 0; i < rowOutcomes.length; i += 100) {
-        await Promise.resolve(supabase.from('csv_import_row_outcomes').insert(rowOutcomes.slice(i, i + 100))).catch(() => {});
+        await Promise.resolve(supabase.from('csv_import_row_outcomes').insert(rowOutcomes.slice(i, i + 100))).then(undefined, () => {});
       }
     }
 
@@ -1085,7 +1085,7 @@ export async function POST(req: NextRequest) {
           newPortfolios: summary.newPortfoliosCreated,
         },
         created_at: now,
-      })).catch(() => {});
+      })).then(undefined, () => {});
     }
 
     // ── STEP 11: Backfill is_high_priority for newly created/updated leads ────
@@ -1104,7 +1104,7 @@ export async function POST(req: NextRequest) {
         .not('verified_address', 'is', null)
         .neq('verified_address', '')
         .not('stage', 'in', '("Not a Fit","Archived","Closed","Disqualified")'))
-        .catch(() => {});
+        .then(undefined, () => {});
     }
 
     return NextResponse.json({ success: true, summary, results: rowResults });

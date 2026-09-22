@@ -669,7 +669,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
         } else if (!res.ok) {
           toast.error(`HubSpot sync failed: ${data.error || 'Unknown error'}`);
         }
-      }).catch(() => {});
+      }).then(undefined, () => {});
 
       setDealClosed(true);
       setDealClosedAt(closedAt);
@@ -908,7 +908,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
         description: `Agent copied address for ${lead.address}`,
         detail: 'Copy Address fallback used',
         source: 'manual',
-      }).catch(() => {});
+      }).then(undefined, () => {});
       setTimeout(() => setAddressCopied(false), 2500);
     } catch {
       toast.error('Copy failed — please copy the address manually.');
@@ -1029,7 +1029,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                     description: `Agent viewed listing for ${lead.address}`,
                     detail: 'Direct listing link clicked from outreach section',
                     source: 'manual',
-                  }).catch(() => {});
+                  }).then(undefined, () => {});
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors text-muted-foreground"
               >
@@ -1166,7 +1166,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                           description: `Agent opened ${sourceSite.label} to search for ${lead.address}`,
                           detail: 'Source site opened for manual search',
                           source: 'manual',
-                        }).catch(() => {});
+                        }).then(undefined, () => {});
                       }}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-border bg-background text-foreground hover:border-primary/50 hover:bg-muted transition-all"
                     >

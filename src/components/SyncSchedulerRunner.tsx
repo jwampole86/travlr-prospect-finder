@@ -35,7 +35,7 @@ export default function SyncSchedulerRunner() {
     const interval = setInterval(() => {
       runScheduledSyncs(user.id, (type, title, message) => {
         addNotification({ type: type as any, title, message });
-      }).catch(() => {});
+      }).then(undefined, () => {});
     }, 15 * 60 * 1000);
 
     return () => clearInterval(interval);

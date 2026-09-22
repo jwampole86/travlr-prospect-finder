@@ -264,7 +264,7 @@ function CallSessionCard({ session }: { session: CallSession }) {
       audioRef.current.pause();
       setAudioPlaying(false);
     } else {
-      audioRef.current.play().catch(() => {});
+      audioRef.current.play().then(undefined, () => {});
       setAudioPlaying(true);
     }
   }
@@ -709,7 +709,7 @@ export default function LeadDetailPanel({ lead, onClose, onStageChange, onDelete
       .then(({ data }) => {
         if (data?.pipeline_status) setPipelineStatus(data.pipeline_status as PipelineStatus);
       })
-      .catch(() => {});
+      .then(undefined, () => {});
   }, [lead.id]);
 
   async function handlePipelineStatusChange(status: PipelineStatus) {
@@ -746,7 +746,7 @@ export default function LeadDetailPanel({ lead, onClose, onStageChange, onDelete
             address: lead.address,
             state: lead.state,
             notePreview: logBody.trim(),
-          }).catch(() => {});
+          }).then(undefined, () => {});
         }
         setLogSubject(''); setLogBody(''); setLogOutcome('');
         setLogDate(new Date().toISOString().split('T')[0]);

@@ -938,7 +938,7 @@ export default function LeadManagementClient({
       count: newLeads.length,
       state: primaryState,
       batchLabel: `${newLeads.length} lead${newLeads.length !== 1 ? 's' : ''} imported`,
-    }).catch(() => {});
+    }).then(undefined, () => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, sortKey, sortDir, selectedPortfolio.stateCode, fetchServerPage]);
 
@@ -1019,7 +1019,7 @@ export default function LeadManagementClient({
           previousScore: lead.prospectScore ?? 0,
           newScore,
           trigger: 'Manual re-score',
-        }).catch(() => {});
+        }).then(undefined, () => {});
 
         // Check sequence auto-enrollment conditions: enroll if score crosses threshold
         if (newScore >= 60 && (lead.prospectScore ?? 0) < 60) {

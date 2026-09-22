@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { scope = 'MISSING_OWNER_AND_PHONE', leadIds, portfolioId, limit = 50 } = body;
 
-    let query = supabase.from('leads').select('id, address, city, state, zip, apn, contact_phone, contact_name, is_synthetic, do_not_contact, enrichment_status').limit(limit);
+    let query = supabase.from('leads').select('id, address, city, state, zip, apn, contact_phone, contact_name, prospect_score, is_synthetic, do_not_contact, enrichment_status').limit(limit);
 
     if (leadIds?.length) {
       query = query.in('id', leadIds);

@@ -119,7 +119,7 @@ function HomeownerOnboardingContent() {
             }
           }
         })
-        .catch(() => {});
+        .then(undefined, () => {});
     }
   }, [stripeReturn, stripeAccountId, onboardingId, supabase]);
 

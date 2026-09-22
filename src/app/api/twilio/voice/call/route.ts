@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
             status: 'blocked_dnc',
             message_body: `Outbound call to ${to} blocked — Do Not Contact flag set`,
             sent_at: new Date().toISOString(),
-          }).catch(() => {});
+          }).then(undefined, () => {});
 
           return NextResponse.json(
             {
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
             status: 'blocked_dnc',
             message_body: `Outbound call to ${to} blocked — Do Not Contact flag set (enrichment)`,
             sent_at: new Date().toISOString(),
-          }).catch(() => {});
+          }).then(undefined, () => {});
 
           return NextResponse.json(
             {

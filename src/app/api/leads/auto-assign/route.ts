@@ -265,7 +265,7 @@ export async function POST(req: NextRequest) {
         assigned_at: new Date().toISOString(),
       }));
 
-      await supabase.from('lead_assignment_log').insert(logRows).catch(() => {});
+      await supabase.from('lead_assignment_log').insert(logRows).then(undefined, () => {});
 
       // Update leads with assigned agent — write the canonical field directly
       // (a DB trigger also keeps the legacy assigned_agent_id column in sync).
@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
               assigned_at: new Date().toISOString(),
             } as any)
             .eq('id', result.leadId)
-            .catch(() => {});
+            .then(undefined, () => {});
         }
 
         // Log activity event per lead
@@ -295,7 +295,7 @@ export async function POST(req: NextRequest) {
             agent_name: result.agentName,
             ai_score: result.aiScore,
           },
-        } as any).catch(() => {});
+        } as any).then(undefined, () => {});
       }
     }
 

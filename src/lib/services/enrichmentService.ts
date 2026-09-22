@@ -218,7 +218,7 @@ export const enrichmentService = {
         address,
         state: data.enrichment?.ownerMailingState || '',
         enrichmentType: 'Stage 1 — owner lookup (BatchData)',
-      }).catch(() => {});
+      }).then(undefined, () => {});
 
       return {
         success: true,

@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
             possible_duplicate_batch_id: importBatchId || null,
           })
           .in('id', batch)
-          .catch(() => {});
+          .then(undefined, () => {});
       }
     }
 

@@ -206,7 +206,7 @@ function ApiKeyRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (id: string
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const copy = () => {
-    navigator.clipboard.writeText(apiKey.key).catch(() => {});
+    navigator.clipboard.writeText(apiKey.key).then(undefined, () => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -422,7 +422,7 @@ export default function IntegrationHubPage() {
                           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Webhook URL</p>
                           <div className="flex items-center gap-2 bg-[#0d1117] border border-[#2a3142] rounded-lg px-3 py-2">
                             <p className="text-xs text-gray-400 font-mono flex-1 truncate">{integration.webhookUrl}</p>
-                            <button onClick={() => navigator.clipboard.writeText(integration.webhookUrl!).catch(() => {})}
+                            <button onClick={() => navigator.clipboard.writeText(integration.webhookUrl!).then(undefined, () => {})}
                               className="text-gray-500 hover:text-gray-300 flex-shrink-0">
                               <Copy className="w-3.5 h-3.5" />
                             </button>

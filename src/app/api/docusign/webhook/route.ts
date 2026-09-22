@@ -301,7 +301,7 @@ export async function POST(req: NextRequest) {
                 detail: `Auto-provisioned on DocuSign completion. User ID: ${newUser.user.id}`,
                 source: 'docusign_webhook',
                 metadata: { envelopeId, sessionId: session.id, homeownerUserId: newUser.user.id },
-              }).catch(() => {});
+              }).then(undefined, () => {});
             }
           } else {
             // User already exists — send a password reset / magic link instead
@@ -393,7 +393,7 @@ export async function POST(req: NextRequest) {
               detail: `DocuSign envelope ${envelopeId} completed. Commission basis: $${monthlyRevenue}/mo net`,
               source: 'docusign_webhook',
               metadata: { envelopeId, agentId: leadData.assigned_agent_id, commissionAmount },
-            }).catch(() => {});
+            }).then(undefined, () => {});
           }
         }
       } catch (commissionErr) {
@@ -412,7 +412,7 @@ export async function POST(req: NextRequest) {
         newValue: 'Under Contract',
         source: 'docusign_webhook',
         metadata: { envelopeId, sessionId: session.id },
-      }).catch(() => {});
+      }).then(undefined, () => {});
     }
 
     if (newStatus === 'voided') {
@@ -425,7 +425,7 @@ export async function POST(req: NextRequest) {
         detail: envelopeSummary?.voidedReason ?? 'Voided',
         source: 'docusign_webhook',
         metadata: { envelopeId, sessionId: session.id },
-      }).catch(() => {});
+      }).then(undefined, () => {});
     }
 
     return NextResponse.json({ received: true });

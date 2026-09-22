@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
     // Batch insert delivery events
     if (deliveryEventRows.length > 0) {
       for (let i = 0; i < deliveryEventRows.length; i += 50) {
-        await supabase.from('campaign_delivery_events').insert(deliveryEventRows.slice(i, i + 50)).catch(() => {});
+        await supabase.from('campaign_delivery_events').insert(deliveryEventRows.slice(i, i + 50)).then(undefined, () => {});
       }
     }
 

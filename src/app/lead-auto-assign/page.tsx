@@ -326,7 +326,7 @@ export default function LeadAutoAssignPage() {
           setLiveLog(apiLog);
         }
       })
-      .catch(() => {});
+      .then(undefined, () => {});
   }, []);
 
   const saveRules = (updated: AssignmentRule[]) => {

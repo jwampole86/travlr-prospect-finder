@@ -269,14 +269,14 @@ function TwoFactorTab() {
   };
 
   const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code).catch(() => {});
+    navigator.clipboard.writeText(code).then(undefined, () => {});
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const handleCopyAllCodes = () => {
     const allCodes = codes.filter(c => !c.used).map(c => c.code).join('\n');
-    navigator.clipboard.writeText(allCodes).catch(() => {});
+    navigator.clipboard.writeText(allCodes).then(undefined, () => {});
     setCopiedCode('all');
     setTimeout(() => setCopiedCode(null), 2000);
   };

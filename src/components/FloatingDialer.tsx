@@ -259,10 +259,10 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
           detail: dispositionNotes || undefined,
           source: 'dialer',
           metadata: { sessionId: currentSessionId, outcome, duration },
-        }).catch(() => {});
+        }).then(undefined, () => {});
 
         // Trigger Claude summarization in background (non-blocking)
-        callSessionService.generateSummary(currentSessionId, []).catch(() => {});
+        callSessionService.generateSummary(currentSessionId, []).then(undefined, () => {});
       }
 
       setShowOutcomeModal(false);

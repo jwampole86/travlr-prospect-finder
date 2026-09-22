@@ -178,7 +178,7 @@ function ConsistencyReportContent() {
           setSelectedCandidateId(d.candidates[0].id);
         }
       })
-      .catch(() => {});
+      .then(undefined, () => {});
   }, [selectedCandidateId]);
 
   const loadReport = useCallback(async (candidateId: string) => {

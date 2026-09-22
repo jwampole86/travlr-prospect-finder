@@ -133,7 +133,7 @@ export async function POST() {
         cost: 0.25,
         success: false,
         called_at: new Date().toISOString(),
-      }).catch(() => {});
+      }).then(undefined, () => {});
 
       // Call PDL or simulate
       const ownerName = enrichment?.owner_name || '';
@@ -196,7 +196,7 @@ export async function POST() {
       await supabase.from('enrichment_api_logs')
         .update({ success: !updateErr, cost: 0.25 })
         .eq('id', logId)
-        .catch(() => {});
+        .then(undefined, () => {});
 
       if (updateErr) {
         errors++;
@@ -218,7 +218,7 @@ export async function POST() {
           title: `Stage 2 PDL enrichment complete${tag}`,
           body: `Auto-enriched via PDL: ${contacts.emails.length} email(s), ${contacts.phones.length} phone(s) · Score ${lead.prospect_score}`,
           metadata: { provider: 'People Data Labs', stage: 'stage2', simulated: isSimulated, auto: true },
-        } as any).catch(() => {});
+        } as any).then(undefined, () => {});
       }
     } catch (err) {
       errors++;

@@ -527,7 +527,7 @@ function SendInfoRequestButton({ leadId }: { leadId: string }) {
       if (data.success) {
         setSent(true);
         setCopiedUrl(data.info_request_url);
-        await navigator.clipboard.writeText(data.info_request_url).catch(() => {});
+        await navigator.clipboard.writeText(data.info_request_url).then(undefined, () => {});
         toast.success('Info request link generated and copied to clipboard');
       } else {
         toast.error(data.error || 'Failed to generate info request link');
@@ -718,7 +718,7 @@ export default function LeadRecordContent() {
         state: lead.state,
         previousStage,
         newStage,
-      }).catch(() => {});
+      }).then(undefined, () => {});
     } catch {
       setCurrentStage(newStage as typeof lead.stage);
       toast.success(`Stage changed to "${newStage}"`);
@@ -772,7 +772,7 @@ export default function LeadRecordContent() {
         address: lead.address,
         state: lead.state,
         notePreview: noteContent.trim(),
-      }).catch(() => {});
+      }).then(undefined, () => {});
       loadData();
     } catch {
       setAgentNotes(prev => [{

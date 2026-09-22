@@ -32,7 +32,7 @@ export function showErrorWithRetry({
           label: 'Retry',
           onClick: () => {
             toast.dismiss(id);
-            Promise.resolve(onRetry()).catch(() => {});
+            Promise.resolve(onRetry()).then(undefined, () => {});
           },
         }
       : undefined,

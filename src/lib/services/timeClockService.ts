@@ -107,7 +107,7 @@ export async function sendActivityHeartbeat(shiftId: string): Promise<void> {
     .from('time_clock_shifts')
     .update({ last_activity_at: new Date().toISOString() })
     .eq('id', shiftId)
-    .neq('status', 'clocked_out')).catch(() => {});
+    .neq('status', 'clocked_out')).then(undefined, () => {});
 }
 
 /** System-initiated break after the agent didn't respond to the idle prompt. */
@@ -132,7 +132,7 @@ export async function recordIdleAutoBreak(shiftId: string, userId: string, idleS
 
   await Promise.resolve(supabase.from('time_clock_idle_events').insert({
     shift_id: shiftId, user_id: userId, action: 'auto_break', idle_since: idleSinceIso, detected_at: nowIso,
-  })).catch(() => {});
+  })).then(undefined, () => {});
 
   return data as TimeClockBreak;
 }
@@ -144,7 +144,7 @@ export async function recordIdleAutoClockOut(shiftId: string, userId: string, ac
   await supabase.from('time_clock_shifts').update({ auto_clocked_out: true }).eq('id', shiftId);
   await Promise.resolve(supabase.from('time_clock_idle_events').insert({
     shift_id: shiftId, user_id: userId, action: 'auto_clock_out', idle_since: idleSinceIso, detected_at: new Date().toISOString(),
-  })).catch(() => {});
+  })).then(undefined, () => {});
 }
 
 /** Resumes a shift that was auto-paused for idleness once real activity is detected. */

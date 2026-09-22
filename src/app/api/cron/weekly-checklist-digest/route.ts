@@ -135,7 +135,8 @@ function buildDigestHtml(params: {
 }
 
 export async function POST(req: NextRequest) {
-  if (!authCheck(req)) {
+  const auth = await verifyJobRequest(req);
+  if (!auth.authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -496,7 +496,7 @@ export async function POST(req: NextRequest) {
           portfolio_label: `${stateName} Portfolio`,
           is_active: true,
           auto_created: true,
-        }).catch(() => {});
+        }).then(undefined, () => {});
       }
     }
 
@@ -690,7 +690,7 @@ export async function POST(req: NextRequest) {
                 p_verification_source: RESEARCH_SOURCE,
                 p_import_batch_id: importBatchId,
                 p_research_source_url: pr.tpsNameUrl || null,
-              }).catch(() => {});
+              }).then(undefined, () => {});
               summary.phonesStored++;
             }
 
@@ -711,7 +711,7 @@ export async function POST(req: NextRequest) {
               description: `Manual research data updated from ${SOURCE_NAME} (batch: ${importBatchId}). ${pr.phones.length} phone(s) stored. verified_owner=${willBeVerifiedOwner}, verified_number=${willBeVerifiedNumber}, verified_address=${willBeVerifiedAddress}, fully_verified=${willBeFullyVerified}.`,
               metadata: { importBatchId, importFilename, tpsNameUrl: pr.tpsNameUrl, tpsAddressUrl: pr.tpsAddressUrl, phoneCount: pr.phones.length, willBeFullyVerified },
               created_at: now,
-            }).catch(() => {});
+            }).then(undefined, () => {});
           }
         } else {
           // ── CREATE new prospect ───────────────────────────────────────────
@@ -857,7 +857,7 @@ export async function POST(req: NextRequest) {
                 p_verification_source: RESEARCH_SOURCE,
                 p_import_batch_id: importBatchId,
                 p_research_source_url: pr.tpsNameUrl || null,
-              }).catch(() => {});
+              }).then(undefined, () => {});
               summary.phonesStored++;
             }
 
@@ -877,7 +877,7 @@ export async function POST(req: NextRequest) {
               description: `New lead imported from ${SOURCE_NAME} via TruePeopleSearch research (batch: ${importBatchId}).`,
               metadata: { importBatchId, importFilename, tpsNameUrl: pr.tpsNameUrl, tpsAddressUrl: pr.tpsAddressUrl, phoneCount: pr.phones.length, phones: pr.phones.map(p => p.normalized) },
               created_at: now,
-            }).catch(() => {});
+            }).then(undefined, () => {});
           }
         }
       } catch (rowErr) {
@@ -913,7 +913,7 @@ export async function POST(req: NextRequest) {
     // ── STEP 8: Persist per-row outcomes ─────────────────────────────────────
     if (rowOutcomes.length > 0) {
       for (let i = 0; i < rowOutcomes.length; i += 100) {
-        await supabase.from('csv_import_row_outcomes').insert(rowOutcomes.slice(i, i + 100)).catch(() => {});
+        await supabase.from('csv_import_row_outcomes').insert(rowOutcomes.slice(i, i + 100)).then(undefined, () => {});
       }
     }
 
@@ -938,7 +938,7 @@ export async function POST(req: NextRequest) {
       rows_review_required: summary.reviewRequired,
       rows_error: summary.errors,
       status: 'COMPLETED',
-    }, { onConflict: 'import_batch_id' }).catch(() => {});
+    }, { onConflict: 'import_batch_id' }).then(undefined, () => {});
 
     // ── STEP 10: Admin-level import event ─────────────────────────────────────
     await supabase.from('activity_events').insert({
@@ -958,7 +958,7 @@ export async function POST(req: NextRequest) {
         phonesStored: summary.phonesStored,
       },
       created_at: now,
-    }).catch(() => {});
+    }).then(undefined, () => {});
 
     return NextResponse.json({ success: true, summary });
   } catch (err) {

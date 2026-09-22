@@ -170,7 +170,7 @@ function QuickAssignModal({
         is_override: isAutoAssigned,
         override_reason: isAutoAssigned ? (overrideReason || 'Manual override from field view') : null,
         reason: isAutoAssigned ? `Manual override: ${overrideReason || 'Field view reassignment'}` : 'Manual assignment from field view',
-      }).catch(() => {});
+      }).then(undefined, () => {});
 
       // Also log to lead_assignments for audit trail
       await supabase.from('lead_assignments').insert({
@@ -178,7 +178,7 @@ function QuickAssignModal({
         agent_user_id: selectedAgent,
         assigned_by: 'field_view_override',
         notes: isAutoAssigned ? `Override: ${overrideReason || 'Manual reassignment from field view'}` : 'Assigned from field view',
-      }).catch(() => {});
+      }).then(undefined, () => {});
 
       const agent = agents.find(a => a.id === selectedAgent);
       onAssigned(lead.id, selectedAgent, agent?.full_name ?? 'Agent');
@@ -685,7 +685,7 @@ function FieldTemplatePanel({ onClose }: { onClose: () => void }) {
 
   function handleCopy(tpl: FieldTemplate) {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(tpl.content).catch(() => {});
+      navigator.clipboard.writeText(tpl.content).then(undefined, () => {});
     }
     setCopied(tpl.id);
     setTimeout(() => setCopied(null), 2000);
@@ -828,7 +828,7 @@ export default function AgentFieldViewPage() {
               return next;
             });
           })
-          .catch(() => {})
+          .then(undefined, () => {})
           .finally(() => setValidating(false));
       }
     } catch {

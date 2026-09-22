@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // A stale/invalid refresh token (e.g. from a previous Supabase project or domain)
         // gets stuck in storage and throws here — wipe it so the user can sign in fresh.
         if (err?.message?.includes('Refresh Token')) {
-          await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+          await supabase.auth.signOut({ scope: 'local' }).then(undefined, () => {});
         }
         setUser(null);
         setSession(null);

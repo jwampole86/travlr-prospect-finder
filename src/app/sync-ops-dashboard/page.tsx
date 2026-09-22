@@ -389,7 +389,7 @@ export default function SyncOpsDashboardPage() {
       severity: 'info',
       message: `[TEST] ${ALERT_LABELS[cfg.alert_type]?.label || cfg.alert_type} — test notification`,
       details: { test: true, slack_ok: slackOk, email_ok: emailOk, errors },
-    }).catch(() => {});
+    }).then(undefined, () => {});
   }, [supabase]);
 
   const acknowledgeAlert = async (id: string) => {

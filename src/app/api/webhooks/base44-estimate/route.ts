@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
         },
         created_at: receivedAt,
       })
-      .catch(() => {});
+      .then(undefined, () => {});
 
     // Notify assigned agent if present
     if (matchedLead.assigned_agent_id) {
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
           read: false,
           created_at: receivedAt,
         })
-        .catch(() => {});
+        .then(undefined, () => {});
     }
 
     // Update webhook log to success
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
       .update({ status: 'matched', lead_id: matchedLead.id })
       .eq('source', 'base44_estimate')
       .eq('received_at', receivedAt)
-      .catch(() => {});
+      .then(undefined, () => {});
 
     return NextResponse.json({
       success: true,
@@ -212,7 +212,7 @@ export async function POST(req: NextRequest) {
         .update({ status: 'error', error_message: insertError.message })
         .eq('source', 'base44_estimate')
         .eq('received_at', receivedAt)
-        .catch(() => {});
+        .then(undefined, () => {});
 
       return NextResponse.json({ error: 'Failed to create lead' }, { status: 500 });
     }
@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
           },
           created_at: receivedAt,
         })
-        .catch(() => {});
+        .then(undefined, () => {});
 
       // Admin event log
       await supabase
@@ -248,7 +248,7 @@ export async function POST(req: NextRequest) {
           new_value: { stage: 'nurturing', source: 'base44_estimate_webhook', status_tag: 'Warm — Contact Confirmed' },
           event_timestamp: receivedAt,
         })
-        .catch(() => {});
+        .then(undefined, () => {});
 
       // Auto-enroll in default cadence sequence
       const { data: defaultSeq } = await supabase
@@ -280,13 +280,13 @@ export async function POST(req: NextRequest) {
             enrolled_at: receivedAt,
             metadata: { enroll_reason: 'base44_estimate_webhook' },
           })
-          .catch(() => {});
+          .then(undefined, () => {});
 
         await supabase
           .from('leads')
           .update({ next_scheduled_touch_at: nextSendAt })
           .eq('id', newLead.id)
-          .catch(() => {});
+          .then(undefined, () => {});
       }
 
       // Update webhook log
@@ -295,7 +295,7 @@ export async function POST(req: NextRequest) {
         .update({ status: 'created', lead_id: newLead.id })
         .eq('source', 'base44_estimate')
         .eq('received_at', receivedAt)
-        .catch(() => {});
+        .then(undefined, () => {});
     }
 
     return NextResponse.json({

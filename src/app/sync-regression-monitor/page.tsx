@@ -376,7 +376,7 @@ export default function SyncRegressionMonitorPage() {
         .from('sync_regression_events')
         .update({ status: 'resolved', resolved_at: new Date().toISOString() })
         .eq('id', eventId)
-        .catch(() => {});
+        .then(undefined, () => {});
     }
     setEvents(prev => prev.map(e =>
       e.id === eventId ? { ...e, status: 'resolved' } : e
@@ -391,7 +391,7 @@ export default function SyncRegressionMonitorPage() {
         .from('sync_regression_events')
         .update({ status: 'ignored' })
         .eq('id', eventId)
-        .catch(() => {});
+        .then(undefined, () => {});
     }
     setEvents(prev => prev.map(e =>
       e.id === eventId ? { ...e, status: 'ignored' } : e

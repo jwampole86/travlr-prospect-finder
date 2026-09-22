@@ -205,7 +205,7 @@ export const leadsService = {
         // Background refresh — don't await
         this._fetchTopLeadsFromDB(limit).then(result => {
           if (result) cacheSet(cacheKey, result);
-        }).catch(() => {});
+        }).then(undefined, () => {});
       }
       return cached;
     }
@@ -269,7 +269,7 @@ export const leadsService = {
                 .slice(0, 20);
               cacheSet(CACHE_KEYS.TOP_LEADS, topSorted);
             }
-          }).catch(() => {});
+          }).then(undefined, () => {});
         }
         return cached;
       }
@@ -402,7 +402,7 @@ export const leadsService = {
           leadId: lead.id,
           address: lead.address,
           state: lead.state,
-        }).catch(() => {});
+        }).then(undefined, () => {});
       }
 
       return { count: dedupedLeads.length };
@@ -439,7 +439,7 @@ export const leadsService = {
           state: row.state,
           previousStage: row.stage,
           newStage: stage,
-        }).catch(() => {});
+        }).then(undefined, () => {});
       }
 
       return !error;
@@ -489,7 +489,7 @@ export const leadsService = {
         state: (row.state as string) || '',
         previousStage: (row.stage as string) || '',
         newStage: stage,
-      }).catch(() => {});
+      }).then(undefined, () => {});
 
       return 'ok';
     } catch {
@@ -539,7 +539,7 @@ export const leadsService = {
         recordBulkUpdate({
           count: ids.length,
           action: `moved to ${stage}`,
-        }).catch(() => {});
+        }).then(undefined, () => {});
       }
 
       return !error;

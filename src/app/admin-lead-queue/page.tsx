@@ -522,7 +522,7 @@ export default function AdminLeadQueuePage() {
               leadPhone: lead?.phone || '',
               priority: lead?.isHighPriority ? 'HIGH PRIORITY' : `Tier ${lead?.priorityTier || 1}`,
             }),
-          }).catch(() => {});
+          }).then(undefined, () => {});
         }
       }
 

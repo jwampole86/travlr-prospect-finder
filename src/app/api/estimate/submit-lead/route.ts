@@ -140,14 +140,14 @@ Write a 2-3 sentence agent-facing summary.`,
         title: 'Homeowner self-submitted via landing page',
         body: claudeSummary,
         metadata: { source: 'landing_page', merged: true },
-      } as any).catch(() => {});
+      } as any).then(undefined, () => {});
 
       // Trigger BatchData enrichment for merged lead (fire-and-forget)
       fetch('/api/enrichment/batchdata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leadId: matchedLead.id, address, prospectScore: 70 }),
-      }).catch(() => {});
+      }).then(undefined, () => {});
 
       return NextResponse.json({ success: true, leadId: matchedLead.id, merged: true });
     } else {
@@ -209,9 +209,9 @@ Write a 2-3 sentence agent-facing summary.`,
             next_send_at: nextSendAt,
             enrolled_at: new Date().toISOString(),
             metadata: { enroll_reason: 'form_submission_auto_trigger' },
-          }).catch(() => {});
+          }).then(undefined, () => {});
 
-          await supabase.from('leads').update({ next_scheduled_touch_at: nextSendAt }).eq('id', newLead.id).catch(() => {});
+          await supabase.from('leads').update({ next_scheduled_touch_at: nextSendAt }).eq('id', newLead.id).then(undefined, () => {});
         }
 
         // Log activity
@@ -221,7 +221,7 @@ Write a 2-3 sentence agent-facing summary.`,
           title: 'Homeowner self-submitted via landing page',
           body: claudeSummary,
           metadata: { source: 'landing_page', merged: false },
-        } as any).catch(() => {});
+        } as any).then(undefined, () => {});
 
         // Log admin event
         await supabase.from('admin_event_log').insert({
@@ -233,7 +233,7 @@ Write a 2-3 sentence agent-facing summary.`,
           severity: 'info',
           new_value: { stage: 'nurturing', source: 'self_submitted' },
           event_timestamp: new Date().toISOString(),
-        }).catch(() => {});
+        }).then(undefined, () => {});
 
         // ── 4. Auto-trigger BatchData Stage 1 enrichment ──────────────────────
         // Fire-and-forget: enrich owner name, mailing address, ownership type
@@ -241,7 +241,7 @@ Write a 2-3 sentence agent-facing summary.`,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ leadId: newLead.id, address, prospectScore: 70 }),
-        }).catch(() => {});
+        }).then(undefined, () => {});
       }
 
       return NextResponse.json({ success: true, leadId: newLead?.id, merged: false });

@@ -83,8 +83,9 @@ export async function POST(req: NextRequest) {
 
     if (regData) {
       regulationSummary = regData.summary ?? regulationSummary;
-      regulationStatus = regData.status === 'permitted' ? 'permitted' :
-                         regData.status === 'restricted' ? 'restricted' : 'unknown';
+      const normalizedStatus = String(regData.status).toLowerCase();
+      regulationStatus = normalizedStatus === 'permitted' ? 'permitted' :
+             normalizedStatus === 'restricted' ? 'restricted' : 'unknown';
     } else if (['CO', 'TN', 'FL', 'AZ'].includes(state)) {
       regulationStatus = 'permitted';
       regulationSummary = `Short-term rentals are generally permitted in ${state} with proper licensing. Most municipalities require a local business license and may have occupancy limits.`;

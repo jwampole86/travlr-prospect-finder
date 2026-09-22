@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
           recommendation: cached.validation_recommendation,
           cache_hit: true,
           triggered_by: 'api_call',
-        }).catch(() => {});
+        }).then(undefined, () => {});
 
         return NextResponse.json({
           success: true,
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
         validated_at: now.toISOString(),
         expires_at: expiresAt,
       }, { onConflict: 'lead_fingerprint' })
-      .catch(() => {});
+      .then(undefined, () => {});
 
     // ── 6. Log validation event ───────────────────────────────────────────────
     await supabase.from('enrichment_validation_events').insert({
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
       recommendation,
       cache_hit: false,
       triggered_by: 'api_call',
-    }).catch(() => {});
+    }).then(undefined, () => {});
 
     // ── 7. Run rules engine ───────────────────────────────────────────────────
     const { data: rules } = await supabase
@@ -299,7 +299,7 @@ export async function POST(req: NextRequest) {
 
     // Insert violations
     if (violations.length > 0) {
-      await supabase.from('rules_engine_violations').insert(violations).catch(() => {});
+      await supabase.from('rules_engine_violations').insert(violations).then(undefined, () => {});
 
       // Update enrichment with violation flags
       if (enrichment) {
@@ -307,7 +307,7 @@ export async function POST(req: NextRequest) {
           .from('lead_enrichments')
           .update({ rules_violations: violationRuleNames })
           .eq('lead_id', leadId)
-          .catch(() => {});
+          .then(undefined, () => {});
       }
 
       // Insert a sync_regression_event for rules violations
@@ -328,7 +328,7 @@ export async function POST(req: NextRequest) {
             rules_violations: violationRuleNames,
             validation_recommendation: recommendation,
           })
-          .catch(() => {});
+          .then(undefined, () => {});
       }
     }
 

@@ -17,7 +17,7 @@ export async function GET(
     }
 
     // Auto-expire stale invites first
-    await supabaseAdmin.rpc('expire_agent_invites').catch(() => {});
+    await supabaseAdmin.rpc('expire_agent_invites').then(undefined, () => {});
 
     const { data: invite, error } = await supabaseAdmin
       .from('agent_invites')

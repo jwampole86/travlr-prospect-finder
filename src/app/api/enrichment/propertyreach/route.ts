@@ -475,7 +475,6 @@ async function runPropertyReachJob(
       .from('leads')
       .update({
         property_reach_last_enriched_at: new Date().toISOString(),
-        property_reach_enrichment_version: supabase.rpc ? undefined : undefined, // incremented via DB
         updated_at: new Date().toISOString(),
       })
       .eq('id', leadId);

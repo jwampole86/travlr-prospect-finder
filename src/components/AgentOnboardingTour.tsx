@@ -218,7 +218,7 @@ export default function AgentOnboardingTour({ onComplete, forceShow = false }: A
                 'Authorization': `Bearer ${session.access_token}`,
               },
               body: JSON.stringify({ action: 'start' }),
-            }).catch(() => {});
+            }).then(undefined, () => {});
           }
         }
       });

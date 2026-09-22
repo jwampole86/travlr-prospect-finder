@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
       cost: 0.05,
       success: false,
       called_at: new Date().toISOString(),
-    }).catch(() => {});
+    }).then(undefined, () => {});
 
     // Call BatchData API (or simulate)
     let ownerData = await callBatchDataAPI(address);
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
     await supabase.from('enrichment_api_logs')
       .update({ success: !upsertError, cost: 0.05 })
       .eq('id', logId)
-      .catch(() => {});
+      .then(undefined, () => {});
 
     if (upsertError) {
       return NextResponse.json({ success: false, message: upsertError.message }, { status: 500 });
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
       title: `Owner lookup complete — ${ownerData.ownerName}`,
       body: `BatchData${isSimulated ? ' (simulated)' : ''}: ${ownerData.ownershipType} owner at ${ownerData.ownerMailingAddress}, ${ownerData.ownerMailingCity}, ${ownerData.ownerMailingState}`,
       metadata: { provider: 'BatchData', stage: 'stage1', simulated: isSimulated },
-    } as any).catch(() => {});
+    } as any).then(undefined, () => {});
 
     return NextResponse.json({
       success: true,

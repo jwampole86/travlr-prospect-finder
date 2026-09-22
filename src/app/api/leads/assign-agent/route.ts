@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       notes: `Assigned via Lead Management bulk assignment`,
     }));
 
-    await supabase.from('lead_assignment_log').insert(assignmentLogs).catch(() => {});
+    await supabase.from('lead_assignment_log').insert(assignmentLogs).then(undefined, () => {});
 
     // ── 4. Log activity events ────────────────────────────────
     const activityEvents = leadIds.map((leadId: string) => ({
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       created_at: now,
     }));
 
-    await supabase.from('lead_activity_log').insert(activityEvents).catch(() => {});
+    await supabase.from('lead_activity_log').insert(activityEvents).then(undefined, () => {});
 
     // ── 5. Send in-app notifications ──────────────────────────
     // Find the agent's user_id to send them a notification
@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
           revenueOpp,
         },
         read: false,
-      }).catch(() => {});
+      }).then(undefined, () => {});
     }
 
     // ── 6. Send Resend email to agent ─────────────────────────
@@ -278,7 +278,7 @@ export async function POST(req: NextRequest) {
       email_error: emailError,
     }));
 
-    await supabase.from('lead_assignment_notifications').insert(notifLogs).catch(() => {});
+    await supabase.from('lead_assignment_notifications').insert(notifLogs).then(undefined, () => {});
 
     return NextResponse.json({
       success: true,

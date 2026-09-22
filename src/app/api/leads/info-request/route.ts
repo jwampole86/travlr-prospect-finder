@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       description: `Info request link sent via ${sentVia}`,
       metadata: { link_token: linkToken, sent_via: sentVia },
       created_at: new Date().toISOString(),
-    }).catch(() => {});
+    }).then(undefined, () => {});
 
     return NextResponse.json({
       success: true,
@@ -163,7 +163,7 @@ export async function PUT(req: NextRequest) {
         description: `Homeowner edited pre-filled address. Original: ${lead.address}. Submitted: ${addressAsSubmitted}. Requires agent review.`,
         metadata: { original_address: lead.address, submitted_address: addressAsSubmitted },
         created_at: new Date().toISOString(),
-      }).catch(() => {});
+      }).then(undefined, () => {});
     }
 
     // Log submission to activity timeline
@@ -173,7 +173,7 @@ export async function PUT(req: NextRequest) {
       description: claudeSummary,
       metadata: { first_name: firstName, last_name: lastName, phone, email, address_confirmed: addressConfirmed !== false },
       created_at: new Date().toISOString(),
-    }).catch(() => {});
+    }).then(undefined, () => {});
 
     // Send high-priority notification to assigned agent
     if (lead.assigned_agent_id) {
@@ -186,7 +186,7 @@ export async function PUT(req: NextRequest) {
         lead_id: leadId,
         read: false,
         created_at: new Date().toISOString(),
-      }).catch(() => {});
+      }).then(undefined, () => {});
     }
 
     return NextResponse.json({
