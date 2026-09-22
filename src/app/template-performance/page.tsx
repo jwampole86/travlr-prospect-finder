@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { createClient } from '@/lib/supabase/client';
 import { Mail, Eye, MessageSquare, ArrowRight, Star, Clock, Search } from 'lucide-react';
-import type { EmailTemplate } from '../page';
+import type { EmailTemplate } from '../email-templates/page';
 import Icon from '@/components/ui/AppIcon';
 
 

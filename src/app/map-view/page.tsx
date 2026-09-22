@@ -122,7 +122,7 @@ async function fetchLeadsForMap(): Promise<Lead[]> {
       createdAt: String(d.created_at || new Date().toISOString()),
       updatedAt: String(d.updated_at || d.created_at || new Date().toISOString()),
       };
-    }).filter((lead): lead is Lead => Boolean(lead));
+    }).filter(Boolean) as Lead[];
   } catch {
     return [];
   }

@@ -72,11 +72,13 @@ const MOCK_LOG: AssignmentLogEntry[] = [
   { id: '5', leadAddress: '654 Pine St, Seattle WA', assignedToAgentName: 'Carlos R.', ruleName: 'WA Vacation Rental', aiScore: 73, region: 'WA', reason: 'Region WA, vacation-rental tag, workload balanced', assignedAt: new Date(Date.now() - 90 * 60000).toISOString() },
 ];
 
+const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 const DEFAULT_RULES: AssignmentRule[] = [
-  { id: 'rule-1', name: 'High-Score Priority Leads (AI ≥ 85)', priority: 1, enabled: true, minAiScore: 85, maxAiScore: 100, regions: [], expertiseTags: [], leadStages: ['new', 'contacted'], targetAgentName: 'Dana L.', maxWorkload: 35 },
-  { id: 'rule-2', name: 'CA/NV Luxury Vacation Rentals', priority: 2, enabled: true, minAiScore: 70, maxAiScore: 100, regions: ['CA', 'NV', 'AZ'], expertiseTags: ['luxury', 'vacation-rental'], leadStages: [], targetAgentName: 'Sarah M.', maxWorkload: 50 },
-  { id: 'rule-3', name: 'NY/NJ Urban Condo Leads', priority: 3, enabled: true, minAiScore: 60, maxAiScore: 100, regions: ['NY', 'NJ', 'CT'], expertiseTags: ['condo', 'urban'], leadStages: [], targetAgentName: 'Priya K.', maxWorkload: 40 },
-  { id: 'rule-4', name: 'TX/FL High-Volume Outreach', priority: 4, enabled: false, minAiScore: 50, maxAiScore: 84, regions: ['TX', 'FL', 'GA'], expertiseTags: [], leadStages: [], targetAgentName: 'James T.', maxWorkload: 50 },
+  { id: 'rule-1', name: 'High-Score Priority Leads (AI ≥ 85)', priority: 1, enabled: true, minAiScore: 85, maxAiScore: 100, regions: [], expertiseTags: [], leadStages: ['new', 'contacted'], portfolios: [], scoreThreshold: 85, availabilityStart: '09:00', availabilityEnd: '17:00', availabilityDays: DAYS_OF_WEEK, autoAssignEnabled: true, targetAgentName: 'Dana L.', maxWorkload: 35 },
+  { id: 'rule-2', name: 'CA/NV Luxury Vacation Rentals', priority: 2, enabled: true, minAiScore: 70, maxAiScore: 100, regions: ['CA', 'NV', 'AZ'], expertiseTags: ['luxury', 'vacation-rental'], leadStages: [], portfolios: [], scoreThreshold: 70, availabilityStart: '09:00', availabilityEnd: '17:00', availabilityDays: DAYS_OF_WEEK, autoAssignEnabled: true, targetAgentName: 'Sarah M.', maxWorkload: 50 },
+  { id: 'rule-3', name: 'NY/NJ Urban Condo Leads', priority: 3, enabled: true, minAiScore: 60, maxAiScore: 100, regions: ['NY', 'NJ', 'CT'], expertiseTags: ['condo', 'urban'], leadStages: [], portfolios: [], scoreThreshold: 60, availabilityStart: '09:00', availabilityEnd: '17:00', availabilityDays: DAYS_OF_WEEK, autoAssignEnabled: true, targetAgentName: 'Priya K.', maxWorkload: 40 },
+  { id: 'rule-4', name: 'TX/FL High-Volume Outreach', priority: 4, enabled: false, minAiScore: 50, maxAiScore: 84, regions: ['TX', 'FL', 'GA'], expertiseTags: [], leadStages: [], portfolios: [], scoreThreshold: 50, availabilityStart: '09:00', availabilityEnd: '17:00', availabilityDays: DAYS_OF_WEEK, autoAssignEnabled: false, targetAgentName: 'James T.', maxWorkload: 50 },
 ];
 
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
@@ -84,7 +86,6 @@ const EXPERTISE_OPTIONS = ['luxury', 'vacation-rental', 'single-family', 'condo'
 const STAGE_OPTIONS = ['new', 'contacted', 'interested', 'callback', 'proposal', 'closed'];
 
 const REAL_PORTFOLIOS = PORTFOLIOS.filter(p => p.key !== 'all');
-const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // ─── Rule Editor Modal ────────────────────────────────────────────────────────
 

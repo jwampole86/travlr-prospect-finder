@@ -1059,7 +1059,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
                         <div><span className="text-muted-foreground">Source: </span><span className="text-foreground">{String(match.source_provider || '—')}</span></div>
                         <div><span className="text-muted-foreground">Status: </span><span className="text-foreground">{String(match.match_status || '—').replace(/_/g, ' ')}</span></div>
                       </div>
-                      {match.owner_verified_at && (
+                      {Boolean(match.owner_verified_at) && (
                         <div className="flex items-center gap-1 text-[10px] text-emerald-600">
                           <CheckCircle2 size={10} />
                           Verified {new Date(String(match.owner_verified_at)).toLocaleDateString()}
@@ -1095,7 +1095,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
                               }`}>
                                 {String(phone.phone_status || '').replace(/_/g, ' ')}
                               </span>
-                              {phone.verified_number && <CheckCircle2 size={11} className="text-emerald-500" />}
+                              {Boolean(phone.verified_number) && <CheckCircle2 size={11} className="text-emerald-500" />}
                             </div>
                           </div>
                         ))}
@@ -1221,7 +1221,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
                         <div><span className="text-muted-foreground">Started: </span><span className="font-medium text-foreground">{latestJob.started_at ? new Date(String(latestJob.started_at)).toLocaleString() : '—'}</span></div>
                         <div><span className="text-muted-foreground">Completed: </span><span className="font-medium text-foreground">{latestJob.completed_at ? new Date(String(latestJob.completed_at)).toLocaleString() : 'In progress...'}</span></div>
                       </div>
-                      {latestJob.error_message && (
+                      {Boolean(latestJob.error_message) && (
                         <div className="mt-2 p-2 bg-red-500/5 border border-red-500/20 rounded text-[11px] text-red-600">
                           Error: {String(latestJob.error_message)}
                         </div>
@@ -1257,13 +1257,13 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
                         <div className="space-y-2">
                           <DataRow label="Full Name" value={String(bestMatch.best_owner_name || '—')} />
                           <DataRow label="Owner Type" value={String(bestMatch.best_owner_type || '—').replace(/_/g, ' ')} />
-                          {bestMatch.legal_owner_name && bestMatch.legal_owner_name !== bestMatch.best_owner_name && (
+                          {Boolean(bestMatch.legal_owner_name) && bestMatch.legal_owner_name !== bestMatch.best_owner_name && (
                             <DataRow label="Legal Owner" value={String(bestMatch.legal_owner_name)} />
                           )}
-                          {bestMatch.associated_contact_name && (
+                          {Boolean(bestMatch.associated_contact_name) && (
                             <DataRow label="Associated Contact" value={String(bestMatch.associated_contact_name)} />
                           )}
-                          {bestMatch.owner_mailing_address && (
+                          {Boolean(bestMatch.owner_mailing_address) && (
                             <DataRow label="Mailing Address" value={String(bestMatch.owner_mailing_address)} />
                           )}
                           {ownerCandidates.length > 1 && (
