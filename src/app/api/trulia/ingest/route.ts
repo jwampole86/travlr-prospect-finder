@@ -275,7 +275,7 @@ export async function POST(req: NextRequest) {
           accessSucceeded: true,
           httpStatus: accessResult.httpStatus,
           responseSchemaValid: false,
-          counters: buildEmptyCounters(),
+          counters: buildZeroCounters(),
           pagesAvailable: paginationInfo?.pagesAvailable ?? null,
           pagesRequested: paginationInfo?.pagesRequested ?? null,
           pagesSucceeded: paginationInfo?.pagesSucceeded ?? null,
@@ -509,7 +509,7 @@ export async function GET(req: NextRequest) {
       const validation = validateDbConfigs(configs || []);
       const repairs: Array<{ source_id: string; validation_status: string; minimum_rent: number | null }> = [];
 
-      for (const config of validation.configs) {
+      for (const config of validation.configs as Array<Record<string, any>>) {
         const parsed = parseTruliaUrl(config.source_url_canonical || config.source_url_raw || config.source_url || '');
         const repairPayload: Record<string, unknown> = {
           source_url_canonical: parsed.canonicalUrl,

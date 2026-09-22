@@ -196,7 +196,7 @@ export default function BillingPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Icon icon={CreditCard} className="w-6 h-6 text-violet-400" />
+              <CreditCard className="w-6 h-6 text-violet-400" />
               Subscription & Billing
             </h1>
             <p className="text-gray-400 text-sm mt-1">Manage plans, team seats, invoices, and payment methods</p>
@@ -258,7 +258,7 @@ export default function BillingPage() {
                     </div>
                   )}
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${plan.iconBg}`}>
-                    <Icon icon={plan.icon} className={`w-6 h-6 ${plan.iconColor}`} />
+                    <plan.icon className={`w-6 h-6 ${plan.iconColor}`} />
                   </div>
                   <h3 className="text-lg font-bold text-white">{plan.name}</h3>
                   <div className="flex items-baseline gap-1 mt-1 mb-4">
