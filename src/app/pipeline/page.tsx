@@ -208,20 +208,28 @@ function dbRowToLead(d: Record<string, unknown>): Lead {
     city: String(d.city || ''),
     state: String(d.state || ''),
     zip: String(d.zip || ''),
+    lat: Number(d.lat || 0),
+    lng: Number(d.lng || 0),
     beds: Number(d.beds || 0),
     baths: Number(d.baths || 0),
     price: Number(d.price || 0),
-    source: String(d.source || ''),
+    priceType: (d.price_type || 'rent') as Lead['priceType'],
+    source: String(d.source || 'Other') as Lead['source'],
     stage: String(d.stage || 'New Lead') as LeadStage,
     regulationStatus: String(d.regulation_status || 'Unknown') as Lead['regulationStatus'],
     prospectScore: Number(d.prospect_score || 0),
     daysOnMarket: Number(d.days_on_market || 0),
     lastChecked: String(d.last_checked || new Date().toISOString().split('T')[0]),
+    listingUrl: String(d.listing_url || ''),
     contactName: d.contact_name ? String(d.contact_name) : undefined,
     contactPhone: d.contact_phone ? String(d.contact_phone) : undefined,
     notes: String(d.notes || ''),
     tags: Array.isArray(d.tags) ? d.tags : [],
+    estimatedADR: Number(d.estimated_adr || 0),
+    estimatedOccupancy: Number(d.estimated_occupancy || 0),
+    estimatedGrossMonthly: Number(d.estimated_gross_monthly || 0),
     estimatedNetMonthly: Number(d.estimated_net_monthly || 0),
+    photos: Array.isArray(d.photos) ? d.photos as string[] : [],
     createdAt: String(d.created_at || new Date().toISOString().split('T')[0]),
     updatedAt: String(d.updated_at || d.created_at || new Date().toISOString().split('T')[0]),
     agent_id: d.agent_id ? String(d.agent_id) : undefined,
@@ -277,7 +285,7 @@ export default function PipelinePage() {
       if (count !== null) setTotalCount(count);
 
       if (data && data.length > 0) {
-        setLeads(data.map((d: Record<string, unknown>) => dbRowToLead(d)));
+        setLeads((data as unknown as Record<string, unknown>[]).map(dbRowToLead));
       } else {
         setLeads([]);
       }

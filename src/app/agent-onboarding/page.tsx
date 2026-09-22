@@ -30,6 +30,14 @@ interface OnboardingState {
   reminderMinutes: number;
 }
 
+interface OnboardingTemplate {
+  id: string;
+  name: string;
+  type: 'sms' | 'email';
+  tag: string;
+  description: string;
+}
+
 const TIMEZONES = [
   'America/New_York', 'America/Chicago', 'America/Denver',
   'America/Los_Angeles', 'America/Phoenix', 'America/Anchorage',
@@ -47,16 +55,6 @@ const TIMEZONE_LABELS: Record<string, string> = {
 };
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-const MOCK_TEMPLATES = [
-  { id: 'tpl-1', name: 'Initial Outreach', type: 'sms', tag: 'outreach', description: 'First contact with homeowner' },
-  { id: 'tpl-2', name: 'Follow-Up #1', type: 'sms', tag: 'follow up', description: 'Re-engage after no response' },
-  { id: 'tpl-3', name: 'Check-In / Re-Engage', type: 'sms', tag: 'follow up', description: 'Warm check-in message' },
-  { id: 'tpl-4', name: 'Proposal Introduction', type: 'sms', tag: 'proposal', description: 'Formal proposal with terms' },
-  { id: 'tpl-5', name: 'Closing / Contract', type: 'sms', tag: 'closing', description: 'Move to contract stage' },
-  { id: 'tpl-6', name: 'Luxury Welcome Email', type: 'email', tag: 'outreach', description: 'Premium email introduction' },
-  { id: 'tpl-7', name: 'ROI Breakdown Email', type: 'email', tag: 'proposal', description: 'Revenue projection email' },
-];
 
 const STEPS = [
   { id: 1, label: 'Profile', icon: User, description: 'Complete your agent profile' },
@@ -222,7 +220,7 @@ function StepTimezone({ state, onChange }: { state: OnboardingState; onChange: (
   );
 }
 
-function StepTemplates({ state, onChange }: { state: OnboardingState; onChange: (k: keyof OnboardingState, v: any) => void }) {
+function StepTemplates({ state, templates, onChange }: { state: OnboardingState; templates: OnboardingTemplate[]; onChange: (k: keyof OnboardingState, v: any) => void }) {
   function toggleTemplate(id: string) {
     const current = state.selectedTemplateIds;
     if (current.includes(id)) {
@@ -232,15 +230,15 @@ function StepTemplates({ state, onChange }: { state: OnboardingState; onChange: 
     }
   }
 
-  const emailTemplates = MOCK_TEMPLATES.filter(t => t.type === 'email');
-  const smsTemplates = MOCK_TEMPLATES.filter(t => t.type === 'sms');
+  const emailTemplates = templates.filter(t => t.type === 'email');
+  const smsTemplates = templates.filter(t => t.type === 'sms');
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">Select the templates you want quick access to in your outreach workflow.</p>
         <button
-          onClick={() => onChange('selectedTemplateIds', MOCK_TEMPLATES.map(t => t.id))}
+          onClick={() => onChange('selectedTemplateIds', templates.map(t => t.id))}
           className="text-xs text-primary hover:underline font-medium"
         >
           Select All
@@ -312,7 +310,7 @@ function StepTemplates({ state, onChange }: { state: OnboardingState; onChange: 
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
-        {state.selectedTemplateIds.length} of {MOCK_TEMPLATES.length} templates selected · You can change this anytime in Message Templates
+        {state.selectedTemplateIds.length} of {templates.length} templates selected · You can change this anytime in Message Templates
       </p>
     </div>
   );
@@ -433,6 +431,7 @@ export default function AgentOnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [templates, setTemplates] = useState<OnboardingTemplate[]>([]);
   const [state, setState] = useState<OnboardingState>({
     ...DEFAULT_STATE,
     fullName: user?.user_metadata?.full_name || '',
@@ -444,6 +443,29 @@ export default function AgentOnboardingPage() {
   function handleChange(key: keyof OnboardingState, value: any) {
     setState(prev => ({ ...prev, [key]: value }));
   }
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const supabase = createClient();
+    Promise.all([
+      supabase.from('message_templates').select('id, name, tag, category').eq('type', 'sms').order('name'),
+      supabase.from('email_templates').select('id, name, category').order('name'),
+      supabase.from('user_profiles').select('full_name, phone, bio, avatar_initials, timezone, sms_opt_in, agent_preferences').eq('id', user.id).maybeSingle(),
+    ]).then(([smsResult, emailResult, profileResult]) => {
+      const liveTemplates: OnboardingTemplate[] = [
+        ...((smsResult.data || []).map((template: { id: string; name: string; tag?: string; category?: string }) => ({
+          id: template.id, name: template.name, type: 'sms' as const, tag: template.tag || template.category || 'SMS', description: 'SMS outreach template',
+        }))),
+        ...((emailResult.data || []).map((template: { id: string; name: string; category?: string }) => ({
+          id: template.id, name: template.name, type: 'email' as const, tag: template.category || 'Email', description: 'Email outreach template',
+        }))),
+      ];
+      setTemplates(liveTemplates);
+      const profile = profileResult.data;
+      const preferences = (profile?.agent_preferences || {}) as Partial<OnboardingState>;
+      setState(previous => ({ ...previous, ...preferences, fullName: profile?.full_name || previous.fullName, phone: profile?.phone || previous.phone, bio: profile?.bio || previous.bio, avatarInitials: profile?.avatar_initials || previous.avatarInitials, timezone: profile?.timezone || previous.timezone, smsOptIn: profile?.sms_opt_in ?? previous.smsOptIn }));
+    });
+  }, [user?.id]);
 
   function canProceed(): boolean {
     if (currentStep === 1) return state.fullName.trim().length > 0;
@@ -465,9 +487,26 @@ export default function AgentOnboardingPage() {
           avatar_initials: state.avatarInitials || state.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
           timezone: state.timezone,
           sms_opt_in: state.smsOptIn,
-          onboarding_completed: true,
+          agent_preferences: {
+            selectedTemplateIds: state.selectedTemplateIds,
+            calendarSync: state.calendarSync,
+            workingHoursStart: state.workingHoursStart,
+            workingHoursEnd: state.workingHoursEnd,
+            workingDays: state.workingDays,
+            reminderMinutes: state.reminderMinutes,
+            smsFromNumber: state.smsFromNumber,
+            dailySmsLimit: state.dailySmsLimit,
+          },
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session?.access_token) {
+          await fetch('/api/agent/onboarding', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${sessionData.session.access_token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'complete' }),
+          });
+        }
       }
       setCompleted(true);
     } catch {
@@ -569,7 +608,7 @@ export default function AgentOnboardingPage() {
               <div className="p-6">
                 {currentStep === 1 && <StepProfile state={state} onChange={handleChange} />}
                 {currentStep === 2 && <StepTimezone state={state} onChange={handleChange} />}
-                {currentStep === 3 && <StepTemplates state={state} onChange={handleChange} />}
+                {currentStep === 3 && <StepTemplates state={state} templates={templates} onChange={handleChange} />}
                 {currentStep === 4 && <StepCalendar state={state} onChange={handleChange} />}
               </div>
             </div>

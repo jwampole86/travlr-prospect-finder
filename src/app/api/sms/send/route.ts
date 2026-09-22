@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { dispatchSMS, getTwilioConfigStatus, isTwilioConfigured } from '@/lib/services/twilioService';
 import { injectTrackedLinks } from '@/lib/services/linkTrackingService';
+import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,6 +12,9 @@ export async function POST(req: NextRequest) {
     if (!leadId || !to || !message) {
       return NextResponse.json({ error: 'leadId, to, and message are required' }, { status: 400 });
     }
+
+    const authorization = await requireLeadAccess(req, leadId);
+    if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest) {
         channel: 'sms',
         template_id: templateId ?? null,
         sequence_step_id: sequenceStepId ?? null,
-        agent_id: agentId ?? null,
+        agent_id: authorization.actor.user.id,
         status: 'blocked_dnc',
         sent_at: new Date().toISOString(),
         metadata: {
@@ -70,7 +74,7 @@ export async function POST(req: NextRequest) {
         channel: 'sms',
         template_id: templateId ?? null,
         sequence_step_id: sequenceStepId ?? null,
-        agent_id: agentId ?? null,
+        agent_id: authorization.actor.user.id,
         status: 'blocked_dnc',
         sent_at: new Date().toISOString(),
         metadata: {
@@ -97,7 +101,7 @@ export async function POST(req: NextRequest) {
       leadId,
       sequenceId: sequenceId ?? sequenceStepId,
       sequenceName: sequenceName ?? undefined,
-      agentId: agentId ?? undefined,
+      agentId: authorization.actor.user.id,
       portfolio: portfolio ?? undefined,
     });
 
@@ -119,7 +123,7 @@ export async function POST(req: NextRequest) {
       channel: 'sms',
       template_id: templateId ?? null,
       sequence_step_id: sequenceStepId ?? null,
-      agent_id: agentId ?? null,
+      agent_id: authorization.actor.user.id,
       status: deliveryStatus,
       sent_at: new Date().toISOString(),
       metadata: {

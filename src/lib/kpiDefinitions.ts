@@ -82,7 +82,7 @@ export const KPI_METRIC_DEFINITIONS: Record<MetricId, KpiMetricDefinition> = {
     description: 'Prospects with score ≥ 75 that are not in terminal stages',
     canonicalDefinition: `prospect_score >= ${HIGH_PRIORITY_SCORE_THRESHOLD} AND stage NOT IN (${TERMINAL_STAGES.map(s => `'${s}'`).join(', ')})`,
     tolerance: 10,
-    clickThroughFilter: `/lead-management?scoreMin=${HIGH_PRIORITY_SCORE_THRESHOLD}`,
+    clickThroughFilter: `/lead-management?scoreMin=${HIGH_PRIORITY_SCORE_THRESHOLD}&excludeTerminal=true`,
   },
   AVG_SCORE: {
     metricId: 'AVG_SCORE',
@@ -100,7 +100,7 @@ export const KPI_METRIC_DEFINITIONS: Record<MetricId, KpiMetricDefinition> = {
     tolerance: 10,
     // After pipeline stage correction (Active Pipeline = 0), Action Needed = High Priority.
     // Both filters use the same score threshold. actionNeeded=true maps to stage=New Lead + score>=75.
-    clickThroughFilter: `/lead-management?scoreMin=${HIGH_PRIORITY_SCORE_THRESHOLD}&stage=New+Lead`,
+    clickThroughFilter: `/lead-management?actionNeeded=true`,
   },
   FULLY_VERIFIED: {
     metricId: 'FULLY_VERIFIED',
@@ -124,7 +124,7 @@ export const KPI_METRIC_DEFINITIONS: Record<MetricId, KpiMetricDefinition> = {
     description: 'High Priority prospects with no agent assigned (primary_agent_id IS NULL)',
     canonicalDefinition: `prospect_score >= ${HIGH_PRIORITY_SCORE_THRESHOLD} AND stage NOT IN (${TERMINAL_STAGES.map(s => `'${s}'`).join(', ')}) AND primary_agent_id IS NULL`,
     tolerance: 5,
-    clickThroughFilter: `/lead-management?scoreMin=${HIGH_PRIORITY_SCORE_THRESHOLD}&assignmentStatus=unassigned`,
+    clickThroughFilter: `/lead-management?scoreMin=${HIGH_PRIORITY_SCORE_THRESHOLD}&excludeTerminal=true&assignmentStatus=unassigned`,
   },
   ASSIGNED: {
     metricId: 'ASSIGNED',

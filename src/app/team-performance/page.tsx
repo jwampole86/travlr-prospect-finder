@@ -129,7 +129,7 @@ async function fetchMixpanelData(): Promise<MixpanelEventData> {
       conversionRate: Math.round((conversions / assigned) * 1000) / 10,
       leadsAssigned: assigned,
       avgScore: 55 + (i * 6),
-      trend: i < 2 ? 'up' : i === 2 ? 'flat' : 'down',
+      trend: (i < 2 ? 'up' : i === 2 ? 'flat' : 'down') as AgentRanking['trend'],
       region: finalRegionalROI[i % finalRegionalROI.length]?.region ?? 'N/A',
     };
   }).sort((a, b) => b.conversions - a.conversions).map((a, i) => ({ ...a, rank: i + 1 }));

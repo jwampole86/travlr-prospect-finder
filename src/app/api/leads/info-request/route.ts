@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/client';
 import { getChatCompletion } from '@/lib/ai/chatCompletion';
+import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 
 // ─── POST /api/leads/info-request ─────────────────────────────────────────────
 // Generate a unique info-request link tied to a specific lead record.
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest) {
     if (!leadId) {
       return NextResponse.json({ error: 'leadId is required' }, { status: 400 });
     }
+
+    const authorization = await requireLeadAccess(req, leadId);
+    if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
 
     const supabase = createClient();
 

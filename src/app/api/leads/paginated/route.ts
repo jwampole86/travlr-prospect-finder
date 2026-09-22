@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@supabase/supabase-js';
+import { requireApiActor } from '@/lib/auth/apiAuthorization';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ interface LeadQueryParams {
   phoneAvailableOnly?: boolean | null;
   assignmentStatus?: string;
   priorityTier?: string;
+  excludeTerminal?: boolean | null;
   ownerAgentId?: string;
   manualImportOnly?: boolean | null;
   outreachStatus?: string;
@@ -51,6 +53,7 @@ function applyLeadFilters(query: any, params: LeadQueryParams) {
   if (params.sources.length > 0) filtered = filtered.in('source', params.sources);
   if (params.regulationStatuses.length > 0) filtered = filtered.in('regulation_status', params.regulationStatuses);
   if (params.stages.length > 0) filtered = filtered.in('stage', params.stages);
+  if (params.excludeTerminal === true) filtered = filtered.not('stage', 'in', '("Not a Fit","Live")');
 
   if (params.ingestionSource && params.ingestionSource !== 'ALL') {
     if (params.ingestionSource === 'MANUAL_CSV') {
@@ -63,10 +66,17 @@ function applyLeadFilters(query: any, params: LeadQueryParams) {
   }
 
   if (params.luxury === true) filtered = filtered.eq('luxury', true);
-  if (params.fullyVerified === true) filtered = filtered.eq('fully_verified', true);
+  if (params.fullyVerified === true) {
+    filtered = filtered
+      .eq('verified_owner', true)
+      .eq('verified_number', true)
+      .not('verified_address', 'is', null)
+      .neq('verified_address', '')
+      .neq('verified_address', 'false');
+  }
   if (params.verifiedOwnerOnly === true) filtered = filtered.eq('verified_owner', true);
   if (params.verifiedNumberOnly === true) filtered = filtered.eq('verified_number', true);
-  if (params.phoneAvailableOnly === true) filtered = filtered.eq('has_phone', true);
+  if (params.phoneAvailableOnly === true) filtered = filtered.not('contact_phone', 'is', null).neq('contact_phone', '');
 
   if (params.ownerAgentId) {
     if (params.ownerAgentId === 'unassigned') filtered = filtered.or('primary_agent_id.is.null,primary_agent_id.eq.');
@@ -84,7 +94,7 @@ function applyLeadFilters(query: any, params: LeadQueryParams) {
   if (params.assignmentStatus === 'assigned') {
     filtered = filtered.not('primary_agent_id', 'is', null).neq('primary_agent_id', '');
   } else if (params.assignmentStatus === 'unassigned') {
-    filtered = filtered.or('primary_agent_id.is.null,primary_agent_id.eq.');
+    filtered = filtered.is('primary_agent_id', null);
   }
   if (params.priorityTier) filtered = filtered.eq('priority_tier', parseInt(params.priorityTier, 10));
   if (params.beds) filtered = filtered.eq('beds', parseInt(params.beds, 10));
@@ -106,6 +116,10 @@ export async function GET(req: NextRequest) {
   const requestId = Math.random().toString(36).slice(2, 10);
 
   try {
+    const authorization = await requireApiActor(req);
+    if (!authorization.actor) {
+      return NextResponse.json({ error: authorization.error }, { status: authorization.status });
+    }
     const { searchParams } = new URL(req.url);
 
     // ── Boolean helper: only true when param is explicitly "true" ──────────
@@ -146,6 +160,7 @@ export async function GET(req: NextRequest) {
       phoneAvailableOnly: parseBool('phoneAvailableOnly'),
       assignmentStatus: searchParams.get('assignmentStatus') || '',
       priorityTier: searchParams.get('priorityTier') || '',
+      excludeTerminal: parseBool('excludeTerminal'),
       ownerAgentId: searchParams.get('ownerAgentId') || '',
       manualImportOnly: parseBool('manualImportOnly'),
       outreachStatus: searchParams.get('outreachStatus') || '',
@@ -154,6 +169,13 @@ export async function GET(req: NextRequest) {
       needsEnrichment: parseBool('needsEnrichment'),
       enrichmentReviewRequired: parseBool('enrichmentReviewRequired'),
     };
+
+    if (!authorization.actor.isAdmin) {
+      if (authorization.actor.role !== 'agent') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      params.ownerAgentId = authorization.actor.user.id;
+    }
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

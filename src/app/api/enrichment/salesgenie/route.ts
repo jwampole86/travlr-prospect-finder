@@ -22,7 +22,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * Set SALESGENIE_API_USER and SALESGENIE_API_SECRET in your .env file.
  */
 
-export const SALESGENIE_COMPLIANCE_STATUS = {
+const SALESGENIE_COMPLIANCE_STATUS = {
   liveEnrichmentEnabled: false,
   legalReviewCompleted: false,
   tcpaConsentTrackingImplemented: false,

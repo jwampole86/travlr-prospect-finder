@@ -3,9 +3,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/client';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 
 export async function POST(req: NextRequest) {
   try {
+    const authorization = await requireAdminActor(req);
+    if (!authorization.actor) {
+      return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
+    }
     const { leadId, agentName, agentEmail, leadAddress, leadScore, leadBand, assignedBy } = await req.json();
 
     if (!leadId || !agentName) {

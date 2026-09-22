@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 
 const PRIORITY_LABELS: Record<number, string> = {
   1: 'Low',
@@ -23,6 +24,10 @@ function formatCurrency(n?: number | null): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const authorization = await requireAdminActor(req);
+    if (!authorization.actor) {
+      return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
+    }
     const body = await req.json();
     const {
       leadIds,
@@ -45,6 +50,21 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
+    const { data: targetProfile } = await supabase
+      .from('agent_profiles')
+      .select('id, email')
+      .eq('id', agentId)
+      .maybeSingle();
+    const targetEmail = targetProfile?.email || agentEmail;
+    const { data: targetUser } = targetEmail
+      ? await supabase.from('user_profiles').select('id').eq('email', targetEmail).maybeSingle()
+      : { data: null };
+    const targetUserId = targetUser?.id || agentId;
+
+    if (!targetUserId) {
+      return NextResponse.json({ success: false, error: 'Assigned agent has no user profile' }, { status: 422 });
+    }
+
     const now = new Date().toISOString();
 
     // ── 1. Fetch lead details ─────────────────────────────────
@@ -61,10 +81,10 @@ export async function POST(req: NextRequest) {
     const { error: updateErr } = await supabase
       .from('leads')
       .update({
-        primary_agent_id: agentId || null,
+        primary_agent_id: targetUserId,
         primary_agent_name: agentName,
         assigned_at: now,
-        assigned_by: assignedBy || null,
+        assigned_by: authorization.actor.user.id,
         updated_at: now,
       })
       .in('id', leadIds);
@@ -76,9 +96,9 @@ export async function POST(req: NextRequest) {
     // ── 3. Log to lead_assignment_log ─────────────────────────
     const assignmentLogs = leadIds.map((leadId: string) => ({
       lead_id: leadId,
-      agent_id: agentId || null,
+      agent_id: targetUserId,
       agent_name: agentName,
-      assigned_by: assignedBy || null,
+      assigned_by: authorization.actor.user.id,
       assigned_at: now,
       notes: `Assigned via Lead Management bulk assignment`,
     }));
@@ -90,7 +110,7 @@ export async function POST(req: NextRequest) {
       lead_id: leadId,
       activity_type: 'ASSIGNMENT',
       description: `Lead assigned to ${agentName}`,
-      metadata: { agentId, agentName, assignedBy, assignedByName },
+      metadata: { agentId: targetUserId, agentName, assignedBy: authorization.actor.user.id, assignedByName },
       created_at: now,
     }));
 
@@ -99,19 +119,12 @@ export async function POST(req: NextRequest) {
     // ── 5. Send in-app notifications ──────────────────────────
     // Find the agent's user_id to send them a notification
     let agentUserId: string | null = null;
-    if (agentId) {
-      const { data: agentProfile } = await supabase
-        .from('agent_profiles')
-        .select('owner_user_id')
-        .eq('id', agentId)
-        .single();
-      agentUserId = agentProfile?.owner_user_id || null;
-    }
+    agentUserId = targetUserId;
 
     // Also notify the assigner (admin)
     const notificationTargets: string[] = [];
     if (agentUserId) notificationTargets.push(agentUserId);
-    if (assignedBy && assignedBy !== agentUserId) notificationTargets.push(assignedBy);
+    if (authorization.actor.user.id !== agentUserId) notificationTargets.push(authorization.actor.user.id);
 
     const leadsData = (leads || []) as Array<{
       id: string;

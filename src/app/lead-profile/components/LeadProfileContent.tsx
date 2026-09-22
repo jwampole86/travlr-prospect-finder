@@ -7,7 +7,6 @@ import { mockLeads } from '@/data/mockLeads';
 import type { Lead } from '@/data/mockLeads';
 import { cityRegulations } from '@/data/regulations';
 import { createClient } from '@/lib/supabase/client';
-import { leadsService } from '@/lib/services/leadsService';
 import StageBadge from '@/components/ui/StageBadge';
 import RegulationBadge from '@/components/ui/RegulationBadge';
 import ProspectScoreBar from '@/components/ui/ProspectScoreBar';
@@ -236,7 +235,7 @@ function LeadProfileSkeleton() {
 
 export default function LeadProfileContent({ leadId }: { leadId: string | null }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
   // ── Lead resolution: try DB first, fall back to mockLeads ────────────────
   const [lead, setLead] = useState<Lead | undefined>(undefined);
@@ -250,16 +249,6 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       return;
     }
 
-    // First: check mockLeads (instant, no network)
-    const fromMock = mockLeads.find((l) => l.id === leadId);
-    if (fromMock) {
-      setLead(fromMock);
-      setLeadLoading(false);
-      return;
-    }
-
-    // Second: use leadsService.getById — checks in-memory cache first, then DB
-    // Set a fast-fail timeout so we don't hang on "Loading lead…" forever
     const controller = { cancelled: false };
     const timeout = setTimeout(() => {
       if (!controller.cancelled) {
@@ -268,7 +257,25 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       }
     }, 8000); // 8s hard timeout
 
-    leadsService.getById(leadId)
+    fetch(`/api/agent/lead/${encodeURIComponent(leadId)}`, {
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+    })
+      .then(async response => {
+        if (!response.ok) return null;
+        const data = await response.json();
+        const found = data.lead as Record<string, unknown> | undefined;
+        if (!found) return null;
+        return {
+          id: String(found.id), address: String(found.address || ''), city: String(found.city || ''), state: String(found.state || ''), zip: String(found.zip || ''),
+          lat: Number(found.lat || 0), lng: Number(found.lng || 0), beds: Number(found.beds || 0), baths: Number(found.baths || 0), price: Number(found.price || 0),
+          priceType: (found.price_type || 'rent') as Lead['priceType'], source: (found.source || 'Direct') as Lead['source'], stage: (found.stage || 'New Lead') as Lead['stage'],
+          regulationStatus: (found.regulation_status || 'Unknown') as Lead['regulationStatus'], prospectScore: Number(found.prospect_score || 0), daysOnMarket: Number(found.days_on_market || 0),
+          lastChecked: String(found.last_checked || ''), listingUrl: String(found.listing_url || ''), notes: String(found.notes || ''), contactName: found.contact_name ? String(found.contact_name) : undefined,
+          contactPhone: found.contact_phone ? String(found.contact_phone) : undefined, tags: (found.tags || []) as string[], estimatedADR: Number(found.estimated_adr || 0),
+          estimatedOccupancy: Number(found.estimated_occupancy || 0), estimatedGrossMonthly: Number(found.estimated_gross_monthly || 0), estimatedNetMonthly: Number(found.estimated_net_monthly || 0),
+          photos: (found.photos || []) as string[], createdAt: String(found.created_at || ''), updatedAt: String(found.updated_at || ''), isSynthetic: Boolean(found.is_synthetic),
+        } as Lead;
+      })
       .then((found) => {
         if (controller.cancelled) return;
         clearTimeout(timeout);
@@ -290,7 +297,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       controller.cancelled = true;
       clearTimeout(timeout);
     };
-  }, [leadId]);
+  }, [leadId, session?.access_token]);
 
   // ── Secondary data — loaded independently after lead is resolved ──────────
   const [history, setHistory] = useState<ContactHistoryEntry[]>([]);

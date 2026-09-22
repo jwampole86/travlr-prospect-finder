@@ -79,6 +79,7 @@ export interface FilterState {
   outreachStatus?: string;
   enrichmentStatus?: string;
   priorityTier?: string;
+  excludeTerminal?: boolean;
   propertyReachEnriched?: boolean;
   needsEnrichment?: boolean;
   enrichmentReviewRequired?: boolean;
@@ -111,6 +112,7 @@ export const defaultFilters: FilterState = {
   outreachStatus: '',
   enrichmentStatus: '',
   priorityTier: '',
+  excludeTerminal: false,
   propertyReachEnriched: false,
   needsEnrichment: false,
   enrichmentReviewRequired: false,
@@ -350,6 +352,7 @@ export default function LeadManagementClient({
       if (currentFilters.outreachStatus) params.set('outreachStatus', currentFilters.outreachStatus);
       if (currentFilters.enrichmentStatus) params.set('enrichmentStatus', currentFilters.enrichmentStatus);
       if (currentFilters.priorityTier) params.set('priorityTier', currentFilters.priorityTier);
+      if (currentFilters.excludeTerminal) params.set('excludeTerminal', 'true');
       if (currentFilters.propertyReachEnriched) params.set('propertyReachEnriched', 'true');
       if (currentFilters.needsEnrichment) params.set('needsEnrichment', 'true');
       if (currentFilters.enrichmentReviewRequired) params.set('enrichmentReviewRequired', 'true');
@@ -559,12 +562,7 @@ export default function LeadManagementClient({
     // ?excludeTerminal=true → exclude terminal stages (Not a Fit, Live)
     // Used by High Priority click-through to match the canonical definition.
     if (excludeTerminalParam === 'true') {
-      const terminalStages = ['Not a Fit', 'Live'];
-      // Apply as a negative filter: if no stages set, exclude terminal stages
-      // by setting a flag that the server query will use
-      updates.stages = updates.stages?.length
-        ? updates.stages.filter(s => !terminalStages.includes(s))
-        : []; // empty stages = all non-terminal (handled by server with excludeTerminal flag)
+      updates.excludeTerminal = true;
     }
 
     if (Object.keys(updates).length > 0) {

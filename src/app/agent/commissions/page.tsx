@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { createClient } from '@/lib/supabase/client';
 import { DollarSign, Clock, CheckCircle, XCircle, AlertCircle, Filter, Download } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
 
@@ -17,14 +18,6 @@ interface Commission {
   paidAt?: string;
 }
 
-const mockCommissions: Commission[] = [
-  { id: '1', leadAddress: '1842 Larimer St, Denver, CO 80202', amount: 1250.00, status: 'pending', description: 'Partnership agreement signed', createdAt: '2026-08-10' },
-  { id: '2', leadAddress: '3301 Zuni St, Denver, CO 80211', amount: 875.00, status: 'approved', description: 'Property onboarding bonus', createdAt: '2026-08-05' },
-  { id: '3', leadAddress: '2450 W 26th Ave, Denver, CO 80211', amount: 2100.00, status: 'paid', description: 'Q2 performance bonus', createdAt: '2026-07-15', paidAt: '2026-07-30' },
-  { id: '4', leadAddress: '1560 Blake St, Denver, CO 80202', amount: 650.00, status: 'paid', description: 'Lead conversion - Under Contract', createdAt: '2026-07-01', paidAt: '2026-07-15' },
-  { id: '5', leadAddress: '4200 Tennyson St, Denver, CO 80212', amount: 400.00, status: 'clawed_back', description: 'Deal fell through - clawback', createdAt: '2026-06-20' },
-];
-
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-warning-bg text-warning border border-warning-border', icon: Clock },
   approved: { label: 'Approved', color: 'bg-info-bg text-info border border-info-border', icon: CheckCircle },
@@ -35,14 +28,34 @@ const statusConfig = {
 export default function AgentCommissionsPage() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'paid' | 'clawed_back'>('all');
+  const [commissions, setCommissions] = useState<Commission[]>([]);
 
-  const filtered = filter === 'all' ? mockCommissions : mockCommissions.filter(c => c.status === filter);
+  useEffect(() => {
+    if (!user?.id) return;
+    const supabase = createClient();
+    supabase
+      .from('commissions')
+      .select('id, amount, status, description, created_at, paid_at, leads(address)')
+      .eq('agent_user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setCommissions((data || []).map((commission: any) => ({
+        id: commission.id,
+        leadAddress: commission.leads?.address || 'Unlinked commission',
+        amount: Number(commission.amount || 0),
+        status: commission.status,
+        description: commission.description || '',
+        createdAt: commission.created_at,
+        paidAt: commission.paid_at || undefined,
+      }))));
+  }, [user?.id]);
+
+  const filtered = filter === 'all' ? commissions : commissions.filter(c => c.status === filter);
 
   const totals = {
-    pending: mockCommissions.filter(c => c.status === 'pending').reduce((s, c) => s + c.amount, 0),
-    approved: mockCommissions.filter(c => c.status === 'approved').reduce((s, c) => s + c.amount, 0),
-    paid: mockCommissions.filter(c => c.status === 'paid').reduce((s, c) => s + c.amount, 0),
-    clawed_back: mockCommissions.filter(c => c.status === 'clawed_back').reduce((s, c) => s + c.amount, 0),
+    pending: commissions.filter(c => c.status === 'pending').reduce((s, c) => s + c.amount, 0),
+    approved: commissions.filter(c => c.status === 'approved').reduce((s, c) => s + c.amount, 0),
+    paid: commissions.filter(c => c.status === 'paid').reduce((s, c) => s + c.amount, 0),
+    clawed_back: commissions.filter(c => c.status === 'clawed_back').reduce((s, c) => s + c.amount, 0),
   };
 
   const fmt = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

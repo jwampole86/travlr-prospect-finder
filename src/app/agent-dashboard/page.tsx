@@ -8,7 +8,6 @@ import TopLeadsTable from '@/app/components/TopLeadsTable';
 import ActivityFeed from '@/app/components/ActivityFeed';
 import RegulationSummaryPanel from '@/app/components/RegulationSummaryPanel';
 import type { Lead } from '@/data/mockLeads';
-import { leadsService } from '@/lib/services/leadsService';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { PORTFOLIOS } from '@/contexts/PortfolioContext';
@@ -23,7 +22,7 @@ interface CommissionPayout {
 }
 
 export default function AgentDashboardPage() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -58,16 +57,34 @@ export default function AgentDashboardPage() {
 
   // ── Fetch leads ───────────────────────────────────────────────────────────
   const fetchLeads = useCallback(async () => {
+    if (!session?.access_token) return;
     try {
-      const dbLeads = await leadsService.getAll();
-      setAllLeads(dbLeads);
+      const response = await fetch('/api/agent/leads?limit=1000', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const { leads: assignedLeads = [] } = await response.json();
+      setAllLeads(assignedLeads.map((lead: Record<string, unknown>) => ({
+        id: String(lead.id),
+        address: String(lead.property_address || ''),
+        city: String(lead.city || ''),
+        state: String(lead.state || ''),
+        zip: '', lat: 0, lng: 0, beds: 0, baths: 0, price: 0, priceType: 'rent', source: 'Direct',
+        stage: String(lead.stage || 'New Lead') as Lead['stage'],
+        regulationStatus: 'Unknown' as Lead['regulationStatus'],
+        prospectScore: Number(lead.prospect_score || 0), daysOnMarket: 0, lastChecked: '', listingUrl: '',
+        notes: String(lead.notes || ''), contactName: String(lead.owner_name || ''), contactPhone: String(lead.phone || ''),
+        tags: [], estimatedADR: 0, estimatedOccupancy: 0,
+        estimatedGrossMonthly: 0, estimatedNetMonthly: Number(lead.estimated_net_monthly || 0), photos: [],
+        createdAt: String(lead.created_at || ''), updatedAt: '',
+      })));
       setLastRefreshed(new Date());
     } catch {
       // keep existing
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [session?.access_token]);
 
   useEffect(() => {
     fetchLeads();
@@ -335,7 +352,7 @@ export default function AgentDashboardPage() {
                 </div>
               </div>
               <a
-                href="/lead-management"
+                href="/agent-my-leads"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shrink-0"
               >
                 <ClipboardList size={12} />

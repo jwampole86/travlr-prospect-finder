@@ -429,6 +429,7 @@ export default function DashboardPage() {
             <KPIBentoGrid
               totalLeads={stats.totalLeads}
               regulationFriendly={stats.regulationFriendly}
+              strEligible={stats.strEligible ?? 0}
               avgScore={stats.avgScore}
               activeLeads={stats.activeLeads}
               actionNeededLeads={stats.actionNeededLeads}
@@ -557,9 +558,3 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
-
-const EmailTemplate: React.FC = () => {
-  return <div>{/* EmailTemplate placeholder */}</div>;
-};
-
-export { EmailTemplate };

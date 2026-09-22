@@ -65,6 +65,7 @@ interface RecentEvent {
   market_comp_confidence: number | null;
   recommendation: string | null;
   cache_hit: boolean;
+  field_confidence_scores?: Array<{ field?: string; confidence?: number }>;
   anomalies: string[] | null;
   created_at: string;
 }

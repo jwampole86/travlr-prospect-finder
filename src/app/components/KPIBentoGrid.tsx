@@ -15,6 +15,7 @@ interface CommissionPayout {
 interface KPIBentoGridProps {
   totalLeads: number;
   regulationFriendly: number;
+  strEligible?: number;
   avgScore: number;
   activeLeads: number;
   actionNeededLeads: number;
@@ -48,6 +49,7 @@ function formatCurrency(n: number) {
 export default React.memo(function KPIBentoGrid({
   totalLeads,
   regulationFriendly,
+  strEligible,
   avgScore,
   activeLeads,
   actionNeededLeads,
@@ -363,7 +365,7 @@ export default React.memo(function KPIBentoGrid({
           </div>
           <div>
             <p className="font-mono-data text-2xl sm:text-3xl font-bold text-foreground leading-none">
-              {regulationFriendly.toLocaleString()}
+              {(strEligible ?? regulationFriendly).toLocaleString()}
             </p>
             <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1">
               Allowed or restricted

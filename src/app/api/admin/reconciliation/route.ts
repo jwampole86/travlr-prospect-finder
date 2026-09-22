@@ -12,14 +12,15 @@ import { createClient as createServerClient } from '@supabase/supabase-js';
  *
  * METRIC DEFINITIONS:
  *   Total Leads       — COUNT(DISTINCT id) WHERE is_synthetic IS NOT TRUE
- *   High Priority     — score >= 75 AND stage NOT IN ('Not a Fit','Closed','Archived')
+ *   High Priority     — score >= 75 AND stage NOT IN ('Not a Fit','Live')
  *   Avg Score         — ROUND(AVG(prospect_score)) WHERE score > 0
  *   Action Needed     — score >= 75 AND stage = 'New Lead'
  *   Fully Verified    — verified_owner=true AND verified_address IS NOT NULL AND verified_number=true
  *   Phone Available   — contact_phone IS NOT NULL AND contact_phone <> ''
  *   Unassigned Prio   — primary_agent_id IS NULL AND score >= 75 AND not terminal
  *   Assigned          — primary_agent_id IS NOT NULL
- *   STR Eligible      — regulation_status = 'Allowed' *   Active Pipeline   — stage IN ('Contacted','Interested','Proposal Sent','Under Contract')
+ *   STR Eligible      — regulation_status IN ('Allowed','Restricted')
+ *   Active Pipeline   — stage IN ('Contacted','Interested','Proposal Sent','Under Contract')
  */
 export async function GET() {
   try {
@@ -49,9 +50,9 @@ export async function GET() {
         {
           metric: 'High Priority',
           database: Number(d.high_priority),
-          definition: 'prospect_score >= 75 AND stage NOT IN (Not a Fit, Closed, Archived)',
+          definition: 'prospect_score >= 75 AND stage NOT IN (Not a Fit, Live)',
           dashboard_field: 'highPriority',
-          lead_management_filter: '/lead-management?scoreMin=75',
+          lead_management_filter: '/lead-management?scoreMin=75&excludeTerminal=true',
         },
         {
           metric: 'Avg Score',
@@ -72,7 +73,7 @@ export async function GET() {
           database: Number(d.fully_verified),
           definition: 'verified_owner=true AND verified_address IS NOT NULL AND verified_number=true',
           dashboard_field: 'fullyVerified',
-          lead_management_filter: '/lead-management?fullyVerified=true',
+          lead_management_filter: '/lead-management?view=verified-priority&verifiedOnly=true',
         },
         {
           metric: 'Phone Available',
@@ -86,7 +87,7 @@ export async function GET() {
           database: Number(d.unassigned_priority),
           definition: 'primary_agent_id IS NULL AND score >= 75 AND not terminal',
           dashboard_field: 'unassignedPriority',
-          lead_management_filter: '/lead-management?view=verified-priority&assignmentStatus=unassigned',
+          lead_management_filter: '/lead-management?scoreMin=75&excludeTerminal=true&assignmentStatus=unassigned',
         },
         {
           metric: 'Assigned',
@@ -98,9 +99,9 @@ export async function GET() {
         {
           metric: 'STR Eligible',
           database: Number(d.str_eligible),
-          definition: 'regulation_status = Allowed (strict, not Allowed+Restricted)',
-          dashboard_field: 'strEligible (via regulationFriendly)',
-          lead_management_filter: '/lead-management?regulation=Allowed',
+          definition: 'regulation_status IN (Allowed, Restricted)',
+          dashboard_field: 'strEligible',
+          lead_management_filter: '/lead-management?regulation=Allowed&regulation=Restricted',
         },
         {
           metric: 'Active Pipeline',
@@ -149,11 +150,11 @@ export async function GET() {
         regulation_breakdown: {
           statuses: regulationBreakdown,
           total: regulationTotal,
-          str_eligible_note: `STR Eligible (${Number(d.str_eligible)}) uses regulation_status = 'Allowed' only. Regulation Status chart shows all ${regulationTotal} prospects.`,
+          str_eligible_note: `STR Eligible (${Number(d.str_eligible)}) uses regulation_status IN ('Allowed', 'Restricted'). Regulation Status chart shows all ${regulationTotal} prospects.`,
         },
         definitions: {
           high_priority_threshold: 'prospect_score >= 75',
-          terminal_stages: ['Not a Fit', 'Closed', 'Archived'],
+          terminal_stages: ['Not a Fit', 'Live'],
           active_pipeline_stages: ['Contacted', 'Interested', 'Proposal Sent', 'Under Contract'],
           action_needed_criteria: 'prospect_score >= 75 AND stage = New Lead',
           fully_verified_criteria: 'verified_owner=true AND verified_address IS NOT NULL/empty AND verified_number=true',

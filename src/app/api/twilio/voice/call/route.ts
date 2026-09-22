@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTwilioConfigStatus } from '@/lib/services/twilioService';
+import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 
 /**
  * Twilio Voice outbound call initiation endpoint.
@@ -24,6 +25,11 @@ export async function POST(req: NextRequest) {
     if (!to) {
       return NextResponse.json({ error: 'Missing required field: to' }, { status: 400 });
     }
+    if (!leadId) return NextResponse.json({ error: 'Missing required field: leadId' }, { status: 400 });
+
+    const authorization = await requireLeadAccess(req, leadId);
+    if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
+    const authorizedAgentId = authorization.actor.user.id;
 
     // ── DNC Check ─────────────────────────────────────────────────────────────
     // Block the call if the lead is flagged Do Not Contact.
@@ -50,7 +56,7 @@ export async function POST(req: NextRequest) {
           // Log the blocked attempt to outreach_history
           await supabase.from('outreach_history').insert({
             lead_id: leadId,
-            agent_id: agentId || null,
+            agent_id: authorizedAgentId,
             channel: 'call',
             status: 'blocked_dnc',
             message_body: `Outbound call to ${to} blocked — Do Not Contact flag set`,
@@ -77,7 +83,7 @@ export async function POST(req: NextRequest) {
         if (enrichment?.do_not_contact) {
           await supabase.from('outreach_history').insert({
             lead_id: leadId,
-            agent_id: agentId || null,
+            agent_id: authorizedAgentId,
             channel: 'call',
             status: 'blocked_dnc',
             message_body: `Outbound call to ${to} blocked — Do Not Contact flag set (enrichment)`,
@@ -107,7 +113,7 @@ export async function POST(req: NextRequest) {
     // Voice SDK Device connections handle the actual dial themselves via the
     // TwiML App's Voice URL — this request is only validating DNC status first.
     if (dryRun) {
-      return NextResponse.json({ ok: true, leadId, agentId });
+      return NextResponse.json({ ok: true, leadId, agentId: authorizedAgentId });
     }
 
     const fromNumber = from || process.env.TWILIO_FROM_NUMBER;

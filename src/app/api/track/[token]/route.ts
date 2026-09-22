@@ -8,9 +8,9 @@ import { createClient } from '@supabase/supabase-js';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
-  const { token } = params;
+  const { token } = await params;
 
   if (!token) {
     return NextResponse.redirect(process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new');

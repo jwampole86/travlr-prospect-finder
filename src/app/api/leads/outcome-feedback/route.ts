@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/client';
+import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 
 /**
  * POST /api/leads/outcome-feedback
@@ -21,6 +22,9 @@ export async function POST(req: NextRequest) {
     if (!['converted', 'lost'].includes(outcome)) {
       return NextResponse.json({ error: 'outcome must be "converted" or "lost"' }, { status: 400 });
     }
+
+    const authorization = await requireLeadAccess(req, leadId);
+    if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
 
     const supabase = createClient();
 
@@ -45,7 +49,7 @@ export async function POST(req: NextRequest) {
         region: leadRegion,
         property_type: leadPropertyType,
         deal_value: dealValue ?? null,
-        agent_id: agentId ?? null,
+        agent_id: authorization.actor.user.id,
         closed_at: closedAt ?? new Date().toISOString(),
       })
       .select()

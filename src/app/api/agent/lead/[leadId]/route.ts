@@ -1,58 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
-
-async function authorizeAgentLeadAccess(token: string, leadId: string) {
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user) return { error: 'Unauthorized', status: 401, user: null, isAdmin: false };
-
-  const { data: profile } = await supabaseAdmin
-    .from('user_profiles')
-    .select('app_role, is_active')
-    .eq('id', user.id)
-    .single();
-
-  if (!profile) return { error: 'Profile not found', status: 403, user: null, isAdmin: false };
-
-  const isAdmin = profile.app_role === 'admin';
-  const isAgent = profile.app_role === 'agent';
-
-  if (!isAdmin && !isAgent) return { error: 'Forbidden', status: 403, user: null, isAdmin: false };
-  if (isAgent && profile.is_active === false) return { error: 'Account deactivated', status: 403, user: null, isAdmin: false };
-
-  if (isAgent) {
-    // Object-level authorization: verify this lead is assigned to this agent
-    const { data: lead } = await supabaseAdmin
-      .from('leads')
-      .select('id, primary_agent_id')
-      .eq('id', leadId)
-      .single();
-
-    if (!lead) return { error: 'Lead not found', status: 404, user: null, isAdmin: false };
-
-    const isAssigned = lead.primary_agent_id === user.id;
-    if (!isAssigned) {
-      // Check lead_agent_assignments as well
-      const { data: assignment } = await supabaseAdmin
-        .from('lead_agent_assignments')
-        .select('id')
-        .eq('lead_id', leadId)
-        .eq('agent_id', user.id)
-        .is('removed_at', null)
-        .single();
-
-      if (!assignment) {
-        return { error: 'Forbidden: Lead not assigned to this agent', status: 403, user: null, isAdmin: false };
-      }
-    }
-  }
-
-  return { error: null, status: 200, user, isAdmin };
-}
 
 /**
  * GET /api/agent/lead/[leadId]
@@ -63,10 +16,9 @@ export async function GET(
   { params }: { params: Promise<{ leadId: string }> }
 ) {
   const { leadId } = await params;
-  const token = req.headers.get('authorization')?.replace('Bearer ', '') || '';
-  const auth = await authorizeAgentLeadAccess(token, leadId);
+  const auth = await requireLeadAccess(req, leadId);
 
-  if (auth.error) {
+  if (!auth.actor) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
@@ -74,12 +26,12 @@ export async function GET(
   const { data: lead, error } = await supabaseAdmin
     .from('leads')
     .select(`
-      id, owner_name, property_address, city, state, phone,
-      priority, luxury, verified_owner, verified_address, verified_number,
-      lead_status, stage, prospect_score, next_follow_up_at,
-      last_contacted_at, created_at, do_not_contact, estimated_net_monthly,
-      notes, primary_agent_id, estimated_gross_monthly,
-      priority_tier, is_synthetic
+      id, address, city, state, zip, lat, lng, beds, baths, price, price_type,
+      source, stage, regulation_status, prospect_score, days_on_market, last_checked,
+      listing_url, notes, contact_name, contact_phone, tags, estimated_adr,
+      estimated_occupancy, estimated_gross_monthly, estimated_net_monthly, photos,
+      created_at, updated_at, verified_owner, verified_address, verified_number,
+      lead_status, next_followup_due, last_contacted_at, primary_agent_id, is_synthetic
     `)
     .eq('id', leadId)
     .single();
@@ -89,7 +41,7 @@ export async function GET(
   }
 
   // Strip admin-only fields for agents
-  if (!auth.isAdmin) {
+  if (!auth.actor.isAdmin) {
     const { is_synthetic, ...agentLead } = lead as any;
     return NextResponse.json({ lead: agentLead });
   }
@@ -107,25 +59,24 @@ export async function PATCH(
   { params }: { params: Promise<{ leadId: string }> }
 ) {
   const { leadId } = await params;
-  const token = req.headers.get('authorization')?.replace('Bearer ', '') || '';
-  const auth = await authorizeAgentLeadAccess(token, leadId);
+  const auth = await requireLeadAccess(req, leadId);
 
-  if (auth.error) {
+  if (!auth.actor) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const body = await req.json();
 
   // Field-level authorization: agents may only update these fields
-  const AGENT_PERMITTED_FIELDS = ['notes', 'next_follow_up_at', 'lead_status'];
+  const AGENT_PERMITTED_FIELDS = ['notes', 'next_followup_due', 'lead_status'];
   const ADMIN_ONLY_FIELDS = [
     'primary_agent_id', 'luxury', 'priority', 'priority_tier',
     'verified_owner', 'verified_address', 'verified_number',
     'source', 'portfolio_id', 'prospect_score', 'do_not_contact',
-    'is_synthetic', 'estimated_net_monthly', 'estimated_gross_monthly'
+    'is_synthetic', 'estimated_net_monthly', 'estimated_gross_monthly', 'next_follow_up_at'
   ];
 
-  if (!auth.isAdmin) {
+  if (!auth.actor.isAdmin) {
     const attemptedAdminFields = Object.keys(body).filter(k => ADMIN_ONLY_FIELDS.includes(k));
     if (attemptedAdminFields.length > 0) {
       return NextResponse.json({

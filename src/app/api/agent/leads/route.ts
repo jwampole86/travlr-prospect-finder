@@ -134,6 +134,8 @@ export async function GET(req: NextRequest) {
       owner_name: lead.owner_name || lead.contact_name || '',
       property_address: lead.address || '',
       phone: lead.contact_phone || '',
+      next_follow_up_at: lead.next_followup_due || null,
+      do_not_contact: false,
     }));
 
     const visibleLeads = verifiedWithNumbers

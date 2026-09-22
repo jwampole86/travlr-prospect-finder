@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { resolveVariables } from '@/lib/services/variableResolutionService';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 
 interface BulkEmailPayload {
   templateId: string;
@@ -94,6 +95,8 @@ function buildHtml(body: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const authorization = await requireAdminActor(req);
+    if (!authorization.actor) return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
     const body: BulkEmailPayload = await req.json();
     const { templateId, leadIds, senderName = process.env.RESEND_FROM_NAME || 'TRAVLR Team', dryRun = false } = body;
     const resend = getResendClient();
