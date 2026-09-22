@@ -7,6 +7,7 @@ import {
   normalizeLeadFingerprint,
   normalizeMasterAddress,
   normalizeMasterPhone,
+  parseEstimatedHomeValue,
   qualityScore,
   type MasterFieldMapping,
 } from '@/lib/masterHomeownerData';
@@ -56,6 +57,11 @@ export async function POST(request: NextRequest) {
       if (!body.filename || headers.length === 0) return NextResponse.json({ error: 'Filename and headers are required' }, { status: 400 });
       const fallback = inferMasterFieldMapping(headers);
       const mapping = body.useAnthropic === false ? fallback : await inferMappingWithAnthropic(headers, fallback);
+      if (body.propertyOnly === true) {
+        delete mapping.owner_name;
+        delete mapping.phone;
+        delete mapping.email;
+      }
       if (!mapping.address || !mapping.state) {
         return NextResponse.json({ error: 'Could not identify required property address and state columns', mapping }, { status: 422 });
       }
@@ -77,6 +83,7 @@ export async function POST(request: NextRequest) {
       const mapping = (body.mapping || {}) as MasterFieldMapping;
       const rowOffset = Number(body.rowOffset || 0);
       const minimumScore = Math.max(50, Math.min(100, Number(body.minimumScore || 70)));
+      const propertyOnly = body.propertyOnly === true;
       if (!fileId || rows.length === 0 || rows.length > 1000) return NextResponse.json({ error: 'A valid file and up to 1,000 rows are required' }, { status: 400 });
 
       const { data: ownedFile } = await supabase.from('master_homeowner_files').select('id').eq('id', fileId).eq('user_id', user.id).maybeSingle();
@@ -91,7 +98,15 @@ export async function POST(request: NextRequest) {
         const phone = normalizeMasterPhone(text(row, mapping, 'phone'));
         const email = text(row, mapping, 'email').toLowerCase();
         const apn = text(row, mapping, 'apn');
-        const score = qualityScore({ address, city, state, zip, ownerName, phone, email, apn });
+        const county = text(row, mapping, 'county');
+        const residenceType = text(row, mapping, 'residence_type');
+        const homeAge = text(row, mapping, 'home_age');
+        const estimatedHomeValue = parseEstimatedHomeValue(text(row, mapping, 'estimated_home_value'));
+        const ownershipStatus = text(row, mapping, 'ownership_status');
+        const score = propertyOnly
+          ? Math.min(100, (address ? 35 : 0) + (city && state ? 15 : 0) + (zip ? 10 : 0) + (county ? 5 : 0) + (residenceType ? 10 : 0) + (homeAge ? 5 : 0) + (estimatedHomeValue >= 400000 ? 15 : estimatedHomeValue > 0 ? 8 : 0) + (/owner/i.test(ownershipStatus) ? 10 : 0))
+          : qualityScore({ address, city, state, zip, ownerName, phone, email, apn });
+        const propertyQualified = /owner/i.test(ownershipStatus) && /single family|multi-family/i.test(residenceType) && estimatedHomeValue >= 400000;
         return {
           file_id: fileId,
           user_id: user.id,
@@ -105,22 +120,27 @@ export async function POST(request: NextRequest) {
           owner_name: ownerName || null,
           phone: phone || null,
           email: email || null,
+          county: county || null,
+          residence_type: residenceType || null,
+          home_age: homeAge || null,
+          estimated_home_value: estimatedHomeValue || null,
+          ownership_status: ownershipStatus || null,
           quality_score: score,
-          criteria_met: Boolean(address && state && (ownerName || phone || email) && score >= minimumScore),
-          raw_data: row,
+          criteria_met: Boolean(address && state && (propertyOnly ? propertyQualified : (ownerName || phone || email)) && score >= minimumScore),
+          raw_data: { address, city, state, zip, county, residence_type: residenceType, home_age: homeAge, estimated_home_value: estimatedHomeValue || null, ownership_status: ownershipStatus, apn: apn || null },
         };
-      }).filter(record => record.property_address);
+      }).filter(record => record.property_address && (!propertyOnly || record.criteria_met));
 
       const { data: inserted, error: insertError } = await supabase.from('master_homeowner_records').upsert(records, { onConflict: 'file_id,source_row' }).select('id,source_row,owner_name,phone,quality_score,criteria_met');
       if (insertError) throw insertError;
 
       const sourceRecordByRow = new Map(records.map(record => [record.source_row, record]));
       const leadFingerprints = [...new Set(records.map(record => normalizeLeadFingerprint(record.property_address, record.city || '', record.state || '')))];
-      const leads: Array<{ id: string; address_fingerprint: string; contact_name: string | null; contact_phone: string | null; prospect_score: number | null }> = [];
+      const leads: Array<{ id: string; address_fingerprint: string; contact_name: string | null; contact_phone: string | null; prospect_score: number | null; county: string | null; property_type: string | null; master_property_data: Record<string, unknown> | null }> = [];
       for (let index = 0; index < leadFingerprints.length; index += 100) {
         const { data, error } = await supabase
           .from('leads')
-          .select('id,address_fingerprint,contact_name,contact_phone,prospect_score')
+          .select('id,address_fingerprint,contact_name,contact_phone,prospect_score,county,property_type,master_property_data')
           .eq('user_id', user.id)
           .in('address_fingerprint', leadFingerprints.slice(index, index + 100));
         if (error) throw error;
@@ -157,6 +177,16 @@ export async function POST(request: NextRequest) {
           update.verified_number_at = new Date().toISOString();
           fieldsApplied.push('contact_phone');
         }
+        if (!lead.county && sourceRecord.county) { update.county = sourceRecord.county; fieldsApplied.push('county'); }
+        if (!lead.property_type && sourceRecord.residence_type) { update.property_type = sourceRecord.residence_type; fieldsApplied.push('property_type'); }
+        update.master_property_data = {
+          ...(lead.master_property_data || {}),
+          home_age: sourceRecord.home_age,
+          estimated_home_value: sourceRecord.estimated_home_value,
+          ownership_status: sourceRecord.ownership_status,
+          source: 'MASTER_PROPERTY_DATA',
+        };
+        fieldsApplied.push('master_property_data');
         const { error: updateError } = await supabase.from('leads').update(update).eq('id', lead.id).eq('user_id', user.id);
         if (!updateError) {
           enriched += fieldsApplied.length > 0 ? 1 : 0;
@@ -182,6 +212,8 @@ export async function POST(request: NextRequest) {
             verified_owner: Boolean(record.owner_name), verified_number: Boolean(record.phone),
             verified_owner_source: record.owner_name ? 'MASTER_HOMEOWNER_DATA' : null,
             verified_number_source: record.phone ? 'MASTER_HOMEOWNER_DATA' : null,
+            county: record.county || null, property_type: record.residence_type || null,
+            master_property_data: { home_age: record.home_age, estimated_home_value: record.estimated_home_value, ownership_status: record.ownership_status, source: 'MASTER_PROPERTY_DATA' },
             notes: `Created from master homeowner file. Quality score: ${record.quality_score}.`,
             created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
           }));

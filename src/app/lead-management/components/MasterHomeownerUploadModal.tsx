@@ -138,6 +138,7 @@ async function streamFileRows(
   storagePath: string,
   minimumScore: number,
   useAnthropic: boolean,
+  propertyOnly: boolean,
   createQualifiedLeads: boolean,
   onProgress: (processed: number) => void,
 ) {
@@ -162,18 +163,20 @@ async function streamFileRows(
               const initialized = await postImport({
                 action: 'initialize', filename: file.name, storagePath,
                 contentType: file.type || 'text/plain', sizeBytes: file.size,
-                headers, useAnthropic,
+                headers, useAnthropic, propertyOnly,
               });
               fileId = initialized.fileId;
               mapping = initialized.mapping;
             }
 
             for (let index = 0; index < result.data.length; index += API_BATCH_SIZE) {
-              const rows = result.data.slice(index, index + API_BATCH_SIZE);
+              const rows = result.data.slice(index, index + API_BATCH_SIZE).map(row => Object.fromEntries(
+                Object.values(mapping).filter((header): header is string => Boolean(header)).map(header => [header, row[header]])
+              ));
               if (rows.length === 0) continue;
               const chunk = await postImport({
                 action: 'chunk', fileId, rows, rowOffset, mapping,
-                minimumScore, createQualifiedLeads,
+                minimumScore, propertyOnly, createQualifiedLeads,
               });
               rowOffset += rows.length;
               totals.rows += chunk.processed || 0;
@@ -212,6 +215,7 @@ export default function MasterHomeownerUploadModal({ open, onClose, onComplete }
   const [files, setFiles] = useState<File[]>([]);
   const [minimumScore, setMinimumScore] = useState(70);
   const [useAnthropic, setUseAnthropic] = useState(true);
+  const [propertyOnly, setPropertyOnly] = useState(true);
   const [createQualifiedLeads, setCreateQualifiedLeads] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState('');
@@ -241,10 +245,12 @@ export default function MasterHomeownerUploadModal({ open, onClose, onComplete }
       const file = files[fileIndex];
       try {
         const baseStoragePath = `${session.user.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-z0-9._-]+/gi, '-')}`;
-        const storagePath = await archiveFileResumable(file, baseStoragePath, session.access_token, percentage => {
-          setProgress(`Uploading ${file.name} (${fileIndex + 1}/${files.length}): ${percentage}%`);
-        });
-        const totals = await streamFileRows(file, storagePath, minimumScore, useAnthropic, createQualifiedLeads, processed => {
+        const storagePath = propertyOnly
+          ? `sanitized-records-only://${baseStoragePath}`
+          : await archiveFileResumable(file, baseStoragePath, session.access_token, percentage => {
+              setProgress(`Uploading ${file.name} (${fileIndex + 1}/${files.length}): ${percentage}%`);
+            });
+        const totals = await streamFileRows(file, storagePath, minimumScore, useAnthropic, propertyOnly, createQualifiedLeads, processed => {
           setProgress(`Matching ${file.name}: ${processed.toLocaleString()} rows processed`);
         });
         completed.push({ name: file.name, ...totals });
@@ -269,7 +275,7 @@ export default function MasterHomeownerUploadModal({ open, onClose, onComplete }
       <div className="space-y-5">
         <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 flex items-start gap-2">
           <ShieldCheck className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-          <p className="text-xs text-foreground">Files are private. Existing lead values are never overwritten. Qualified records match by normalized property address and can fill missing homeowner details.</p>
+          <p className="text-xs text-foreground">Property-only mode strips personal, financial, demographic, and behavioral columns before transmission. Existing lead values are never overwritten.</p>
         </div>
 
         <button type="button" onClick={() => inputRef.current?.click()} className="w-full min-h-32 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5 transition-colors">
@@ -299,6 +305,7 @@ export default function MasterHomeownerUploadModal({ open, onClose, onComplete }
             <span className="block text-[10px] text-muted-foreground">Address, state, and at least one owner contact field are always required.</span>
           </label>
           <div className="space-y-3">
+            <label className="flex items-start gap-2 text-xs text-foreground"><input type="checkbox" checked={propertyOnly} onChange={event => setPropertyOnly(event.target.checked)} className="mt-0.5" /><span><strong>Property-only privacy mode</strong><br /><span className="text-muted-foreground">Keeps only address, location, county, residence type, home age/value, ownership category, and APN. Raw files are not archived.</span></span></label>
             <label className="flex items-start gap-2 text-xs text-foreground"><input type="checkbox" checked={useAnthropic} onChange={event => setUseAnthropic(event.target.checked)} className="mt-0.5" /><span><strong>Use Anthropic for column mapping</strong><br /><span className="text-muted-foreground">Only column names are sent, never homeowner rows.</span></span></label>
             <label className="flex items-start gap-2 text-xs text-foreground"><input type="checkbox" checked={createQualifiedLeads} onChange={event => setCreateQualifiedLeads(event.target.checked)} className="mt-0.5" /><span><strong>Create qualified unmatched leads</strong><br /><span className="text-muted-foreground">Matched records fill blank owner and phone fields.</span></span></label>
           </div>

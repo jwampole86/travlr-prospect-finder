@@ -1,4 +1,4 @@
-export const MASTER_FIELDS = ['address', 'city', 'state', 'zip', 'owner_name', 'phone', 'email', 'apn'] as const;
+export const MASTER_FIELDS = ['address', 'city', 'state', 'zip', 'county', 'residence_type', 'home_age', 'estimated_home_value', 'ownership_status', 'owner_name', 'phone', 'email', 'apn'] as const;
 export type MasterField = (typeof MASTER_FIELDS)[number];
 export type MasterFieldMapping = Partial<Record<MasterField, string>>;
 
@@ -7,6 +7,11 @@ const ALIASES: Record<MasterField, string[]> = {
   city: ['city', 'property_city', 'site_city', 'situs_city'],
   state: ['state', 'state_code', 'property_state', 'site_state'],
   zip: ['zip', 'zipcode', 'zip_code', 'postal_code', 'property_zip'],
+  county: ['county', 'property_county'],
+  residence_type: ['residence_type', 'residence type', 'property_type', 'dwelling_type'],
+  home_age: ['home_age', 'home age', 'property_age'],
+  estimated_home_value: ['est_home_value', 'estimated_home_value', 'estimated home value', 'home_value'],
+  ownership_status: ['own_rent', 'own/rent', 'ownership_status', 'tenure'],
   owner_name: ['owner', 'owner_name', 'homeowner', 'homeowner_name', 'contact', 'contact_name', 'mail_owner'],
   phone: ['phone', 'phone_number', 'contact_phone', 'mobile', 'mobile_phone', 'telephone'],
   email: ['email', 'email_address', 'contact_email', 'owner_email'],
@@ -52,6 +57,11 @@ export function normalizeMasterPhone(value: string) {
   if (digits.length === 10) return `+1${digits}`;
   if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
   return '';
+}
+
+export function parseEstimatedHomeValue(value: string) {
+  const amounts = String(value || '').match(/[\d,]+/g)?.map(amount => Number(amount.replace(/,/g, ''))).filter(Number.isFinite) || [];
+  return amounts[0] || 0;
 }
 
 export function qualityScore(record: { address: string; city: string; state: string; zip: string; ownerName: string; phone: string; email: string; apn: string }) {
