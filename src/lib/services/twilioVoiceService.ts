@@ -237,8 +237,25 @@ export async function getOrCreateDevice(identity = 'agent'): Promise<{ device: D
     if (refreshed.token) device.updateToken(refreshed.token);
   });
 
-  await device.register();
-  return { device, configured: true };
+  try {
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop());
+    }
+    await device.register();
+    return { device, configured: true };
+  } catch (err) {
+    try { device.destroy(); } catch { /* ignore cleanup failure */ }
+    deviceInstance = null;
+    deviceIdentity = null;
+    return {
+      device: null,
+      configured: false,
+      message: err instanceof DOMException && err.name === 'NotAllowedError'
+        ? 'Microphone permission is required to place browser calls. Allow microphone access and try again.'
+        : err instanceof Error ? err.message : 'Unable to register the browser calling device',
+    };
+  }
 }
 
 export function getActiveDevice(): Device | null {
