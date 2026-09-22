@@ -328,7 +328,7 @@ export default function CadencePerformancePage() {
 
       const drillDowns: LeadStepHistory[] = (leadsData || []).map(lead => {
         const enrollment = (enrollWithSeq || []).find(e => e.lead_id === lead.id);
-        const seq = enrollment?.cadence_sequences as { name: string } | null;
+        const seq = enrollment?.cadence_sequences as unknown as { name: string } | null;
         const steps = (stepLogs || [])
           .filter(l => l.lead_id === lead.id)
           .map(l => ({

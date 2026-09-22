@@ -359,7 +359,7 @@ export default function CleanerJobsPage() {
           <StepCard
             step={4}
             title="Check Out"
-            done={status === 'checked-out' || status === 'completed'}
+            done={status === 'checked-out'}
             active={status === 'in-progress'}
           >
             {status === 'in-progress' ? (

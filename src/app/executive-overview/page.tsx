@@ -144,7 +144,7 @@ export default function ExecutiveOverviewPage() {
           totalLeads: total,
           activeLeads: active,
           healthPct,
-          trend: healthPct >= 40 ? 'up' : healthPct >= 20 ? 'flat' : 'down',
+          trend: (healthPct >= 40 ? 'up' : healthPct >= 20 ? 'flat' : 'down') as PortfolioHealth['trend'],
         };
       }).sort((a, b) => b.totalLeads - a.totalLeads);
 
@@ -170,7 +170,8 @@ export default function ExecutiveOverviewPage() {
         if (!o.sent_at) return;
         const d = new Date(o.sent_at);
         const key = `${d.toLocaleString('default', { month: 'short' })} ${String(d.getFullYear()).slice(2)}`;
-        const estimatedRevenue = Number(o.lead?.estimated_net_monthly ?? 0);
+        const relatedLead = Array.isArray(o.lead) ? o.lead[0] : o.lead;
+        const estimatedRevenue = Number(relatedLead?.estimated_net_monthly ?? 0);
         if (key in monthMap) monthMap[key] += estimatedRevenue;
       });
       const trend: MonthlyRevenueTrend[] = Object.entries(monthMap).map(([month, revenue]) => ({
