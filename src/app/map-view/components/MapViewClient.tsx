@@ -106,7 +106,7 @@ export default function MapViewClient({ leads: initialLeads, regulations }: MapV
         )}
 
         {/* Map */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-h-[500px] min-w-0">
           {/* Show List button — always visible when sidebar is closed */}
           {!sidebarOpen && (
             <button

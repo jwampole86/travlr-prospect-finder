@@ -76,7 +76,7 @@ async function fetchLeadsForMap(): Promise<Lead[]> {
       const { data, error } = await supabase
         .from('leads')
         .select('id, address, city, state, zip, lat, lng, beds, baths, price, price_type, source, stage, regulation_status, prospect_score, days_on_market, last_checked, listing_url, contact_name, contact_phone, notes, tags, estimated_adr, estimated_occupancy, estimated_gross_monthly, estimated_net_monthly, photos, created_at, updated_at')
-        .eq('is_synthetic', false)
+        .or('is_synthetic.is.null,is_synthetic.eq.false')
         .order('prospect_score', { ascending: false })
         .range(offset, offset + MAP_PAGE_SIZE - 1);
 

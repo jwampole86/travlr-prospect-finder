@@ -78,6 +78,8 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
 
       mapInstanceRef.current = map;
 
+      requestAnimationFrame(() => map.invalidateSize({ animate: false }));
+
       // Add markers for the current lead set
       const bounds: [number, number][] = [];
       leads.forEach((lead) => {
@@ -146,6 +148,7 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
     return () => {
       cancelled = true;
       if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize({ animate: false });
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
         markersRef.current.clear();
@@ -153,6 +156,15 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leads, onSelect]);
+
+  useEffect(() => {
+    const container = mapRef.current;
+    const map = mapInstanceRef.current;
+    if (!container || !map || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => map.invalidateSize({ animate: false }));
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [leads]);
 
   // Fly to selected lead
   useEffect(() => {
