@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     for (const enrollment of enrollments || []) {
       try {
-        const seq = enrollment.cadence_sequences as { id: string; name: string; steps: CadenceStep[]; is_active: boolean } | null;
+        const seq = enrollment.cadence_sequences as unknown as { id: string; name: string; steps: CadenceStep[]; is_active: boolean } | null;
         if (!seq?.is_active) continue;
 
         const steps: CadenceStep[] = Array.isArray(seq.steps) ? seq.steps : [];
@@ -255,7 +255,7 @@ function resolveVars(template: string, vars: Record<string, string>): string {
   return Object.entries(vars).reduce((t, [k, v]) => t.replaceAll(k, v), template);
 }
 
-async function getUnsubscribeUrl(supabase: ReturnType<typeof createClient>, leadId: string, enrollmentId: string): Promise<string> {
+async function getUnsubscribeUrl(supabase: any, leadId: string, enrollmentId: string): Promise<string> {
   const { data } = await supabase
     .from('email_unsubscribe_tokens')
     .insert({ lead_id: leadId, enrollment_id: enrollmentId })
@@ -265,7 +265,7 @@ async function getUnsubscribeUrl(supabase: ReturnType<typeof createClient>, lead
 }
 
 async function advanceEnrollment(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   enrollment: { id: string; current_step: number },
   steps: CadenceStep[]
 ) {
@@ -288,7 +288,7 @@ async function advanceEnrollment(
   }).eq('id', enrollment.id);
 }
 
-async function logSend(supabase: ReturnType<typeof createClient>, data: {
+async function logSend(supabase: any, data: {
   enrollment_id: string; lead_id: string; sequence_id: string; step_number: number;
   channel: string; status: string; provider_message_id?: string; error_message?: string;
 }) {
@@ -299,7 +299,7 @@ async function logSend(supabase: ReturnType<typeof createClient>, data: {
   });
 }
 
-async function logEvent(supabase: ReturnType<typeof createClient>, data: {
+async function logEvent(supabase: any, data: {
   event_type: string; event_category: string; lead_id: string; title: string;
   description?: string; new_value?: Record<string, unknown>;
 }) {

@@ -779,13 +779,13 @@ export async function POST(req: NextRequest) {
             rowOutcomes.push(buildRowOutcome(pr, result, importBatchId));
 
             // Log activity
-            await supabase.from('lead_activity_log').insert({
+            await Promise.resolve(supabase.from('lead_activity_log').insert({
               lead_id: existingLead.id as string,
               activity_type: 'ENRICHMENT',
               description: `Prospect enriched from CSV import (batch: ${importBatchId}). Match strategy: ${matchStrategy}.`,
               metadata: { importBatchId, importFilename, matchStrategy, matchConfidence, fieldsUpdated: Object.keys(updateData) },
               created_at: now,
-            }).catch(() => {});
+            })).catch(() => {});
           }
         } else {
           // ── 5d. CREATE new prospect ───────────────────────────────────────
@@ -997,7 +997,7 @@ export async function POST(req: NextRequest) {
     if (rowOutcomes.length > 0) {
       // Insert in chunks of 100
       for (let i = 0; i < rowOutcomes.length; i += 100) {
-        await supabase.from('csv_import_row_outcomes').insert(rowOutcomes.slice(i, i + 100)).catch(() => {});
+        await Promise.resolve(supabase.from('csv_import_row_outcomes').insert(rowOutcomes.slice(i, i + 100))).catch(() => {});
       }
     }
 
@@ -1073,7 +1073,7 @@ export async function POST(req: NextRequest) {
     }
 
     for (const msg of activityMessages) {
-      await supabase.from('activity_events').insert({
+      await Promise.resolve(supabase.from('activity_events').insert({
         event_type: 'CSV_IMPORT',
         description: msg,
         metadata: {
@@ -1085,7 +1085,7 @@ export async function POST(req: NextRequest) {
           newPortfolios: summary.newPortfoliosCreated,
         },
         created_at: now,
-      }).catch(() => {});
+      })).catch(() => {});
     }
 
     // ── STEP 11: Backfill is_high_priority for newly created/updated leads ────
@@ -1096,15 +1096,14 @@ export async function POST(req: NextRequest) {
       .filter(Boolean) as string[];
 
     if (newAndUpdatedIds.length > 0) {
-      supabase
-        .from('leads')
+      Promise.resolve(supabase.from('leads')
         .update({ is_high_priority: true, updated_at: now })
         .in('id', newAndUpdatedIds)
         .eq('verified_owner', true)
         .eq('verified_number', true)
         .not('verified_address', 'is', null)
         .neq('verified_address', '')
-        .not('stage', 'in', '("Not a Fit","Archived","Closed","Disqualified")')
+        .not('stage', 'in', '("Not a Fit","Archived","Closed","Disqualified")'))
         .catch(() => {});
     }
 
@@ -1155,7 +1154,7 @@ function buildRowOutcome(pr: { rowIndex: number; rawAddress: string; rawContact:
 }
 
 async function logEnrichmentError(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   params: {
     leadId: string; batchId: string; stage: string;
     errorCode: string; errorMessage: string;

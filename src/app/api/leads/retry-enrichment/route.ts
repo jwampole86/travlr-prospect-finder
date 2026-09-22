@@ -100,7 +100,6 @@ export async function POST(req: NextRequest) {
       .update({
         enrichment_status: 'PENDING',
         enrichment_attempted_at: now,
-        enrichment_retry_count: supabase.rpc ? undefined : undefined, // handled below
         updated_at: now,
       })
       .in('id', idsToRetry);
@@ -113,11 +112,7 @@ export async function POST(req: NextRequest) {
     for (const leadId of idsToRetry) {
       const lead = leads?.find(l => l.id === leadId);
       const currentCount = (lead?.enrichment_retry_count as number) || 0;
-      await supabase
-        .from('leads')
-        .update({ enrichment_retry_count: currentCount + 1 })
-        .eq('id', leadId)
-        .catch(() => {});
+      await Promise.resolve(supabase.from('leads').update({ enrichment_retry_count: currentCount + 1 }).eq('id', leadId)).catch(() => {});
     }
 
     // Log retry events in enrichment_error_logs
@@ -136,7 +131,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (retryLogEntries.length > 0) {
-      await supabase.from('enrichment_error_logs').insert(retryLogEntries).catch(() => {});
+      await Promise.resolve(supabase.from('enrichment_error_logs').insert(retryLogEntries)).catch(() => {});
     }
 
     return NextResponse.json({

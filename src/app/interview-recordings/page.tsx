@@ -25,6 +25,9 @@ interface AudioRecording {
   timestamp_markers: TimestampMarker[];
   created_at: string;
   source?: 'manual' | 'vapi';
+  summary?: string | null;
+  role_title?: string | null;
+  scorecard?: ({ overall_fit?: number; hire_recommendation?: string } & Record<string, unknown>) | null;
 }
 
 interface VapiInterviewSession {
@@ -41,6 +44,7 @@ interface VapiInterviewSession {
   ended_at: string | null;
   created_at: string | null;
   updated_at: string | null;
+  candidate_id?: string | null;
 }
 
 interface TranscriptSegment {
@@ -50,7 +54,7 @@ interface TranscriptSegment {
   timestamp: string;
   start_seconds?: number;
   end_seconds?: number;
-  isCandidate?: boolean;
+  isCandidate: boolean;
 }
 
 interface TimestampMarker {
@@ -119,7 +123,7 @@ function buildTranscriptSegments(transcriptText: string, messages: unknown, cand
           start_seconds: seconds,
         };
       })
-      .filter((segment): segment is TranscriptSegment => Boolean(segment));
+      .filter(Boolean) as TranscriptSegment[];
   }
 
   return transcriptText
@@ -142,7 +146,7 @@ function buildTranscriptSegments(transcriptText: string, messages: unknown, cand
         start_seconds: seconds,
       };
     })
-    .filter((segment): segment is TranscriptSegment => Boolean(segment));
+    .filter(Boolean) as TranscriptSegment[];
 }
 
 // ─── Live Recorder Component ──────────────────────────────────────────────────

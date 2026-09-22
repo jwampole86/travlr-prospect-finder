@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
 
     // Fallback: find default sequence if no tag match
     let targetSeq = sequences?.[0];
+    let nextSendAt: string | null = null;
     if (!targetSeq) {
       const { data: defaultSeq } = await supabase
         .from('cadence_sequences')
@@ -147,7 +148,7 @@ export async function POST(req: NextRequest) {
     } else {
       const steps: Array<{ delay_days: number; delay_hours: number }> = Array.isArray(targetSeq.steps) ? targetSeq.steps : [];
       const firstStep = steps[0];
-      const nextSendAt = firstStep
+      nextSendAt = firstStep
         ? new Date(Date.now() + (firstStep.delay_days * 86400000) + (firstStep.delay_hours * 3600000)).toISOString()
         : new Date(Date.now() + 3600000).toISOString(); // 1 hour default
 
@@ -252,11 +253,11 @@ export async function POST(req: NextRequest) {
         event_category: 'lead_change',
         lead_id: leadId,
         title: `Cadence auto-triggered: ${mapping.label}`,
-        description: `Call outcome "${callOutcome}" triggered enrollment in ${targetSeq.name}`,
+        description: `Call outcome "${callOutcome}" triggered enrollment in ${targetSeq?.name ?? 'the selected sequence'}`,
         new_value: {
           call_outcome: callOutcome,
-          sequence_id: targetSeq.id,
-          sequence_name: targetSeq.name,
+          sequence_id: targetSeq?.id,
+          sequence_name: targetSeq?.name,
           stage_update: mapping.stageUpdate,
           next_send_at: nextSendAt,
           agent_name: agentName,
