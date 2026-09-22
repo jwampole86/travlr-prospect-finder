@@ -4,7 +4,7 @@ import LeadManagementClient from './components/LeadManagementClient';
 import { LeadTableSkeleton } from '@/components/ui/LoadingSkeleton';
 import { cityRegulations } from '@/data/regulations';
 import { createClient as createServerClient } from '@supabase/supabase-js';
-import type { Lead } from '@/data/mockLeads';
+import type { Lead, LeadSource } from '@/data/mockLeads';
 
 async function fetchInitialLeads(): Promise<{ leads: Lead[]; total: number }> {
   try {
@@ -48,7 +48,7 @@ async function fetchInitialLeads(): Promise<{ leads: Lead[]; total: number }> {
       baths: Number(d.baths || 0),
       price: Number(d.price || 0),
       priceType: (d.price_type as 'sale' | 'rent') || 'rent',
-      source: String(d.source || ''),
+      source: String(d.source || 'Other') as LeadSource,
       stage: String(d.stage || 'New Lead') as Lead['stage'],
       regulationStatus: String(d.regulation_status || 'Unknown') as Lead['regulationStatus'],
       prospectScore: Number(d.prospect_score || 0),

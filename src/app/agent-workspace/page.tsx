@@ -104,6 +104,7 @@ export default function AgentWorkspacePage() {
   const [recentActivity, setRecentActivity] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [kpiLoading, setKpiLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'priority' | 'all' | 'followup'>('priority');
   const [showTour, setShowTour] = useState(false);
   const [agentName, setAgentName] = useState('');
@@ -116,7 +117,8 @@ export default function AgentWorkspacePage() {
     try {
       const { data } = await supabase.rpc('get_agent_dashboard_summary');
       if (data) setKpis(data as AgentKPIs);
-    } catch { /* silent */ } finally {
+      else setLoadError('Could not load agent metrics.');
+    } catch { setLoadError('Could not load agent metrics.'); } finally {
       setKpiLoading(false);
     }
   }, [session, supabase]);
@@ -130,8 +132,8 @@ export default function AgentWorkspacePage() {
       if (res.ok) {
         const data = await res.json();
         setLeads(data.leads || []);
-      }
-    } catch { /* silent */ }
+      } else setLoadError(`Could not load assigned leads (${res.status}).`);
+    } catch { setLoadError('Could not load assigned leads.'); }
   }, [session]);
 
   const fetchFollowUps = useCallback(async () => {
@@ -143,8 +145,8 @@ export default function AgentWorkspacePage() {
       if (res.ok) {
         const data = await res.json();
         setFollowUpLeads(data.leads || []);
-      }
-    } catch { /* silent */ }
+      } else setLoadError(`Could not load follow-ups (${res.status}).`);
+    } catch { setLoadError('Could not load follow-ups.'); }
   }, [session]);
 
   const fetchActivity = useCallback(async () => {
@@ -157,7 +159,8 @@ export default function AgentWorkspacePage() {
         .order('created_at', { ascending: false })
         .limit(15);
       if (data) setRecentActivity(data);
-    } catch { /* silent */ }
+      else setLoadError('Could not load recent activity.');
+    } catch { setLoadError('Could not load recent activity.'); }
   }, [user, supabase]);
 
   useEffect(() => {
@@ -206,6 +209,12 @@ export default function AgentWorkspacePage() {
       {showTour && <AgentOnboardingTour onComplete={() => setShowTour(false)} />}
 
       <div className="px-4 sm:px-6 py-5 max-w-screen-xl mx-auto space-y-6">
+        {loadError && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-xs text-red-600">
+            <span>{loadError}</span>
+            <button onClick={() => { setLoadError(null); fetchKPIs(); fetchLeads(); fetchFollowUps(); fetchActivity(); }} className="font-semibold underline">Retry</button>
+          </div>
+        )}
 
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
