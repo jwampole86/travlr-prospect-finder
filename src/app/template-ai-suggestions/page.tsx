@@ -216,7 +216,7 @@ Generate ONE specific, actionable improvement suggestion. Return ONLY valid JSON
 
   const updateStatus = (templateId: string, status: AISuggestion['status']) => {
     setSuggestions(prev => prev.map(s => s.templateId === templateId ? { ...s, status } : s));
-    const msgs = { approved: 'Suggestion approved — ready to apply', rejected: 'Suggestion rejected', applied: 'Template improvement applied ✓' };
+    const msgs = { pending: 'Suggestion is pending review', approved: 'Suggestion approved — ready to apply', rejected: 'Suggestion rejected', applied: 'Template improvement applied ✓' };
     toast.success(msgs[status]);
   };
 

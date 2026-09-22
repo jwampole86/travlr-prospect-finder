@@ -23,7 +23,7 @@ export default function DuplicateMergeModal({ group, onMerge, onDismiss, onClose
   const primary = group.leads.find(l => l.id === primaryId)!;
   const mergeIds = group.leads.filter(l => l.id !== primaryId).map(l => l.id);
 
-  const mergedScore = Math.max(...group.leads.map(l => l.score ?? 0));
+  const mergedScore = Math.max(...group.leads.map(l => l.prospectScore ?? 0));
   const mergedNotes = group.leads.flatMap(l => (l as any).notes ? [(l as any).notes] : []).join(' | ');
   const mergedSources = [...new Set(group.leads.map(l => l.source))].join(', ');
 
@@ -89,7 +89,7 @@ export default function DuplicateMergeModal({ group, onMerge, onDismiss, onClose
                   <div className="flex items-center gap-3 mt-2 flex-wrap">
                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Star size={10} className="text-amber-500" />
-                      Score: <strong className="text-foreground">{lead.score ?? 'N/A'}</strong>
+                      Score: <strong className="text-foreground">{lead.prospectScore ?? 'N/A'}</strong>
                     </span>
                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Zap size={10} className="text-violet-500" />

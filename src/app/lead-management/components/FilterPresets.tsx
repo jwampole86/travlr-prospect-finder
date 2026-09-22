@@ -256,7 +256,7 @@ function PresetRow({ preset, onApply, onDelete, isOwn }: {
         <div className="flex items-center gap-1.5">
           <p className="text-xs font-medium text-foreground truncate">{preset.name}</p>
           {preset.is_shared && (
-            <Share2 size={9} className="text-primary shrink-0" title="Shared with team" />
+            <Share2 size={9} className="text-primary shrink-0" aria-label="Shared with team" />
           )}
         </div>
         {preset.description && (

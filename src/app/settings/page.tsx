@@ -185,11 +185,11 @@ function ProfileTab({ user, supabase }: { user: any; supabase: ReturnType<typeof
 
   React.useEffect(() => {
     if (!user) return;
-    supabase
+    Promise.resolve(supabase
       .from('user_profiles')
       .select('app_role, full_name')
       .eq('id', user.id)
-      .single()
+      .single())
       .then(({ data }: { data: any }) => {
         if (data?.app_role) setAppRole(data.app_role as 'admin' | 'agent');
         if (data?.full_name) setDisplayName(data.full_name);
@@ -1228,7 +1228,7 @@ export default function OperatorSettingsPage() {
                         {m.role}
                       </span>
                       {m.accepted_at ? (
-                        <CheckCircle2 size={14} className="text-success shrink-0" title="Accepted" />
+                        <CheckCircle2 size={14} className="text-success shrink-0" aria-label="Accepted" />
                       ) : (
                         <span className="text-[10px] text-warning shrink-0">Pending</span>
                       )}

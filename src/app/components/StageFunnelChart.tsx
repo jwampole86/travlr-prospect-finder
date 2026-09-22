@@ -56,7 +56,7 @@ export default function StageFunnelChart({ stageBreakdown }: StageFunnelChartPro
   });
 
   // Use stageOrder for consistent ordering; include any extra stages not in stageOrder
-  const orderedStages = [...stageOrder];
+  const orderedStages: string[] = [...stageOrder];
   stageBreakdown.forEach(({ stage }) => {
     if (!orderedStages.includes(stage)) orderedStages.push(stage);
   });

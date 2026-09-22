@@ -14,17 +14,17 @@ const TABS = [
   {
     id: 'prospect', label: 'Prospect', icon: Search, body: ProspectShowcase,
     headline: 'Discover Your Next Management Opportunity',
-    copy: 'Find, organize, and prioritize homeowner properties that match your acquisition strategy.',
+    copy: 'Find, organize, and prioritize homeowner properties that match your acquisition strategy.', featured: false,
   },
   {
     id: 'intelligence', label: 'Intelligence', icon: Database, body: IntelligenceShowcase,
     headline: 'Know the Property Before the Conversation',
-    copy: 'Property, owner, revenue, and STR regulation intelligence together in one profile — before your team ever picks up the phone.',
+    copy: 'Property, owner, revenue, and STR regulation intelligence together in one profile — before your team ever picks up the phone.', featured: false,
   },
   {
     id: 'crm', label: 'CRM', icon: GitBranch, body: PipelineWidgets,
     headline: 'Keep Every Opportunity Moving',
-    copy: 'Manage homeowner opportunities from discovery through outreach, follow-up, and conversion without losing the context behind the lead.',
+    copy: 'Manage homeowner opportunities from discovery through outreach, follow-up, and conversion without losing the context behind the lead.', featured: false,
   },
   {
     id: 'engage', label: 'Engage', icon: Mic, body: TeleprompterShowcase,
@@ -35,7 +35,7 @@ const TABS = [
   {
     id: 'automate', label: 'Automate', icon: Zap, body: AutomationShowcase,
     headline: 'Automate the Work Between the Work',
-    copy: 'Connect triggers, follow-up, notifications, and routing so your team spends less time on repetitive tasks.',
+    copy: 'Connect triggers, follow-up, notifications, and routing so your team spends less time on repetitive tasks.', featured: false,
   },
   {
     id: 'talent', label: 'Talent', icon: Brain, body: InterviewShowcase,
@@ -46,7 +46,7 @@ const TABS = [
   {
     id: 'analytics', label: 'Analytics', icon: BarChart2, body: AnalyticsShowcase,
     headline: "Know What's Actually Driving Growth",
-    copy: 'Measure pipeline activity, opportunity quality, and team performance from one connected system.',
+    copy: 'Measure pipeline activity, opportunity quality, and team performance from one connected system.', featured: false,
   },
 ] as const;
 

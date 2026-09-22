@@ -266,7 +266,7 @@ export default function AdvancedReportsPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Icon icon={BarChart2} className="w-6 h-6 text-blue-400" />
+              <BarChart2 className="w-6 h-6 text-blue-400" />
               Advanced Reports
             </h1>
             <p className="text-gray-400 text-sm mt-1">Custom filters, saved templates, and scheduled email exports</p>
@@ -388,7 +388,7 @@ export default function AdvancedReportsPage() {
                 {kpis.map(k => (
                   <div key={k.label} className="bg-[#1a1f2e] border border-[#2a3142] rounded-xl p-4 flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-[#0d1117] flex items-center justify-center">
-                      <Icon icon={k.icon} className={`w-5 h-5 ${k.color}`} />
+                      <k.icon className={`w-5 h-5 ${k.color}`} />
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">{k.label}</p>

@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { StageCount, RegulationCount } from '@/lib/hooks/useDashboardLeads';
+import type { Lead } from '@/data/mockLeads';
 
 const StageFunnelChart = dynamic(() => import('./StageFunnelChart'), {
   ssr: false,
@@ -23,11 +24,22 @@ const RegulationPieChart = dynamic(() => import('./RegulationPieChart'), {
 });
 
 interface DashboardChartsProps {
-  stageBreakdown: StageCount[];
-  regulationBreakdown: RegulationCount[];
+  leads: Lead[];
 }
 
-export default function DashboardCharts({ stageBreakdown, regulationBreakdown }: DashboardChartsProps) {
+export default function DashboardCharts({ leads }: DashboardChartsProps) {
+  const stageBreakdown: StageCount[] = Object.entries(
+    leads.reduce<Record<string, number>>((counts, lead) => {
+      counts[lead.stage] = (counts[lead.stage] || 0) + 1;
+      return counts;
+    }, {})
+  ).map(([stage, count]) => ({ stage, count }));
+  const regulationBreakdown: RegulationCount[] = Object.entries(
+    leads.reduce<Record<string, number>>((counts, lead) => {
+      counts[lead.regulationStatus] = (counts[lead.regulationStatus] || 0) + 1;
+      return counts;
+    }, {})
+  ).map(([status, count]) => ({ status, count }));
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
