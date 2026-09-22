@@ -294,7 +294,7 @@ function EditUserModal({ user: editUser, onClose, onSaved }: EditUserModalProps)
   }
 
   function togglePerm(key: string) {
-    setForm(f => ({ ...f, [key]: !(f as Record<string, unknown>)[key] }));
+    setForm(f => ({ ...f, [key]: !(f as unknown as Record<string, unknown>)[key] }));
   }
 
   function handleSave() {
@@ -409,7 +409,7 @@ function EditUserModal({ user: editUser, onClose, onSaved }: EditUserModalProps)
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{group}</p>
                   <div className="space-y-1.5">
                     {FEATURE_PERMISSIONS.filter(p => p.group === group).map(perm => {
-                      const val = (form as Record<string, unknown>)[perm.key] as boolean;
+                      const val = (form as unknown as Record<string, unknown>)[perm.key] as boolean;
                       return (
                         <button
                           key={perm.key}
@@ -443,7 +443,7 @@ function EditUserModal({ user: editUser, onClose, onSaved }: EditUserModalProps)
                 { key: 'dash_calls', label: 'Calls Panel', desc: 'Shows call activity and recordings' },
                 { key: 'dash_outreach', label: 'Outreach Panel', desc: 'Shows SMS/email delivery stats' },
               ].map(item => {
-                const val = (form as Record<string, unknown>)[item.key] as boolean;
+                const val = (form as unknown as Record<string, unknown>)[item.key] as boolean;
                 return (
                   <button
                     key={item.key}
@@ -738,7 +738,7 @@ export default function UserManagementPage() {
                   const roleCfg = GRANULAR_ROLE_CONFIG[u.granular_role];
                   const RoleIcon = roleCfg.icon;
                   const isExpanded = expandedId === u.id;
-                  const permCount = FEATURE_PERMISSIONS.filter(p => (u as Record<string, unknown>)[p.key]).length;
+                  const permCount = FEATURE_PERMISSIONS.filter(p => (u as unknown as Record<string, unknown>)[p.key]).length;
 
                   return (
                     <div key={u.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? 'border-primary/30 shadow-sm' : 'border-border'}`}>
@@ -803,7 +803,7 @@ export default function UserManagementPage() {
                           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Feature Permissions</p>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {FEATURE_PERMISSIONS.map(perm => {
-                              const hasAccess = (u as Record<string, unknown>)[perm.key] as boolean;
+                              const hasAccess = (u as unknown as Record<string, unknown>)[perm.key] as boolean;
                               return (
                                 <div
                                   key={perm.key}

@@ -70,9 +70,9 @@ export async function syncCandidatePipelineFields(supabase: MinimalSupabaseClien
   if (!scorecards || scorecards.length === 0) return;
 
   const latest = scorecards[scorecards.length - 1];
-  const averages = scorecards.map(averageOf).filter((n): n is number => n !== null);
+  const averages = scorecards.map(averageOf).filter((n: number | null): n is number => n !== null);
   const latestAverage = averageOf(latest);
-  const overallAverage = averages.length > 0 ? averages.reduce((sum, n) => sum + n, 0) / averages.length : null;
+  const overallAverage = averages.length > 0 ? averages.reduce((sum: number, n: number) => sum + n, 0) / averages.length : null;
 
   const { data: candidate } = await supabase
     .from('candidates')

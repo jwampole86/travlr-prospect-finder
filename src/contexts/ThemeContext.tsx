@@ -58,11 +58,11 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
       return;
     }
 
-    supabase
+    Promise.resolve(supabase
       .from('user_profiles')
       .select('theme_preference')
       .eq('id', userId)
-      .single()
+      .single())
       .then(({ data }) => {
         const pref: ThemePreference = (data?.theme_preference as ThemePreference) || 'system';
         setThemeState(pref);

@@ -635,14 +635,14 @@ export const leadsService = {
 
       for (let i = 0; i < ids.length; i += BATCH) {
         const batch = ids.slice(i, i + BATCH);
-        const { error, count } = await supabase
+        const { data, error } = await supabase
           .from('leads')
           .update(updatePayload)
           .in('id', batch)
-          .select('id', { count: 'exact', head: true });
+          .select('id');
 
         if (error) return { count: totalUpdated, error: error.message };
-        totalUpdated += count ?? batch.length;
+        totalUpdated += data?.length ?? batch.length;
       }
 
       return { count: totalUpdated };

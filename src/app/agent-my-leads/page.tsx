@@ -21,6 +21,7 @@ interface AgentLead {
   state: string;
   phone: string;
   priority: boolean;
+  is_high_priority?: boolean;
   luxury: boolean;
   verified_owner: boolean;
   verified_address: string;

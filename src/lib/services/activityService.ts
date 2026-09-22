@@ -199,7 +199,7 @@ export async function recordCSVImported(params: {
   batchLabel?: string;
 }): Promise<void> {
   await activityService.record({
-    leadState: params.state ?? null,
+    leadState: params.state ?? undefined,
     eventType: 'csv_imported',
     description: `CSV uploaded — ${params.count} new lead${params.count !== 1 ? 's' : ''} added`,
     detail: params.batchLabel ?? undefined,
@@ -319,7 +319,7 @@ export async function recordBulkUpdate(params: {
   state?: string;
 }): Promise<void> {
   await activityService.record({
-    leadState: params.state ?? null,
+    leadState: params.state ?? undefined,
     eventType: 'bulk_update',
     description: `Bulk update — ${params.count} lead${params.count !== 1 ? 's' : ''} ${params.action}`,
     source: 'bulk_action',

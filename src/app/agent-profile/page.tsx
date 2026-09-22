@@ -311,7 +311,7 @@ export default function AgentProfilePage() {
                     <FieldIcon size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type={type}
-                      value={(profile as Record<string, string>)[key]}
+                      value={(profile as unknown as Record<string, string>)[key]}
                       onChange={(e) => setProfile((prev) => ({ ...prev, [key]: e.target.value }))}
                       className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
@@ -347,15 +347,15 @@ export default function AgentProfilePage() {
                 return (
                 <div
                   key={key}
-                  className={`flex flex-col gap-2 p-3.5 rounded-xl border transition-colors ${(notif as Record<string, boolean>)[key] ? 'border-primary/40 bg-primary/5' : 'border-border bg-muted/20'}`}
+                  className={`flex flex-col gap-2 p-3.5 rounded-xl border transition-colors ${(notif as unknown as Record<string, boolean>)[key] ? 'border-primary/40 bg-primary/5' : 'border-border bg-muted/20'}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <CIcon size={14} className={(notif as Record<string, boolean>)[key] ? 'text-primary' : 'text-muted-foreground'} />
+                      <CIcon size={14} className={(notif as unknown as Record<string, boolean>)[key] ? 'text-primary' : 'text-muted-foreground'} />
                       <span className="text-sm font-semibold text-foreground">{label}</span>
                     </div>
                     <Toggle
-                      checked={(notif as Record<string, boolean>)[key]}
+                      checked={(notif as unknown as Record<string, boolean>)[key]}
                       onChange={(v) => setNotif((prev) => ({ ...prev, [key]: v }))}
                     />
                   </div>
@@ -381,7 +381,7 @@ export default function AgentProfilePage() {
                       <p className="text-xs text-muted-foreground">{desc}</p>
                     </div>
                     <Toggle
-                      checked={(notif as Record<string, boolean>)[key]}
+                      checked={(notif as unknown as Record<string, boolean>)[key]}
                       onChange={(v) => setNotif((prev) => ({ ...prev, [key]: v }))}
                     />
                   </div>
@@ -445,7 +445,7 @@ export default function AgentProfilePage() {
                   <div key={key} className="flex items-center justify-between py-1">
                     <span className="text-sm text-foreground">{label}</span>
                     <Toggle
-                      checked={(dash as Record<string, boolean>)[key]}
+                      checked={(dash as unknown as Record<string, boolean>)[key]}
                       onChange={(v) => setDash((prev) => ({ ...prev, [key]: v }))}
                     />
                   </div>

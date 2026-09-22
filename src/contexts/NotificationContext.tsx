@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 export interface AppNotification {
   id: string;
-  type: 'email_sent' | 'sync_health' | 'failed_cadence' | 'new_lead' | 'info' | 'warning' | 'error' | 'workflow_send' | 'stage_change' | 'sync_failure' | 'manual_recovery' | 'sync_complete_portfolio' | 'enrichment_stage2_complete' | 'enrichment_stage3_complete';
+  type: 'email_sent' | 'sync_health' | 'failed_cadence' | 'new_lead' | 'info' | 'warning' | 'error' | 'workflow_send' | 'stage_change' | 'sync_failure' | 'manual_recovery' | 'sync_complete_portfolio' | 'enrichment_stage2_complete' | 'enrichment_stage3_complete' | 'sequence_enrollment' | 'outreach_replied' | 'outreach_bounced';
   alert_type?: string | null;
   title: string;
   message: string;
