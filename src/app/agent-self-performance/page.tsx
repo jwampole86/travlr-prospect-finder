@@ -143,7 +143,7 @@ export default function AgentSelfPerformancePage() {
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
         .limit(100);
-      setSessions(sessionData ?? []);
+      setSessions((sessionData ?? []) as CallSession[]);
 
       // Top-converting leads assigned to this agent (highest score, advanced stage)
       const { data: topData } = await supabase

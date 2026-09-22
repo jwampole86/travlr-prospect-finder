@@ -473,7 +473,7 @@ export default function EnrichmentCostPage() {
                       <td className="px-4 py-2.5 text-center">
                         {log.success
                           ? <CheckCircle2 size={13} className="text-success mx-auto" />
-                          : <XCircle size={13} className="text-danger mx-auto" title={log.error_message} />
+                          : <XCircle size={13} className="text-danger mx-auto" aria-label={log.error_message} />
                         }
                       </td>
                     </tr>

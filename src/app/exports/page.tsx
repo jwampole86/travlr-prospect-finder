@@ -109,7 +109,7 @@ export default function ExportsPage() {
         await updateExportSchedule(editingId, form);
         toast.success('Schedule updated');
       } else {
-        await createExportSchedule(user.id, form);
+        await createExportSchedule(user.id, form as Omit<ExportSchedule, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'last_sent_at'>);
         toast.success('Schedule created');
       }
       setShowModal(false);

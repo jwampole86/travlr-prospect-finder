@@ -377,7 +377,7 @@ export default function AgentRoutingPage() {
             offerSentCount: d.offered,
             contactedCount: d.contacted,
             avgResponseHours: Math.round(8 + Math.random() * 16),
-            trend: delta > 3 ? 'up' : delta < -3 ? 'down' : 'flat',
+            trend: (delta > 3 ? 'up' : delta < -3 ? 'down' : 'flat') as 'up' | 'down' | 'flat',
             weeklyConversions: Array.from({ length: 6 }, (_, i) => ({
               week: `W${i + 1}`,
               actual: Math.round(actualConvRate + (Math.random() - 0.5) * 5),

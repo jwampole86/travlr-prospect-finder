@@ -166,7 +166,7 @@ export function applyHighPriorityBaseScope(
   pState?: string | null
 ) {
   let q = query
-    .neq('is_synthetic', true)
+    .or('is_synthetic.is.null,is_synthetic.eq.false')
     .gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD)
     .not('stage', 'in', `(${TERMINAL_STAGES.map(s => `"${s}"`).join(',')})`);
 
@@ -241,7 +241,7 @@ export async function fetchCanonicalKpiCounts(
         let q = supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
-          .neq('is_synthetic', true);
+          .or('is_synthetic.is.null,is_synthetic.eq.false');
         if (ps) q = q.eq('state', ps);
         return q;
       })(),
@@ -251,7 +251,7 @@ export async function fetchCanonicalKpiCounts(
         let q = supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
-          .neq('is_synthetic', true)
+          .or('is_synthetic.is.null,is_synthetic.eq.false')
           .gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD)
           .not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`);
         if (ps) q = q.eq('state', ps);
@@ -263,7 +263,7 @@ export async function fetchCanonicalKpiCounts(
         let q = supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
-          .neq('is_synthetic', true)
+          .or('is_synthetic.is.null,is_synthetic.eq.false')
           .gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD)
           .eq('stage', 'New Lead');
         if (ps) q = q.eq('state', ps);
@@ -275,7 +275,7 @@ export async function fetchCanonicalKpiCounts(
         let q = supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
-          .neq('is_synthetic', true)
+          .or('is_synthetic.is.null,is_synthetic.eq.false')
           .eq('verified_owner', true)
           .eq('verified_number', true)
           .not('verified_address', 'is', null)
@@ -290,7 +290,7 @@ export async function fetchCanonicalKpiCounts(
         let q = supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
-          .neq('is_synthetic', true)
+          .or('is_synthetic.is.null,is_synthetic.eq.false')
           .not('contact_phone', 'is', null)
           .neq('contact_phone', '');
         if (ps) q = q.eq('state', ps);
@@ -302,7 +302,7 @@ export async function fetchCanonicalKpiCounts(
         let q = supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
-          .neq('is_synthetic', true)
+          .or('is_synthetic.is.null,is_synthetic.eq.false')
           .gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD)
           .not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`)
           .is('primary_agent_id', null);
@@ -315,7 +315,7 @@ export async function fetchCanonicalKpiCounts(
         let q = supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
-          .neq('is_synthetic', true)
+          .or('is_synthetic.is.null,is_synthetic.eq.false')
           .not('primary_agent_id', 'is', null);
         if (ps) q = q.eq('state', ps);
         return q;
@@ -326,7 +326,7 @@ export async function fetchCanonicalKpiCounts(
         let q = supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
-          .neq('is_synthetic', true)
+          .or('is_synthetic.is.null,is_synthetic.eq.false')
           .in('stage', [...ACTIVE_PIPELINE_STAGES]);
         if (ps) q = q.eq('state', ps);
         return q;
@@ -340,7 +340,7 @@ export async function fetchCanonicalKpiCounts(
         let q = supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
-          .neq('is_synthetic', true)
+          .or('is_synthetic.is.null,is_synthetic.eq.false')
           .in('regulation_status', ['Allowed', 'Restricted']);
         if (ps) q = q.eq('state', ps);
         return q;
