@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import {
   MASTER_FIELDS,
   inferMasterFieldMapping,
+  isPostOfficeBoxAddress,
   normalizeLeadFingerprint,
   normalizeMasterAddress,
   normalizeMasterPhone,
@@ -91,6 +92,7 @@ export async function POST(request: NextRequest) {
 
       const records = rows.map((row, index) => {
         const address = text(row, mapping, 'address');
+        const isPoBox = isPostOfficeBoxAddress(address);
         const city = text(row, mapping, 'city');
         const state = text(row, mapping, 'state').toUpperCase().slice(0, 2);
         const zip = text(row, mapping, 'zip').replace(/\D/g, '').slice(0, 5);
@@ -126,10 +128,10 @@ export async function POST(request: NextRequest) {
           estimated_home_value: estimatedHomeValue || null,
           ownership_status: ownershipStatus || null,
           quality_score: score,
-          criteria_met: Boolean(address && state && (propertyOnly ? propertyQualified : (ownerName || phone || email)) && score >= minimumScore),
+          criteria_met: Boolean(!isPoBox && address && state && (propertyOnly ? propertyQualified : (ownerName || phone || email)) && score >= minimumScore),
           raw_data: { address, city, state, zip, county, residence_type: residenceType, home_age: homeAge, estimated_home_value: estimatedHomeValue || null, ownership_status: ownershipStatus, apn: apn || null },
         };
-      }).filter(record => record.property_address && (!propertyOnly || record.criteria_met));
+      }).filter(record => record.property_address && !isPostOfficeBoxAddress(record.property_address) && (!propertyOnly || record.criteria_met));
 
       const { data: inserted, error: insertError } = await supabase.from('master_homeowner_records').upsert(records, { onConflict: 'file_id,source_row' }).select('id,source_row,owner_name,phone,quality_score,criteria_met');
       if (insertError) throw insertError;
@@ -151,6 +153,7 @@ export async function POST(request: NextRequest) {
       let matched = 0;
       let enriched = 0;
       const matchedRecordIds = new Set<string>();
+      const verificationJobs = new Map<string, number>();
       for (const record of inserted || []) {
         if (!record.criteria_met) continue;
         const sourceRecord = sourceRecordByRow.get(record.source_row);
@@ -190,6 +193,7 @@ export async function POST(request: NextRequest) {
         const { error: updateError } = await supabase.from('leads').update(update).eq('id', lead.id).eq('user_id', user.id);
         if (!updateError) {
           enriched += fieldsApplied.length > 0 ? 1 : 0;
+          verificationJobs.set(lead.id, Math.max(Number(lead.prospect_score || 0), Number(update.prospect_score || 0)));
           await supabase.from('lead_master_homeowner_matches').upsert({ user_id: user.id, lead_id: lead.id, master_record_id: record.id, match_score: 100, match_strategy: 'EXACT_NORMALIZED_ADDRESS', fields_applied: fieldsApplied }, { onConflict: 'lead_id,master_record_id' });
         }
       }
@@ -207,21 +211,36 @@ export async function POST(request: NextRequest) {
         const leadRows = [...uniqueUnmatched.values()].map(record => ({
             id: crypto.randomUUID(), user_id: user.id, address: record.property_address,
             city: record.city || '', state: record.state || '', zip: record.zip || '',
-            source: 'Direct', stage: 'New Lead', prospect_score: record.quality_score,
+          lat: null, lng: null, beds: null, baths: null, price: null,
+          estimated_adr: null, estimated_occupancy: null,
+          estimated_gross_monthly: null, estimated_net_monthly: null,
+          days_on_market: null,
+          source: 'Direct', stage: 'New Lead', regulation_status: 'Unknown',
+          prospect_score: propertyOnly ? 50 : record.quality_score,
+            address_source: 'MASTER_HOMEOWNER_DATA',
             contact_name: record.owner_name || '', contact_phone: record.phone || '',
             verified_owner: Boolean(record.owner_name), verified_number: Boolean(record.phone),
             verified_owner_source: record.owner_name ? 'MASTER_HOMEOWNER_DATA' : null,
             verified_number_source: record.phone ? 'MASTER_HOMEOWNER_DATA' : null,
             county: record.county || null, property_type: record.residence_type || null,
             master_property_data: { home_age: record.home_age, estimated_home_value: record.estimated_home_value, ownership_status: record.ownership_status, source: 'MASTER_PROPERTY_DATA' },
-            notes: `Created from master homeowner file. Quality score: ${record.quality_score}.`,
+            notes: propertyOnly
+              ? `Created from qualified master property data. Listing, rent, regulations, and contact details require verification.`
+              : `Created from master homeowner file. Quality score: ${record.quality_score}.`,
             created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
           }));
         if (leadRows.length > 0) {
           const { data: created, error } = await supabase.from('leads').upsert(leadRows, { onConflict: 'address_fingerprint', ignoreDuplicates: true }).select('id');
           if (error) throw error;
           leadsCreated = created?.length || 0;
+          (created || []).forEach(lead => verificationJobs.set(lead.id, propertyOnly ? 50 : minimumScore));
         }
+      }
+      if (verificationJobs.size > 0) {
+        await supabase.from('listing_verification_jobs').upsert(
+          [...verificationJobs].map(([leadId, priority]) => ({ user_id: user.id, lead_id: leadId, priority })),
+          { onConflict: 'lead_id', ignoreDuplicates: true }
+        );
       }
       return NextResponse.json({ processed: records.length, qualified: records.filter(record => record.criteria_met).length, matched, enriched, leadsCreated });
     }

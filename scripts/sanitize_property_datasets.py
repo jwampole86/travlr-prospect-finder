@@ -25,6 +25,10 @@ SAFE_FIELDS = [
 ]
 QUALIFIED_RESIDENCE_TYPES = {"single family dwelling", "multi-family dwelling"}
 OUTPUT_ROWS_PER_FILE = 50_000
+PO_BOX_PATTERN = re.compile(
+    r"(?:^|\b)(?:(?:p\s*\.?\s*o\s*\.?|post\s+office|postal)\s*(?:box|bx)|pob)\s*#?\s*\d+",
+    re.IGNORECASE,
+)
 
 
 def decode_row(line: str) -> list[str]:
@@ -47,6 +51,7 @@ def fingerprint(row: dict[str, str]) -> str:
 def qualified(row: dict[str, str]) -> bool:
     return (
         bool(row["Address"].strip() and row["State"].strip())
+        and not PO_BOX_PATTERN.search(row["Address"])
         and "owner" in row["Own/Rent"].lower()
         and row["Residence_Type"].strip().lower() in QUALIFIED_RESIDENCE_TYPES
         and estimated_value_floor(row["Est_Home_Value"]) >= 400_000

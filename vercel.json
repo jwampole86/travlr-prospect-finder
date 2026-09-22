@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/interview-dispatch",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/listing-verification",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

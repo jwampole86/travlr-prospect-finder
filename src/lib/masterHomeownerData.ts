@@ -22,6 +22,12 @@ function normalizedHeader(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 }
 
+export function isPostOfficeBoxAddress(value: string) {
+  const address = String(value || '').trim();
+  return /(?:^|\b)(?:p\s*\.?\s*o\s*\.?|post\s+office|postal)\s*(?:box|bx)\s*#?\s*\d+/i.test(address)
+    || /(?:^|\b)pob\s*#?\s*\d+/i.test(address);
+}
+
 export function inferMasterFieldMapping(headers: string[]): MasterFieldMapping {
   const normalized = new Map(headers.map(header => [normalizedHeader(header), header]));
   const mapping: MasterFieldMapping = {};
@@ -38,6 +44,7 @@ export function inferMasterFieldMapping(headers: string[]): MasterFieldMapping {
 }
 
 export function normalizeMasterAddress(address: string, city: string, state: string, zip: string) {
+  if (isPostOfficeBoxAddress(address)) return '';
   return [address, city, state, zip]
     .map((part, index) => {
       const normalized = String(part || '').trim().toLowerCase();
@@ -47,6 +54,7 @@ export function normalizeMasterAddress(address: string, city: string, state: str
 }
 
 export function normalizeLeadFingerprint(address: string, city: string, state: string) {
+  if (isPostOfficeBoxAddress(address)) return '';
   return [address, city, state]
     .map(part => String(part || '').trim().toLowerCase().replace(/\s+/g, ' '))
     .join('|');
