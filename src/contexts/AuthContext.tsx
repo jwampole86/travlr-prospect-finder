@@ -172,11 +172,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
+    // Local scope clears the browser session even when the network is degraded.
+    // A logout should never leave an operator in a partially authenticated UI.
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
     if (error) throw error;
+    setUser(null);
+    setSession(null);
+    setRole(null);
+    resetMixpanel();
     // Clear role cookie
     if (typeof document !== 'undefined') {
       document.cookie = 'travlr_role=; path=/; max-age=0';
+      window.location.assign('/welcome');
     }
   };
 
