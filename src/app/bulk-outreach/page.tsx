@@ -682,7 +682,7 @@ export default function BulkOutreachPage() {
   function saveTemplate() {
     if (!templateDraft.name || !templateDraft.content) { toast.error('Name and content required'); return; }
     const vars = [...templateDraft.content.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]);
-    setTemplates(prev => [...prev, { id: `tpl-${Date.now()}`, name: templateDraft.name, type: templateDraft.type, content: templateDraft.content, variables: [...new Set(vars)] }]);
+    setTemplates(prev => [...prev, { id: `tpl-${Date.now()}`, name: templateDraft.name, type: templateDraft.type as 'sms' | 'call', content: templateDraft.content, variables: [...new Set(vars)] }]);
     setEditingTemplate(false);
     setTemplateDraft({ name: '', type: 'sms', content: '' });
     toast.success('Template saved');

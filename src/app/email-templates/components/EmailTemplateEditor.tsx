@@ -525,10 +525,10 @@ export default function EmailTemplateEditor({ template, onSave, onCancel }: Prop
                       <span className="text-[10px] text-muted-foreground">{v.desc}</span>
                     </div>
                     {/* Status indicator */}
-                    {isUsed && status === 'resolved' && <CheckCircle size={11} className="text-success shrink-0 mt-1" title="Resolved" />}
-                    {isUsed && status === 'manual' && <Edit3 size={11} className="text-amber-500 shrink-0 mt-1" title="Manual input needed" />}
-                    {isUsed && status === 'blocked' && <Info size={11} className="text-blue-500 shrink-0 mt-1" title="Resolved from lead at send time" />}
-                    {v.resolveMode === 'manual' && <Lock size={10} className="text-muted-foreground/50 shrink-0 mt-1" title="Manual field" />}
+                    {isUsed && status === 'resolved' && <CheckCircle size={11} className="text-success shrink-0 mt-1" aria-label="Resolved" />}
+                    {isUsed && status === 'manual' && <Edit3 size={11} className="text-amber-500 shrink-0 mt-1" aria-label="Manual input needed" />}
+                    {isUsed && status === 'blocked' && <Info size={11} className="text-blue-500 shrink-0 mt-1" aria-label="Resolved from lead at send time" />}
+                    {v.resolveMode === 'manual' && <Lock size={10} className="text-muted-foreground/50 shrink-0 mt-1" aria-label="Manual field" />}
                   </button>
                 );
               })}

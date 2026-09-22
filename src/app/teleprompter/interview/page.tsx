@@ -19,6 +19,7 @@ interface Candidate {
   city?: string;
   state?: string;
   resume_file_name?: string;
+  resume_raw_text?: string;
   resume_parsed_at?: string;
   resume_version?: number;
   professional_summary?: string;

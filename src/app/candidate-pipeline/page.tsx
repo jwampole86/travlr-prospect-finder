@@ -255,8 +255,8 @@ function TableView({
   const [sortAsc, setSortAsc] = useState(true);
 
   const sorted = [...candidates].sort((a, b) => {
-    const av = (a as Record<string, unknown>)[sortField];
-    const bv = (b as Record<string, unknown>)[sortField];
+    const av = (a as unknown as Record<string, unknown>)[sortField];
+    const bv = (b as unknown as Record<string, unknown>)[sortField];
     if (av == null) return 1;
     if (bv == null) return -1;
     if (typeof av === 'number' && typeof bv === 'number') return sortAsc ? av - bv : bv - av;
@@ -439,7 +439,7 @@ export default function CandidatePipelinePage() {
 
   // Group by stage
   const grouped: Record<PipelineStatus, PipelineCandidate[]> = {
-    READY_TO_INTERVIEW: [], INTERVIEWED: [], FOLLOW_UP: [], HOLD: [], MOVE_FORWARD: [], NOT_MOVING_FORWARD: [],
+    READY_TO_INTERVIEW: [], INTERVIEWED: [], FOLLOW_UP: [], HOLD: [], MOVE_FORWARD: [], NOT_MOVING_FORWARD: [], HIRED: [],
   };
   for (const c of candidates) {
     const stage = getStage(c);
