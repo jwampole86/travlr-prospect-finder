@@ -234,7 +234,8 @@ export async function fetchCanonicalKpiCounts(
       strEligibleRes,
       // AVG_SCORE: server-side RPC — full population, no row cap
       avgScoreRpcRes,
-    ] = await withRetry(() => Promise.all([
+    ] = await withRetry(async () => {
+      const responses = await Promise.all([
       // TOTAL_LEADS
       (() => {
         let q = supabase
@@ -350,7 +351,11 @@ export async function fetchCanonicalKpiCounts(
       // by PostgREST default → biased sample average (96) ≠ true average (93).
       // get_canonical_avg_score() uses SQL AVG() over ALL rows in one pass.
       supabase.rpc('get_canonical_avg_score', { p_state: ps ?? 'all' }),
-    ]));
+      ]);
+      const failedResponse = responses.find(response => response.error);
+      if (failedResponse?.error) throw failedResponse.error;
+      return responses;
+    });
 
     // Extract avg_score from RPC response
     let canonicalAvgScore = 0;
