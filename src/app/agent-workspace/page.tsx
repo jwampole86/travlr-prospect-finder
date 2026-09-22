@@ -5,10 +5,11 @@ import AppLayout from '@/components/AppLayout';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import AgentOnboardingTour from '@/components/AgentOnboardingTour';
-import { Phone, List, Calendar, Activity, Star, Shield, PhoneCall, AlertTriangle, CheckCircle2, RefreshCw, ChevronRight, Loader2, Zap, PhoneIncoming, ArrowRight, AlertCircle, HelpCircle, FileText } from 'lucide-react';
+import { Phone, List, Calendar, Activity, Star, Shield, PhoneCall, MessageSquare, AlertTriangle, CheckCircle2, RefreshCw, ChevronRight, Loader2, Zap, PhoneIncoming, ArrowRight, AlertCircle, HelpCircle, FileText } from 'lucide-react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import dynamic from 'next/dynamic';
+import SMSSendModal from '@/app/lead-profile/components/SMSSendModal';
 
 const LiveTeleprompterPanel = dynamic(() => import('@/components/LiveTeleprompterPanel'), {
   ssr: false,
@@ -107,6 +108,7 @@ export default function AgentWorkspacePage() {
   const [showTour, setShowTour] = useState(false);
   const [agentName, setAgentName] = useState('');
   const [selectedLeadForCall, setSelectedLeadForCall] = useState<AgentLead | null>(null);
+  const [selectedLeadForSMS, setSelectedLeadForSMS] = useState<AgentLead | null>(null);
   const refreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchKPIs = useCallback(async () => {
@@ -350,6 +352,14 @@ export default function AgentWorkspacePage() {
                       <Phone size={11} />
                       <span className="hidden sm:inline">{selectedLeadForCall?.id === lead.id ? 'Close' : 'Call'}</span>
                     </button>
+                    <button
+                      onClick={() => setSelectedLeadForSMS(lead)}
+                      disabled={lead.do_not_contact || !lead.phone}
+                      title={!lead.phone ? 'No phone number' : lead.do_not_contact ? 'Do not contact' : 'Send SMS'}
+                      className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-primary hover:border-primary/40 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                    >
+                      <MessageSquare size={13} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -431,6 +441,16 @@ export default function AgentWorkspacePage() {
         </div>
 
       </div>
+      {selectedLeadForSMS && (
+        <SMSSendModal
+          leadId={selectedLeadForSMS.id}
+          leadName={selectedLeadForSMS.owner_name || 'Homeowner'}
+          recipientPhone={selectedLeadForSMS.phone}
+          leadAddress={selectedLeadForSMS.property_address}
+          onClose={() => setSelectedLeadForSMS(null)}
+          onSent={() => setSelectedLeadForSMS(null)}
+        />
+      )}
     </AppLayout>
   );
 }

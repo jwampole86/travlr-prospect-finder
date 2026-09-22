@@ -209,38 +209,43 @@ export default function SMSSendModal({ leadId, leadName, recipientPhone, onClose
   async function handleSend() {
     setSending(true);
     try {
-      const { error } = await supabase.from('activity_events').insert({
+      const response = await fetch('/api/sms/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId,
+          to: phone,
+          message: body,
+          templateId: selectedTemplateId,
+          metadata: { tcpa_acknowledged: true, delivery_score: deliveryPrediction.score },
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success || result.placeholderMode) {
+        throw new Error(result.error || 'SMS provider is not configured. Message was not sent.');
+      }
+
+      await supabase.from('activity_events').insert({
         lead_id: leadId,
         type: 'sms_sent',
         title: 'SMS Sent',
         detail: `To: ${phone} — ${body.slice(0, 120)}${body.length > 120 ? '…' : ''}`,
         actor: 'Agent',
-        metadata: {
-          phone,
-          template: selectedTemplateId,
-          body,
-          sent_at: new Date().toISOString(),
-          tcpa_acknowledged: true,
-          delivery_score: deliveryPrediction.score,
-        },
+        metadata: { phone, template: selectedTemplateId, body, message_sid: result.messageSid, sent_at: new Date().toISOString(), delivery_score: deliveryPrediction.score },
       });
-
-      if (error) {
-        await supabase.from('contact_history').insert({
+      await supabase.from('contact_history').insert({
           lead_id: leadId,
           type: 'text',
           subject: `SMS: ${SMS_TEMPLATES.find(t => t.id === selectedTemplateId)?.label || 'Custom'}`,
           body,
           outcome: `Sent to ${phone}`,
           contacted_at: new Date().toISOString().split('T')[0],
-        });
-      }
+      });
 
       setStep('sent');
       onSent?.();
-    } catch {
-      setStep('sent');
-      onSent?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'SMS failed to send');
     } finally {
       setSending(false);
     }

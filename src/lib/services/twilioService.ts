@@ -118,10 +118,10 @@ export async function dispatchSMS(payload: SMSDispatchPayload): Promise<SMSDispa
   if (!configured) {
     console.info('[TwilioService] Placeholder mode — SMS not dispatched. Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER to activate.');
     return {
-      success: true,
+      success: false,
       status: 'placeholder',
       twilioConfigured: false,
-      messageSid: `placeholder-${Date.now()}`,
+      error: 'Twilio SMS is not configured. Message was not sent.',
     };
   }
 
