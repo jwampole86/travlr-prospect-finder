@@ -358,7 +358,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
           if (name.trim()) setProfileFirstName(name.trim().split(/\s+/)[0]);
         }
       })
-      .catch(() => {});
+      .then(undefined, () => {});
   }, [user?.id]);
 
   const regulation = lead ? cityRegulations.find(
@@ -400,8 +400,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       .then(({ data }) => {
         if (data) setHistory(data as ContactHistoryEntry[]);
       })
-      .catch(() => {})
-      .finally(() => setHistoryLoading(false));
+      .then(undefined, () => {})
+      .then(() => setHistoryLoading(false));
 
     // Team notes
     supabase
@@ -413,8 +413,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       .then(({ data }) => {
         if (data) setTeamNotes(data as TeamNote[]);
       })
-      .catch(() => {})
-      .finally(() => setNotesLoading(false));
+      .then(undefined, () => {})
+      .then(() => setNotesLoading(false));
 
     // Outreach log
     supabase
@@ -426,8 +426,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       .then(({ data }) => {
         if (data) setOutreachLog(data as OutreachLogEntry[]);
       })
-      .catch(() => {})
-      .finally(() => setOutreachLoading(false));
+      .then(undefined, () => {})
+      .then(() => setOutreachLoading(false));
 
     // Deal status — lightweight select of only needed columns
     supabase
@@ -443,7 +443,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
           if (data.deal_notes) setDealNotes(data.deal_notes);
         }
       })
-      .catch(() => {});
+      .then(undefined, () => {});
 
     // Closed deals log — deferred, non-blocking
     supabase
@@ -456,7 +456,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       .then(({ data }) => {
         if (data) setDealRecord(data as DealRecord);
       })
-      .catch(() => {});
+      .then(undefined, () => {});
 
     // Pipeline status & ownership/market data
     supabase
@@ -471,7 +471,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
           if (data.market_comparables) setMarketComparables(data.market_comparables as Array<Record<string, unknown>>);
         }
       })
-      .catch(() => {});
+      .then(undefined, () => {});
   }, [lead]);
 
   // Reload secondary data after mutations
@@ -490,8 +490,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       .order('contacted_at', { ascending: false })
       .limit(20)
       .then(({ data }) => { if (data) setHistory(data as ContactHistoryEntry[]); })
-      .catch(() => {})
-      .finally(() => setHistoryLoading(false));
+      .then(undefined, () => {})
+      .then(() => setHistoryLoading(false));
 
     supabase
       .from('team_notes')
@@ -500,8 +500,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       .order('created_at', { ascending: false })
       .limit(20)
       .then(({ data }) => { if (data) setTeamNotes(data as TeamNote[]); })
-      .catch(() => {})
-      .finally(() => setNotesLoading(false));
+      .then(undefined, () => {})
+      .then(() => setNotesLoading(false));
 
     supabase
       .from('outreach_history')
@@ -510,8 +510,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       .order('sent_at', { ascending: false })
       .limit(20)
       .then(({ data }) => { if (data) setOutreachLog(data as OutreachLogEntry[]); })
-      .catch(() => {})
-      .finally(() => setOutreachLoading(false));
+      .then(undefined, () => {})
+      .then(() => setOutreachLoading(false));
 
     secondaryLoadedRef.current = true;
   }, [lead, supabase]);
@@ -884,6 +884,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   }
 
   async function handleCopyAddress() {
+    if (!lead) return;
     const text = propertyAddress;
     try {
       if (navigator?.clipboard?.writeText) {
@@ -915,6 +916,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   }
 
   async function handleSendEmail() {
+    if (!lead) return;
     if (!lead.contactEmail) {
       toast.error('No email address on file for this homeowner.');
       return;
