@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Mic, MicOff, PhoneOff, Phone, AlertTriangle, CheckCircle, Clock, User, Home, ChevronRight, Loader2, Volume2, RefreshCw, FileText, Headphones, Settings, WifiOff, Radio, AlertCircle, ChevronDown, CheckSquare, Square, BookOpen, Zap, AlertOctagon, ThumbsUp, ThumbsDown, BarChart2, Hash, X, List, PhoneCall, PhoneMissed, PhoneIncoming, Delete, Briefcase, Brain, PanelRightOpen, Shield, DollarSign } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Phone, AlertTriangle, CheckCircle, Clock, User, Home, ChevronLeft, ChevronRight, Loader2, Volume2, RefreshCw, FileText, Headphones, Settings, WifiOff, Radio, AlertCircle, ChevronDown, CheckSquare, Square, BookOpen, Zap, AlertOctagon, ThumbsUp, ThumbsDown, BarChart2, Hash, X, List, PhoneCall, PhoneMissed, PhoneIncoming, Delete, Briefcase, Brain, PanelRightOpen, Shield, DollarSign, Maximize2, Minimize2 } from 'lucide-react';
 import Link from 'next/link';
 import { resolveVariables, applyVariables, devicePreferences } from '@/lib/services/variableResolutionService';
 import { CALL_SCRIPTS, SCRIPT_OPTIONS, buildScriptText, ScriptId, CallScript, ScriptLine } from '@/lib/callScripts';
@@ -1691,6 +1691,86 @@ function CallEndedSummary({
   );
 }
 
+function ReadingModeOverlay({
+  lead,
+  script,
+  lines,
+  suggestion,
+  elapsed,
+  lineIndex,
+  onPrevious,
+  onNext,
+  onExit,
+}: {
+  lead: LeadContext | null;
+  script: CallScript;
+  lines: Array<{ text: string; sectionTitle: string }>;
+  suggestion: string;
+  elapsed: string;
+  lineIndex: number;
+  onPrevious: () => void;
+  onNext: () => void;
+  onExit: () => void;
+}) {
+  const currentLine = lines[lineIndex];
+  const displayText = suggestion
+    ? suggestion.replace(/^(Suggested next line:|Option [AB]:)/gm, '').replace(/^"|"$/g, '').trim()
+    : currentLine?.text || 'Listen for the homeowner, then continue with the next line.';
+
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col bg-[#101716] text-white">
+      <header className="flex items-center justify-between gap-4 border-b border-white/15 px-4 py-3 sm:px-8">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300">Live Reading Mode</p>
+          <p className="mt-1 truncate text-sm text-white/65">{lead?.contactName} · {script.label} · {elapsed}</p>
+        </div>
+        <button
+          onClick={onExit}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/20 text-white hover:bg-white/10"
+          title="Exit reading mode"
+          aria-label="Exit reading mode"
+        >
+          <Minimize2 size={18} />
+        </button>
+      </header>
+
+      <main className="flex min-h-0 flex-1 flex-col justify-center px-5 py-8 sm:px-12 lg:px-24">
+        <div className="mx-auto w-full max-w-6xl">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-emerald-300">{suggestion ? 'Live suggestion' : 'Script line'}</p>
+          <p className="text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-7xl">
+            {displayText}
+          </p>
+        </div>
+      </main>
+
+      <footer className="border-t border-white/15 px-4 py-4 sm:px-8">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-white">{currentLine?.sectionTitle || script.label}</p>
+            <p className="mt-0.5 text-xs text-white/60">{lines.length ? `Line ${lineIndex + 1} of ${lines.length}` : 'Live call guidance'}</p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              onClick={onPrevious}
+              disabled={lineIndex === 0 || lines.length === 0}
+              className="flex items-center gap-1 rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              <ChevronLeft size={16} /> Previous
+            </button>
+            <button
+              onClick={onNext}
+              disabled={lineIndex >= lines.length - 1 || lines.length === 0}
+              className="flex items-center gap-1 rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-[#10201b] hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              Next <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 function TeleprompterPageInner() {
@@ -1756,6 +1836,8 @@ function TeleprompterPageInner() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showScript, setShowScript] = useState(false);
+  const [isReadingMode, setIsReadingMode] = useState(false);
+  const [readingLineIndex, setReadingLineIndex] = useState(0);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [selectedInputId, setSelectedInputId] = useState('');
   const [selectedOutputId, setSelectedOutputId] = useState('');
@@ -1815,6 +1897,18 @@ function TeleprompterPageInner() {
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
     return () => navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
   }, [phase, selectedInputId, headsetConnected]);
+
+  useEffect(() => {
+    setReadingLineIndex(0);
+  }, [scriptId, phase]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) setIsReadingMode(false);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const formatElapsed = (secs: number) => {
     const m = Math.floor(secs / 60).toString().padStart(2, '0');
@@ -2102,6 +2196,8 @@ function TeleprompterPageInner() {
   };
 
   const handleEndCall = async () => {
+    if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
+    setIsReadingMode(false);
     stopListening();
     if (timerRef.current) clearInterval(timerRef.current);
     if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -2267,6 +2363,20 @@ function TeleprompterPageInner() {
   }
 
   const activeScript = CALL_SCRIPTS[scriptId];
+  const readingLines = activeScript.sections.flatMap(section =>
+    section.lines
+      .filter(line => line.type === 'spoken')
+      .map(line => ({ text: resolvedVars ? applyVariables(line.text, resolvedVars) : line.text, sectionTitle: section.title }))
+  );
+  const openReadingMode = async () => {
+    setIsReadingMode(true);
+    await document.documentElement.requestFullscreen?.().catch(() => {});
+  };
+  const closeReadingMode = async () => {
+    if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
+    setIsReadingMode(false);
+  };
+  const readingLineCount = readingLines.length;
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
@@ -2340,6 +2450,10 @@ function TeleprompterPageInner() {
           <button onClick={() => setShowScript(s => !s)} className="hidden sm:flex px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors items-center gap-1.5 touch-manipulation">
             <FileText className="w-3.5 h-3.5" />
             {showScript ? 'Hide' : 'Script'}
+          </button>
+          <button onClick={openReadingMode} className="flex px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors items-center gap-1.5 touch-manipulation" title="Open full-screen reading mode">
+            <Maximize2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Read</span>
           </button>
           <button onClick={handleEndCall} className="px-3 sm:px-4 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors flex items-center gap-1.5 touch-manipulation">
             <PhoneOff className="w-3.5 h-3.5" />
@@ -2542,6 +2656,19 @@ function TeleprompterPageInner() {
       {showDialpad && <TouchDialpad phone={lead?.phone} onClose={() => setShowDialpad(false)} />}
       {/* Call log sidebar */}
       {showCallLog && <CallLogSidebar leadId={lead?.leadId} onClose={() => setShowCallLog(false)} />}
+      {isReadingMode && (
+        <ReadingModeOverlay
+          lead={lead}
+          script={activeScript}
+          lines={readingLines}
+          suggestion={suggestion}
+          elapsed={formatElapsed(elapsed)}
+          lineIndex={readingLineIndex}
+          onPrevious={() => setReadingLineIndex(index => Math.max(0, index - 1))}
+          onNext={() => setReadingLineIndex(index => Math.min(Math.max(0, readingLineCount - 1), index + 1))}
+          onExit={closeReadingMode}
+        />
+      )}
     </div>
   );
 }
