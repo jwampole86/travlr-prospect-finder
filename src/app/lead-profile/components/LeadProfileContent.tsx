@@ -522,28 +522,28 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       label: 'Lead Created',
       detail: `Sourced from ${lead.source}`,
       timestamp: lead.createdAt || '',
-      type: 'sync',
+      type: 'sync' as const,
     },
     {
       id: 'e-scored',
       label: 'Prospect Score Calculated',
       detail: `Score: ${lead.prospectScore}/100`,
       timestamp: lead.createdAt || '',
-      type: 'score',
+      type: 'score' as const,
     },
     {
       id: 'e-stage',
       label: `Stage Set to "${lead.stage}"`,
       detail: 'Initial stage assignment',
       timestamp: lead.updatedAt || '',
-      type: 'stage',
+      type: 'stage' as const,
     },
     {
       id: 'e-checked',
       label: 'Listing Verified',
       detail: `Last checked ${lead.lastChecked}`,
       timestamp: lead.lastChecked || '',
-      type: 'verify',
+      type: 'verify' as const,
     },
     ...history.slice(0, 3).map((h, i) => ({
       id: `e-hist-${i}`,
@@ -553,6 +553,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       type: 'note' as const,
     })),
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : [];
+
+  if (!lead) return null;
 
   async function handleSaveNote() {
     if (!noteContent.trim() || !lead) return;
