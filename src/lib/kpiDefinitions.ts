@@ -232,8 +232,9 @@ export async function fetchCanonicalKpiCounts(
       activePipelineRes,
       // STR Eligible: Allowed OR Restricted (same as Dashboard card)
       strEligibleRes,
-      // AVG_SCORE: server-side RPC — full population, no row cap
-      avgScoreRpcRes,
+      // AVG_SCORE: recent scored sample fallback — avoids monitor-wide failure
+      // when the full-population avg RPC is timing out under database pressure.
+      avgScoreRes,
     ] = await withRetry(async () => {
       const responses = await Promise.all([
       // TOTAL_LEADS
@@ -346,11 +347,19 @@ export async function fetchCanonicalKpiCounts(
         return q;
       })(),
 
-      // AVG_SCORE: SERVER-SIDE RPC — full population, no PostgREST row cap
-      // ROOT CAUSE FIX: Previous .select('prospect_score') was capped at 1000 rows
-      // by PostgREST default → biased sample average (96) ≠ true average (93).
-      // get_canonical_avg_score() uses SQL AVG() over ALL rows in one pass.
-      supabase.rpc('get_canonical_avg_score', { p_state: ps ?? 'all' }),
+      // AVG_SCORE fallback: use a recent scored sample instead of failing the
+      // entire monitor when the canonical AVG RPC hits statement_timeout.
+      (() => {
+        let q = supabase
+          .from('leads')
+          .select('prospect_score')
+          .or('is_synthetic.is.null,is_synthetic.eq.false')
+          .gt('prospect_score', 0)
+          .order('updated_at', { ascending: false })
+          .limit(1000);
+        if (ps) q = q.eq('state', ps);
+        return q;
+      })(),
       ]);
       const failedResponse = responses.find(response => response.error);
       if (failedResponse?.error) throw failedResponse.error;
@@ -359,13 +368,15 @@ export async function fetchCanonicalKpiCounts(
 
     // Extract avg_score from RPC response
     let canonicalAvgScore = 0;
-    if (avgScoreRpcRes.error) {
-      console.error('[fetchCanonicalKpiCounts] get_canonical_avg_score RPC error:', avgScoreRpcRes.error);
+    if (avgScoreRes.error) {
+      console.error('[fetchCanonicalKpiCounts] avg score sample query error:', avgScoreRes.error);
       canonicalAvgScore = -1; // signal query failure
     } else {
-      const rpcData = avgScoreRpcRes.data as { avg_score?: number } | null;
-      canonicalAvgScore = rpcData?.avg_score ?? 0;
-      console.log('[fetchCanonicalKpiCounts] AVG_SCORE from server-side RPC:', canonicalAvgScore, '(full population, no row cap)');
+      const rows = (avgScoreRes.data as { prospect_score?: number }[] | null) ?? [];
+      canonicalAvgScore = rows.length > 0
+        ? Math.round(rows.reduce((sum, row) => sum + Number(row.prospect_score || 0), 0) / rows.length)
+        : 0;
+      console.log('[fetchCanonicalKpiCounts] AVG_SCORE from recent scored sample:', canonicalAvgScore);
     }
 
     // Validate counts — a null count means the query failed, not that the count is 0

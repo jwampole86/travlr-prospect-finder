@@ -414,7 +414,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
               let q = supabaseDirect
                 .from('leads')
                 .select('*', { count: 'exact', head: true })
-                .neq('is_synthetic', true)
+                .or('is_synthetic.is.null,is_synthetic.eq.false')
                 .gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD)
                 .not('stage', 'in', terminalFilter);
               if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
@@ -424,7 +424,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
               let q = supabaseDirect
                 .from('leads')
                 .select('*', { count: 'exact', head: true })
-                .neq('is_synthetic', true)
+                .or('is_synthetic.is.null,is_synthetic.eq.false')
                 .gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD)
                 .not('stage', 'in', terminalFilter)
                 .is('primary_agent_id', null);
@@ -471,99 +471,103 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
           strEligibleRes,
         ] = await Promise.allSettled([
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false');
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).in('stage', [...ACTIVE_PIPELINE_STAGES]);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').in('stage', [...ACTIVE_PIPELINE_STAGES]);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).eq('stage', 'New Lead');
-            if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
-            return q;
-          })(),
-          // AVG_SCORE FALLBACK FIX: Use server-side RPC instead of .limit(100) + client-side avg.
-          // Previous: .select('prospect_score').limit(100) → biased sample of 100 rows → wrong avg.
-          // Fixed: get_canonical_avg_score() → SQL AVG() over full population, same as get_dashboard_summary.
-          (() => {
-            const ps = portfolioState && portfolioState !== 'all' ? portfolioState : 'all';
-            return supabase.rpc('get_canonical_avg_score', { p_state: ps });
-          })(),
-          (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).in('regulation_status', ['Allowed', 'Restricted']);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).eq('stage', 'New Lead');
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`);
+            let q = supabase
+              .from('leads')
+              .select('prospect_score')
+              .or('is_synthetic.is.null,is_synthetic.eq.false')
+              .gt('prospect_score', 0)
+              .order('updated_at', { ascending: false })
+              .limit(1000);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).eq('verified_owner', true).eq('verified_number', true).not('verified_address', 'is', null).neq('verified_address', '').neq('verified_address', 'false');
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').in('regulation_status', ['Allowed', 'Restricted']);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`).is('primary_agent_id', null);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).not('primary_agent_id', 'is', null);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').eq('verified_owner', true).eq('verified_number', true).not('verified_address', 'is', null).neq('verified_address', '').neq('verified_address', 'false');
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).eq('verified_owner', true);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`).is('primary_agent_id', null);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).eq('verified_number', true);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').not('primary_agent_id', 'is', null);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).not('contact_phone', 'is', null).neq('contact_phone', '');
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').eq('verified_owner', true);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').eq('verified_number', true);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).eq('luxury', true);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').not('contact_phone', 'is', null).neq('contact_phone', '');
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).eq('luxury', true).eq('verified_owner', true).eq('verified_number', true).not('verified_address', 'is', null).neq('verified_address', '').neq('verified_address', 'false');
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).eq('luxury', true).eq('verified_number', true);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').eq('luxury', true);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).eq('luxury', true).gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').eq('luxury', true).eq('verified_owner', true).eq('verified_number', true).not('verified_address', 'is', null).neq('verified_address', '').neq('verified_address', 'false');
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).eq('luxury', true).gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).is('primary_agent_id', null).not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').eq('luxury', true).eq('verified_number', true);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).in('regulation_status', ['Allowed', 'Restricted']);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').eq('luxury', true).gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`);
+            if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
+            return q;
+          })(),
+          (() => {
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').eq('luxury', true).gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).is('primary_agent_id', null).not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`);
+            if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
+            return q;
+          })(),
+          (() => {
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').in('regulation_status', ['Allowed', 'Restricted']);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
@@ -577,15 +581,16 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
           return 0;
         };
 
-        // AVG_SCORE: extract from server-side RPC result (full population, no row cap)
-        // Fixed: was .limit(100) + client-side avg → biased sample. Now uses get_canonical_avg_score RPC.
+        // AVG_SCORE fallback: the canonical RPC can time out during database incidents.
+        // Use the latest scored sample so the dashboard does not collapse to 0.
         const avgScore = (() => {
           if (avgScoreRes.status !== 'fulfilled' || avgScoreRes.value.error) {
-            console.warn('[useDashboardLeads] fallback get_canonical_avg_score failed');
+            console.warn('[useDashboardLeads] fallback avg_score sample query failed');
             return 0;
           }
-          const rpcData = avgScoreRes.value.data as { avg_score?: number } | null;
-          return rpcData?.avg_score ?? 0;
+          const rows = (avgScoreRes.value.data as { prospect_score?: number }[] | null) ?? [];
+          if (rows.length === 0) return 0;
+          return Math.round(rows.reduce((sum, row) => sum + Number(row.prospect_score || 0), 0) / rows.length);
         })();
 
         setStats(prev => ({
