@@ -42,7 +42,7 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
   starter: {
     id: 'starter',
     name: 'Starter',
-    tagline: 'For individual operators and small teams getting started. Find and organize high-value homeowner opportunities without the complexity of a full platform.',
+    tagline: 'For individual operators and small teams starting focused homeowner prospecting.',
     monthlyPrice: 149,
     annualPrice: 1490,
     ctaLabel: 'Get Started',
