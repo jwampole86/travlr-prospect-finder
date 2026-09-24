@@ -76,9 +76,14 @@ function hasVerifiedAddress(value: string | boolean | null | undefined): boolean
   return false;
 }
 
+function positiveNumber(value: number | null | undefined): number {
+  const number = Number(value || 0);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
 function scoreRevenue(input: ProspectScoringInput): ProspectScoreFactor {
-  const revenue = input.estimatedNetMonthly || input.estimatedGrossMonthly || input.price || 0;
-  let score = 35;
+  const revenue = positiveNumber(input.estimatedNetMonthly) || positiveNumber(input.estimatedGrossMonthly) || positiveNumber(input.price);
+  let score = 8;
   if (revenue >= 12000) score = 100;
   else if (revenue >= 8000) score = 90;
   else if (revenue >= 5000) score = 78;
@@ -100,20 +105,20 @@ function scoreRevenue(input: ProspectScoringInput): ProspectScoreFactor {
 }
 
 function scorePropertyFit(input: ProspectScoringInput): ProspectScoreFactor {
-  const beds = Number(input.beds || 0);
-  const baths = Number(input.baths || 0);
+  const beds = positiveNumber(input.beds);
+  const baths = positiveNumber(input.baths);
   const type = (input.propertyType || '').toLowerCase();
-  let score = 45;
+  let score = 8;
 
-  if (beds >= 3 && beds <= 5) score += 25;
-  else if (beds === 2 || beds === 6) score += 15;
-  else if (beds >= 7) score += 8;
+  if (beds >= 3 && beds <= 5) score += 35;
+  else if (beds === 2 || beds === 6) score += 22;
+  else if (beds >= 7) score += 14;
 
-  if (baths >= 2) score += 15;
-  else if (baths >= 1.5) score += 8;
+  if (baths >= 2) score += 25;
+  else if (baths >= 1.5) score += 12;
 
-  if (/single|sfr|house|townhome|townhouse|villa|estate/.test(type)) score += 10;
-  else if (/condo|apartment/.test(type)) score += 2;
+  if (/single|sfr|house|townhome|townhouse|villa|estate/.test(type)) score += 20;
+  else if (/condo|apartment/.test(type)) score += 5;
 
   return {
     key: 'propertyFit',
@@ -130,8 +135,8 @@ function scoreRegulation(input: ProspectScoringInput): ProspectScoreFactor {
   const scoreMap: Record<string, number> = {
     Allowed: 100,
     Restricted: 70,
-    Pending: 45,
-    Unknown: 40,
+    Pending: 35,
+    Unknown: 25,
     Prohibited: 0,
     Banned: 0,
   };
@@ -148,7 +153,7 @@ function scoreRegulation(input: ProspectScoringInput): ProspectScoreFactor {
 }
 
 function scoreLeadQuality(input: ProspectScoringInput): ProspectScoreFactor {
-  let score = 20;
+  let score = 0;
   const phoneReady = input.verifiedNumber || input.hasPhone || Boolean(input.contactPhone);
   if (input.verifiedOwner) score += 25;
   if (hasVerifiedAddress(input.verifiedAddress)) score += 25;
@@ -166,7 +171,7 @@ function scoreLeadQuality(input: ProspectScoringInput): ProspectScoreFactor {
 }
 
 function scoreEngagement(input: ProspectScoringInput): ProspectScoreFactor {
-  let score = 35;
+  let score = 10;
   const smsReplies = Number(input.smsReplies || 0);
   const callbackRequests = Number(input.callbackRequests || 0);
   const emailClicks = Number(input.emailClicks || 0);
@@ -227,6 +232,19 @@ export function calculateProspectScore(
   });
 
   let score = clampScore(factors.reduce((sum, factor) => sum + factor.weightedPoints, 0));
+
+  const hasRevenue = Boolean(positiveNumber(input.estimatedNetMonthly) || positiveNumber(input.estimatedGrossMonthly) || positiveNumber(input.price));
+  const hasPropertyFacts = Boolean(positiveNumber(input.beds) || positiveNumber(input.baths) || input.propertyType);
+  const hasContactSignal = Boolean(input.verifiedOwner || input.verifiedNumber || hasVerifiedAddress(input.verifiedAddress) || input.hasPhone || input.contactPhone || input.contactEmail);
+  const hasRegulatorySignal = !['', 'Unknown'].includes(String(input.regulationStatus || 'Unknown'));
+  const hasEngagementSignal = Boolean(input.smsReplies || input.callbackRequests || input.emailClicks || input.callsAnswered || input.emailOpens || typeof input.daysOnMarket === 'number');
+
+  if (!hasRevenue && !hasPropertyFacts && !hasContactSignal) score = Math.min(score, 35);
+  else if (!hasRevenue && !hasPropertyFacts) score = Math.min(score, 55);
+  else if (!hasRevenue) score = Math.min(score, 72);
+  if (!hasContactSignal) score = Math.min(score, 78);
+  if (!hasRegulatorySignal && !hasEngagementSignal) score = Math.min(score, 82);
+
   if (blockers.length > 0) score = Math.min(score, input.doNotContact ? 10 : 35);
 
   const band: ProspectScoreResult['band'] = blockers.length > 0
