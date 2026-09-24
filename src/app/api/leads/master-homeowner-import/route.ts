@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { requireApiActor } from '@/lib/auth/apiAuthorization';
+import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
 import {
   MASTER_FIELDS,
   inferMasterFieldMapping,
@@ -42,6 +43,56 @@ async function inferMappingWithAnthropic(headers: string[], fallback: MasterFiel
 function text(row: RawRow, mapping: MasterFieldMapping, field: keyof MasterFieldMapping) {
   const header = mapping[field];
   return header ? String(row[header] ?? '').trim() : '';
+}
+
+function parsePositiveNumber(value: string) {
+  const match = String(value || '').replace(/[$,%]/g, '').replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const number = Number(match[0]);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function normalizePercent(value: number | null) {
+  if (value == null) return null;
+  return value <= 1 ? Math.round(value * 100) : Math.round(value);
+}
+
+function calculateMasterRevenue(
+  beds: number | null,
+  state: string,
+  monthlyRent: number | null,
+  explicit: { adr: number | null; occupancy: number | null; grossMonthly: number | null; netMonthly: number | null }
+) {
+  const occupancy = normalizePercent(explicit.occupancy);
+  if (explicit.grossMonthly || explicit.netMonthly || explicit.adr) {
+    const grossMonthly = explicit.grossMonthly || (explicit.adr && occupancy ? Math.round(explicit.adr * 30 * (occupancy / 100)) : null);
+    const netMonthly = explicit.netMonthly || (grossMonthly ? Math.round(grossMonthly * 0.65) : null);
+    return { estimatedADR: explicit.adr, estimatedOccupancy: occupancy, estimatedGrossMonthly: grossMonthly, estimatedNetMonthly: netMonthly, source: 'MASTER_UPLOAD' };
+  }
+
+  if (!beds && !monthlyRent) return null;
+  const baseADR: Record<number, number> = { 1: 120, 2: 175, 3: 225, 4: 295, 5: 380, 6: 450 };
+  const bedroomCount = Math.min(Math.max(Math.round(beds || 3), 1), 6);
+  const stateMultipliers: Record<string, number> = { CA: 1.35, NY: 1.30, WA: 1.20, CO: 1.15, FL: 1.25, TX: 1.10, NV: 1.20, MA: 1.25, OR: 1.10, ME: 1.05, UT: 1.10, MD: 1.15, AZ: 1.10, ID: 1.05, MT: 1.05, WY: 1.05 };
+  const estimatedADR = Math.round((baseADR[bedroomCount] || 225) * (stateMultipliers[state] || 1));
+  const estimatedOccupancy = Math.round(Math.min(0.78, 0.62 + bedroomCount * 0.02) * 100);
+  const estimatedGrossMonthly = Math.round(estimatedADR * 30 * (estimatedOccupancy / 100));
+  const estimatedNetMonthly = Math.round(estimatedGrossMonthly * 0.65) || monthlyRent;
+  return { estimatedADR, estimatedOccupancy, estimatedGrossMonthly, estimatedNetMonthly, source: 'TRAVLR_MASTER_ESTIMATE' };
+}
+
+function propertyFacts(rawData: Record<string, unknown> | null | undefined) {
+  const data = rawData || {};
+  return {
+    beds: typeof data.bedrooms === 'number' ? data.bedrooms : null,
+    baths: typeof data.bathrooms === 'number' ? data.bathrooms : null,
+    monthlyRent: typeof data.current_monthly_rent === 'number' ? data.current_monthly_rent : null,
+    estimatedADR: typeof data.estimated_adr === 'number' ? data.estimated_adr : null,
+    estimatedOccupancy: typeof data.estimated_occupancy === 'number' ? data.estimated_occupancy : null,
+    estimatedGrossMonthly: typeof data.estimated_gross_monthly === 'number' ? data.estimated_gross_monthly : null,
+    estimatedNetMonthly: typeof data.estimated_net_monthly === 'number' ? data.estimated_net_monthly : null,
+    listingUrl: typeof data.listing_url === 'string' ? data.listing_url : '',
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -106,6 +157,14 @@ export async function POST(request: NextRequest) {
         const homeAge = text(row, mapping, 'home_age');
         const estimatedHomeValue = parseEstimatedHomeValue(text(row, mapping, 'estimated_home_value'));
         const ownershipStatus = text(row, mapping, 'ownership_status');
+        const bedrooms = parsePositiveNumber(text(row, mapping, 'bedrooms'));
+        const bathrooms = parsePositiveNumber(text(row, mapping, 'bathrooms'));
+        const currentMonthlyRent = parsePositiveNumber(text(row, mapping, 'current_monthly_rent'));
+        const estimatedADR = parsePositiveNumber(text(row, mapping, 'estimated_adr'));
+        const estimatedOccupancy = parsePositiveNumber(text(row, mapping, 'estimated_occupancy'));
+        const estimatedGrossMonthly = parsePositiveNumber(text(row, mapping, 'estimated_gross_monthly'));
+        const estimatedNetMonthly = parsePositiveNumber(text(row, mapping, 'estimated_net_monthly'));
+        const listingUrl = text(row, mapping, 'listing_url');
         const score = propertyOnly
           ? Math.min(100, (address ? 35 : 0) + (city && state ? 15 : 0) + (zip ? 10 : 0) + (county ? 5 : 0) + (residenceType ? 10 : 0) + (homeAge ? 5 : 0) + (estimatedHomeValue >= 400000 ? 15 : estimatedHomeValue > 0 ? 8 : 0) + (/owner/i.test(ownershipStatus) ? 10 : 0))
           : qualityScore({ address, city, state, zip, ownerName, phone, email, apn });
@@ -130,7 +189,7 @@ export async function POST(request: NextRequest) {
           ownership_status: ownershipStatus || null,
           quality_score: score,
           criteria_met: Boolean(!isPoBox && address && state && (propertyOnly ? propertyQualified : (ownerName || phone || email)) && score >= minimumScore),
-          raw_data: { address, city, state, zip, county, residence_type: residenceType, home_age: homeAge, estimated_home_value: estimatedHomeValue || null, ownership_status: ownershipStatus, apn: apn || null },
+          raw_data: { address, city, state, zip, county, residence_type: residenceType, home_age: homeAge, estimated_home_value: estimatedHomeValue || null, ownership_status: ownershipStatus, apn: apn || null, bedrooms, bathrooms, current_monthly_rent: currentMonthlyRent, estimated_adr: estimatedADR, estimated_occupancy: estimatedOccupancy, estimated_gross_monthly: estimatedGrossMonthly, estimated_net_monthly: estimatedNetMonthly, listing_url: listingUrl || null },
         };
       }).filter(record => record.property_address && !isPostOfficeBoxAddress(record.property_address) && (!propertyOnly || record.criteria_met));
 
@@ -139,11 +198,11 @@ export async function POST(request: NextRequest) {
 
       const sourceRecordByRow = new Map(records.map(record => [record.source_row, record]));
       const leadFingerprints = [...new Set(records.map(record => normalizeLeadFingerprint(record.property_address, record.city || '', record.state || '')))];
-      const leads: Array<{ id: string; address_fingerprint: string; contact_name: string | null; contact_phone: string | null; prospect_score: number | null; county: string | null; property_type: string | null; master_property_data: Record<string, unknown> | null }> = [];
+      const leads: Array<{ id: string; address_fingerprint: string; contact_name: string | null; contact_phone: string | null; prospect_score: number | null; county: string | null; property_type: string | null; master_property_data: Record<string, unknown> | null; beds: number | null; baths: number | null; price: number | null; estimated_adr: number | null; estimated_occupancy: number | null; estimated_gross_monthly: number | null; estimated_net_monthly: number | null; listing_url: string | null; regulation_status: string | null; verified_owner: boolean | null; verified_number: boolean | null; verified_address: string | boolean | null; stage: string | null }> = [];
       for (let index = 0; index < leadFingerprints.length; index += 100) {
         const { data, error } = await supabase
           .from('leads')
-          .select('id,address_fingerprint,contact_name,contact_phone,prospect_score,county,property_type,master_property_data')
+          .select('id,address_fingerprint,contact_name,contact_phone,prospect_score,county,property_type,master_property_data,beds,baths,price,estimated_adr,estimated_occupancy,estimated_gross_monthly,estimated_net_monthly,listing_url,regulation_status,verified_owner,verified_number,verified_address,stage')
           .eq('user_id', user.id)
           .in('address_fingerprint', leadFingerprints.slice(index, index + 100));
         if (error) throw error;
@@ -166,6 +225,8 @@ export async function POST(request: NextRequest) {
         matchedRecordIds.add(record.id);
         const update: Record<string, unknown> = { prospect_score: Math.max(Number(lead.prospect_score || 0), Number(record.quality_score || 0)) };
         const fieldsApplied: string[] = [];
+        const facts = propertyFacts(sourceRecord.raw_data as Record<string, unknown> | null);
+        const revenue = calculateMasterRevenue(facts.beds, sourceRecord.state || '', facts.monthlyRent, { adr: facts.estimatedADR, occupancy: facts.estimatedOccupancy, grossMonthly: facts.estimatedGrossMonthly, netMonthly: facts.estimatedNetMonthly });
         if (!lead.contact_name && record.owner_name) {
           update.contact_name = record.owner_name;
           update.verified_owner = true;
@@ -183,11 +244,44 @@ export async function POST(request: NextRequest) {
         }
         if (!lead.county && sourceRecord.county) { update.county = sourceRecord.county; fieldsApplied.push('county'); }
         if (!lead.property_type && sourceRecord.residence_type) { update.property_type = sourceRecord.residence_type; fieldsApplied.push('property_type'); }
+        if (!lead.beds && facts.beds) { update.beds = facts.beds; fieldsApplied.push('beds'); }
+        if (!lead.baths && facts.baths) { update.baths = facts.baths; fieldsApplied.push('baths'); }
+        if (!lead.price && facts.monthlyRent) { update.price = facts.monthlyRent; update.price_type = 'rent'; fieldsApplied.push('price'); }
+        if (!lead.listing_url && facts.listingUrl) { update.listing_url = facts.listingUrl; fieldsApplied.push('listing_url'); }
+        if (revenue) {
+          if (!lead.estimated_adr && revenue.estimatedADR) update.estimated_adr = revenue.estimatedADR;
+          if (!lead.estimated_occupancy && revenue.estimatedOccupancy) update.estimated_occupancy = revenue.estimatedOccupancy;
+          if (!lead.estimated_gross_monthly && revenue.estimatedGrossMonthly) update.estimated_gross_monthly = revenue.estimatedGrossMonthly;
+          if (!lead.estimated_net_monthly && revenue.estimatedNetMonthly) update.estimated_net_monthly = revenue.estimatedNetMonthly;
+          update.calculation_version = revenue.source;
+          update.calculated_at = new Date().toISOString();
+          fieldsApplied.push('revenue_estimate');
+        }
+        const recalculatedScore = calculateProspectScore({
+          estimatedNetMonthly: Number(update.estimated_net_monthly ?? lead.estimated_net_monthly ?? 0),
+          estimatedGrossMonthly: Number(update.estimated_gross_monthly ?? lead.estimated_gross_monthly ?? 0),
+          estimatedADR: Number(update.estimated_adr ?? lead.estimated_adr ?? 0),
+          price: Number(update.price ?? lead.price ?? 0),
+          beds: Number(update.beds ?? lead.beds ?? 0),
+          baths: Number(update.baths ?? lead.baths ?? 0),
+          propertyType: String(update.property_type ?? lead.property_type ?? ''),
+          regulationStatus: lead.regulation_status,
+          verifiedOwner: Boolean(update.verified_owner ?? lead.verified_owner),
+          verifiedNumber: Boolean(update.verified_number ?? lead.verified_number),
+          verifiedAddress: lead.verified_address,
+          contactPhone: String(update.contact_phone ?? lead.contact_phone ?? ''),
+          stage: lead.stage,
+        }).score;
+        update.prospect_score = Math.max(Number(update.prospect_score || 0), recalculatedScore);
         update.master_property_data = {
           ...(lead.master_property_data || {}),
           home_age: sourceRecord.home_age,
           estimated_home_value: sourceRecord.estimated_home_value,
           ownership_status: sourceRecord.ownership_status,
+          bedrooms: facts.beds,
+          bathrooms: facts.baths,
+          current_monthly_rent: facts.monthlyRent,
+          estimated_net_monthly: revenue?.estimatedNetMonthly || facts.estimatedNetMonthly,
           source: 'MASTER_PROPERTY_DATA',
         };
         fieldsApplied.push('master_property_data');
@@ -209,27 +303,51 @@ export async function POST(request: NextRequest) {
           const fingerprint = normalizeLeadFingerprint(record.property_address, record.city || '', record.state || '');
           if (!leadByFingerprint.has(fingerprint) && !uniqueUnmatched.has(fingerprint)) uniqueUnmatched.set(fingerprint, record);
         }
-        const leadRows = [...uniqueUnmatched.values()].map(record => ({
+        const leadRows = [...uniqueUnmatched.values()].map(record => {
+          const facts = propertyFacts(record.raw_data as Record<string, unknown> | null);
+          const revenue = calculateMasterRevenue(facts.beds, record.state || '', facts.monthlyRent, { adr: facts.estimatedADR, occupancy: facts.estimatedOccupancy, grossMonthly: facts.estimatedGrossMonthly, netMonthly: facts.estimatedNetMonthly });
+          const score = calculateProspectScore({
+            estimatedNetMonthly: revenue?.estimatedNetMonthly || facts.estimatedNetMonthly,
+            estimatedGrossMonthly: revenue?.estimatedGrossMonthly || facts.estimatedGrossMonthly,
+            estimatedADR: revenue?.estimatedADR || facts.estimatedADR,
+            price: facts.monthlyRent,
+            beds: facts.beds,
+            baths: facts.baths,
+            propertyType: record.residence_type,
+            regulationStatus: 'Unknown',
+            verifiedOwner: Boolean(record.owner_name),
+            verifiedNumber: Boolean(record.phone),
+            contactPhone: record.phone || null,
+            stage: 'New Lead',
+          }).score;
+          return {
             id: crypto.randomUUID(), user_id: user.id, address: record.property_address,
             city: record.city || '', state: record.state || '', zip: record.zip || '',
-          lat: null, lng: null, beds: null, baths: null, price: null,
-          estimated_adr: null, estimated_occupancy: null,
-          estimated_gross_monthly: null, estimated_net_monthly: null,
+          lat: null, lng: null, beds: facts.beds, baths: facts.baths, price: facts.monthlyRent,
+          estimated_adr: revenue?.estimatedADR || facts.estimatedADR, estimated_occupancy: revenue?.estimatedOccupancy || facts.estimatedOccupancy,
+          estimated_gross_monthly: revenue?.estimatedGrossMonthly || facts.estimatedGrossMonthly, estimated_net_monthly: revenue?.estimatedNetMonthly || facts.estimatedNetMonthly,
           days_on_market: null,
           source: 'Direct', stage: 'New Lead', regulation_status: 'Unknown',
-          prospect_score: propertyOnly ? 50 : record.quality_score,
+          prospect_score: Math.max(propertyOnly ? 50 : record.quality_score, score),
             address_source: 'MASTER_HOMEOWNER_DATA',
             contact_name: record.owner_name || '', contact_phone: record.phone || '',
             verified_owner: Boolean(record.owner_name), verified_number: Boolean(record.phone),
             verified_owner_source: record.owner_name ? 'MASTER_HOMEOWNER_DATA' : null,
             verified_number_source: record.phone ? 'MASTER_HOMEOWNER_DATA' : null,
             county: record.county || null, property_type: record.residence_type || null,
-            master_property_data: { home_age: record.home_age, estimated_home_value: record.estimated_home_value, ownership_status: record.ownership_status, source: 'MASTER_PROPERTY_DATA' },
+            listing_url: facts.listingUrl || null,
+            price_type: facts.monthlyRent ? 'rent' : null,
+            calculation_version: revenue?.source || null,
+            calculated_at: revenue ? new Date().toISOString() : null,
+            enrichment_status: 'pending',
+            enrichment_queued_at: new Date().toISOString(),
+            master_property_data: { home_age: record.home_age, estimated_home_value: record.estimated_home_value, ownership_status: record.ownership_status, bedrooms: facts.beds, bathrooms: facts.baths, current_monthly_rent: facts.monthlyRent, estimated_net_monthly: revenue?.estimatedNetMonthly || facts.estimatedNetMonthly, source: 'MASTER_PROPERTY_DATA' },
             notes: propertyOnly
               ? `Created from qualified master property data. Listing, rent, regulations, and contact details require verification.`
               : `Created from master homeowner file. Quality score: ${record.quality_score}.`,
             created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-          }));
+          };
+        });
         if (leadRows.length > 0) {
           const { data: created, error } = await supabase.from('leads').upsert(leadRows, { onConflict: 'address_fingerprint', ignoreDuplicates: true }).select('id');
           if (error) throw error;

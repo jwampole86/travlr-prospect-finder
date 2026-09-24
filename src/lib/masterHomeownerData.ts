@@ -1,4 +1,4 @@
-export const MASTER_FIELDS = ['address', 'city', 'state', 'zip', 'county', 'residence_type', 'home_age', 'estimated_home_value', 'ownership_status', 'owner_name', 'phone', 'email', 'apn'] as const;
+export const MASTER_FIELDS = ['address', 'city', 'state', 'zip', 'county', 'residence_type', 'home_age', 'estimated_home_value', 'ownership_status', 'owner_name', 'phone', 'email', 'apn', 'bedrooms', 'bathrooms', 'current_monthly_rent', 'estimated_adr', 'estimated_occupancy', 'estimated_gross_monthly', 'estimated_net_monthly', 'listing_url'] as const;
 export type MasterField = (typeof MASTER_FIELDS)[number];
 export type MasterFieldMapping = Partial<Record<MasterField, string>>;
 
@@ -16,6 +16,14 @@ const ALIASES: Record<MasterField, string[]> = {
   phone: ['phone', 'phone_number', 'contact_phone', 'mobile', 'mobile_phone', 'telephone'],
   email: ['email', 'email_address', 'contact_email', 'owner_email'],
   apn: ['apn', 'parcel', 'parcel_id', 'parcel_number', 'assessor_parcel_number'],
+  bedrooms: ['beds', 'bedrooms', 'bedroom_count', 'br'],
+  bathrooms: ['baths', 'bathrooms', 'bathroom_count', 'ba'],
+  current_monthly_rent: ['rent', 'monthly_rent', 'current_rent', 'asking_rent', 'monthly_price', 'price_monthly', 'rent_price'],
+  estimated_adr: ['adr', 'estimated_adr', 'average_daily_rate', 'nightly_rate'],
+  estimated_occupancy: ['occupancy', 'estimated_occupancy', 'occupancy_rate'],
+  estimated_gross_monthly: ['estimated_gross_monthly', 'gross_monthly', 'monthly_gross', 'projected_monthly_gross', 'estimated_monthly_revenue'],
+  estimated_net_monthly: ['estimated_net_monthly', 'net_monthly', 'owner_net_monthly', 'projected_owner_net', 'estimated_owner_net'],
+  listing_url: ['listing_url', 'url', 'property_url', 'zillow_url', 'source_url', 'listing_link'],
 };
 
 function normalizedHeader(value: string) {

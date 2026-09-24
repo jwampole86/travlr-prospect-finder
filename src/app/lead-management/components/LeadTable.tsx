@@ -186,6 +186,13 @@ const columns: { key: keyof Lead | 'actions' | 'owner' | 'enrichment'; label: st
 
 const ROW_HEIGHT = 60;
 
+function getMonthlyDisplay(lead: Lead) {
+  if (lead.price > 0) return { value: lead.price, label: '/mo' };
+  if (lead.estimatedNetMonthly > 0) return { value: lead.estimatedNetMonthly, label: 'est net' };
+  if (lead.estimatedGrossMonthly > 0) return { value: lead.estimatedGrossMonthly, label: 'est gross' };
+  return { value: 0, label: 'unknown' };
+}
+
 interface RowData {
   leads: Lead[];
   selectedIds: Set<string>;
@@ -217,6 +224,7 @@ const LeadRow = memo(function LeadRow({
   if (!lead) return null;
 
   const canAct = canActOnLead(lead);
+  const monthlyDisplay = getMonthlyDisplay(lead);
 
   return (
     <div
@@ -325,8 +333,8 @@ const LeadRow = memo(function LeadRow({
 
       {/* Price */}
       <div className="px-3 shrink-0" style={{ width: 90 }}>
-        <span className="font-mono-data text-xs text-foreground">{formatCurrency(lead.price)}</span>
-        <p className="text-[10px] text-muted-foreground">/mo</p>
+        <span className="font-mono-data text-xs text-foreground">{monthlyDisplay.value > 0 ? formatCurrency(monthlyDisplay.value) : '—'}</span>
+        <p className="text-[10px] text-muted-foreground">{monthlyDisplay.label}</p>
       </div>
 
       {/* Source */}
@@ -462,6 +470,8 @@ const MobileLeadCard = memo(function MobileLeadCard({
   onOpenDetail: () => void;
   onConfirmDelete: () => void;
 }) {
+  const monthlyDisplay = getMonthlyDisplay(lead);
+
   return (
     <div
       className={`bg-card border-b border-border px-4 py-4 ${selected ? 'bg-primary/5' : ''}`}
@@ -512,7 +522,9 @@ const MobileLeadCard = memo(function MobileLeadCard({
           <div className="flex items-center gap-4 mb-3">
             <div>
               <p className="text-[10px] text-muted-foreground">Price</p>
-              <p className="text-xs font-mono-data font-semibold text-foreground">{formatCurrency(lead.price)}/mo</p>
+              <p className="text-xs font-mono-data font-semibold text-foreground">
+                {monthlyDisplay.value > 0 ? formatCurrency(monthlyDisplay.value) : '—'} <span className="text-[10px] font-normal text-muted-foreground">{monthlyDisplay.label}</span>
+              </p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground">Beds/Ba</p>
