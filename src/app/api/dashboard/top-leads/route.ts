@@ -77,21 +77,23 @@ export async function GET(request: NextRequest) {
       const leads = factual
         .sort((a, b) => Number(b.prospect_score || 0) - Number(a.prospect_score || 0))
         .slice(0, limit);
-      const totalMs = Date.now() - start;
-      return NextResponse.json(
-        { leads, meta: { totalMs, dbMs, rows: leads.length, path: 'rpc' } },
-        {
-          status: 200,
-          headers: {
-            'Cache-Control': 'private, max-age=30',
-            'X-Duration-Ms': String(totalMs),
-          },
-        }
-      );
+      if (leads.length > 0) {
+        const totalMs = Date.now() - start;
+        return NextResponse.json(
+          { leads, meta: { totalMs, dbMs, rows: leads.length, path: 'rpc' } },
+          {
+            status: 200,
+            headers: {
+              'Cache-Control': 'private, max-age=30',
+              'X-Duration-Ms': String(totalMs),
+            },
+          }
+        );
+      }
     }
 
     // Fallback: direct query via server client
-    console.warn('[/api/dashboard/top-leads] RPC unavailable, using fallback:', rpcError?.message);
+    console.warn('[/api/dashboard/top-leads] RPC unavailable or returned no factual leads, using fallback:', rpcError?.message);
 
     const fallbackStart = Date.now();
     const baseSelect = 'id,address,city,state,zip,beds,baths,price,stage,regulation_status,prospect_score,estimated_net_monthly,listing_url,contact_name,contact_phone,source,created_at';
@@ -106,6 +108,7 @@ export async function GET(request: NextRequest) {
       .gt('prospect_score', 0)
       .not('address', 'is', null)
       .neq('address', '')
+      .or('beds.gt.0,baths.gt.0,price.gt.0,estimated_net_monthly.gt.0')
       .not('stage', 'in', `(${terminalStages.map(s => `"${s}"`).join(',')})`)
       .order('prospect_score', { ascending: false })
       .order('id', { ascending: true })
@@ -120,6 +123,7 @@ export async function GET(request: NextRequest) {
       .gt('prospect_score', 0)
       .not('address', 'is', null)
       .neq('address', '')
+      .or('beds.gt.0,baths.gt.0,price.gt.0,estimated_net_monthly.gt.0')
       .not('stage', 'in', `(${terminalStages.map(s => `"${s}"`).join(',')})`)
       .order('prospect_score', { ascending: false })
       .order('id', { ascending: true })
