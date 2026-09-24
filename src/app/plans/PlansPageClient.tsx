@@ -42,6 +42,13 @@ const COMPLETENESS_SIGNALS = [
   'Analytics: Business adds advanced analytics; Enterprise includes the full analytics suite',
 ];
 
+const ENTERPRISE_PANEL_FEATURES = [
+  { title: 'Unlimited scale', body: 'Custom limits for users, portfolios, leads, and enrichments' },
+  { title: 'Full AI suite', body: 'Automated bulk AI interviews, advanced workflows, and priority model access' },
+  { title: 'Advanced automation & integrations', body: 'Deeper workflow control and custom integrations available' },
+  { title: 'Dedicated support', body: 'Priority onboarding, guided setup, and a direct success path' },
+];
+
 function AvailabilityCell({ value }: { value: FeatureAvailability }) {
   if (value === 'yes') return <Check className="w-4 h-4 text-primary mx-auto" aria-label="Included" />;
   if (value === 'limited') return <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Limited</span>;
@@ -422,6 +429,35 @@ export default function PlansPageClient() {
             />
           ))}
         </div>
+        {selectedPlan === 'enterprise' && (
+          <div className="mt-8 rounded-3xl border border-border bg-card p-6 sm:p-8 shadow-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-300">
+            <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-7 items-start">
+              <div>
+                <p className="text-xs font-bold tracking-[0.16em] text-primary uppercase mb-3">Enterprise</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">Full Platform Access for Multi-Market Teams</h2>
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                  Enterprise unlocks the complete VAYO platform for operators who need scale, control, and dedicated support across markets.
+                </p>
+                <Link href="/prospect-finder/contact-sales" className="mt-5 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-foreground text-background hover:opacity-90 motion-safe:transition-opacity">
+                  Contact Sales <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {ENTERPRISE_PANEL_FEATURES.map((feature) => (
+                  <div key={feature.title} className="rounded-2xl bg-muted/40 border border-border p-4">
+                    <div className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-foreground">{feature.title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{feature.body}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Plan Preview Showcase — shown below actual pricing, not above it */}
