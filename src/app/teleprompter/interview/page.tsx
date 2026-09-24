@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Upload, Users, ChevronDown, ChevronUp, Search, X, Loader2, CheckCircle, AlertTriangle, FileText, RefreshCw, Play, Briefcase, Brain, MessageSquare, BarChart2, Save, ThumbsUp, AlertCircle, ArrowRight, ArrowLeft, Eye, EyeOff, Check, Target, Award, Zap, Shield, ChevronRight, SkipForward, Lock } from 'lucide-react';
+import { Upload, Users, ChevronDown, ChevronUp, Search, X, Loader2, CheckCircle, AlertTriangle, FileText, RefreshCw, Play, Briefcase, Brain, MessageSquare, BarChart2, Save, ThumbsUp, AlertCircle, ArrowRight, ArrowLeft, Eye, EyeOff, Check, Target, Award, Zap, Shield, ChevronRight, SkipForward, Lock, PhoneCall } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -203,6 +203,11 @@ function StatusBadge({ status }: { status?: string }) {
       {info.label}
     </span>
   );
+}
+
+function hasCompletedInterview(candidate: Candidate): boolean {
+  const status = String(candidate.candidate_status || '').toUpperCase();
+  return ['INTERVIEWED', 'FOLLOW_UP', 'HIRED', 'OFFER_SENT'].includes(status);
 }
 
 // ─── Resume Upload Panel ──────────────────────────────────────────────────────
@@ -518,6 +523,11 @@ function CandidateDropdown({
                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                       <PriorityBadge priority={c.interview_priority} />
                       <StatusBadge status={c.candidate_status} />
+                      {hasCompletedInterview(c) && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                          Follow-up ready
+                        </span>
+                      )}
                     </div>
                   </div>
                   {c.id === selectedId && <Check className="w-4 h-4 text-gray-900 dark:text-white flex-shrink-0" />}
@@ -1480,6 +1490,7 @@ export default function InterviewModePage() {
 
   const script = selectedCandidate?.interview_script;
   const rolePlays = script?.rolePlays || [];
+  const selectedNeedsFollowUp = selectedCandidate ? hasCompletedInterview(selectedCandidate) : false;
 
   if (authLoading || !user || !canAccessInterviewMode) {
     return (
@@ -1629,6 +1640,15 @@ export default function InterviewModePage() {
 
                   {/* Script controls */}
                   <div className="flex items-center gap-1.5">
+                    {selectedNeedsFollowUp && (
+                      <Link
+                        href={`/teleprompter?candidateId=${selectedCandidate.id}`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition-colors"
+                      >
+                        <PhoneCall className="w-3.5 h-3.5" />
+                        Start Follow-Up Call
+                      </Link>
+                    )}
                     {!selectedCandidate.interview_script ? (
                       <button
                         onClick={handleGenerateScript}
@@ -1654,7 +1674,22 @@ export default function InterviewModePage() {
 
                 {/* Content */}
                 <div className="flex-1 overflow-hidden" style={{ height: 'calc(100% - 65px)' }}>
-                  {!selectedCandidate.interview_script && !generatingScript ? (
+                  {selectedNeedsFollowUp ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                      <CheckCircle className="w-12 h-12 text-emerald-500 mb-4" />
+                      <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">Interview Complete</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 max-w-md">
+                        This candidate has already interviewed. The next workflow is a follow-up call using the Candidate Next Steps teleprompter with their interview summary and scorecard context.
+                      </p>
+                      <Link
+                        href={`/teleprompter?candidateId=${selectedCandidate.id}`}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-colors"
+                      >
+                        <PhoneCall className="w-4 h-4" />
+                        Start Candidate Follow-Up Call
+                      </Link>
+                    </div>
+                  ) : !selectedCandidate.interview_script && !generatingScript ? (
                     <div className="flex flex-col items-center justify-center h-full text-center p-8">
                       <Brain className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" />
                       <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">No Interview Script Yet</h3>
