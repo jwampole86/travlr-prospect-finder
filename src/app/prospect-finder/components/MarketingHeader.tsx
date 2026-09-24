@@ -11,7 +11,7 @@ export default function MarketingHeader() {
   const isHome = pathname === '/welcome';
 
   // Always land at the top of the destination page when navigating between marketing
-  // pages (Home/Plans) — only skip this when a hash is present (e.g. #enterprise),
+  // pages (Home/Plans) — only skip this when a hash is present (e.g. #plan-enterprise),
   // so anchor links still scroll to their target section instead of the top.
   useEffect(() => {
     if (typeof window === 'undefined' || window.location.hash) return;
@@ -40,7 +40,7 @@ export default function MarketingHeader() {
           >
             Plans
           </Link>
-          <Link href="/plans#enterprise" className="text-muted-foreground hover:text-foreground transition-colors">Enterprise</Link>
+          <Link href="/plans#plan-enterprise" className="text-muted-foreground hover:text-foreground transition-colors">Enterprise</Link>
         </nav>
         <div className="flex items-center gap-3">
           <Link href="/login" className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors">
