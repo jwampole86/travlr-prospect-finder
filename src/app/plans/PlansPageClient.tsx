@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Check, Minus, ChevronDown, ChevronRight, ArrowRight, Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, Link2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -315,6 +315,30 @@ export default function PlansPageClient() {
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('business');
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
   const cardRefs = useRef<Partial<Record<PlanId, HTMLDivElement | null>>>({});
+
+  useEffect(() => {
+    if (window.location.hash) {
+      const scrollToHash = () => {
+        const target = document.getElementById(window.location.hash.slice(1));
+        if (!target) return;
+
+        const top = target.getBoundingClientRect().top + window.scrollY - 96;
+        window.scrollTo({ top, left: 0, behavior: 'auto' });
+      };
+
+      window.requestAnimationFrame(() => window.requestAnimationFrame(scrollToHash));
+      const timeout = window.setTimeout(scrollToHash, 250);
+      return () => window.clearTimeout(timeout);
+    }
+
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
 
   const handleSelectPlan = (id: PlanId) => {
     setSelectedPlan(id);
