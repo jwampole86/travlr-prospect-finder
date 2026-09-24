@@ -13,17 +13,17 @@ export default function IntelligenceShowcase() {
     <div className="space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-4">
         <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border">
             <Home size={13} className="text-primary" />
             <span className="text-xs font-semibold text-foreground">Property Profile</span>
-            <span className="ml-auto"><ProspectScoreBar score={91} showLabel /></span>
+            <span className="ml-auto w-24"><ProspectScoreBar score={91} showLabel /></span>
           </div>
           <div className="p-4 space-y-3">
             <div>
               <p className="text-sm font-bold text-foreground">150 Ridgeline Dr</p>
               <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin size={10} /> Breckenridge, CO 80424</p>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-2 text-center">
               <div className="bg-muted/40 rounded-lg py-2">
                 <p className="text-sm font-bold text-foreground">5bd/4ba</p>
                 <p className="text-[10px] text-muted-foreground">Layout</p>
@@ -55,23 +55,23 @@ export default function IntelligenceShowcase() {
             <span className="text-xs font-semibold text-foreground">Owner & Source Intelligence</span>
           </div>
           <div className="p-4 space-y-2.5">
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
               <span className="text-muted-foreground">Owner Name</span>
               <span className="font-semibold text-foreground">Verified · on file</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
               <span className="text-muted-foreground">Contact Phone</span>
               <span className="font-semibold text-foreground">Verified · on file</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
               <span className="text-muted-foreground">Data Source</span>
               <span className="font-semibold text-foreground">MLS</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
               <span className="text-muted-foreground">Last Verified</span>
               <span className="font-semibold text-foreground">2 days ago</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
               <span className="text-muted-foreground">Market Trend</span>
               <span className="font-semibold text-emerald-600 dark:text-emerald-400">STR demand rising</span>
             </div>
@@ -89,7 +89,7 @@ export default function IntelligenceShowcase() {
               { label: 'Phone number verified as active/reachable', time: '2 days ago' },
               { label: 'STR regulation status confirmed for jurisdiction', time: '2 days ago' },
             ].map((step) => (
-              <div key={step.label} className="flex items-center gap-2.5">
+              <div key={step.label} className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
                 <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
                 <span className="text-xs text-foreground flex-1">{step.label}</span>
                 <span className="text-[10px] text-muted-foreground shrink-0">{step.time}</span>

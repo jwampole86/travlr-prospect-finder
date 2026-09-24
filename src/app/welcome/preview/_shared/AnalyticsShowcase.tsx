@@ -29,12 +29,12 @@ const FUNNEL = [
 export default function AnalyticsShowcase() {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-4 gap-3">
         {METRICS.map((m) => (
-          <div key={m.label} className="bg-card rounded-xl border border-border p-4">
+          <div key={m.label} className="bg-card rounded-xl border border-border p-4 min-w-0">
             <m.icon size={14} className="text-primary mb-2" />
-            <p className="text-xl font-bold text-foreground">{m.value}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{m.label}</p>
+            <p className="text-lg sm:text-xl font-bold text-foreground leading-tight break-words">{m.value}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{m.label}</p>
           </div>
         ))}
       </div>
@@ -45,9 +45,9 @@ export default function AnalyticsShowcase() {
         <div className="p-4 space-y-3">
           {AGENTS.map((a) => (
             <div key={a.name} className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
                 <span className="text-foreground font-medium">{a.name}</span>
-                <span className="text-muted-foreground">{a.calls} calls · {a.converted} converted · {Math.round((a.converted / a.calls) * 100)}%</span>
+                <span className="text-muted-foreground text-right">{a.calls} calls · {a.converted} converted · {Math.round((a.converted / a.calls) * 100)}%</span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-primary rounded-full" style={{ width: `${(a.converted / a.calls) * 100}%` }} />
@@ -62,12 +62,12 @@ export default function AnalyticsShowcase() {
         </div>
         <div className="p-4 space-y-2.5">
           {FUNNEL.map((f) => (
-            <div key={f.stage} className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground w-28 shrink-0">{f.stage}</span>
+            <div key={f.stage} className="grid grid-cols-[6rem_1fr_3.5rem] sm:grid-cols-[7rem_1fr_4rem] items-center gap-2 sm:gap-3">
+              <span className="text-xs text-muted-foreground min-w-0 truncate">{f.stage}</span>
               <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-primary rounded-full" style={{ width: `${f.pct}%` }} />
               </div>
-              <span className="text-xs font-semibold text-foreground w-16 text-right shrink-0">{f.count.toLocaleString()}</span>
+              <span className="text-xs font-semibold text-foreground text-right tabular-nums">{f.count.toLocaleString()}</span>
             </div>
           ))}
         </div>

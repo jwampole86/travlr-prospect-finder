@@ -51,24 +51,28 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
+type ProductShowcaseProps = {
+  presentation?: 'standard' | 'hero';
+};
 
 // Live, real-component "screenshots" of the product for the public landing page — avoids
 // stale/binary screenshot files by rendering actual dashboard/pipeline widgets (with
 // sanitized fixture data) plus sanitized mockups of the AI differentiator features.
-export default function ProductShowcase() {
+export default function ProductShowcase({ presentation = 'standard' }: ProductShowcaseProps) {
   const [active, setActive] = useState<TabId>('prospect');
   const activeTab = TABS.find((t) => t.id === active) ?? TABS[0];
   const ActiveBody = activeTab.body;
+  const isHero = presentation === 'hero';
 
   return (
-    <div>
+    <div className={isHero ? 'rounded-[1.35rem] border border-border bg-card/95 p-2 shadow-2xl shadow-primary/15 backdrop-blur' : undefined}>
       {/* Category selector */}
-      <div className="flex items-center justify-center gap-1.5 flex-wrap mb-6">
+      <div className={`flex items-center justify-center gap-1.5 flex-wrap ${isHero ? 'mb-4 px-2 pt-2' : 'mb-6'}`}>
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActive(tab.id)}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 rounded-full text-xs font-semibold transition-all ${isHero ? 'px-3 py-1.5' : 'px-3.5 py-2'} ${
               active === tab.id ? 'bg-foreground text-background shadow-md scale-[1.03]' : 'bg-muted text-muted-foreground hover:bg-muted/70'
             }`}
           >
@@ -79,21 +83,24 @@ export default function ProductShowcase() {
         ))}
       </div>
 
-      <div className="text-center mb-6 max-w-2xl mx-auto">
+      <div className={`text-center max-w-2xl mx-auto ${isHero ? 'mb-4 px-3' : 'mb-6'}`}>
         <h3 className="text-lg sm:text-xl font-bold text-foreground">{activeTab.headline}</h3>
-        <p className="mt-1.5 text-sm text-muted-foreground">{activeTab.copy}</p>
+        {!isHero && <p className="mt-1.5 text-sm text-muted-foreground">{activeTab.copy}</p>}
       </div>
 
       {/* Browser-frame showcase */}
-      <div className="rounded-2xl border border-border bg-card shadow-2xl shadow-primary/5 overflow-hidden">
+      <div className={`rounded-2xl border border-border bg-card shadow-2xl shadow-primary/5 overflow-hidden ${isHero ? 'shadow-none' : ''}`}>
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
           <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
           <span className="ml-3 text-[11px] text-muted-foreground truncate">app.vayoai.io</span>
         </div>
-        <div className="p-4 sm:p-5 bg-background">
-          <ActiveBody />
+        <div className={`${isHero ? 'p-3 sm:p-4' : 'p-4 sm:p-5'} bg-background`}>
+          <div className={isHero ? 'relative max-h-[540px] overflow-hidden sm:max-h-none' : undefined}>
+            <ActiveBody />
+            {isHero && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent sm:hidden" />}
+          </div>
           <p className="mt-4 text-[10px] text-muted-foreground text-center">Sample data shown for illustration purposes only.</p>
         </div>
       </div>

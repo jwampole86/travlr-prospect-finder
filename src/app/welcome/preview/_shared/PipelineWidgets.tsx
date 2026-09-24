@@ -31,17 +31,17 @@ export default function PipelineWidgets() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-3">
         <div className="bg-card rounded-xl border border-border p-3 text-center">
-          <p className="text-lg font-bold text-foreground">{summary.activeCount}</p>
+          <p className="text-lg font-bold text-foreground leading-tight">{summary.activeCount}</p>
           <p className="text-[10px] text-muted-foreground">Active Opportunities</p>
         </div>
         <div className="bg-card rounded-xl border border-border p-3 text-center">
-          <p className="text-lg font-bold text-foreground">${summary.pipelineValue.toLocaleString()}/mo</p>
+          <p className="text-base sm:text-lg font-bold text-foreground leading-tight break-words">${summary.pipelineValue.toLocaleString()}/mo</p>
           <p className="text-[10px] text-muted-foreground">Est. Pipeline Value</p>
         </div>
         <div className="bg-card rounded-xl border border-border p-3 text-center">
-          <p className="text-lg font-bold text-foreground">{summary.avgScore}</p>
+          <p className="text-lg font-bold text-foreground leading-tight">{summary.avgScore}</p>
           <p className="text-[10px] text-muted-foreground">Avg. Prospect Score</p>
         </div>
       </div>

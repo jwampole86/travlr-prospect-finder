@@ -22,9 +22,22 @@ const MODULES = [
 ];
 
 const PROOF_POINTS = [
-  'Built with operators in the Coachella Valley and multi-market STR teams',
-  'Designed around real homeowner acquisition, agent workflows, and compliance gates',
-  'Early operator feedback shaped the call workspace, scoring, and hiring tools',
+  'Live voice, SMS, email, AI, and data stack',
+  'Homeowner acquisition workflows',
+  'Operator-shaped call and hiring tools',
+];
+
+const FIELD_PROOF = [
+  {
+    label: 'Operational Proof',
+    stat: '5 live systems',
+    body: 'Twilio, Resend, Anthropic, Supabase, and Vercel are connected for real calling, messaging, AI assistance, auth, and deployment workflows.',
+  },
+  {
+    label: 'Workflow Proof',
+    stat: 'End-to-end agent loop',
+    body: 'Candidate intake, AI interview routing, follow-up teleprompters, lead scoring, assignments, and outreach history are wired into one operating path.',
+  },
 ];
 
 const OPERATOR_QUOTES = [
@@ -47,9 +60,11 @@ export default function WelcomePage() {
       <MarketingHeader />
 
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-16 pb-12">
-        <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-8 items-center">
-          <div className="text-center lg:text-left">
+      <section className="relative overflow-hidden border-b border-border bg-[linear-gradient(135deg,hsl(var(--background))_0%,hsl(var(--muted))_58%,hsl(var(--background))_100%)]">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border))_1px,transparent_1px)] bg-[size:56px_56px] opacity-30" />
+        <div className="relative max-w-7xl mx-auto px-5 sm:px-6 pt-14 sm:pt-16 pb-12">
+        <div className="grid lg:grid-cols-[0.78fr_1.22fr] gap-8 xl:gap-10 items-center">
+          <div className="min-w-0 text-center lg:text-left">
             <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">VAYO</p>
             <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">
               Find More High-Value Homeowners.<br className="hidden sm:block" /> Turn Them Into Management Contracts.
@@ -70,20 +85,33 @@ export default function WelcomePage() {
             </div>
             <div className="mt-6 flex flex-wrap justify-center lg:justify-start gap-2">
               {PROOF_POINTS.map((point) => (
-                <span key={point} className="text-[11px] font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground border border-border">{point}</span>
+                <span key={point} className="max-w-full text-center text-[11px] font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground border border-border leading-snug">{point}</span>
               ))}
             </div>
           </div>
-          <div className="rounded-3xl border border-border bg-card shadow-2xl shadow-primary/10 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              <span className="ml-3 text-[11px] text-muted-foreground truncate">vayo.ai/dashboard</span>
-            </div>
-            <div className="p-4 bg-background">
-              <ProductShowcase />
-            </div>
+          <div className="min-w-0 lg:-mr-8 xl:-mr-14">
+            <ProductShowcase presentation="hero" />
+          </div>
+        </div>
+        </div>
+      </section>
+
+      {/* Proof points */}
+      <section className="max-w-6xl mx-auto px-6 py-12">
+        <div className="grid md:grid-cols-[0.8fr_1.2fr] gap-6 items-start">
+          <div>
+            <p className="text-xs font-bold tracking-[0.18em] text-primary uppercase mb-3">Proof in the product</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">More than a concept deck.</h2>
+            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">The page now shows real operating proof without inventing customer names or logos before those permissions exist.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {FIELD_PROOF.map((proof) => (
+              <article key={proof.label} className="bg-card border border-border rounded-2xl p-5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">{proof.label}</p>
+                <p className="mt-2 text-xl font-bold text-foreground leading-tight">{proof.stat}</p>
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{proof.body}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
