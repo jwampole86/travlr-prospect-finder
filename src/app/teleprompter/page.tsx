@@ -1778,6 +1778,7 @@ function TeleprompterPageInner() {
   const [phase, setPhase] = useState<CallPhase>('setup');
   const [lead, setLead] = useState<LeadContext | null>(null);
   const candidateId = searchParams.get('candidateId') || undefined;
+  const candidateName = searchParams.get('candidateName') || undefined;
   const [candidateContext, setCandidateContext] = useState<CandidateFollowUpContext | null>(null);
   const [candidateContextLoading, setCandidateContextLoading] = useState(Boolean(candidateId));
 
@@ -1800,7 +1801,7 @@ function TeleprompterPageInner() {
   }, [candidateId]);
 
   const prefill = {
-    contactName: searchParams.get('contactName') || candidateContext?.candidate.fullName || undefined,
+    contactName: searchParams.get('contactName') || candidateContext?.candidate.fullName || candidateName || undefined,
     address: searchParams.get('address') || undefined,
     city: searchParams.get('city') || undefined,
     state: searchParams.get('state') || undefined,
@@ -1812,9 +1813,9 @@ function TeleprompterPageInner() {
       const requested = searchParams.get('scriptId') as ScriptId | null;
       return requested && requested !== 'candidate_next_steps' ? requested : undefined;
     })(),
-    candidateId,
-    roleTitle: candidateContext?.roleTitle,
-    interviewSummary: candidateContext?.interviewSummary,
+    candidateId: candidateId || (candidateName ? 'manual-candidate-follow-up' : undefined),
+    roleTitle: searchParams.get('roleTitle') || candidateContext?.roleTitle,
+    interviewSummary: candidateContext?.interviewSummary || (candidateName ? 'Manual candidate follow-up. Review the candidate tracker/interview notes before discussing offer details, compensation, and next steps.' : undefined),
     overallFit: candidateContext?.overallFit,
     hireRecommendation: candidateContext?.hireRecommendation,
   };

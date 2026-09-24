@@ -138,7 +138,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {/* Compliance footer */}
         <footer className="border-t border-border bg-card px-6 py-4 mt-auto">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-            <span className="text-foreground/60">© 2026 TRAVLR Inc.</span>
+            <span className="text-foreground/60">© 2026 VAYO Inc.</span>
             <Link href="/terms-of-service" className="hover:text-foreground transition-colors">Terms of Service</Link>
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
             <Link href="/tcpa-compliance" className="hover:text-foreground transition-colors">TCPA Compliance</Link>
