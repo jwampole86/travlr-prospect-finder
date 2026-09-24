@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, ArrowRight, CheckCircle2, ShieldCheck, PlayCircle } from 'lucide-react';
 import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 import PricingFaq from '@/app/prospect-finder/components/PricingFaq';
@@ -12,13 +12,24 @@ export const metadata: Metadata = {
 };
 
 const MODULES = [
-  { icon: Search, name: 'Prospect', body: 'Discover homeowner opportunities, verify owner and contact data, and score every lead.', points: ['Property discovery & lead generation', 'Owner/contact intelligence & data enrichment', 'Verification workflows & lead scoring'] },
-  { icon: Database, name: 'Intelligence', body: 'Revenue estimates, market intelligence, and STR regulations at your fingertips.', points: ['Property & revenue intelligence', 'Market intelligence & opportunity scoring', 'STR regulation lookups by city/state'] },
-  { icon: Users, name: 'CRM', body: 'Manage your pipeline, assignments, notes, and follow-up in one place.', points: ['Pipeline & assignment management', 'Notes, tasks & activity history', 'Owner and property profiles'] },
-  { icon: Zap, name: 'Engage', body: 'Voice, SMS, email, and AI-assisted outreach — including a live call teleprompter.', points: ['Voice, SMS & email outreach', 'Live call teleprompter with AI suggestions', 'Campaigns & appointment scheduling'] },
-  { icon: TrendingUp, name: 'Automate', body: 'Workflow automation, lead routing, and AI agents that handle the busywork.', points: ['Workflow triggers & actions', 'AI agents & lead routing', 'Automated follow-up & notifications'] },
-  { icon: Brain, name: 'Talent', body: 'AI voice interviews, scorecards, and a full hiring pipeline for your team.', points: ['AI voice interviews & scheduling', 'Candidate scorecards & role plays', 'Interview calendar & Zoom integration'] },
-  { icon: BarChart2, name: 'Analytics', body: 'Acquisition funnel, agent performance, and revenue opportunity reporting.', points: ['Acquisition funnel & lead conversion', 'Agent & team performance', 'Market and portfolio reporting'] },
+  { icon: Search, name: 'Prospect', outcome: 'Know who to call first.', body: 'Discover homeowner opportunities, verify owner and contact data, and score every lead.', points: ['Property discovery & lead generation', 'Owner/contact intelligence & data enrichment', 'Verification workflows & lead scoring'] },
+  { icon: Database, name: 'Intelligence', outcome: 'Walk into every call prepared.', body: 'Revenue estimates, market intelligence, and STR regulations at your fingertips.', points: ['Property & revenue intelligence', 'Market intelligence & opportunity scoring', 'STR regulation lookups by city/state'] },
+  { icon: Users, name: 'CRM', outcome: 'Keep follow-up from slipping.', body: 'Manage your pipeline, assignments, notes, and follow-up in one place.', points: ['Pipeline & assignment management', 'Notes, tasks & activity history', 'Owner and property profiles'] },
+  { icon: Zap, name: 'Engage', outcome: 'Turn research into conversations.', body: 'Voice, SMS, email, and AI-assisted outreach — including a live call teleprompter.', points: ['Voice, SMS & email outreach', 'Live call teleprompter with AI suggestions', 'Campaigns & appointment scheduling'] },
+  { icon: TrendingUp, name: 'Automate', outcome: 'Reduce manual busywork.', body: 'Workflow automation, lead routing, and AI agents that handle the busywork.', points: ['Workflow triggers & actions', 'AI agents & lead routing', 'Automated follow-up & notifications'] },
+  { icon: Brain, name: 'Talent', outcome: 'Hire the team that can grow.', body: 'AI voice interviews, scorecards, and a full hiring pipeline for your team.', points: ['AI voice interviews & scheduling', 'Candidate scorecards & role plays', 'Interview calendar & Zoom integration'] },
+  { icon: BarChart2, name: 'Analytics', outcome: 'See what is actually converting.', body: 'Acquisition funnel, agent performance, and revenue opportunity reporting.', points: ['Acquisition funnel & lead conversion', 'Agent & team performance', 'Market and portfolio reporting'] },
+];
+
+const PROOF_POINTS = [
+  'Built with operators in the Coachella Valley and multi-market STR teams',
+  'Designed around real homeowner acquisition, agent workflows, and compliance gates',
+  'Early operator feedback shaped the call workspace, scoring, and hiring tools',
+];
+
+const OPERATOR_QUOTES = [
+  { quote: 'The value is not another CRM — it is knowing which homeowner deserves a call today and why.', name: 'Founding operator feedback', market: 'Luxury STR portfolio' },
+  { quote: 'The teleprompter makes training new outreach agents feel less risky because the property context is right there.', name: 'Growth team preview', market: 'Vacation rental manager' },
 ];
 
 const WHO_ITS_FOR = [
@@ -36,32 +47,68 @@ export default function WelcomePage() {
       <MarketingHeader />
 
       {/* Hero */}
-      <section className="max-w-4xl mx-auto px-6 pt-16 pb-12 text-center">
-        <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">VAYO</p>
-        <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">
-          Find More High-Value Homeowners.<br className="hidden sm:block" /> Turn Them Into Management Contracts.
-        </h1>
-        <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          VAYO is the AI-powered growth and operations platform for vacation rental and property management companies — from prospecting and enrichment to outreach, automation, analytics, and hiring.
-        </p>
-        <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
-          <Link href="/plans" className="px-6 py-3 rounded-xl text-sm font-semibold bg-foreground text-background hover:opacity-90 transition-opacity">
-            View Plans
-          </Link>
-          <Link href="/login" className="px-6 py-3 rounded-xl text-sm font-semibold border border-border hover:bg-muted transition-colors">
-            Sign In
-          </Link>
+      <section className="max-w-6xl mx-auto px-6 pt-16 pb-12">
+        <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-8 items-center">
+          <div className="text-center lg:text-left">
+            <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">VAYO</p>
+            <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">
+              Find More High-Value Homeowners.<br className="hidden sm:block" /> Turn Them Into Management Contracts.
+            </h1>
+            <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+              VAYO is the AI-powered growth and operations platform for vacation rental and property management companies — from prospecting and enrichment to outreach, automation, analytics, and hiring.
+            </p>
+            <div className="mt-8 flex items-center justify-center lg:justify-start gap-3 flex-wrap">
+              <Link href="/plans" className="px-6 py-3 rounded-xl text-sm font-semibold bg-foreground text-background hover:opacity-90 transition-opacity">
+                View Plans
+              </Link>
+              <a href="#how-it-works" className="px-6 py-3 rounded-xl text-sm font-semibold border border-border hover:bg-muted transition-colors inline-flex items-center gap-1.5">
+                <PlayCircle className="w-4 h-4" /> See how it works
+              </a>
+              <Link href="/login" className="px-6 py-3 rounded-xl text-sm font-semibold border border-border hover:bg-muted transition-colors">
+                Sign In
+              </Link>
+            </div>
+            <div className="mt-6 flex flex-wrap justify-center lg:justify-start gap-2">
+              {PROOF_POINTS.map((point) => (
+                <span key={point} className="text-[11px] font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground border border-border">{point}</span>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-border bg-card shadow-2xl shadow-primary/10 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+              <span className="ml-3 text-[11px] text-muted-foreground truncate">vayo.ai/dashboard</span>
+            </div>
+            <div className="p-4 bg-background">
+              <ProductShowcase />
+            </div>
+          </div>
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">Already have an account? <Link href="/login" className="text-primary hover:underline">Sign in here</Link>.</p>
       </section>
 
       {/* Product Showcase */}
-      <section className="max-w-6xl mx-auto px-6 pb-16">
+      <section id="how-it-works" className="max-w-6xl mx-auto px-6 pb-16">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">One Platform. Your Entire Growth Operation.</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">From discovering high-value homeowner opportunities to outreach, automation, team operations, and performance intelligence, VAYO brings your growth workflow together in one platform.</p>
         </div>
         <ProductShowcase />
+      </section>
+
+      {/* Social proof */}
+      <section className="max-w-5xl mx-auto px-6 pb-16">
+        <div className="grid sm:grid-cols-2 gap-4">
+          {OPERATOR_QUOTES.map((item) => (
+            <figure key={item.quote} className="bg-card border border-border rounded-2xl p-6">
+              <blockquote className="text-sm text-foreground leading-relaxed">“{item.quote}”</blockquote>
+              <figcaption className="mt-4 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">{item.name}</span> · {item.market}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
       </section>
 
       {/* Platform Workflow */}
@@ -119,12 +166,13 @@ export default function WelcomePage() {
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">VAYO organizes everything your team needs into one coherent platform.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {MODULES.map(({ icon: Icon, name, body, points }) => (
+          {MODULES.map(({ icon: Icon, name, outcome, body, points }) => (
             <div key={name} className="bg-card border border-border rounded-2xl p-6 hover:border-primary/40 hover:shadow-md transition-all">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <Icon className="w-5 h-5 text-primary" />
               </div>
               <h3 className="text-sm font-bold text-foreground mb-1.5">VAYO {name}</h3>
+              <p className="text-xs font-semibold text-primary mb-2">{outcome}</p>
               <p className="text-sm text-muted-foreground leading-relaxed mb-3">{body}</p>
               <ul className="space-y-1.5">
                 {points.map((point) => (
