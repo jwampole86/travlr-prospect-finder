@@ -31,7 +31,7 @@ const CAPABILITIES = [
 ];
 
 const PRICING_REASSURANCE = [
-  'Built for operators building homeowner pipelines in the Coachella Valley and multi-market teams',
+  'Built for operators building homeowner pipelines across vacation rental markets',
   'Plan limits are shown upfront across users, portfolios, leads, enrichment, and AI interviews',
   'Business unlocks the operating layer; Enterprise unlocks the complete platform',
 ];
