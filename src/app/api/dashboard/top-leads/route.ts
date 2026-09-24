@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const state = searchParams.get('state');
   const limit = Math.min(parseInt(searchParams.get('limit') ?? '10', 10), 30);
-  const fetchLimit = Math.min(limit * 10, 100);
+  const fetchLimit = Math.min(Math.max(limit * 100, 100), 1000);
 
   try {
     // Server-side client: uses anon key + user session cookie (correct auth path)
