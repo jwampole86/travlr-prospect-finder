@@ -30,6 +30,18 @@ const CAPABILITIES = [
   { icon: Link2, title: 'Connect Your Systems', body: 'Integrate VAYO with the tools your team already relies on.' },
 ];
 
+const PRICING_REASSURANCE = [
+  'Built for operators building homeowner pipelines in the Coachella Valley and multi-market teams',
+  'Plan limits are shown upfront across users, portfolios, leads, enrichment, and AI interviews',
+  'Business unlocks the operating layer; Enterprise unlocks the complete platform',
+];
+
+const COMPLETENESS_SIGNALS = [
+  'AI interviews: limited on Pro, included on Business, complete on Enterprise',
+  'Automation: basic on Pro, advanced on Business, custom workflow controls on Enterprise',
+  'Analytics: Business adds advanced analytics; Enterprise includes the full analytics suite',
+];
+
 function AvailabilityCell({ value }: { value: FeatureAvailability }) {
   if (value === 'yes') return <Check className="w-4 h-4 text-primary mx-auto" aria-label="Included" />;
   if (value === 'limited') return <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Limited</span>;
@@ -357,6 +369,20 @@ export default function PlansPageClient() {
         </div>
       </section>
 
+      {/* Buyer reassurance */}
+      <section className="max-w-5xl mx-auto px-6 pb-8">
+        <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {PRICING_REASSURANCE.map((item) => (
+              <div key={item} className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm text-foreground leading-relaxed">{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
 
       {/* Pricing Cards */}
       <section id="pricing" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">
@@ -405,6 +431,13 @@ export default function PlansPageClient() {
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Compare Plans</h2>
           <p className="mt-2 text-sm text-muted-foreground">Enterprise is the only plan with full access to every VAYO feature category.</p>
+          <div className="mt-5 grid gap-2 sm:grid-cols-3 text-left">
+            {COMPLETENESS_SIGNALS.map((signal) => (
+              <div key={signal} className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs font-medium text-foreground leading-relaxed">
+                {signal}
+              </div>
+            ))}
+          </div>
         </div>
         <div className="hidden sm:block">
           <CategoryAccordion />
