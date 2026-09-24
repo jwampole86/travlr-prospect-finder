@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import HomeownerLayout from '../layout';
 import { FileText, Download, CheckCircle, Plus, X, Send, Shield, Eye, Clock, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
@@ -184,7 +183,7 @@ export default function HomeownerDocumentsPage() {
   const agreementSigned = agreementDoc?.session_status === 'completed';
 
   return (
-    <HomeownerLayout>
+    <>
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -445,6 +444,6 @@ export default function HomeownerDocumentsPage() {
           onClose={() => setSigningModal(null)}
         />
       )}
-    </HomeownerLayout>
+    </>
   );
 }

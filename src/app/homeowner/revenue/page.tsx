@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import HomeownerLayout from '../layout';
 import { DollarSign, Download, TrendingUp, Calendar, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@/lib/supabase/client';
@@ -97,17 +96,14 @@ export default function HomeownerRevenuePage() {
 
   if (loading) {
     return (
-      <HomeownerLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        </div>
-      </HomeownerLayout>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <HomeownerLayout>
-      <div className="p-4 sm:p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-5">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
@@ -213,7 +209,6 @@ export default function HomeownerRevenuePage() {
             </div>
           )}
         </div>
-      </div>
-    </HomeownerLayout>
+    </div>
   );
 }

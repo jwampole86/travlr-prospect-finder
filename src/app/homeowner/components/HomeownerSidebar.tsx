@@ -54,12 +54,12 @@ export default function HomeownerSidebar() {
     const load = async () => {
       const { data: propLinks } = await supabase
         .from('property_homeowners')
-        .select('id, lead_id, leads(property_address, city, state)')
+        .select('id, lead_id, leads(address, city, state)')
         .eq('homeowner_user_id', user.id);
 
       if (propLinks && propLinks.length > 0) {
         const mapped: PropertyOption[] = propLinks.map((pl: any) => {
-          const addr = pl.leads?.property_address || pl.lead_id;
+          const addr = pl.leads?.address || pl.lead_id;
           const abbr = addr.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
           return {
             id: pl.id,

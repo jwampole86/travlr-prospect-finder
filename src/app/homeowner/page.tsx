@@ -91,14 +91,14 @@ export default function HomeownerDashboardPage() {
       // Join leads to get address details
       const { data: propLinks } = await supabase
         .from('property_homeowners')
-        .select('id, lead_id, leads(id, property_address, city, state)')
+        .select('id, lead_id, leads(id, address, city, state)')
         .eq('homeowner_user_id', userRes.user.id);
 
       if (propLinks && propLinks.length > 0) {
         const mapped: Property[] = propLinks.map((pl: any) => ({
           id: pl.id,
           lead_id: pl.lead_id,
-          property_address: pl.leads?.property_address || pl.lead_id,
+          property_address: pl.leads?.address || pl.lead_id,
           city: pl.leads?.city || '',
           state: pl.leads?.state || '',
         }));

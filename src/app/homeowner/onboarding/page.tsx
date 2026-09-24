@@ -36,8 +36,9 @@ function HomeownerOnboardingContent() {
   const router = useRouter();
   const supabase = createClient();
 
-  const leadId = searchParams.get('leadId') ?? '';
+  const requestedLeadId = searchParams.get('leadId') ?? '';
   const stripeReturn = searchParams.get('stripe');
+  const [leadId, setLeadId] = useState(requestedLeadId);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -60,12 +61,24 @@ function HomeownerOnboardingContent() {
   const [addingBlackout, setAddingBlackout] = useState(false);
 
   const loadExisting = useCallback(async () => {
-    if (!leadId) { setLoading(false); return; }
+    let activeLeadId = leadId;
+    if (!activeLeadId) {
+      const { data: userRes } = await supabase.auth.getUser();
+      if (!userRes.user) { setLoading(false); return; }
+      const { data: propLinks } = await supabase
+        .from('property_homeowners')
+        .select('lead_id')
+        .eq('homeowner_user_id', userRes.user.id)
+        .limit(1);
+      activeLeadId = propLinks?.[0]?.lead_id ?? '';
+      if (activeLeadId) setLeadId(activeLeadId);
+    }
+    if (!activeLeadId) { setLoading(false); return; }
     try {
       const { data: existing } = await supabase
         .from('homeowner_onboarding')
         .select('*')
-        .eq('lead_id', leadId)
+        .eq('lead_id', activeLeadId)
         .maybeSingle();
 
       if (existing) {

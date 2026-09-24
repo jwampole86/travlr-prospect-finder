@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import HomeownerLayout from '../layout';
 import { Bell, CheckCheck, DollarSign, FileText, MessageSquare, Home, Loader2, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -88,8 +87,7 @@ export default function HomeownerNotificationsPage() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <HomeownerLayout>
-      <div className="p-4 sm:p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-5">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -177,7 +175,6 @@ export default function HomeownerNotificationsPage() {
             })}
           </div>
         )}
-      </div>
-    </HomeownerLayout>
+    </div>
   );
 }

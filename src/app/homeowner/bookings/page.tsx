@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import HomeownerLayout from '../layout';
 import { Calendar, ChevronLeft, ChevronRight, Users, DollarSign, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/ui/AppIcon';
@@ -79,17 +78,14 @@ export default function HomeownerBookingsPage() {
 
   if (loading) {
     return (
-      <HomeownerLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        </div>
-      </HomeownerLayout>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <HomeownerLayout>
-      <div className="p-4 sm:p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-5">
         {/* Header — stacks on mobile */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -228,7 +224,6 @@ export default function HomeownerBookingsPage() {
             </div>
           </div>
         )}
-      </div>
-    </HomeownerLayout>
+    </div>
   );
 }

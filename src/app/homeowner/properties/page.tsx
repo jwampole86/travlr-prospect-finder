@@ -233,7 +233,7 @@ export default function HomeownerPropertiesPage() {
 
         const { data: propLinks } = await supabase
           .from('property_homeowners')
-          .select('id, lead_id, leads(id, property_address, city, state, property_type)')
+          .select('id, lead_id, leads(id, address, city, state, property_type)')
           .eq('homeowner_user_id', user.user.id);
 
         if (!propLinks || propLinks.length === 0) throw new Error('No properties');
@@ -312,7 +312,7 @@ export default function HomeownerPropertiesPage() {
 
           return {
             id: p.lead_id,
-            property_address: lead?.property_address || p.lead_id,
+            property_address: lead?.address || p.lead_id,
             city: lead?.city || '',
             state: lead?.state || '',
             property_type: lead?.property_type || 'property',
