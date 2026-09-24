@@ -8,7 +8,7 @@ import { cacheGet, cacheSet, cacheDelete, cacheInvalidateAll, cacheIsStale, cach
 const VALID_BATH_VALUES = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5];
 
 function roundToValidBaths(value: number): number {
-  if (!value || isNaN(value)) return 2;
+  if (!value || isNaN(value)) return 0;
   return VALID_BATH_VALUES.reduce((prev, curr) =>
     Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
   );
@@ -46,16 +46,16 @@ function dbRowToLead(row: Record<string, unknown>): Lead {
     city: originalCity || '',
     state: originalState || '',
     zip: (row.zip as string) || '',
-    lat: (row.lat as number) || 39.7392,
-    lng: (row.lng as number) || -104.9903,
-    beds: (row.beds as number) || 3,
-    baths: roundToValidBaths((row.baths as number) || 2),
-    price: (row.price as number) || 2500,
+    lat: (row.lat as number) || 0,
+    lng: (row.lng as number) || 0,
+    beds: (row.beds as number) || 0,
+    baths: roundToValidBaths((row.baths as number) || 0),
+    price: (row.price as number) || 0,
     priceType: (row.price_type as 'sale' | 'rent') || 'rent',
     source: (row.source as Lead['source']) || 'Direct',
     stage: (row.stage as LeadStage) || 'New Lead',
     regulationStatus: (row.regulation_status as Lead['regulationStatus']) || 'Unknown',
-    prospectScore: (row.prospect_score as number) || 60,
+    prospectScore: (row.prospect_score as number) || 0,
     daysOnMarket: (row.days_on_market as number) || 0,
     lastChecked: (row.last_checked as string) || '',
     listingUrl: (row.listing_url as string) || '',
@@ -64,10 +64,10 @@ function dbRowToLead(row: Record<string, unknown>): Lead {
     contactPhone: (row.contact_phone as string) || (row.phone as string) || undefined,
     contactEmail: undefined,
     tags: (row.tags as string[]) || [],
-    estimatedADR: (row.estimated_adr as number) || 200,
-    estimatedOccupancy: (row.estimated_occupancy as number) || 65,
-    estimatedGrossMonthly: (row.estimated_gross_monthly as number) || 3960,
-    estimatedNetMonthly: (row.estimated_net_monthly as number) || 2772,
+    estimatedADR: (row.estimated_adr as number) || 0,
+    estimatedOccupancy: (row.estimated_occupancy as number) || 0,
+    estimatedGrossMonthly: (row.estimated_gross_monthly as number) || 0,
+    estimatedNetMonthly: (row.estimated_net_monthly as number) || 0,
     photos: (row.photos as string[]) || [],
     createdAt: (row.created_at as string) || '',
     updatedAt: (row.updated_at as string) || '',

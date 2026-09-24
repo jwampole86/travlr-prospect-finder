@@ -1,5 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
+
+function hasLeadFacts(row: Record<string, unknown>) {
+  return Boolean(
+    Number(row.beds || 0) > 0 ||
+    Number(row.baths || 0) > 0 ||
+    Number(row.price || 0) > 0 ||
+    Number(row.estimated_net_monthly || 0) > 0 ||
+    row.contact_phone ||
+    row.contact_name
+  );
+}
+
+function withAdjustedProspectScore(row: Record<string, unknown>) {
+  const calculated = calculateProspectScore({
+    estimatedNetMonthly: Number(row.estimated_net_monthly || 0),
+    price: Number(row.price || 0),
+    beds: Number(row.beds || 0),
+    baths: Number(row.baths || 0),
+    regulationStatus: String(row.regulation_status || 'Unknown'),
+    contactPhone: row.contact_phone ? String(row.contact_phone) : null,
+    stage: row.stage ? String(row.stage) : null,
+  }).score;
+  const stored = Number(row.prospect_score || 0);
+  const adjusted = hasLeadFacts(row) ? Math.min(stored || calculated, calculated) : calculated;
+  return { ...row, prospect_score: adjusted, raw_prospect_score: stored, score_needs_refresh: stored !== adjusted };
+}
 
 /**
  * GET /api/dashboard/top-leads?state=CA&limit=10
@@ -46,7 +73,11 @@ export async function GET(request: NextRequest) {
     const dbMs = Date.now() - dbStart;
 
     if (!rpcError && rpcData) {
-      const leads = (rpcData as unknown[]) ?? [];
+      const adjusted = ((rpcData as Record<string, unknown>[]) ?? []).map(withAdjustedProspectScore);
+      const factual = adjusted.filter(hasLeadFacts);
+      const leads = (factual.length >= Math.min(limit, 3) ? factual : adjusted)
+        .sort((a, b) => Number(b.prospect_score || 0) - Number(a.prospect_score || 0))
+        .slice(0, limit);
       const totalMs = Date.now() - start;
       return NextResponse.json(
         { leads, meta: { totalMs, dbMs, rows: leads.length, path: 'rpc' } },
@@ -107,8 +138,11 @@ export async function GET(request: NextRequest) {
     // Merge, deduplicate by id, re-sort, take top N
     const combined = [...(res1.data ?? []), ...(res2.data ?? [])];
     const deduped = Array.from(new Map(combined.map((r: Record<string, unknown>) => [r.id, r])).values());
-    deduped.sort((a: Record<string, unknown>, b: Record<string, unknown>) => ((b.prospect_score as number) ?? 0) - ((a.prospect_score as number) ?? 0));
-    const leads = deduped.slice(0, limit);
+    const adjusted = deduped.map(withAdjustedProspectScore);
+    const factual = adjusted.filter(hasLeadFacts);
+    const leads = (factual.length >= Math.min(limit, 3) ? factual : adjusted)
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => Number(b.prospect_score || 0) - Number(a.prospect_score || 0))
+      .slice(0, limit);
 
     const totalMs = Date.now() - start;
     return NextResponse.json(

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@supabase/supabase-js';
 import { requireApiActor } from '@/lib/auth/apiAuthorization';
+import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,6 +108,44 @@ function applyLeadFilters(query: any, params: LeadQueryParams) {
   else if (params.isSynthetic === false) filtered = filtered.or('is_synthetic.is.null,is_synthetic.eq.false');
 
   return filtered;
+}
+
+function hasLeadFacts(row: Record<string, unknown>) {
+  return Boolean(
+    Number(row.beds || 0) > 0 ||
+    Number(row.baths || 0) > 0 ||
+    Number(row.price || 0) > 0 ||
+    Number(row.estimated_net_monthly || 0) > 0 ||
+    Number(row.estimated_gross_monthly || 0) > 0 ||
+    row.contact_phone ||
+    row.contact_name ||
+    row.verified_owner ||
+    row.verified_number ||
+    row.verified_address
+  );
+}
+
+function withAdjustedProspectScore(row: Record<string, unknown>) {
+  const calculated = calculateProspectScore({
+    estimatedNetMonthly: Number(row.estimated_net_monthly || 0),
+    estimatedGrossMonthly: Number(row.estimated_gross_monthly || 0),
+    estimatedADR: Number(row.estimated_adr || 0),
+    price: Number(row.price || 0),
+    beds: Number(row.beds || 0),
+    baths: Number(row.baths || 0),
+    propertyType: String(row.property_type || ''),
+    regulationStatus: String(row.regulation_status || 'Unknown'),
+    verifiedOwner: Boolean(row.verified_owner),
+    verifiedNumber: Boolean(row.verified_number),
+    verifiedAddress: row.verified_address as string | boolean | null,
+    contactPhone: row.contact_phone ? String(row.contact_phone) : null,
+    stage: row.stage ? String(row.stage) : null,
+    daysOnMarket: typeof row.days_on_market === 'number' ? row.days_on_market : null,
+    luxury: Boolean(row.luxury),
+  }).score;
+  const stored = Number(row.prospect_score || 0);
+  const adjusted = hasLeadFacts(row) ? Math.min(stored || calculated, calculated) : calculated;
+  return { ...row, prospect_score: adjusted, raw_prospect_score: stored, score_needs_refresh: stored !== adjusted };
 }
 
 // ─── GET /api/leads/paginated ─────────────────────────────────────────────────
@@ -290,8 +329,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: bandCountError.message }, { status: 500 });
     }
 
+    const adjustedLeads = ((data || []) as unknown[]).map((row) => withAdjustedProspectScore(row as Record<string, unknown>));
+    if (dbSortKey === 'prospect_score') {
+      adjustedLeads.sort((a, b) => params.sortDir === 'asc'
+        ? Number(a.prospect_score || 0) - Number(b.prospect_score || 0)
+        : Number(b.prospect_score || 0) - Number(a.prospect_score || 0));
+    }
+
     const response = NextResponse.json({
-      leads: data || [],
+      leads: adjustedLeads,
       total: count ?? 0,
       page: params.page,
       pageSize: params.pageSize,
