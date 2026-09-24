@@ -276,17 +276,20 @@ export async function GET(req: NextRequest) {
     // ── Sort + Pagination ──────────────────────────────────────────────────
     const from = (params.page - 1) * params.pageSize;
     const to = from + params.pageSize - 1;
+    const adjustsProspectScoreSort = dbSortKey === 'prospect_score';
+    const queryFrom = adjustsProspectScoreSort ? 0 : from;
+    const queryTo = adjustsProspectScoreSort ? Math.min(params.page * params.pageSize * 5 - 1, 999) : to;
 
     // For luxury views: default sort is priority_tier ASC, then prospect_score DESC
     if (params.luxury === true && params.sortKey === 'prospect_score') {
       query = query
         .order('priority_tier', { ascending: true })
         .order('prospect_score', { ascending: false })
-        .range(from, to);
+        .range(queryFrom, queryTo);
     } else {
       query = query
         .order(dbSortKey, { ascending: params.sortDir === 'asc' })
-        .range(from, to);
+        .range(queryFrom, queryTo);
     }
 
     const countByBand = (minimum: number, maximum?: number) => {
@@ -330,14 +333,15 @@ export async function GET(req: NextRequest) {
     }
 
     const adjustedLeads = ((data || []) as unknown[]).map((row) => withAdjustedProspectScore(row as Record<string, unknown>));
-    if (dbSortKey === 'prospect_score') {
+    if (adjustsProspectScoreSort) {
       adjustedLeads.sort((a, b) => params.sortDir === 'asc'
         ? Number(a.prospect_score || 0) - Number(b.prospect_score || 0)
         : Number(b.prospect_score || 0) - Number(a.prospect_score || 0));
     }
+    const responseLeads = adjustsProspectScoreSort ? adjustedLeads.slice(from, to + 1) : adjustedLeads;
 
     const response = NextResponse.json({
-      leads: adjustedLeads,
+      leads: responseLeads,
       total: count ?? 0,
       page: params.page,
       pageSize: params.pageSize,

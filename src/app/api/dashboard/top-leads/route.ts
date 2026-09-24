@@ -7,9 +7,7 @@ function hasLeadFacts(row: Record<string, unknown>) {
     Number(row.beds || 0) > 0 ||
     Number(row.baths || 0) > 0 ||
     Number(row.price || 0) > 0 ||
-    Number(row.estimated_net_monthly || 0) > 0 ||
-    row.contact_phone ||
-    row.contact_name
+    Number(row.estimated_net_monthly || 0) > 0
   );
 }
 
@@ -56,6 +54,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const state = searchParams.get('state');
   const limit = Math.min(parseInt(searchParams.get('limit') ?? '10', 10), 30);
+  const fetchLimit = Math.min(limit * 10, 100);
 
   try {
     // Server-side client: uses anon key + user session cookie (correct auth path)
@@ -67,7 +66,7 @@ export async function GET(request: NextRequest) {
     // Primary path: exec_sql_top_leads RPC
     const { data: rpcData, error: rpcError } = await supabase.rpc('exec_sql_top_leads', {
       p_state: pState,
-      p_limit: limit,
+      p_limit: fetchLimit,
     });
 
     const dbMs = Date.now() - dbStart;
@@ -75,7 +74,7 @@ export async function GET(request: NextRequest) {
     if (!rpcError && rpcData) {
       const adjusted = ((rpcData as Record<string, unknown>[]) ?? []).map(withAdjustedProspectScore);
       const factual = adjusted.filter(hasLeadFacts);
-      const leads = (factual.length >= Math.min(limit, 3) ? factual : adjusted)
+      const leads = factual
         .sort((a, b) => Number(b.prospect_score || 0) - Number(a.prospect_score || 0))
         .slice(0, limit);
       const totalMs = Date.now() - start;
@@ -110,7 +109,7 @@ export async function GET(request: NextRequest) {
       .not('stage', 'in', `(${terminalStages.map(s => `"${s}"`).join(',')})`)
       .order('prospect_score', { ascending: false })
       .order('id', { ascending: true })
-      .limit(limit);
+      .limit(fetchLimit);
     if (pState) q1 = q1.eq('state', pState);
 
     // Query 2: is_synthetic = false
@@ -124,7 +123,7 @@ export async function GET(request: NextRequest) {
       .not('stage', 'in', `(${terminalStages.map(s => `"${s}"`).join(',')})`)
       .order('prospect_score', { ascending: false })
       .order('id', { ascending: true })
-      .limit(limit);
+      .limit(fetchLimit);
     if (pState) q2 = q2.eq('state', pState);
 
     const [res1, res2] = await Promise.all([q1, q2]);
@@ -140,7 +139,7 @@ export async function GET(request: NextRequest) {
     const deduped = Array.from(new Map(combined.map((r: Record<string, unknown>) => [r.id, r])).values());
     const adjusted = deduped.map(withAdjustedProspectScore);
     const factual = adjusted.filter(hasLeadFacts);
-    const leads = (factual.length >= Math.min(limit, 3) ? factual : adjusted)
+    const leads = factual
       .sort((a: Record<string, unknown>, b: Record<string, unknown>) => Number(b.prospect_score || 0) - Number(a.prospect_score || 0))
       .slice(0, limit);
 

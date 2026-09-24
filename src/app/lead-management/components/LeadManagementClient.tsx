@@ -228,6 +228,51 @@ function MobileScrollHint({ children }: { children: React.ReactNode }) {
   );
 }
 
+function PaginationControls({
+  currentPage,
+  totalPages,
+  pageSize,
+  total,
+  loading,
+  onPageChange,
+  compact = false,
+}: {
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  total: number;
+  loading: boolean;
+  onPageChange: (page: number) => void;
+  compact?: boolean;
+}) {
+  if (totalPages <= 1) return null;
+  const start = ((currentPage - 1) * pageSize) + 1;
+  const end = Math.min(currentPage * pageSize, total);
+  const firstVisiblePage = Math.max(1, Math.min(totalPages - 4, currentPage - 2));
+
+  return (
+    <div className={`flex flex-wrap items-center justify-between gap-2 ${compact ? 'px-3 py-2 bg-card border border-border rounded-xl' : 'px-1'}`}>
+      <p className="text-xs text-muted-foreground">
+        Showing {start}–{end} of {total.toLocaleString()} leads
+        {loading && <span className="ml-2 text-muted-foreground/60">Loading…</span>}
+      </p>
+      <div className="flex items-center gap-1">
+        <button onClick={() => onPageChange(1)} disabled={currentPage === 1} className="px-2 py-1 text-xs rounded border border-border bg-card hover:bg-muted disabled:opacity-40 transition-colors">«</button>
+        <button onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-2 py-1 text-xs rounded border border-border bg-card hover:bg-muted disabled:opacity-40 transition-colors">‹</button>
+        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => firstVisiblePage + i).map((page) => (
+          <button
+            key={page}
+            onClick={() => onPageChange(page)}
+            className={`px-2.5 py-1 text-xs rounded border transition-colors ${page === currentPage ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-card hover:bg-muted'}`}
+          >{page}</button>
+        ))}
+        <button onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="px-2 py-1 text-xs rounded border border-border bg-card hover:bg-muted disabled:opacity-40 transition-colors">›</button>
+        <button onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 text-xs rounded border border-border bg-card hover:bg-muted disabled:opacity-40 transition-colors">»</button>
+      </div>
+    </div>
+  );
+}
+
 export default function LeadManagementClient({
   initialLeads,
   totalLeads = 0,
@@ -275,6 +320,7 @@ export default function LeadManagementClient({
     all: number; csv: number; linkSync: number; multiSource: number;
   }>({ all: 0, csv: 0, linkSync: 0, multiSource: 0 });
   const [syncFailures, setSyncFailures] = useState<string[]>([]);
+  const leadListTopRef = useRef<HTMLDivElement | null>(null);
   // Agents for owner filter
   const [agents, setAgents] = useState<AgentOption[]>([]);
   // Assignment map: leadId → agentName
@@ -759,6 +805,15 @@ export default function LeadManagementClient({
   }, [filteredLeads, hotLeadsFirst]);
   const totalPages = serverTotalPages;
 
+  const goToPage = useCallback((page: number) => {
+    const nextPage = Math.max(1, Math.min(totalPages, page));
+    if (nextPage === currentPage) return;
+    setCurrentPage(nextPage);
+    window.requestAnimationFrame(() => {
+      leadListTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [currentPage, totalPages]);
+
   const handleSort = useCallback(
     (key: keyof Lead) => {
       if (key === sortKey) {
@@ -768,9 +823,9 @@ export default function LeadManagementClient({
         setSortDir('desc');
       }
       // Reset to page 1 when sort changes
-      setCurrentPage(1);
+      goToPage(1);
     },
-    [sortKey]
+    [sortKey, goToPage]
   );
 
   const handleStageChange = useCallback(async (id: string, stage: LeadStage) => {
@@ -1287,6 +1342,18 @@ export default function LeadManagementClient({
           />
         </div>
 
+        <div ref={leadListTopRef} className="mb-3 scroll-mt-24">
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={PAGE_SIZE}
+            total={serverTotal}
+            loading={serverLoading}
+            onPageChange={goToPage}
+            compact
+          />
+        </div>
+
         {/* ── Confidence Band Summary + Hot Leads Toggle ── */}
         <div className="mb-3 flex items-center justify-between gap-3 px-3 py-2.5 bg-card border border-border rounded-xl">
           <div className="flex items-center gap-3 flex-wrap">
@@ -1430,46 +1497,16 @@ export default function LeadManagementClient({
               />
             </MobileScrollHint>
             {/* Pagination controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 px-1">
-                <p className="text-xs text-muted-foreground">
-                  Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, serverTotal)} of {serverTotal.toLocaleString()} leads
-                  {serverLoading && <span className="ml-2 text-muted-foreground/60">Loading…</span>}
-                </p>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage === 1}
-                    className="px-2 py-1 text-xs rounded border border-border bg-card hover:bg-muted disabled:opacity-40 transition-colors"
-                  >«</button>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-2 py-1 text-xs rounded border border-border bg-card hover:bg-muted disabled:opacity-40 transition-colors"
-                  >‹</button>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`px-2.5 py-1 text-xs rounded border transition-colors ${page === currentPage ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-card hover:bg-muted'}`}
-                      >{page}</button>
-                    );
-                  })}
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-2 py-1 text-xs rounded border border-border bg-card hover:bg-muted disabled:opacity-40 transition-colors"
-                  >›</button>
-                  <button
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage === totalPages}
-                    className="px-2 py-1 text-xs rounded border border-border bg-card hover:bg-muted disabled:opacity-40 transition-colors"
-                  >»</button>
-                </div>
-              </div>
-            )}
+            <div className="mt-4">
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                pageSize={PAGE_SIZE}
+                total={serverTotal}
+                loading={serverLoading}
+                onPageChange={goToPage}
+              />
+            </div>
           </div>
         )}
       </div>
