@@ -1,30 +1,27 @@
 'use client';
 
-import type { LeadSource } from '@/data/mockLeads';
-
-
 // ─── Per-portfolio refresh sources ────────────────────────────────────────────
 
 export const REFRESH_SOURCES = [
   {
-    name: 'Zillow' as LeadSource,
-    url: 'https://www.zillow.com/denver-co/rentals/',
-    label: 'Zillow Denver Rentals',
+    name: 'Trulia',
+    url: '/trulia-source-health',
+    label: 'Trulia Source Integrity',
   },
   {
-    name: 'HotPads' as LeadSource,
-    url: 'https://hotpads.com/denver-co/for-rent-by-owner?isListedByOwner=true&maxCreated=720&orderBy=score',
-    label: 'HotPads Denver FSBO',
+    name: 'Direct',
+    url: '/lead-management',
+    label: 'Manual & Master Uploads',
   },
   {
-    name: 'Craigslist' as LeadSource,
-    url: 'https://www.craigslist.org/search/area/denver?cat=apa#search=2~gallery~0',
-    label: 'Craigslist Denver Apts',
+    name: 'MLS',
+    url: '/lead-management?source=MLS',
+    label: 'MLS / Licensed Sources',
   },
   {
-    name: 'Apartments.com' as LeadSource,
-    url: 'https://www.apartments.com/houses-condos-townhomes/denver-co/for-rent-by-owner/',
-    label: 'Apartments.com Denver FSBO',
+    name: 'PropertyReach',
+    url: '/contact-enrichment',
+    label: 'PropertyReach Enrichment',
   },
 ];
 
