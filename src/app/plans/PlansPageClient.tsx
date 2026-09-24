@@ -319,14 +319,22 @@ function CapabilityCard({ icon: Icon, title, body }: { icon: typeof Search; titl
 export default function PlansPageClient() {
   const { user } = useAuth();
   const isLoggedIn = Boolean(user);
-  const [selectedPlan, setSelectedPlan] = useState<PlanId>('business');
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>(() => {
+    if (typeof window !== 'undefined' && ['#plan-enterprise', '#enterprise'].includes(window.location.hash)) return 'enterprise';
+    return 'business';
+  });
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
   const cardRefs = useRef<Partial<Record<PlanId, HTMLDivElement | null>>>({});
 
   useEffect(() => {
     if (window.location.hash) {
+      const hash = window.location.hash.slice(1);
+      if (hash === 'plan-enterprise' || hash === 'enterprise') {
+        setSelectedPlan('enterprise');
+      }
+
       const scrollToHash = () => {
-        const target = document.getElementById(window.location.hash.slice(1));
+        const target = document.getElementById(hash);
         if (!target) return;
 
         const top = target.getBoundingClientRect().top + window.scrollY - 96;
