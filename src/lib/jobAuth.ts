@@ -10,7 +10,12 @@ const ADMIN_ROLES = ['admin', 'owner', 'operator', 'super_admin'];
  * 2. Logged-in admins — via their Supabase session cookie (no secret ever sent to the browser).
  */
 export async function verifyJobRequest(req: NextRequest): Promise<{ authorized: boolean; reason?: string }> {
-  const secrets = [process.env.SEQUENCE_JOB_SECRET, process.env.CRON_SECRET].filter((secret): secret is string => Boolean(secret));
+  // Placeholder env values (e.g. "your-sequence-job-secret-here") are truthy but must never
+  // be accepted as a real secret — otherwise the well-known placeholder string itself becomes
+  // a valid credential for every deployment that hasn't configured a real one yet.
+  const isRealSecret = (secret: string | undefined): secret is string =>
+    Boolean(secret) && !/your-|placeholder|changeme|example/i.test(secret!);
+  const secrets = [process.env.SEQUENCE_JOB_SECRET, process.env.CRON_SECRET].filter(isRealSecret);
   const headerSecret = req.headers.get('x-job-secret');
     const authorization = req.headers.get('authorization');
   if (secrets.some(secret => headerSecret === secret || authorization === `Bearer ${secret}`)) {

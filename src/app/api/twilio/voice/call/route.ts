@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTwilioConfigStatus } from '@/lib/services/twilioService';
-import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
+import { requireApiActor, requireLeadAccess } from '@/lib/auth/apiAuthorization';
 
 /**
  * Twilio Voice outbound call initiation endpoint.
@@ -25,9 +25,10 @@ export async function POST(req: NextRequest) {
     if (!to) {
       return NextResponse.json({ error: 'Missing required field: to' }, { status: 400 });
     }
-    if (!leadId) return NextResponse.json({ error: 'Missing required field: leadId' }, { status: 400 });
 
-    const authorization = await requireLeadAccess(req, leadId);
+    // leadId is optional — ad-hoc dialpad calls and candidate follow-up calls
+    // have no associated property lead, so fall back to plain authentication.
+    const authorization = leadId ? await requireLeadAccess(req, leadId) : await requireApiActor(req);
     if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
     const authorizedAgentId = authorization.actor.user.id;
 

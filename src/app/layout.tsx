@@ -15,6 +15,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com'),
   title: 'VAYO | AI-Powered Growth for Property Managers',
   description:
     'VAYO is the AI-powered growth and operations platform for vacation rental and property management companies.',
