@@ -59,7 +59,9 @@ function getTwilioAccountSid(): string | undefined {
   if (!sid) return undefined;
   // API Key SIDs start with SK — the actual Account SID must be in TWILIO_ACCOUNT_SID_MAIN
   if (sid.startsWith('SK')) {
-    return isConfiguredValue(process.env.TWILIO_ACCOUNT_SID_MAIN) ? process.env.TWILIO_ACCOUNT_SID_MAIN : undefined;
+    return isConfiguredValue(process.env.TWILIO_ACCOUNT_SID_MAIN)
+      ? process.env.TWILIO_ACCOUNT_SID_MAIN
+      : undefined;
   }
   return sid;
 }
@@ -73,11 +75,17 @@ export function getTwilioConfigStatus(): TwilioConfigStatus {
 
   const apiKeySidConfigured = isConfiguredValue(sid) && sid.startsWith('SK');
   const accountSidConfigured = isConfiguredValue(sid) && sid.startsWith('AC');
-  const apiAccountSidConfigured = apiKeySidConfigured ? isConfiguredValue(accountSidMain) && accountSidMain.startsWith('AC') : accountSidConfigured;
+  const apiAccountSidConfigured = apiKeySidConfigured
+    ? isConfiguredValue(accountSidMain) && accountSidMain.startsWith('AC')
+    : accountSidConfigured;
   const authTokenConfigured = isConfiguredValue(token);
   const fromNumberConfigured = isConfiguredValue(from);
   const twimlAppConfigured = isConfiguredValue(twimlAppSid) && twimlAppSid.startsWith('AP');
-  const authMode = apiKeySidConfigured ? 'api_key' : accountSidConfigured ? 'account_sid' : 'missing';
+  const authMode = apiKeySidConfigured
+    ? 'api_key'
+    : accountSidConfigured
+      ? 'account_sid'
+      : 'missing';
 
   const missing: string[] = [];
   if (!isConfiguredValue(sid)) missing.push('TWILIO_ACCOUNT_SID');
@@ -88,7 +96,8 @@ export function getTwilioConfigStatus(): TwilioConfigStatus {
 
   return {
     smsConfigured: apiAccountSidConfigured && authTokenConfigured && fromNumberConfigured,
-    voiceTokenConfigured: apiKeySidConfigured && apiAccountSidConfigured && authTokenConfigured && twimlAppConfigured,
+    voiceTokenConfigured:
+      apiKeySidConfigured && apiAccountSidConfigured && authTokenConfigured && twimlAppConfigured,
     voiceCallConfigured: apiAccountSidConfigured && authTokenConfigured && fromNumberConfigured,
     authMode,
     accountSidConfigured,
@@ -116,7 +125,9 @@ export async function dispatchSMS(payload: SMSDispatchPayload): Promise<SMSDispa
   const configured = isTwilioConfigured();
 
   if (!configured) {
-    console.info('[TwilioService] Placeholder mode — SMS not dispatched. Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER to activate.');
+    console.info(
+      '[TwilioService] Placeholder mode — SMS not dispatched. Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER to activate.'
+    );
     return {
       success: false,
       status: 'placeholder',
@@ -137,7 +148,8 @@ export async function dispatchSMS(payload: SMSDispatchPayload): Promise<SMSDispa
       success: false,
       status: 'failed',
       twilioConfigured: false,
-      error: 'Twilio API Key SID is configured, but TWILIO_ACCOUNT_SID_MAIN is missing. Set the parent AC... Account SID for REST API URLs.',
+      error:
+        'Twilio API Key SID is configured, but TWILIO_ACCOUNT_SID_MAIN is missing. Set the parent AC... Account SID for REST API URLs.',
     };
   }
 
@@ -217,5 +229,93 @@ export async function getSMSStatus(messageSid: string): Promise<{
     };
   } catch {
     return null;
+  }
+}
+// ─── Lookup v2 ────────────────────────────────────────────────────────────────
+
+export type LookupLineType =
+  | 'landline'
+  | 'mobile'
+  | 'fixedVoip'
+  | 'nonFixedVoip'
+  | 'personal'
+  | 'tollFree'
+  | 'premium'
+  | 'sharedCost'
+  | 'uan'
+  | 'voicemail'
+  | 'pager'
+  | 'unknown';
+
+export interface PhoneLookupResult {
+  valid: boolean;
+  phoneNumber: string;
+  nationalFormat?: string;
+  lineType: LookupLineType | null;
+  carrierName?: string;
+  callerName?: string | null;
+  lineStatus?: 'active' | 'inactive' | null;
+  twilioConfigured: boolean;
+  error?: string;
+}
+
+/**
+ * Twilio Lookup v2 — validates a number and returns line type (mobile/landline/VoIP),
+ * carrier, and caller name before sending SMS or placing a call.
+ * Verified live 2026-10-06: Basic Auth uses TWILIO_ACCOUNT_SID (even when it's an
+ * SK... API Key) paired with TWILIO_AUTH_TOKEN — unlike the Messages API, Lookup
+ * does NOT need the resolved AC... account SID in the URL path.
+ */
+export async function lookupPhoneNumber(phoneNumber: string): Promise<PhoneLookupResult> {
+  if (!isTwilioConfigured()) {
+    return {
+      valid: false,
+      phoneNumber,
+      lineType: null,
+      twilioConfigured: false,
+      error: 'Twilio is not configured.',
+    };
+  }
+
+  const accountSid = process.env.TWILIO_ACCOUNT_SID!;
+  const authToken = process.env.TWILIO_AUTH_TOKEN!;
+  const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+
+  try {
+    const response = await fetch(
+      `https://lookups.twilio.com/v2/PhoneNumbers/${encodeURIComponent(phoneNumber)}?Fields=line_type_intelligence,caller_name,line_status`,
+      { headers: { Authorization: `Basic ${credentials}` } }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        valid: false,
+        phoneNumber,
+        lineType: null,
+        twilioConfigured: true,
+        error: data.message || `Twilio Lookup error ${response.status}`,
+      };
+    }
+
+    return {
+      valid: Boolean(data.valid),
+      phoneNumber: data.phone_number || phoneNumber,
+      nationalFormat: data.national_format,
+      lineType: (data.line_type_intelligence?.type as LookupLineType) ?? null,
+      carrierName: data.line_type_intelligence?.carrier_name,
+      callerName: data.caller_name?.caller_name ?? null,
+      lineStatus: data.line_status?.status ?? null,
+      twilioConfigured: true,
+    };
+  } catch (err) {
+    return {
+      valid: false,
+      phoneNumber,
+      lineType: null,
+      twilioConfigured: true,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
   }
 }

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getTwilioConfigStatus } from '@/lib/services/twilioService';
 import { getResendConfigStatus } from '@/lib/email/resend';
 import { getDocuSignConfigStatus } from '@/lib/services/docusignService';
+import { getProviderHealth as getRentCastHealth } from '@/lib/services/rentcastService';
+import { getProviderHealth as getPropertyReachHealth } from '@/lib/services/propertyReachProvider';
 
 function configured(value: string | undefined): boolean {
   return Boolean(value && !/your-|placeholder|changeme|example|here/i.test(value));
@@ -15,6 +17,67 @@ function configured(value: string | undefined): boolean {
 export async function GET() {
   const batchDataConfigured = configured(process.env.BATCHDATA_API_KEY);
   const pdlConfigured = configured(process.env.PDL_API_KEY) || configured(process.env.NEXT_PUBLIC_PDL_API_KEY);
+
+  let batchDataStatus: 'operational' | 'degraded' | 'down' = 'down';
+  let batchDataMessage = 'BATCHDATA_API_KEY is not set';
+  if (batchDataConfigured) {
+    try {
+      const res = await fetch('https://api.batchdata.com/api/v1/property/lookup/all-attributes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.BATCHDATA_API_KEY}` },
+        body: JSON.stringify({ requests: [{ address: { street: '1600 Pennsylvania Ave NW', city: 'Washington', state: 'DC', zip: '20500' } }] }),
+        cache: 'no-store',
+      });
+      if (res.status === 401 || res.status === 403) {
+        const body = await res.json().catch(() => null);
+        const msg: string = body?.status?.message || '';
+        if (/insufficient balance/i.test(msg)) {
+          // Key is valid and the API is reachable — the account wallet is just empty.
+          batchDataStatus = 'degraded';
+          batchDataMessage = 'API key valid, but account balance is insufficient for live requests';
+        } else {
+          batchDataStatus = 'down';
+          batchDataMessage = msg || 'API key invalid or unauthorized';
+        }
+      } else if (res.ok) {
+        batchDataStatus = 'operational';
+        batchDataMessage = 'BatchData API is reachable';
+      } else {
+        batchDataStatus = 'degraded';
+        batchDataMessage = `BatchData returned HTTP ${res.status}`;
+      }
+    } catch (err) {
+      batchDataStatus = 'degraded';
+      batchDataMessage = err instanceof Error ? err.message : 'BatchData unreachable';
+    }
+  }
+
+  let pdlStatus: 'operational' | 'degraded' | 'down' = 'down';
+  let pdlMessage = 'PDL_API_KEY is not set';
+  if (pdlConfigured) {
+    try {
+      const key = process.env.PDL_API_KEY!;
+      const params = new URLSearchParams({ api_key: key, name: '__integration_health_check__', locality: 'nowhere', pretty: 'false' });
+      const res = await fetch(`https://api.peopledatalabs.com/v5/person/enrich?${params.toString()}`, {
+        headers: { 'X-Api-Key': key },
+        cache: 'no-store',
+      });
+      if (res.status === 401 || res.status === 403) {
+        pdlStatus = 'down';
+        pdlMessage = 'API key invalid or unauthorized';
+      } else if (res.status === 404 || res.ok) {
+        // 404 "no match" on a deliberately bogus name still proves the key authenticates.
+        pdlStatus = 'operational';
+        pdlMessage = 'PDL API is reachable';
+      } else {
+        pdlStatus = 'degraded';
+        pdlMessage = `PDL returned HTTP ${res.status}`;
+      }
+    } catch (err) {
+      pdlStatus = 'degraded';
+      pdlMessage = err instanceof Error ? err.message : 'PDL unreachable';
+    }
+  }
 
   const twilioStatus = getTwilioConfigStatus();
   let twilioReachable = false;
@@ -72,18 +135,26 @@ export async function GET() {
     }
   }
 
+  const rentcastHealth = await getRentCastHealth();
+  const propertyReachHealth = await getPropertyReachHealth();
+
   return NextResponse.json({
     checkedAt: new Date().toISOString(),
     integrations: {
       batchdata: {
         configured: batchDataConfigured,
-        status: batchDataConfigured ? 'operational' : 'down',
-        message: batchDataConfigured ? 'API key configured' : 'BATCHDATA_API_KEY is not set',
+        status: batchDataStatus,
+        message: batchDataMessage,
       },
       pdl: {
         configured: pdlConfigured,
-        status: pdlConfigured ? 'operational' : 'down',
-        message: pdlConfigured ? 'API key configured' : 'PDL_API_KEY is not set',
+        status: pdlStatus,
+        message: pdlMessage,
+      },
+      propertyreach: {
+        configured: propertyReachHealth.hasApiKey,
+        status: propertyReachHealth.status === 'ACTIVE' ? 'operational' : propertyReachHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: propertyReachHealth.message,
       },
       twilio: {
         configured: twilioStatus.smsConfigured,
@@ -111,6 +182,11 @@ export async function GET() {
           : docusignReachable
             ? 'DocuSign JWT auth validated'
             : docusignError || 'DocuSign connection failed',
+      },
+      rentcast: {
+        configured: rentcastHealth.hasApiKey,
+        status: rentcastHealth.status === 'ACTIVE' ? 'operational' : rentcastHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: rentcastHealth.message,
       },
     },
   }, { headers: { 'Cache-Control': 'no-store' } });

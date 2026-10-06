@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 
 /**
  * POST /api/enrichment/pdl-auto-enrich
@@ -25,30 +25,44 @@ async function callPDL(ownerName: string, city: string, state: string): Promise<
   if (!PDL_API_KEY || PDL_API_KEY === 'your-pdl-api-key-here') return null;
 
   try {
-    const params = new URLSearchParams({ api_key: PDL_API_KEY, pretty: 'false', size: '1' });
+    // Verified live 2026-10-06 against PDL's published docs: the real single-match
+    // lookup endpoint is /v5/person/enrich (NOT /person/search, which expects an
+    // Elasticsearch query DSL for bulk search, not simple name/location params).
+    // Input params are `locality`/`region` — `location_locality`/`location_region`
+    // are OUTPUT field names and are not accepted as request parameters.
+    const params = new URLSearchParams({ api_key: PDL_API_KEY, pretty: 'false' });
     if (ownerName) params.append('name', ownerName);
-    if (city) params.append('location_locality', city);
-    if (state) params.append('location_region', state);
+    if (city) params.append('locality', city);
+    if (state) params.append('region', state);
 
-    const res = await fetch(`https://api.peopledatalabs.com/v5/person/search?${params.toString()}`, {
+    const res = await fetch(`https://api.peopledatalabs.com/v5/person/enrich?${params.toString()}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json', 'X-Api-Key': PDL_API_KEY },
     });
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    const person = data?.data?.[0];
+    if (!res.ok) {
+      // 404 means PDL genuinely queried and found no matching person — a real
+      // (empty) result, not a service failure. Don't let the caller fall back
+      // to fake simulated contact data for a legitimate "no match" response.
+      if (res.status === 404) return { emails: [], phones: [] };
+      return null;
+    }
+    const body = await res.json();
+    // Response shape is { status, likelihood, data: {...} } — `data` is a single
+    // matched profile object, not an array, and `likelihood` is a sibling of
+    // `data` (1-10 integer), not a field inside it.
+    const person = body?.data;
     if (!person) return null;
 
-    const likelihood = person.likelihood ?? 0;
+    const likelihood = body.likelihood ?? 0;
     const conf = (l: number) => Math.min(Math.round(l * 10), 100);
 
     return {
-      emails: (person.emails || []).slice(0, 3).map((e: { address: string }) => ({
+      emails: (Array.isArray(person.emails) ? person.emails : []).slice(0, 3).map((e: { address: string }) => ({
         email: e.address,
         confidence: conf(likelihood),
       })),
-      phones: (person.phone_numbers || []).slice(0, 3).map((p: string) => ({
+      phones: (Array.isArray(person.phone_numbers) ? person.phone_numbers : []).slice(0, 3).map((p: string) => ({
         number: p,
         type: 'mobile',
         confidence: conf(likelihood),
@@ -72,7 +86,7 @@ function simulatePDL(ownerName: string): PDLContacts {
 }
 
 export async function POST() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 1. Find leads scoring >= 70
   const { data: leads, error: leadsErr } = await supabase

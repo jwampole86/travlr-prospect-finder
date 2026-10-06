@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { useChatUnreadCount } from '@/lib/hooks/useChatUnreadCount';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import HelpChatPanel from '@/components/HelpChatPanel';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -43,6 +44,7 @@ const adminNavGroups: NavGroup[] = [
       { key: 'nav-map', label: 'Map View', href: '/map-view', icon: Map, badge: null },
       { key: 'nav-agent-field-view', label: 'Field View (Mobile)', href: '/agent-field-view', icon: Navigation, badge: null },
       { key: 'nav-time-clock', label: 'Time Clock', href: '/time-clock', icon: Clock, badge: null },
+      { key: 'nav-team-chat', label: 'Team Chat', href: '/team-chat', icon: MessageCircle, badge: null },
       { key: 'nav-agent-profile', label: 'My Profile & Prefs', href: '/agent-profile', icon: UserCheck, badge: null },
       { key: 'nav-system-health', label: 'System Health', href: '/system-health', icon: Globe, badge: null },
     ],
@@ -253,6 +255,7 @@ const agentNavGroups: NavGroup[] = [
       { key: 'nav-agent-workspace', label: 'My Dashboard', href: '/agent-workspace', icon: LayoutDashboard, badge: null },
       { key: 'nav-agent-my-leads', label: 'My Leads', href: '/agent-my-leads', icon: List, badge: null },
       { key: 'nav-time-clock', label: 'Time Clock', href: '/time-clock', icon: Clock, badge: null },
+      { key: 'nav-team-chat', label: 'Team Chat', href: '/team-chat', icon: MessageCircle, badge: null },
       { key: 'nav-agent-followups', label: 'Follow-Ups', href: '/agent-my-leads?filter=followup', icon: Calendar, badge: null },
     ],
   },
@@ -316,6 +319,7 @@ function NavGroupSection({
   const [open, setOpen] = useState(defaultOpen);
   const GroupIcon = group.icon;
   const hasActive = group.items.some((item) => pathname === item.href);
+  const chatUnread = useChatUnreadCount();
 
   if (collapsed) {
     // In collapsed mode show only icons, highlight if group has active item
@@ -324,6 +328,7 @@ function NavGroupSection({
         {group.items.map((item) => {
           const ItemIcon = item.icon;
           const isActive = pathname === item.href;
+          const showChatDot = item.key === 'nav-team-chat' && chatUnread > 0;
           return (
             <Link
               key={item.key}
@@ -335,6 +340,9 @@ function NavGroupSection({
               }`}
             >
               <ItemIcon size={15} className="shrink-0" />
+              {showChatDot && (
+                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-danger" />
+              )}
             </Link>
           );
         })}
@@ -363,6 +371,7 @@ function NavGroupSection({
           {group.items.map((item) => {
             const ItemIcon = item.icon;
             const isActive = pathname === item.href;
+            const chatBadge = item.key === 'nav-team-chat' && chatUnread > 0 ? (chatUnread > 99 ? '99+' : String(chatUnread)) : item.badge;
             return (
               <Link
                 key={item.key}
@@ -376,9 +385,9 @@ function NavGroupSection({
               >
                 <ItemIcon size={13} className="shrink-0" />
                 <span className="truncate">{item.label}</span>
-                {item.badge && (
-                  <span className="ml-auto text-[9px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                    {item.badge}
+                {chatBadge && (
+                  <span className={`ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${item.key === 'nav-team-chat' && chatUnread > 0 ? 'bg-danger/10 text-danger' : 'bg-primary/10 text-primary'}`}>
+                    {chatBadge}
                   </span>
                 )}
               </Link>

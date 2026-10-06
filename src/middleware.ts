@@ -148,6 +148,7 @@ const ADMIN_ONLY_API_ROUTES = [
   '/api/enrichment/salesgenie',
   '/api/enrichment/batchdata',
   '/api/enrichment/pdl-auto-enrich',
+  '/api/listings/rentcast',
   '/api/hubspot',
   '/api/docusign',
   '/api/stripe',

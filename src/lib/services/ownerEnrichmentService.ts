@@ -275,9 +275,12 @@ export const batchDataProvider: OwnerEnrichmentProvider = {
       return { verified: false, provider: 'BATCHDATA' };
     }
     try {
-      const res = await fetch('https://api.batchdata.com/api/v1/property/lookup', {
+      // Verified live 2026-10-06: /property/lookup (previous path) 404s.
+      // /property/lookup/all-attributes is the real endpoint (confirmed via a
+      // 403 Insufficient balance response, not a 404, with a valid key).
+      const res = await fetch('https://api.batchdata.com/api/v1/property/lookup/all-attributes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
           requests: [{
             address: { street: input.address, city: input.city, state: input.state, zip: input.zip },
@@ -310,15 +313,19 @@ export const batchDataProvider: OwnerEnrichmentProvider = {
     const apiKey = process.env.BATCHDATA_API_KEY;
     if (!apiKey || apiKey === 'your-batchdata-api-key-here') return [];
     try {
-      const res = await fetch('https://api.batchdata.com/api/v1/person/search', {
+      // Verified live 2026-10-06: /person/search (previous path) 404s. BatchData's
+      // real contact-discovery endpoint is /property/skip-trace (confirmed via a
+      // 403 Insufficient balance response, not a 404, with a valid key) — it
+      // covers both owner identity and phone/email discovery for an address.
+      const [firstName, ...rest] = (input.fullName || '').trim().split(/\s+/);
+      const res = await fetch('https://api.batchdata.com/api/v1/property/skip-trace', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
-          name: input.fullName,
-          address: input.propertyAddress,
-          city: input.city,
-          state: input.state,
-          zip: input.zip,
+          requests: [{
+            propertyAddress: { street: input.propertyAddress, city: input.city, state: input.state, zip: input.zip },
+            ...(firstName ? { name: { first: firstName, last: rest.join(' ') } } : {}),
+          }],
         }),
       });
       if (!res.ok) return [];
@@ -345,15 +352,19 @@ export const batchDataProvider: OwnerEnrichmentProvider = {
     const apiKey = process.env.BATCHDATA_API_KEY;
     if (!apiKey || apiKey === 'your-batchdata-api-key-here') return [];
     try {
-      const res = await fetch('https://api.batchdata.com/api/v1/person/phone', {
+      // Verified live 2026-10-06: /person/phone (previous path) 404s. Phone
+      // discovery for an owner comes from the same /property/skip-trace endpoint
+      // used in searchOwner above (confirmed real via a 403 Insufficient balance
+      // response, not a 404).
+      const [firstName, ...rest] = (input.fullName || '').trim().split(/\s+/);
+      const res = await fetch('https://api.batchdata.com/api/v1/property/skip-trace', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
-          name: input.fullName,
-          address: input.propertyAddress,
-          city: input.city,
-          state: input.state,
-          zip: input.zip,
+          requests: [{
+            propertyAddress: { street: input.propertyAddress, city: input.city, state: input.state, zip: input.zip },
+            ...(firstName ? { name: { first: firstName, last: rest.join(' ') } } : {}),
+          }],
         }),
       });
       if (!res.ok) return [];

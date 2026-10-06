@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTwilioConfigStatus } from '@/lib/services/twilioService';
+import { getTwilioConfigStatus, lookupPhoneNumber } from '@/lib/services/twilioService';
 import { requireApiActor, requireLeadAccess } from '@/lib/auth/apiAuthorization';
 
 /**
@@ -110,6 +110,41 @@ export async function POST(req: NextRequest) {
       }
     }
     // ── End DNC Check ─────────────────────────────────────────────────────────
+
+    // ── Twilio Lookup pre-call validation ────────────────────────────────────
+    // Unlike SMS, calls can reach any line type (mobile/landline/VoIP) — only
+    // block on a definitive "invalid number" result. Fails OPEN if Lookup itself
+    // errors/is unconfigured, same rationale as the SMS send route.
+    const lookup = await lookupPhoneNumber(to);
+    if (lookup.twilioConfigured && lookup.valid === false) {
+      if (leadId) {
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          serviceRoleKey && !serviceRoleKey.includes('your-supabase-service-role-key')
+            ? serviceRoleKey
+            : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        await supabase.from('outreach_history').insert({
+          lead_id: leadId,
+          agent_id: authorizedAgentId,
+          channel: 'call',
+          status: 'blocked_invalid_number',
+          message_body: `Outbound call to ${to} blocked — Twilio Lookup reports this number is invalid`,
+          sent_at: new Date().toISOString(),
+        }).then(undefined, () => {});
+      }
+
+      return NextResponse.json(
+        {
+          error: 'Call blocked — Twilio Lookup reports this number is invalid',
+          status: 'blocked_invalid_number',
+          leadId,
+        },
+        { status: 422 }
+      );
+    }
+    // ── End Lookup Check ──────────────────────────────────────────────────────
 
     // Voice SDK Device connections handle the actual dial themselves via the
     // TwiML App's Voice URL — this request is only validating DNC status first.

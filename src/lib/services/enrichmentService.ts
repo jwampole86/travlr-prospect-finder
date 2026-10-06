@@ -267,72 +267,37 @@ export const enrichmentService = {
       called_at: new Date().toISOString(),
     });
 
-    // ─── Real PDL API call ────────────────────────────────────────────────────
-    const pdlApiKey = process.env.NEXT_PUBLIC_PDL_API_KEY || process.env.PDL_API_KEY;
-
+    // ─── PDL contact enrichment ───────────────────────────────────────────────
+    // Calls the server-side /api/enrichment/pdl route — keeps PDL_API_KEY off
+    // the client entirely (previously fetched peopledatalabs.com directly from
+    // this 'use client' file using NEXT_PUBLIC_PDL_API_KEY, which would have
+    // exposed the key to anyone inspecting network traffic).
     let pdlContacts: {
       emails: { email: string; confidence: number }[];
       phones: { number: string; type: string; confidence: number }[];
     } | null = null;
+    let isLive = false;
 
-    if (pdlApiKey && pdlApiKey !== 'your-pdl-api-key-here') {
-      try {
-        // Build search params from owner data
-        const ownerName = existing.owner_name || '';
-        const ownerCity = existing.owner_mailing_city || '';
-        const ownerState = existing.owner_mailing_state || '';
-
-        const params = new URLSearchParams({
-          api_key: pdlApiKey,
-          pretty: 'false',
-          size: '1',
-        });
-
-        if (ownerName) params.append('name', ownerName);
-        if (ownerCity) params.append('location_locality', ownerCity);
-        if (ownerState) params.append('location_region', ownerState);
-
-        const pdlRes = await fetch(
-          `https://api.peopledatalabs.com/v5/person/search?${params.toString()}`,
-          {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Api-Key': pdlApiKey,
-            },
-          }
-        );
-
-        if (pdlRes.ok) {
-          const pdlData = await pdlRes.json();
-          const person = pdlData?.data?.[0];
-
-          if (person) {
-            const likelihood = person.likelihood ?? 0; // 0–10 scale from PDL
-
-            // Map PDL likelihood (0-10) to confidence percentage (0-100)
-            const confidenceFromLikelihood = (likelihood: number) => Math.min(Math.round(likelihood * 10), 100);
-
-            pdlContacts = {
-              emails: (person.emails || []).slice(0, 3).map((e: { address: string }) => ({
-                email: e.address,
-                confidence: confidenceFromLikelihood(likelihood),
-              })),
-              phones: (person.phone_numbers || []).slice(0, 3).map((p: string) => ({
-                number: p,
-                type: 'mobile',
-                confidence: confidenceFromLikelihood(likelihood),
-              })),
-            };
-          }
-        }
-      } catch (pdlError) {
-        // PDL call failed — fall through to simulation
-        console.warn('[PDL Stage 2] API call failed, using simulation:', pdlError);
+    try {
+      const pdlRes = await fetch('/api/enrichment/pdl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ownerName: existing.owner_name || '',
+          city: existing.owner_mailing_city || '',
+          state: existing.owner_mailing_state || '',
+        }),
+      });
+      if (pdlRes.ok) {
+        const data = await pdlRes.json();
+        pdlContacts = data.contacts;
+        isLive = !data.simulated;
       }
+    } catch (pdlError) {
+      console.warn('[PDL Stage 2] API route call failed, using simulation:', pdlError);
     }
 
-    // Fall back to simulation if PDL key missing or call failed
+    // Fall back to simulation if the route call failed outright
     if (!pdlContacts) {
       pdlContacts = {
         emails: [
@@ -395,7 +360,6 @@ export const enrichmentService = {
 
     if (error) return { success: false, message: `Stage 2 failed: ${error.message}` };
 
-    const isLive = pdlApiKey && pdlApiKey !== 'your-pdl-api-key-here';
     return {
       success: true,
       message: isLive

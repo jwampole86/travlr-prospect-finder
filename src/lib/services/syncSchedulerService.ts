@@ -164,11 +164,22 @@ export async function runScheduledSyncs(
   const schedules = await loadSyncSchedules(userId);
   const now = new Date();
 
+  // A sync that's been "running" longer than this was almost certainly abandoned
+  // (e.g. the tab was closed/navigated away mid-sync, so the try/catch that would
+  // reset status to 'success'/'failed' never ran). Without this, a single
+  // interrupted run would permanently wedge that source's schedule — it would
+  // never be picked up again, since `status === 'running'` short-circuits every
+  // future check. Treat a stale lock as abandoned and retry it.
+  const STALE_RUNNING_MS = 10 * 60 * 1000; // 10 minutes — generous for a sync that normally completes in seconds
+
   for (const schedule of schedules) {
     const nextSync = schedule.next_sync_at ? new Date(schedule.next_sync_at) : null;
     const isDue = !nextSync || now >= nextSync;
 
-    if (!isDue || schedule.status === 'running') continue;
+    const isStaleRunningLock =
+      schedule.status === 'running' && now.getTime() - new Date(schedule.updated_at).getTime() > STALE_RUNNING_MS;
+
+    if (!isDue || (schedule.status === 'running' && !isStaleRunningLock)) continue;
 
     // Mark as running
     await supabase

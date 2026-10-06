@@ -125,23 +125,34 @@ function getApiKey(): string | null {
 }
 
 async function prFetch(
+  method: 'GET' | 'POST',
   endpoint: string,
-  body: Record<string, unknown>
+  params: Record<string, unknown>
 ): Promise<{ ok: boolean; data: Record<string, unknown> | null; status: number }> {
   const apiKey = getApiKey();
   if (!apiKey) {
     return { ok: false, data: null, status: 401 };
   }
 
+  // Drop undefined/empty values so GET query strings and POST bodies stay clean.
+  const clean: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') clean[k] = v;
+  }
+
+  let url = `${PR_BASE_URL}${endpoint}`;
+  if (method === 'GET' && Object.keys(clean).length > 0) {
+    url += `?${new URLSearchParams(clean as Record<string, string>).toString()}`;
+  }
+
   try {
-    const res = await fetch(`${PR_BASE_URL}${endpoint}`, {
-      method: 'POST',
+    const res = await fetch(url, {
+      method,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'X-API-Key': apiKey,
+        'x-api-key': apiKey,
       },
-      body: JSON.stringify(body),
+      ...(method === 'POST' ? { body: JSON.stringify(clean) } : {}),
       signal: AbortSignal.timeout(15000),
     });
 
@@ -160,6 +171,10 @@ async function prFetch(
 }
 
 // ─── Address lookup / property search ────────────────────────────────────────
+// Verified live 2026-10-06 via PropertyReach's interactive API walkthrough:
+// GET /v1/property accepts EITHER propertyId OR streetAddress+city+state+zip+apn
+// as alternative lookup keys, and returns a single `property` object (not a
+// `results` array like the old /property/search guess assumed).
 
 export async function findProperty(
   address: string,
@@ -173,30 +188,23 @@ export async function findProperty(
     return { status: 'PROVIDER_ERROR' };
   }
 
-  const { ok, data } = await prFetch('/property/search', {
-    address,
+  const { ok, data } = await prFetch('GET', '/property', {
+    streetAddress: address,
     city,
     state,
     zip,
-    ...(apn ? { apn } : {}),
+    apn,
   });
 
   if (!ok || !data) {
     return { status: 'PROVIDER_ERROR' };
   }
 
-  // Normalize PropertyReach response
-  const results = (data.results as Record<string, unknown>[] | undefined) || [];
-  if (results.length === 0) {
+  const prop = data.property as Record<string, unknown> | undefined;
+  if (!prop) {
     return { status: 'PROPERTY_NOT_FOUND' };
   }
 
-  if (results.length > 1) {
-    // Multiple matches — ambiguous
-    return { status: 'PROPERTY_MATCH_AMBIGUOUS' };
-  }
-
-  const prop = results[0] as Record<string, unknown>;
   const normalized = normalizePropertyReachResponse(prop);
 
   // Verify address components match canonical input
@@ -220,12 +228,15 @@ export async function findProperty(
 export async function getPropertyDetails(
   propertyReachId: string
 ): Promise<PropertyReachPropertyResult | null> {
-  const { ok, data } = await prFetch('/property/details', { propertyId: propertyReachId });
-  if (!ok || !data) return null;
-  return normalizePropertyReachResponse(data as Record<string, unknown>);
+  const { ok, data } = await prFetch('GET', '/property', { propertyId: propertyReachId });
+  if (!ok || !data || !data.property) return null;
+  return normalizePropertyReachResponse(data.property as Record<string, unknown>);
 }
 
 // ─── Skip trace / owner contact enrichment ───────────────────────────────────
+// Verified live 2026-10-06: POST /v1/skip-trace, body wrapped under `target`,
+// response has top-level `persons[]` (firstName/middleName/lastName), `phones[]`,
+// `emails[]` — not the previously-guessed flat body / `owners` response shape.
 
 export async function skipTraceProperty(
   propertyReachId: string,
@@ -241,13 +252,15 @@ export async function skipTraceProperty(
   rawOwnerResponse?: Record<string, unknown>;
   rawContactResponse?: Record<string, unknown>;
 }> {
-  const { ok, data } = await prFetch('/property/skip-trace', {
-    propertyId: propertyReachId,
-    address,
-    city,
-    state,
-    zip,
-    ...(apn ? { apn } : {}),
+  const { ok, data } = await prFetch('POST', '/skip-trace', {
+    target: {
+      propertyId: propertyReachId || undefined,
+      streetAddress: address,
+      city,
+      state,
+      zip,
+      apn,
+    },
   });
 
   if (!ok || !data) {
@@ -262,7 +275,7 @@ export async function skipTraceProperty(
     ownerCandidates: owners,
     phoneCandidates: phones,
     emailCandidates: emails,
-    rawOwnerResponse: (data.owners as Record<string, unknown>) || data,
+    rawOwnerResponse: (data.persons as Record<string, unknown>) || data,
     rawContactResponse: (data.contacts as Record<string, unknown>) || data,
   };
 }
@@ -309,6 +322,34 @@ function normalizeOwnerType(raw?: string): OwnerType {
 }
 
 function normalizeOwnerCandidates(data: Record<string, unknown>): PropertyReachOwnerCandidate[] {
+  // Real skip-trace response field is `persons[]` (firstName/middleName/lastName,
+  // no combined fullName) — fall back to older guessed shapes just in case.
+  const rawPersons = data.persons as Record<string, unknown>[] | undefined;
+  if (rawPersons) {
+    return rawPersons.map((p: Record<string, unknown>) => {
+      const fullName = [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ');
+      const ownerType = normalizeOwnerType(p.ownerType as string);
+      const isEntity = ['LLC', 'TRUST', 'CORPORATION', 'PARTNERSHIP', 'OTHER_ENTITY'].includes(ownerType);
+      return {
+        fullName,
+        firstName: p.firstName as string | undefined,
+        middleName: p.middleName as string | undefined,
+        lastName: p.lastName as string | undefined,
+        ownerType,
+        mailingAddress: p.mailingAddress as string | undefined,
+        mailingCity: p.mailingCity as string | undefined,
+        mailingState: p.mailingState as string | undefined,
+        mailingZip: p.mailingZip as string | undefined,
+        providerRelationship: p.relationship as string | undefined,
+        providerConfidence: p.confidence as number | undefined,
+        sourceRecordId: (p.id as string) || (p.recordId as string) || undefined,
+        isEntity,
+        legalOwnerName: isEntity ? fullName : undefined,
+        associatedContactName: isEntity ? ((p.associatedContact as string) || undefined) : undefined,
+      };
+    });
+  }
+
   const rawOwners =
     (data.owners as Record<string, unknown>[]) ||
     (data.ownerCandidates as Record<string, unknown>[]) ||
@@ -586,10 +627,13 @@ export async function getProviderHealth(): Promise<{
   }
 
   try {
-    const res = await fetch(`${PR_BASE_URL}/health`, {
+    // Verified live 2026-10-06: the real auto-complete endpoint is GET
+    // /v1/suggestions?query=... (confirmed via PropertyReach's interactive API
+    // walkthrough) — the previously-guessed GET /health does not exist.
+    const res = await fetch(`${PR_BASE_URL}/suggestions?query=Denver`, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${apiKey}`, 'X-API-Key': apiKey },
-      signal: AbortSignal.timeout(5000),
+      headers: { 'x-api-key': apiKey },
+      signal: AbortSignal.timeout(8000),
     });
 
     if (res.status === 401 || res.status === 403) {

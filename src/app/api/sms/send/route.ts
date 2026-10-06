@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { dispatchSMS, getTwilioConfigStatus, isTwilioConfigured } from '@/lib/services/twilioService';
+import { dispatchSMS, getTwilioConfigStatus, isTwilioConfigured, lookupPhoneNumber } from '@/lib/services/twilioService';
 import { injectTrackedLinks } from '@/lib/services/linkTrackingService';
 import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 
@@ -95,7 +95,36 @@ export async function POST(req: NextRequest) {
       );
     }
     // ─────────────────────────────────────────────────────────────────────────
+    // ─── Twilio Lookup pre-send validation ─────────────────────────────────────
+    // Block sends to numbers Twilio says are invalid, or landlines (which cannot
+    // receive SMS at all). Fails OPEN if Lookup itself errors/is unconfigured —
+    // a Lookup outage should not halt all outreach the way a DNC violation would.
+    const lookup = await lookupPhoneNumber(to);
+    if (lookup.twilioConfigured && (lookup.valid === false || lookup.lineType === 'landline')) {
+      const blockReason = lookup.valid === false ? 'Twilio Lookup reports this number is invalid' : 'Number is a landline and cannot receive SMS';
+      await supabase.from('outreach_history').insert({
+        lead_id: leadId,
+        channel: 'sms',
+        template_id: templateId ?? null,
+        sequence_step_id: sequenceStepId ?? null,
+        agent_id: authorization.actor.user.id,
+        status: 'blocked_invalid_number',
+        sent_at: new Date().toISOString(),
+        metadata: { to, block_reason: blockReason, line_type: lookup.lineType, bulk_batch: bulkBatch ?? false },
+      });
 
+      return NextResponse.json(
+        {
+          success: false,
+          status: 'blocked_invalid_number',
+          error: `SMS blocked: ${blockReason}.`,
+          lineType: lookup.lineType,
+          twilioConfigured: isTwilioConfigured(),
+        },
+        { status: 422 }
+      );
+    }
+    // ────────────────────────────────────────────────────────────────────────────────
     // Inject tracked short links into the message body
     const { body: trackedMessage, tokens } = await injectTrackedLinks(message, {
       leadId,

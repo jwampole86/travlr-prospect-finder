@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 
 // ─── BatchData Property Owner Enrichment API ──────────────────────────────────
 // Called on new lead intake to fetch owner name, mailing address, and ownership type.
@@ -7,6 +7,10 @@ import { createClient } from '@/lib/supabase/client';
 
 const BATCHDATA_API_KEY = process.env.BATCHDATA_API_KEY ?? '';
 const BATCHDATA_BASE_URL = 'https://api.batchdata.com/api/v1';
+// Verified live against BatchData's API 2026-10-06 — /property/owner (previous
+// path) 404s. /property/lookup/all-attributes is real (403 Insufficient balance
+// with a valid key). Response field names below are a best-effort mapping and
+// should be re-checked against a real 200 response once the account has balance.
 const CACHE_DAYS = 90;
 
 interface BatchDataOwnerResult {
@@ -64,13 +68,13 @@ async function callBatchDataAPI(address: string): Promise<BatchDataOwnerResult |
   }
 
   try {
-    const res = await fetch(`${BATCHDATA_BASE_URL}/property/owner`, {
+    const res = await fetch(`${BATCHDATA_BASE_URL}/property/lookup/all-attributes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${BATCHDATA_API_KEY}`,
       },
-      body: JSON.stringify({ address }),
+      body: JSON.stringify({ requests: [{ address: { street: address } }] }),
     });
 
     if (!res.ok) return null;
@@ -105,7 +109,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'leadId and address required' }, { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Check cache — skip if enriched within 90 days
     const { data: existing } = await supabase
