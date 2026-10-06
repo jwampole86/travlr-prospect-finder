@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RefreshCw, CheckCircle2, AlertTriangle, XCircle, Clock, ExternalLink, Database } from 'lucide-react';
 import { REFRESH_SOURCES, getLastRefreshTime } from '@/lib/services/leadsRefreshService';
 import { createClient } from '@/lib/supabase/client';
@@ -82,6 +82,9 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
   const [sources, setSources] = useState<SourceStatus[]>([]);
   const [portfolioLeadCount, setPortfolioLeadCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount] = useState(false);
+  // Only the very first fetch shows the spinner — subsequent refetches (fired
+  // on every realtime leads INSERT) update the count in place to avoid blinking.
+  const leadCountLoadedOnceRef = useRef(false);
   const { selectedPortfolio } = usePortfolio();
   const supabase = createClient();
 
@@ -186,7 +189,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
 
   // Fetch lead count for the currently selected portfolio from the DB
   const fetchPortfolioLeadCount = useCallback(async () => {
-    setLoadingCount(true);
+    if (!leadCountLoadedOnceRef.current) setLoadingCount(true);
     try {
       let query = supabase
         .from('leads')
@@ -202,6 +205,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
       setPortfolioLeadCount(null);
     } finally {
       setLoadingCount(false);
+      leadCountLoadedOnceRef.current = true;
     }
   }, [selectedPortfolio, supabase]);
 
