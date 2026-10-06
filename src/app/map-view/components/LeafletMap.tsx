@@ -33,6 +33,8 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
   const mapInstanceRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markersRef = useRef<Map<string, any>>(new Map());
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clusterGroupRef = useRef<any>(null);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -46,7 +48,7 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
     }
 
     // BACKEND: Replace static leads with live data from /api/leads?view=map
-    import('leaflet').then((L) => {
+    Promise.all([import('leaflet'), import('leaflet.markercluster')]).then(([L]) => {
       if (!mapRef.current || cancelled) return;
 
       // Clear any Leaflet state left on the DOM node (must happen inside async callback)
@@ -79,6 +81,17 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
       mapInstanceRef.current = map;
 
       requestAnimationFrame(() => map.invalidateSize({ animate: false }));
+
+      // Cluster markers — rendering thousands of individual markers directly on
+      // the map is what made the page freeze/take forever; clustering keeps
+      // DOM/render work proportional to visible clusters, not total lead count.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const clusterGroup = (L as any).markerClusterGroup({
+        chunkedLoading: true,
+        spiderfyOnMaxZoom: true,
+        maxClusterRadius: 60,
+      });
+      clusterGroupRef.current = clusterGroup;
 
       // Add markers for the current lead set
       const bounds: [number, number][] = [];
@@ -116,7 +129,6 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
         });
 
         const marker = L.marker([lead.lat, lead.lng], { icon })
-          .addTo(map)
           .bindPopup(`
             <div style="font-family: system-ui; min-width: 180px;">
               <strong style="font-size: 13px;">${escapeHtml(lead.address)}</strong>
@@ -135,8 +147,11 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
           onSelect(lead);
         });
 
+        clusterGroup.addLayer(marker);
         markersRef.current.set(lead.id, marker);
       });
+
+      map.addLayer(clusterGroup);
 
       if (bounds.length === 1) {
         map.setView(bounds[0], 12);
@@ -152,6 +167,7 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
         markersRef.current.clear();
+        clusterGroupRef.current = null;
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -171,9 +187,15 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
     if (!mapInstanceRef.current || !selectedId) return;
     const lead = leads.find((l) => l.id === selectedId);
     if (lead && lead.lat != null && lead.lng != null && !isNaN(lead.lat) && !isNaN(lead.lng)) {
-      mapInstanceRef.current.flyTo([lead.lat, lead.lng], 15, { duration: 0.8 });
       const marker = markersRef.current.get(selectedId);
-      if (marker) marker.openPopup();
+      // Clustered markers aren't directly on the map — zoomToShowLayer spiderfies/zooms
+      // the cluster open before the popup is shown. Falls back to flyTo if unavailable.
+      if (marker && clusterGroupRef.current?.zoomToShowLayer) {
+        clusterGroupRef.current.zoomToShowLayer(marker, () => marker.openPopup());
+      } else {
+        mapInstanceRef.current.flyTo([lead.lat, lead.lng], 15, { duration: 0.8 });
+        if (marker) marker.openPopup();
+      }
     }
   }, [selectedId, leads]);
 
@@ -181,6 +203,8 @@ export default function LeafletMap({ leads, selectedId, onSelect }: LeafletMapPr
     <>
       <style>{`
         @import url('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css');
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css');
         .leaflet-container {
           font-family: var(--font-sans);
           height: 100%;

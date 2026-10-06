@@ -89,7 +89,12 @@ export const KPI_METRIC_DEFINITIONS: Record<MetricId, KpiMetricDefinition> = {
     label: 'Avg Score',
     description: 'Average prospect_score over all real prospects with score > 0',
     canonicalDefinition: 'ROUND(AVG(prospect_score)) WHERE is_synthetic IS NOT TRUE AND prospect_score > 0 — server-side via get_canonical_avg_score RPC (full population, no row cap, no joins, one row per lead)',
-    tolerance: 0,
+    // Tolerance of 1: the Dashboard's displayed avg is a snapshot from its last
+    // fetch, while the KPI Monitor re-queries live. Over a 160k+ row population,
+    // ongoing score recalculation can tip ROUND(AVG(...)) by exactly 1 point
+    // between the two fetch times with no underlying bug — that is expected
+    // drift, not a divergence. A gap of 2+ still flags as a real issue.
+    tolerance: 1,
     clickThroughFilter: '/tools',
   },
   ACTION_NEEDED: {
@@ -213,192 +218,62 @@ async function withRetry<T>(operation: () => Promise<T>, attempts = 3): Promise<
  *   data changed. The fallback path in useDashboardLeads also used .limit(100)
  *   which produced a biased sample. Both are now fixed.
  *   Tolerance reduced to 0 — both sides must return the same integer value.
+ *
+ * RLS FALSE-DIVERGENCE FIX (20261006000000):
+ *   Total Leads/High Priority/Action Needed/Unassigned Priority/STR-Eligible all
+ *   showed Dashboard > DB Count by a consistent margin. Root cause: this function
+ *   used plain supabase-js .select(..., {count:'exact'}) queries through PostgREST,
+ *   which ARE subject to the portfolio-scoped RLS policy on public.leads. Any
+ *   session not recognized as unrestricted admin undercounts vs. the Dashboard,
+ *   whose get_dashboard_summary RPC is SECURITY DEFINER and bypasses RLS entirely.
+ *   Fix: all counts (and AVG_SCORE) now come from get_canonical_kpi_counts() /
+ *   get_canonical_avg_score() — SECURITY DEFINER RPCs that bypass RLS the same
+ *   way the Dashboard RPC does, so both sides compare the same unrestricted
+ *   population.
  */
 export async function fetchCanonicalKpiCounts(
   pState?: string | null
 ): Promise<Record<MetricId, number> & { error?: string }> {
   const supabase = createClient();
-  const ps = pState && pState !== 'all' ? pState : null;
+  const ps = pState && pState !== 'all' ? pState : 'all';
 
   try {
-    const [
-      totalRes,
-      highPriRes,
-      actionNeededRes,
-      fullyVerifiedRes,
-      phoneAvailableRes,
-      unassignedRes,
-      assignedRes,
-      activePipelineRes,
-      // STR Eligible: Allowed OR Restricted (same as Dashboard card)
-      strEligibleRes,
-      // AVG_SCORE: recent scored sample fallback — avoids monitor-wide failure
-      // when the full-population avg RPC is timing out under database pressure.
-      avgScoreRes,
-    ] = await withRetry(async () => {
+    const [countsRes, avgScoreRes] = await withRetry(async () => {
       const responses = await Promise.all([
-      // TOTAL_LEADS
-      (() => {
-        let q = supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .or('is_synthetic.is.null,is_synthetic.eq.false');
-        if (ps) q = q.eq('state', ps);
-        return q;
-      })(),
-
-      // HIGH_PRIORITY: score >= 75, not terminal
-      (() => {
-        let q = supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .or('is_synthetic.is.null,is_synthetic.eq.false')
-          .gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD)
-          .not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`);
-        if (ps) q = q.eq('state', ps);
-        return q;
-      })(),
-
-      // ACTION_NEEDED: score >= 75, New Lead
-      (() => {
-        let q = supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .or('is_synthetic.is.null,is_synthetic.eq.false')
-          .gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD)
-          .eq('stage', 'New Lead');
-        if (ps) q = q.eq('state', ps);
-        return q;
-      })(),
-
-      // FULLY_VERIFIED
-      (() => {
-        let q = supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .or('is_synthetic.is.null,is_synthetic.eq.false')
-          .eq('verified_owner', true)
-          .eq('verified_number', true)
-          .not('verified_address', 'is', null)
-          .neq('verified_address', '')
-          .neq('verified_address', 'false');
-        if (ps) q = q.eq('state', ps);
-        return q;
-      })(),
-
-      // PHONE_AVAILABLE: canonical contact_phone field
-      (() => {
-        let q = supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .or('is_synthetic.is.null,is_synthetic.eq.false')
-          .not('contact_phone', 'is', null)
-          .neq('contact_phone', '');
-        if (ps) q = q.eq('state', ps);
-        return q;
-      })(),
-
-      // UNASSIGNED_PRIORITY: high priority base + primary_agent_id IS NULL
-      (() => {
-        let q = supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .or('is_synthetic.is.null,is_synthetic.eq.false')
-          .gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD)
-          .not('stage', 'in', `("${TERMINAL_STAGES.join('","')}")`)
-          .is('primary_agent_id', null);
-        if (ps) q = q.eq('state', ps);
-        return q;
-      })(),
-
-      // ASSIGNED: primary_agent_id IS NOT NULL
-      (() => {
-        let q = supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .or('is_synthetic.is.null,is_synthetic.eq.false')
-          .not('primary_agent_id', 'is', null);
-        if (ps) q = q.eq('state', ps);
-        return q;
-      })(),
-
-      // ACTIVE_PIPELINE
-      (() => {
-        let q = supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .or('is_synthetic.is.null,is_synthetic.eq.false')
-          .in('stage', [...ACTIVE_PIPELINE_STAGES]);
-        if (ps) q = q.eq('state', ps);
-        return q;
-      })(),
-
-      // STR_ELIGIBLE: Allowed OR Restricted — same as Dashboard card "Allowed or restricted"
-      // NOTE: This is NOT the same as regulation_status = 'Allowed' only.
-      // "Fully Allowed" (Allowed only) = 591. "STR Eligible" (Allowed+Restricted) = 4,763.
-      // The KPI Monitor MUST compare this metric against Allowed+Restricted, not Allowed-only.
-      (() => {
-        let q = supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .or('is_synthetic.is.null,is_synthetic.eq.false')
-          .in('regulation_status', ['Allowed', 'Restricted']);
-        if (ps) q = q.eq('state', ps);
-        return q;
-      })(),
-
-      // AVG_SCORE fallback: use a recent scored sample instead of failing the
-      // entire monitor when the canonical AVG RPC hits statement_timeout.
-      (() => {
-        let q = supabase
-          .from('leads')
-          .select('prospect_score')
-          .or('is_synthetic.is.null,is_synthetic.eq.false')
-          .gt('prospect_score', 0)
-          .order('updated_at', { ascending: false })
-          .limit(1000);
-        if (ps) q = q.eq('state', ps);
-        return q;
-      })(),
+        supabase.rpc('get_canonical_kpi_counts', { p_state: ps }),
+        supabase.rpc('get_canonical_avg_score', { p_state: ps }),
       ]);
       const failedResponse = responses.find(response => response.error);
       if (failedResponse?.error) throw failedResponse.error;
       return responses;
     });
 
-    // Extract avg_score from RPC response
-    let canonicalAvgScore = 0;
-    if (avgScoreRes.error) {
-      console.error('[fetchCanonicalKpiCounts] avg score sample query error:', avgScoreRes.error);
-      canonicalAvgScore = -1; // signal query failure
-    } else {
-      const rows = (avgScoreRes.data as { prospect_score?: number }[] | null) ?? [];
-      canonicalAvgScore = rows.length > 0
-        ? Math.round(rows.reduce((sum, row) => sum + Number(row.prospect_score || 0), 0) / rows.length)
-        : 0;
-      console.log('[fetchCanonicalKpiCounts] AVG_SCORE from recent scored sample:', canonicalAvgScore);
-    }
+    const counts = (countsRes.data ?? {}) as Record<string, number>;
+    const avgScoreBody = (avgScoreRes.data ?? {}) as Record<string, number>;
 
-    // Validate counts — a null count means the query failed, not that the count is 0
-    const safeCount = (res: { count: number | null; error: unknown }, metricId: string): number => {
-      if (res.error) {
-        console.error(`[fetchCanonicalKpiCounts] ${metricId} query error:`, res.error);
+    const safeCount = (value: number | undefined, metricId: string): number => {
+      if (countsRes.error || value === undefined || value === null) {
+        console.error(`[fetchCanonicalKpiCounts] ${metricId} missing from get_canonical_kpi_counts response`);
         return -1; // -1 signals a query failure (not a real zero)
       }
-      return res.count ?? 0;
+      return Number(value);
     };
 
+    const canonicalAvgScore = avgScoreRes.error
+      ? -1
+      : Number(avgScoreBody.avg_score ?? 0);
+
     return {
-      TOTAL_LEADS: safeCount(totalRes, 'TOTAL_LEADS'),
-      HIGH_PRIORITY: safeCount(highPriRes, 'HIGH_PRIORITY'),
+      TOTAL_LEADS: safeCount(counts.total_leads, 'TOTAL_LEADS'),
+      HIGH_PRIORITY: safeCount(counts.high_priority, 'HIGH_PRIORITY'),
       AVG_SCORE: canonicalAvgScore,
-      ACTION_NEEDED: safeCount(actionNeededRes, 'ACTION_NEEDED'),
-      FULLY_VERIFIED: safeCount(fullyVerifiedRes, 'FULLY_VERIFIED'),
-      PHONE_AVAILABLE: safeCount(phoneAvailableRes, 'PHONE_AVAILABLE'),
-      UNASSIGNED_PRIORITY: safeCount(unassignedRes, 'UNASSIGNED_PRIORITY'),
-      ASSIGNED: safeCount(assignedRes, 'ASSIGNED'),
-      ACTIVE_PIPELINE: safeCount(activePipelineRes, 'ACTIVE_PIPELINE'),
-      STR_ELIGIBLE: safeCount(strEligibleRes, 'STR_ELIGIBLE'),
+      ACTION_NEEDED: safeCount(counts.action_needed, 'ACTION_NEEDED'),
+      FULLY_VERIFIED: safeCount(counts.fully_verified, 'FULLY_VERIFIED'),
+      PHONE_AVAILABLE: safeCount(counts.phone_available, 'PHONE_AVAILABLE'),
+      UNASSIGNED_PRIORITY: safeCount(counts.unassigned_priority, 'UNASSIGNED_PRIORITY'),
+      ASSIGNED: safeCount(counts.assigned, 'ASSIGNED'),
+      ACTIVE_PIPELINE: safeCount(counts.active_pipeline, 'ACTIVE_PIPELINE'),
+      STR_ELIGIBLE: safeCount(counts.str_eligible, 'STR_ELIGIBLE'),
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

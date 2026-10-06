@@ -10,7 +10,11 @@ import { Suspense } from 'react';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const MAP_PAGE_SIZE = 1000;
+// Rendering all 160k+ leads as individual markers made the map take 30s+ to
+// load (164 sequential paginated queries server-side, then one DOM marker per
+// row). Cap to the highest-priority leads — a single indexed query, instant
+// load, and still every lead worth acting on is visible on the map.
+const MAP_PAGE_SIZE = 2000;
 
 const CITY_CENTERS: Record<string, { lat: number; lng: number }> = {
   'alhambra,ca': { lat: 34.0953, lng: -118.1270 },
@@ -77,18 +81,18 @@ async function fetchLeadsForMap(): Promise<Lead[]> {
     );
     const rows: Record<string, unknown>[] = [];
 
-    for (let offset = 0; ; offset += MAP_PAGE_SIZE) {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('id, address, city, state, zip, lat, lng, beds, baths, price, price_type, source, stage, regulation_status, prospect_score, days_on_market, last_checked, listing_url, contact_name, contact_phone, notes, tags, estimated_adr, estimated_occupancy, estimated_gross_monthly, estimated_net_monthly, photos, created_at, updated_at')
-        .or('is_synthetic.is.null,is_synthetic.eq.false')
-        .order('prospect_score', { ascending: false })
-        .range(offset, offset + MAP_PAGE_SIZE - 1);
+    // Single indexed query (ordered by prospect_score, capped) instead of
+    // looping through every page of the full leads table.
+    const { data, error } = await supabase
+      .from('leads')
+      .select('id, address, city, state, zip, lat, lng, beds, baths, price, price_type, source, stage, regulation_status, prospect_score, days_on_market, last_checked, listing_url, contact_name, contact_phone, notes, tags, estimated_adr, estimated_occupancy, estimated_gross_monthly, estimated_net_monthly, photos, created_at, updated_at')
+      .or('is_synthetic.is.null,is_synthetic.eq.false')
+      .order('prospect_score', { ascending: false })
+      .limit(MAP_PAGE_SIZE);
 
-      if (error) throw error;
-      rows.push(...((data || []) as Record<string, unknown>[]));
-      if (!data || data.length < MAP_PAGE_SIZE) break;
-    }
+    if (error) throw error;
+    rows.push(...((data || []) as Record<string, unknown>[]));
+
 
     if (rows.length === 0) return [];
 

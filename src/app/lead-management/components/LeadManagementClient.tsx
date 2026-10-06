@@ -63,6 +63,8 @@ export interface FilterState {
   priceMin: string;
   priceMax: string;
   scoreMin: string;
+  // Confidence band facet filter: subset of ['hot','warm','cold']. Empty or all 3 = no filter.
+  confidenceBands?: string[];
   // Date range
   dateFrom: string;
   dateTo: string;
@@ -99,6 +101,7 @@ export const defaultFilters: FilterState = {
   sources: [],
   regulationStatuses: [],
   scoreMin: '',
+  confidenceBands: [],
   stages: [],
   dateFrom: '',
   dateTo: '',
@@ -376,6 +379,7 @@ export default function LeadManagementClient({
       if (currentFilters.priceMin) params.set('priceMin', currentFilters.priceMin);
       if (currentFilters.priceMax) params.set('priceMax', currentFilters.priceMax);
       if (currentFilters.scoreMin) params.set('scoreMin', currentFilters.scoreMin);
+      currentFilters.confidenceBands?.forEach(b => params.append('bands', b));
       if (currentFilters.dateFrom) params.set('dateFrom', currentFilters.dateFrom);
       if (currentFilters.dateTo) params.set('dateTo', currentFilters.dateTo);
       currentFilters.cities?.forEach(c => params.append('cities', c));
@@ -1359,10 +1363,16 @@ export default function LeadManagementClient({
           <div className="flex items-center gap-3 flex-wrap">
             {(['hot', 'warm', 'cold'] as const).map(band => {
               const count = bandCounts[band];
+              const active = (filters.confidenceBands ?? []).includes(band);
               const colors: Record<string, string> = {
                 hot: 'text-orange-600 bg-orange-500/10 border-orange-500/20',
                 warm: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
                 cold: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
+              };
+              const activeColors: Record<string, string> = {
+                hot: 'text-white bg-orange-600 border-orange-600',
+                warm: 'text-white bg-amber-600 border-amber-600',
+                cold: 'text-white bg-blue-500 border-blue-500',
               };
               const icons: Record<string, React.ReactNode> = {
                 hot: <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2c0 0-4 4-4 8.5C8 14.5 9.5 16 12 16s4-1.5 4-5.5C16 6 12 2 12 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>,
@@ -1370,13 +1380,38 @@ export default function LeadManagementClient({
                 cold: <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M22 11h-4.17l3.24-3.24-1.41-1.42L15 11h-2V9l4.66-4.66-1.42-1.41L13 6.17V2h-2v4.17L7.76 2.93 6.34 4.34 11 9v2H9L4.34 6.34 2.93 7.76 6.17 11H2v2h4.17l-3.24 3.24 1.41 1.42L9 13h2v2l-4.66 4.66 1.42 1.41L11 17.83V22h2v-4.17l3.24 3.24 1.42-1.41L13 15v-2h2l4.66 4.66 1.41-1.42L17.83 13H22v-2z"/></svg>,
               };
               return (
-                <div key={band} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-medium ${colors[band]}`}>
+                <button
+                  key={band}
+                  type="button"
+                  onClick={() => {
+                    setFilters(prev => {
+                      const current = prev.confidenceBands ?? [];
+                      const next = current.includes(band)
+                        ? current.filter(b => b !== band)
+                        : [...current, band];
+                      return { ...prev, confidenceBands: next };
+                    });
+                    setCurrentPage(1);
+                  }}
+                  aria-pressed={active}
+                  title={`Show only ${band} leads (click again to clear)`}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-medium transition-colors ${active ? activeColors[band] : `${colors[band]} hover:opacity-80`}`}
+                >
                   {icons[band]}
                   <span className="capitalize">{band}</span>
                   <span className="font-bold">{count}</span>
-                </div>
+                </button>
               );
             })}
+            {(filters.confidenceBands ?? []).length > 0 && (
+              <button
+                type="button"
+                onClick={() => { setFilters(prev => ({ ...prev, confidenceBands: [] })); setCurrentPage(1); }}
+                className="text-[11px] font-medium text-muted-foreground hover:text-foreground underline"
+              >
+                Clear
+              </button>
+            )}
           </div>
           <button
             onClick={() => setHotLeadsFirst(v => !v)}

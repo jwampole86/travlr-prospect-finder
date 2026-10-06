@@ -17,6 +17,8 @@ interface LeadQueryParams {
   priceMin: string;
   priceMax: string;
   scoreMin: string;
+  // Confidence band facet filter: subset of ['hot','warm','cold']. Empty or all-3 = no filter.
+  confidenceBands: string[];
   dateFrom: string;
   dateTo: string;
   sortKey: string;
@@ -102,6 +104,17 @@ function applyLeadFilters(query: any, params: LeadQueryParams) {
   if (params.priceMin) filtered = filtered.gte('price', parseInt(params.priceMin, 10));
   if (params.priceMax) filtered = filtered.lte('price', parseInt(params.priceMax, 10));
   if (params.scoreMin) filtered = filtered.gte('prospect_score', parseInt(params.scoreMin, 10));
+  // Confidence band filter (hot >=80, warm 60-79, cold <=59) — OR across selected bands.
+  // Skip when 0 or all 3 are selected (both mean "no restriction").
+  if (params.confidenceBands.length > 0 && params.confidenceBands.length < 3) {
+    const bandRanges: Record<string, string> = {
+      hot: 'prospect_score.gte.80',
+      warm: 'and(prospect_score.gte.60,prospect_score.lte.79)',
+      cold: 'prospect_score.lte.59',
+    };
+    const orParts = params.confidenceBands.map(b => bandRanges[b]).filter(Boolean);
+    if (orParts.length > 0) filtered = filtered.or(orParts.join(','));
+  }
   if (params.dateFrom) filtered = filtered.gte('created_at', params.dateFrom);
   if (params.dateTo) filtered = filtered.lte('created_at', `${params.dateTo}T23:59:59Z`);
   if (params.isSynthetic === true) filtered = filtered.eq('is_synthetic', true);
@@ -181,6 +194,7 @@ export async function GET(req: NextRequest) {
       priceMin: searchParams.get('priceMin') || '',
       priceMax: searchParams.get('priceMax') || '',
       scoreMin: searchParams.get('scoreMin') || '',
+      confidenceBands: searchParams.getAll('bands').filter(b => b === 'hot' || b === 'warm' || b === 'cold'),
       dateFrom: searchParams.get('dateFrom') || '',
       dateTo: searchParams.get('dateTo') || '',
       sortKey: searchParams.get('sortKey') || 'prospect_score',
@@ -292,10 +306,14 @@ export async function GET(req: NextRequest) {
         .range(queryFrom, queryTo);
     }
 
+    // Band facet counts must reflect ALL other active filters but NEVER the band
+    // selection itself — otherwise selecting "hot" would make warm/cold show 0
+    // instead of their true totals under the current filters.
+    const bandCountParams: LeadQueryParams = { ...params, confidenceBands: [] };
     const countByBand = (minimum: number, maximum?: number) => {
       let bandQuery = applyLeadFilters(
         supabase.from('leads').select('id', { count: 'exact', head: true }),
-        params
+        bandCountParams
       ).gte('prospect_score', minimum);
       if (maximum !== undefined) bandQuery = bandQuery.lte('prospect_score', maximum);
       return bandQuery;

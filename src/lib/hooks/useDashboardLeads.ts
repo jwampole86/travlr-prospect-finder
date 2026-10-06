@@ -195,6 +195,12 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
   const mountedRef = useRef(true);
   const topLeadsAbortRef = useRef<AbortController | null>(null);
   const statsAbortRef = useRef<AbortController | null>(null);
+  // Tracks whether each section has completed its first fetch — once true,
+  // later refreshes (realtime updates, manual refresh) no longer flip the
+  // loading flag back to true, so the UI keeps showing existing data instead
+  // of blinking back to the skeleton on every refresh.
+  const topLeadsLoadedOnceRef = useRef(false);
+  const statsLoadedOnceRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -220,7 +226,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
     topLeadsAbortRef.current = controller;
 
     if (mountedRef.current) {
-      setTopLoading(true);
+      if (!topLeadsLoadedOnceRef.current) setTopLoading(true);
       setTopLeadsError(null);
     }
 
@@ -268,7 +274,10 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
       setTopLeads([]);
     } finally {
       // CRITICAL: always clear loading — no code path leaves topLoading=true
-      if (mountedRef.current) setTopLoading(false);
+      if (mountedRef.current) {
+        setTopLoading(false);
+        topLeadsLoadedOnceRef.current = true;
+      }
     }
   }, [enabled, portfolioState]);
 
@@ -284,7 +293,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
     statsAbortRef.current = new AbortController();
 
     if (mountedRef.current) {
-      setStatsLoading(true);
+      if (!statsLoadedOnceRef.current) setStatsLoading(true);
       setStatsError(null);
     }
 
@@ -485,17 +494,12 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
-          (() => {
-            let q = supabase
-              .from('leads')
-              .select('prospect_score')
-              .or('is_synthetic.is.null,is_synthetic.eq.false')
-              .gt('prospect_score', 0)
-              .order('updated_at', { ascending: false })
-              .limit(1000);
-            if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
-            return q;
-          })(),
+          // AVG_SCORE: canonical server-side RPC (full population, no row cap) —
+          // matches get_canonical_avg_score used by the KPI Monitor so the two
+          // can never diverge due to client-side sampling bias.
+          supabase.rpc('get_canonical_avg_score', {
+            p_state: portfolioState && portfolioState !== 'all' ? portfolioState : 'all',
+          }),
           (() => {
             let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').in('regulation_status', ['Allowed', 'Restricted']);
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
@@ -581,16 +585,16 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
           return 0;
         };
 
-        // AVG_SCORE fallback: the canonical RPC can time out during database incidents.
-        // Use the latest scored sample so the dashboard does not collapse to 0.
+        // AVG_SCORE: get_dashboard_summary RPC failed/timed out, so fall back to
+        // the canonical get_canonical_avg_score RPC directly — same full-population
+        // server-side average, never a client-side sample.
         const avgScore = (() => {
           if (avgScoreRes.status !== 'fulfilled' || avgScoreRes.value.error) {
-            console.warn('[useDashboardLeads] fallback avg_score sample query failed');
+            console.warn('[useDashboardLeads] fallback avg_score RPC failed');
             return 0;
           }
-          const rows = (avgScoreRes.value.data as { prospect_score?: number }[] | null) ?? [];
-          if (rows.length === 0) return 0;
-          return Math.round(rows.reduce((sum, row) => sum + Number(row.prospect_score || 0), 0) / rows.length);
+          const body = (avgScoreRes.value.data as { avg_score?: number } | null) ?? {};
+          return Number(body.avg_score ?? 0);
         })();
 
         setStats(prev => ({
@@ -624,7 +628,10 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
       if (mountedRef.current) setStatsError(msg);
     } finally {
       // CRITICAL: always clear statsLoading — no code path leaves it true
-      if (mountedRef.current) setStatsLoading(false);
+      if (mountedRef.current) {
+        setStatsLoading(false);
+        statsLoadedOnceRef.current = true;
+      }
     }
   }, [enabled, portfolioState]);
 
