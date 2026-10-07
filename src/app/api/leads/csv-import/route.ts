@@ -897,8 +897,7 @@ export async function POST(req: NextRequest) {
             verified_number_source: hasPhone ? 'MANUAL_CSV' : null,
             verified_number_method: hasPhone ? 'MANUAL_RESEARCH' : null,
             verified_number_at: hasPhone ? now : null,
-            // Fully verified: owner + address + number (address not yet verified at import time)
-            fully_verified: false, // will be derived after address verification
+            // fully_verified is a DB GENERATED ALWAYS column — must not be inserted explicitly
           };
 
           const { data: inserted, error: insertError } = await supabase

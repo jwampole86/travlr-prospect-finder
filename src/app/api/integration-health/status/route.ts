@@ -4,6 +4,7 @@ import { getResendConfigStatus } from '@/lib/email/resend';
 import { getDocuSignConfigStatus } from '@/lib/services/docusignService';
 import { getProviderHealth as getRentCastHealth } from '@/lib/services/rentcastService';
 import { getProviderHealth as getPropertyReachHealth } from '@/lib/services/propertyReachProvider';
+import { getTruliaHealth, getZillowDetailHealth, getZillowSearchHealth } from '@/lib/services/rapidApiRealEstateService';
 
 function configured(value: string | undefined): boolean {
   return Boolean(value && !/your-|placeholder|changeme|example|here/i.test(value));
@@ -137,6 +138,9 @@ export async function GET() {
 
   const rentcastHealth = await getRentCastHealth();
   const propertyReachHealth = await getPropertyReachHealth();
+  const truliaHealth = await getTruliaHealth();
+  const zillowDetailHealth = await getZillowDetailHealth();
+  const zillowSearchHealth = await getZillowSearchHealth();
 
   return NextResponse.json({
     checkedAt: new Date().toISOString(),
@@ -187,6 +191,21 @@ export async function GET() {
         configured: rentcastHealth.hasApiKey,
         status: rentcastHealth.status === 'ACTIVE' ? 'operational' : rentcastHealth.status === 'DISABLED' ? 'down' : 'degraded',
         message: rentcastHealth.message,
+      },
+      trulia: {
+        configured: truliaHealth.hasApiKey,
+        status: truliaHealth.status === 'ACTIVE' ? 'operational' : truliaHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: truliaHealth.message,
+      },
+      zillowDetail: {
+        configured: zillowDetailHealth.hasApiKey,
+        status: zillowDetailHealth.status === 'ACTIVE' ? 'operational' : zillowDetailHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: zillowDetailHealth.message,
+      },
+      zillowSearch: {
+        configured: zillowSearchHealth.hasApiKey,
+        status: zillowSearchHealth.status === 'ACTIVE' ? 'operational' : zillowSearchHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: zillowSearchHealth.message,
       },
     },
   }, { headers: { 'Cache-Control': 'no-store' } });
