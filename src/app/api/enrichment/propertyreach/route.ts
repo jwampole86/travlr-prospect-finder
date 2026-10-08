@@ -220,7 +220,14 @@ async function runPropertyReachJob(
     // Run full PropertyReach pipeline
     const result = await runPropertyReachEnrichment({
       leadId,
-      address: normalized.normalizedAddress,
+      // BUG FIX: normalized.normalizedAddress is the FULL combined address
+      // ("123 Main St, Austin, TX 78753") — passing that as streetAddress
+      // while ALSO sending city/state/zip separately sends a malformed,
+      // duplicated address to PropertyReach, which then genuinely can't find
+      // the property (confirmed live: PropertyReach returns a real 200 match
+      // for the street-only address, but a real 404 "Subject property not
+      // found" for the full combined string). Use the street-only components.
+      address: [normalized.streetNumber, normalized.streetName, normalized.streetSuffix].filter(Boolean).join(' '),
       city: normalized.city,
       state: normalized.state,
       zip: normalized.zip,

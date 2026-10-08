@@ -339,38 +339,65 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
       return;
     }
 
-    try {
-      const response = await fetch('/api/sync/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          portfolio: selectedPortfolio.stateCode === 'all' ? 'all' : selectedPortfolio.label,
-          sync_run_id: crypto.randomUUID(),
-        }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || result.error) {
-        throw new Error(result.message || result.error || `Sync failed (${response.status})`);
+    // PropertyReach is a per-lead OWNER/PHONE ENRICHMENT provider, not a lead
+    // discovery source — it can't "pull" brand new leads like Trulia/Zillow.
+    // The real, honest sync action is: find leads in this state missing
+    // verified owner/phone and run the real enrichment pipeline on a batch.
+    if (sourceName === 'PropertyReach') {
+      if (selectedPortfolio.stateCode === 'all') {
+        setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false } : s)));
+        toast.error('Select a specific state portfolio to run PropertyReach enrichment', { id: `retry-${sourceName}` });
+        return;
       }
-      const now = new Date();
-      saveSourcePull(sourceName, now);
+      try {
+        const response = await fetch('/api/enrichment/propertyreach-bulk-retry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ state: selectedPortfolio.stateCode }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.error) {
+          throw new Error(result.error || `PropertyReach enrichment failed (${response.status})`);
+        }
+        const now = new Date();
+        saveSourcePull(sourceName, now);
+        setSources((prev) =>
+          prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, lastPull: now, health: 'healthy' } : s))
+        );
+        if (result.attempted === 0) {
+          toast.success(result.message || 'No leads needed enrichment', { id: `retry-${sourceName}` });
+        } else {
+          toast.success(
+            `PropertyReach: ${result.enriched}/${result.attempted} leads enriched (${result.reviewRequired} need review)`,
+            { id: `retry-${sourceName}` }
+          );
+        }
+        onLeadsRefreshed?.();
+        fetchPortfolioLeadCount();
+      } catch (err) {
+        setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, health: 'failed' } : s)));
+        toast.error(err instanceof Error ? err.message : 'PropertyReach retry failed', { id: `retry-${sourceName}` });
+      }
+      return;
+    }
 
-      setSources((prev) =>
-        prev.map((s) =>
-          s.name === sourceName
-            ? { ...s, retrying: false, lastPull: now, health: 'healthy' }
-            : s
-        )
-      );
+    // "Direct" means manually-uploaded data (CSV/master uploads) — there is no
+    // external API to pull from. The honest action is to send the user to the
+    // actual upload workflow instead of silently triggering an unrelated sync.
+    if (sourceName === 'Direct') {
+      setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false } : s)));
+      toast.info('Direct leads are manually uploaded — opening Lead Management', { id: `retry-${sourceName}` });
+      window.location.href = '/lead-management';
+      return;
+    }
 
-      toast.success(`${sourceName} sync complete — ${result.total_leads_inserted ?? 0} new leads`, { id: `retry-${sourceName}` });
-      onLeadsRefreshed?.();
-      fetchPortfolioLeadCount();
-    } catch {
-      setSources((prev) =>
-        prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, health: 'failed' } : s))
-      );
-      toast.error(`${sourceName} retry failed`, { id: `retry-${sourceName}` });
+    // MLS has no real, licensed data provider configured anywhere in this app
+    // (confirmed: no MLS API key, no MLS service file). Rather than silently
+    // trigger an unrelated pipeline, say so plainly.
+    if (sourceName === 'MLS') {
+      setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, health: 'unknown' } : s)));
+      toast.error('MLS is not connected — requires a licensed MLS/RESO data API key (none configured)', { id: `retry-${sourceName}` });
+      return;
     }
   }
 
