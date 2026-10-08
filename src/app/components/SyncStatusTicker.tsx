@@ -122,12 +122,24 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
   /**
    * Fetch the most recent lead created_at per source from the leads table.
    * This gives accurate freshness even when sync_events has no matching records.
+   *
+   * Only queries sources that are real `lead_source` enum values (see
+   * 20260812234152_leads_table.sql + later ALTER TYPE ... ADD VALUE migrations).
+   * 'PropertyReach' is an enrichment provider, not a lead source — no lead
+   * row has source='PropertyReach', and querying it threw a guaranteed
+   * invalid-enum-value DB error on every widget load.
    */
+  const VALID_LEAD_SOURCE_ENUM = new Set([
+    'Zillow', 'Craigslist', 'Facebook Marketplace', 'Realtor.com', 'Direct', 'Referral',
+    'LoopNet', 'HotPads', 'Apartments.com', 'Trulia', 'Redfin', 'MLS', 'Airbnb', 'VRBO',
+    'Other', 'Dwellsy', 'Rent.com', 'PadMapper', 'Apartment List',
+  ]);
+
   const fetchLeadsLastCreatedBySource = useCallback(async (): Promise<Record<string, Date>> => {
     try {
       const results: Record<string, Date> = {};
       await Promise.all(
-        REFRESH_SOURCES.map(async (s) => {
+        REFRESH_SOURCES.filter((s) => VALID_LEAD_SOURCE_ENUM.has(s.name)).map(async (s) => {
           const { data } = await supabase
             .from('leads')
             .select('created_at')
