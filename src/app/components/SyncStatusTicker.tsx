@@ -304,6 +304,41 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
       return;
     }
 
+    // Same approach as Trulia above — pulls live through the RapidAPI "Zillow
+    // Scraper API" subscription (for_sale/sold region search; this provider
+    // doesn't expose rentals) instead of any legacy/unwired source.
+    if (sourceName === 'Zillow') {
+      if (selectedPortfolio.stateCode === 'all') {
+        setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false } : s)));
+        toast.error('Select a specific state portfolio to pull live Zillow listings', { id: `retry-${sourceName}` });
+        return;
+      }
+      try {
+        const response = await fetch('/api/leads/rapidapi-import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: 'zillow-search', region: selectedPortfolio.stateCode.toLowerCase(), maxPages: 1 }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.error) {
+          throw new Error(result.error || `Zillow pull failed (${response.status})`);
+        }
+        const now = new Date();
+        saveSourcePull(sourceName, now);
+        setSources((prev) =>
+          prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, lastPull: now, health: 'healthy' } : s))
+        );
+        const newLeads = result?.totals?.rowsNew ?? 0;
+        toast.success(`Zillow pull complete — ${newLeads} new lead${newLeads === 1 ? '' : 's'}`, { id: `retry-${sourceName}` });
+        onLeadsRefreshed?.();
+        fetchPortfolioLeadCount();
+      } catch (err) {
+        setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, health: 'failed' } : s)));
+        toast.error(err instanceof Error ? err.message : 'Zillow retry failed', { id: `retry-${sourceName}` });
+      }
+      return;
+    }
+
     try {
       const response = await fetch('/api/sync/execute', {
         method: 'POST',

@@ -9,6 +9,11 @@ export const REFRESH_SOURCES = [
     label: 'Trulia Source Integrity',
   },
   {
+    name: 'Zillow',
+    url: '/lead-management?source=Zillow',
+    label: 'Zillow (RapidAPI)',
+  },
+  {
     name: 'Direct',
     url: '/lead-management',
     label: 'Manual & Master Uploads',
