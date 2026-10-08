@@ -267,6 +267,43 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
 
     toast.loading(`Retrying ${sourceName}…`, { id: `retry-${sourceName}` });
 
+    // Trulia now pulls live through the RapidAPI integration instead of the
+    // legacy per-state trulia_source_configs scraper (which has no config for
+    // roughly half of all states and was the real cause of this source going
+    // stale). Requires a specific state portfolio — "All Portfolios" has no
+    // single location to search.
+    if (sourceName === 'Trulia') {
+      if (selectedPortfolio.stateCode === 'all') {
+        setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false } : s)));
+        toast.error('Select a specific state portfolio to pull live Trulia listings', { id: `retry-${sourceName}` });
+        return;
+      }
+      try {
+        const response = await fetch('/api/leads/rapidapi-import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: 'trulia', location: selectedPortfolio.stateCode, maxPages: 1 }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.error) {
+          throw new Error(result.error || `Trulia pull failed (${response.status})`);
+        }
+        const now = new Date();
+        saveSourcePull(sourceName, now);
+        setSources((prev) =>
+          prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, lastPull: now, health: 'healthy' } : s))
+        );
+        const newLeads = result?.totals?.rowsNew ?? 0;
+        toast.success(`Trulia pull complete — ${newLeads} new lead${newLeads === 1 ? '' : 's'}`, { id: `retry-${sourceName}` });
+        onLeadsRefreshed?.();
+        fetchPortfolioLeadCount();
+      } catch (err) {
+        setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, health: 'failed' } : s)));
+        toast.error(err instanceof Error ? err.message : 'Trulia retry failed', { id: `retry-${sourceName}` });
+      }
+      return;
+    }
+
     try {
       const response = await fetch('/api/sync/execute', {
         method: 'POST',

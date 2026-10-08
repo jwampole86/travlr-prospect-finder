@@ -61,7 +61,10 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {})
       }
       return { ok: true, status: res.status, data };
     } catch (err) {
-      lastError = err instanceof Error ? err.message : 'Request failed';
+      // A network-level failure (timeout, DNS, connection reset) is a property
+      // of the upstream host, not the key — retrying with a different key just
+      // doubles/triples the wait for the same flaky provider. Fail fast instead.
+      return { ok: false, error: err instanceof Error ? err.message : 'Request failed' };
     }
   }
 
