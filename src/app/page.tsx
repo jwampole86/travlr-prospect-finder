@@ -333,6 +333,18 @@ export default function DashboardPage() {
     };
   }, [authLoading, refresh]);
 
+  // ── Polling safety net — the realtime subscription above is the fast path,
+  // but Supabase Realtime can silently miss events (replication lag, a
+  // dropped websocket that doesn't auto-resubscribe, RLS edge cases). Leads
+  // added through a live pull (RapidAPI import, PropertyReach enrichment,
+  // etc.) must still show up within a bounded time even if that happens, so
+  // poll the same `refresh()` on a fixed interval regardless of realtime.
+  useEffect(() => {
+    if (authLoading) return;
+    const pollInterval = setInterval(() => refresh(), 60000);
+    return () => clearInterval(pollInterval);
+  }, [authLoading, refresh]);
+
   // ── Real-time live indicator ─────────────────────────────────────────────
   const { lastUpdate, isConnected } = useRealtime();
   const [liveUpdateMsg, setLiveUpdateMsg] = useState<string | null>(null);
