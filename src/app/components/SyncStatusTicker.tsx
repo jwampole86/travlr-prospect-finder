@@ -12,7 +12,7 @@ interface SourceStatus {
   label: string;
   url: string;
   lastPull: Date | null;
-  health: 'healthy' | 'stale' | 'failed' | 'unknown';
+  health: 'healthy' | 'stale' | 'failed' | 'unknown' | 'manual';
   retrying: boolean;
   dbStatus?: 'success' | 'partial' | 'failed' | null;
   dbLastSync?: Date | null;
@@ -40,9 +40,11 @@ function saveSourcePull(sourceName: string, date: Date) {
 function getHealth(
   lastPull: Date | null,
   dbStatus?: 'success' | 'partial' | 'failed' | null,
-  leadsLastCreated?: Date | null
+  leadsLastCreated?: Date | null,
+  isManual = false
 ): SourceStatus['health'] {
-  // DB sync_events status takes highest priority
+  // DB sync_events status takes highest priority — this is a real, explicit
+  // result (success/failure), so it applies to manual sources too.
   if (dbStatus === 'failed') return 'failed';
   if (dbStatus === 'success') return 'healthy';
   if (dbStatus === 'partial') return 'stale';
@@ -51,14 +53,18 @@ function getHealth(
   if (leadsLastCreated) {
     const diffHours = (Date.now() - leadsLastCreated.getTime()) / 3600000;
     if (diffHours < 25) return 'healthy';   // leads created within 25h → healthy
+    // Manual/non-automated sources (Direct, MLS, PropertyReach) aren't expected
+    // to produce new leads continuously — inactivity isn't a failure, just show neutral.
+    if (isManual) return 'manual';
     if (diffHours < 72) return 'stale';     // 25–72h → stale
     return 'failed';
   }
 
   // Fall back to localStorage timestamp
-  if (!lastPull) return 'unknown';
+  if (!lastPull) return isManual ? 'manual' : 'unknown';
   const diffHours = (Date.now() - lastPull.getTime()) / 3600000;
   if (diffHours < 7) return 'healthy';
+  if (isManual) return 'manual';
   if (diffHours < 24) return 'stale';
   return 'failed';
 }
@@ -135,6 +141,19 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
     'Other', 'Dwellsy', 'Rent.com', 'PadMapper', 'Apartment List',
   ]);
 
+  // Sources that are not continuous automated syncs — "Direct" is manual CSV
+  // upload, "MLS" has no licensed data provider configured, and "PropertyReach"
+  // is an on-demand per-lead enrichment tool, not a bulk discovery pull. Time
+  // since last activity for these is not a failure signal like it is for
+  // Trulia/Zillow, so they get a neutral 'manual' health instead of decaying
+  // into a scary 'failed' state just from normal inactivity.
+  const MANUAL_SOURCES = new Set(['Direct', 'MLS', 'PropertyReach']);
+  const MANUAL_SOURCE_LABELS: Record<string, string> = {
+    Direct: 'Manual upload',
+    MLS: 'Not connected',
+    PropertyReach: 'On-demand',
+  };
+
   const fetchLeadsLastCreatedBySource = useCallback(async (): Promise<Record<string, Date>> => {
     try {
       const results: Record<string, Date> = {};
@@ -191,7 +210,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
         label: s.label,
         url: s.url,
         lastPull: displayTime,
-        health: getHealth(effectiveLastPull, dbSyncStatus, sourceLeadsLast),
+        health: getHealth(effectiveLastPull, dbSyncStatus, sourceLeadsLast, MANUAL_SOURCES.has(s.name)),
         retrying: false, // always reset retrying on rebuild — never persist stuck state
         dbStatus: dbSyncStatus,
         dbLastSync: displayTime,
@@ -395,7 +414,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
     // (confirmed: no MLS API key, no MLS service file). Rather than silently
     // trigger an unrelated pipeline, say so plainly.
     if (sourceName === 'MLS') {
-      setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, health: 'unknown' } : s)));
+      setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, health: 'manual' } : s)));
       toast.error('MLS is not connected — requires a licensed MLS/RESO data API key (none configured)', { id: `retry-${sourceName}` });
       return;
     }
@@ -404,6 +423,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
   const failedCount = sources.filter((s) => s.health === 'failed').length;
   const staleCount = sources.filter((s) => s.health === 'stale').length;
   const healthyCount = sources.filter((s) => s.health === 'healthy').length;
+  const manualCount = sources.filter((s) => s.health === 'manual').length;
 
   const portfolioHasNoLeads = portfolioLeadCount === 0;
   const portfolioLabel = selectedPortfolio.stateCode === 'all' ? 'All Portfolios' : selectedPortfolio.label;
@@ -412,6 +432,8 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
   const effectiveFailedCount = portfolioHasNoLeads ? 0 : failedCount;
   const effectiveStaleCount = portfolioHasNoLeads ? sources.length : staleCount;
   const effectiveHealthyCount = portfolioHasNoLeads ? 0 : healthyCount;
+  const effectiveManualCount = portfolioHasNoLeads ? 0 : manualCount;
+  const allOperational = effectiveFailedCount === 0 && effectiveStaleCount === 0 && sources.length > 0;
 
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -435,9 +457,9 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
               {portfolioHasNoLeads ? 'needs sync' : `${effectiveStaleCount} stale`}
             </span>
           )}
-          {effectiveHealthyCount === sources.length && sources.length > 0 && (
+          {allOperational && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20 font-semibold">
-              all healthy
+              {effectiveManualCount > 0 ? 'operational' : 'all healthy'}
             </span>
           )}
         </div>
@@ -446,6 +468,12 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
             <CheckCircle2 size={11} className="text-success" />
             {effectiveHealthyCount} healthy
           </span>
+          {effectiveManualCount > 0 && (
+            <span className="flex items-center gap-1">
+              <Clock size={11} className="text-muted-foreground" />
+              {effectiveManualCount} manual
+            </span>
+          )}
           {effectiveStaleCount > 0 && (
             <span className="flex items-center gap-1">
               <AlertTriangle size={11} className="text-warning" />
@@ -487,6 +515,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
           const isStale = displayHealth === 'stale';
           const isFailed = displayHealth === 'failed';
           const isUnknown = displayHealth === 'unknown';
+          const isManual = displayHealth === 'manual';
 
           const displayTime = source.dbLastSync || source.lastPull;
 
@@ -497,7 +526,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
                 {isHealthy && <CheckCircle2 size={14} className="text-success" />}
                 {isStale && <AlertTriangle size={14} className="text-warning" />}
                 {isFailed && <XCircle size={14} className="text-danger" />}
-                {isUnknown && <Clock size={14} className="text-muted-foreground" />}
+                {(isUnknown || isManual) && <Clock size={14} className="text-muted-foreground" />}
               </div>
 
               {/* Source info */}
@@ -542,6 +571,11 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
                       Needs refresh
                     </span>
                   )}
+                  {isManual && !portfolioHasNoLeads && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                      {MANUAL_SOURCE_LABELS[source.name] || 'Manual'}
+                    </span>
+                  )}
                   {portfolioHasNoLeads && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/10 text-warning font-medium">
                       No data
@@ -555,11 +589,11 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
                 <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium capitalize ${
                   isHealthy ? 'bg-success/10 text-success border-success/20' : isStale ?'bg-warning/10 text-warning border-warning/20': isFailed ?'bg-danger/10 text-danger border-danger/20': 'bg-muted text-muted-foreground border-border'
                 }`}>
-                  {portfolioHasNoLeads ? 'no data' : isUnknown ? 'not synced' : source.health}
+                  {portfolioHasNoLeads ? 'no data' : isUnknown ? 'not synced' : isManual ? (MANUAL_SOURCE_LABELS[source.name] || 'manual') : source.health}
                 </span>
 
-                {/* Only show Retry for genuinely stale/failed/unknown sources */}
-                {(isFailed || isStale || isUnknown) && (
+                {/* Only show Retry for genuinely stale/failed/unknown/manual sources */}
+                {(isFailed || isStale || isUnknown || isManual) && (
                   <button
                     onClick={() => handleRetry(source.name)}
                     disabled={source.retrying}
