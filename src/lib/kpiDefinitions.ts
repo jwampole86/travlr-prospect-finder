@@ -192,7 +192,26 @@ async function withRetry<T>(operation: () => Promise<T>, attempts = 3): Promise<
       await new Promise(resolve => setTimeout(resolve, 400 * (attempt + 1)));
     }
   }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  // Rethrow the original error as-is — wrapping it in `new Error(String(lastError))`
+  // previously destroyed Postgrest error objects (message/details/hint/code),
+  // collapsing them to the useless literal string "[object Object]".
+  throw lastError;
+}
+
+/** Extracts a readable message from an Error or a Postgrest-style error object ({message, details, hint, code}). */
+function describeError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === 'object') {
+    const e = err as Record<string, unknown>;
+    const parts = [e.message, e.details, e.hint, e.code].filter(Boolean);
+    if (parts.length) return parts.join(' | ');
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
 }
 
 /**
@@ -276,7 +295,7 @@ export async function fetchCanonicalKpiCounts(
       STR_ELIGIBLE: safeCount(counts.str_eligible, 'STR_ELIGIBLE'),
     };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = describeError(err);
     console.error('[fetchCanonicalKpiCounts] fatal error:', msg);
     return {
       TOTAL_LEADS: -1,
