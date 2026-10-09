@@ -53,7 +53,7 @@ function getHealth(
   if (leadsLastCreated) {
     const diffHours = (Date.now() - leadsLastCreated.getTime()) / 3600000;
     if (diffHours < 25) return 'healthy';   // leads created within 25h → healthy
-    // Manual/non-automated sources (Direct, MLS, PropertyReach) aren't expected
+    // Manual/non-automated sources (MLS, PropertyReach) aren't expected
     // to produce new leads continuously — inactivity isn't a failure, just show neutral.
     if (isManual) return 'manual';
     if (diffHours < 72) return 'stale';     // 25–72h → stale
@@ -111,7 +111,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
       for (const row of data) {
         const src = (row.operation_id as string) || '';
         if (!src) continue;
-        const matchedSource = REFRESH_SOURCES.find(
+        const matchedSource = SYNC_WIDGET_SOURCES.find(
           (s) => src.toLowerCase().includes(s.name.toLowerCase())
         );
         const key = matchedSource?.name || src;
@@ -141,24 +141,29 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
     'Other', 'Dwellsy', 'Rent.com', 'PadMapper', 'Apartment List',
   ]);
 
-  // Sources that are not continuous automated syncs — "Direct" is manual CSV
-  // upload, "MLS" has no licensed data provider configured, and "PropertyReach"
-  // is an on-demand per-lead enrichment tool, not a bulk discovery pull. Time
-  // since last activity for these is not a failure signal like it is for
-  // Trulia/Zillow, so they get a neutral 'manual' health instead of decaying
-  // into a scary 'failed' state just from normal inactivity.
-  const MANUAL_SOURCES = new Set(['Direct', 'MLS', 'PropertyReach']);
+  // Sources that are not continuous automated syncs — "MLS" has no licensed
+  // data provider configured, and "PropertyReach" is an on-demand per-lead
+  // enrichment tool, not a bulk discovery pull. Time since last activity for
+  // these is not a failure signal like it is for Trulia/Zillow, so they get
+  // a neutral 'manual' health instead of decaying into a scary 'failed' state
+  // just from normal inactivity.
+  const MANUAL_SOURCES = new Set(['MLS', 'PropertyReach']);
   const MANUAL_SOURCE_LABELS: Record<string, string> = {
-    Direct: 'Manual upload',
     MLS: 'Not connected',
     PropertyReach: 'On-demand',
   };
+
+  // This widget tracks external/outreach lead-discovery sources only —
+  // "Direct" (manual CSV/master uploads) isn't an external site, so it's
+  // excluded here even though it remains in the shared REFRESH_SOURCES list
+  // used elsewhere (Settings, header refresh, lead table).
+  const SYNC_WIDGET_SOURCES = REFRESH_SOURCES.filter((s) => s.name !== 'Direct');
 
   const fetchLeadsLastCreatedBySource = useCallback(async (): Promise<Record<string, Date>> => {
     try {
       const results: Record<string, Date> = {};
       await Promise.all(
-        REFRESH_SOURCES.filter((s) => VALID_LEAD_SOURCE_ENUM.has(s.name)).map(async (s) => {
+        SYNC_WIDGET_SOURCES.filter((s) => VALID_LEAD_SOURCE_ENUM.has(s.name)).map(async (s) => {
           const { data } = await supabase
             .from('leads')
             .select('created_at')
@@ -185,7 +190,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
       fetchLeadsLastCreatedBySource(),
     ]);
 
-    return REFRESH_SOURCES.map((s) => {
+    return SYNC_WIDGET_SOURCES.map((s) => {
       const rawDate = pulls[s.name] || (globalLast ? globalLast.toISOString() : null);
       const lastPull = rawDate ? new Date(rawDate) : null;
       const dbEntry = dbStatus[s.name];
@@ -397,16 +402,6 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
         setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, health: 'failed' } : s)));
         toast.error(err instanceof Error ? err.message : 'PropertyReach retry failed', { id: `retry-${sourceName}` });
       }
-      return;
-    }
-
-    // "Direct" means manually-uploaded data (CSV/master uploads) — there is no
-    // external API to pull from. The honest action is to send the user to the
-    // actual upload workflow instead of silently triggering an unrelated sync.
-    if (sourceName === 'Direct') {
-      setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false } : s)));
-      toast.info('Direct leads are manually uploaded — opening Lead Management', { id: `retry-${sourceName}` });
-      window.location.href = '/lead-management';
       return;
     }
 
