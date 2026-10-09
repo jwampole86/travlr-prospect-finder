@@ -155,13 +155,27 @@ function normalizeTruliaListing(raw: TruliaListingRaw): NormalizedRentalListing 
 export async function searchTruliaRentals(
   params: TruliaRentSearchParams
 ): Promise<{ ok: boolean; listings: NormalizedRentalListing[]; error?: string; status?: number }> {
-  const query = new URLSearchParams({ location: params.location });
-  if (params.page) query.set('page', String(params.page));
-  if (params.sort) query.set('sort', params.sort);
-  if (params.priceMin != null) query.set('price_min', String(params.priceMin));
-  if (params.priceMax != null) query.set('price_max', String(params.priceMax));
-  if (params.bedsMin != null) query.set('beds_min', String(params.bedsMin));
-  if (params.bathsMin != null) query.set('baths_min', String(params.bathsMin));
+  const query = new URLSearchParams();
+  // BUG WORKAROUND: the provider's `location` param reliably 500s for bare
+  // ZIP codes ("Subject property not found"-style generic error, confirmed
+  // live across 6/6 test ZIPs), even though the docs say ZIP is supported.
+  // Trulia's real site uses /for_rent/{ZIP}_zip/ (note the _zip suffix) for
+  // ZIP searches — passing that as the `url` override works reliably where
+  // the bare `location=ZIP` param does not.
+  const isBareZip = /^\d{5}(-\d{4})?$/.test(params.location.trim());
+  if (isBareZip) {
+    query.set('url', `https://www.trulia.com/for_rent/${params.location.trim().slice(0, 5)}_zip/`);
+  } else {
+    query.set('location', params.location);
+    if (params.page) query.set('page', String(params.page));
+    if (params.sort) query.set('sort', params.sort);
+    if (params.priceMin != null) query.set('price_min', String(params.priceMin));
+    if (params.priceMax != null) query.set('price_max', String(params.priceMax));
+    if (params.bedsMin != null) query.set('beds_min', String(params.bedsMin));
+    if (params.bathsMin != null) query.set('baths_min', String(params.bathsMin));
+  }
+  // When `url` is set, Trulia's provider ignores page/sort/filters and always
+  // returns page 1 of that exact URL — only `location` mode supports them.
 
   const result = await rapidApiFetch(TRULIA_HOST, `/v1/search/rent?${query.toString()}`);
   if (!result.ok) {
