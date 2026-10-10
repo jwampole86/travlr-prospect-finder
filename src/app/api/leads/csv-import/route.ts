@@ -1057,6 +1057,11 @@ export async function POST(req: NextRequest) {
     }, { onConflict: 'import_batch_id' });
 
     // ── STEP 10: Emit activity events for Dashboard Recent Activity ───────────
+    // BUG FIX (previously silent since ~Sep 2026): this insert used
+    // event_type: 'CSV_IMPORT' (violates the table's CHECK constraint, which
+    // only allows lowercase values like 'csv_imported') and never set the
+    // NOT NULL `user_id` column — both caused every insert to fail, and the
+    // `.then(undefined, () => {})` swallow meant the failure was invisible.
     const activityMessages: string[] = [];
     if (summary.newProspectsCreated > 0) {
       activityMessages.push(`CSV import completed — ${summary.newProspectsCreated} new prospect${summary.newProspectsCreated !== 1 ? 's' : ''} created.`);
@@ -1071,20 +1076,33 @@ export async function POST(req: NextRequest) {
       activityMessages.push(`${summary.newPortfoliosCreated} new state portfolio${summary.newPortfoliosCreated !== 1 ? 's' : ''} created from CSV import.`);
     }
 
-    for (const msg of activityMessages) {
-      await Promise.resolve(supabase.from('activity_events').insert({
-        event_type: 'CSV_IMPORT',
-        description: msg,
-        metadata: {
-          importBatchId,
-          importFilename,
-          newProspects: summary.newProspectsCreated,
-          enriched: summary.existingProspectsEnriched,
-          phoneNumbers: summary.phoneNumbersImported,
-          newPortfolios: summary.newPortfoliosCreated,
-        },
-        created_at: now,
-      })).then(undefined, () => {});
+    if (activityMessages.length > 0) {
+      const { data: activityAdminProfile } = await supabase
+        .from('user_profiles').select('id').eq('role', 'admin').limit(1).maybeSingle();
+      const activityUserId = activityAdminProfile?.id;
+
+      if (activityUserId) {
+        for (const msg of activityMessages) {
+          await supabase.from('activity_events').insert({
+            user_id: activityUserId,
+            event_type: 'csv_imported',
+            description: msg,
+            source: importFilename?.includes('rapidapi') ? 'sync' : 'csv_upload',
+            metadata: {
+              importBatchId,
+              importFilename,
+              newProspects: summary.newProspectsCreated,
+              enriched: summary.existingProspectsEnriched,
+              phoneNumbers: summary.phoneNumbersImported,
+              newPortfolios: summary.newPortfoliosCreated,
+            },
+            event_timestamp: now,
+            created_at: now,
+          }).then(({ error }) => {
+            if (error) console.warn('[csv-import] activity_events insert failed:', error.message);
+          });
+        }
+      }
     }
 
     // ── STEP 11: Backfill is_high_priority for newly created/updated leads ────

@@ -136,8 +136,7 @@ export async function getProviderHealth(): Promise<{
   status: 'ACTIVE' | 'AUTH_ERROR' | 'DISABLED' | 'DEGRADED';
   message: string;
   hasApiKey: boolean;
-}> {
-  const apiKey = getApiKey();
+}> {  const apiKey = getApiKey();
   if (!apiKey) {
     return { status: 'DISABLED', message: 'RENTCAST_API_KEY not configured', hasApiKey: false };
   }
@@ -159,5 +158,64 @@ export async function getProviderHealth(): Promise<{
     return { status: 'ACTIVE', message: 'RentCast API is reachable', hasApiKey: true };
   } catch {
     return { status: 'DEGRADED', message: 'RentCast API unreachable', hasApiKey: true };
+  }
+}
+
+// ─── Rent Estimate (AVM) — single-address rent estimate for price backfill ───
+// Endpoint/schema verified directly against RentCast's published API reference
+// (https://developers.rentcast.io/reference/rent-estimate-long-term).
+
+export interface RentEstimateParams {
+  address: string;
+  propertyType?: 'Single Family' | 'Condo' | 'Townhouse' | 'Manufactured' | 'Multi-Family' | 'Apartment';
+  bedrooms?: number;
+  bathrooms?: number;
+}
+
+export interface RentEstimateResult {
+  ok: boolean;
+  rent?: number;
+  rentRangeLow?: number;
+  rentRangeHigh?: number;
+  error?: string;
+  status?: number;
+}
+
+/** GET /avm/rent/long-term — rent estimate + comparables for a single full address. */
+export async function getRentEstimate(params: RentEstimateParams): Promise<RentEstimateResult> {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return { ok: false, error: 'RENTCAST_API_KEY not configured' };
+  }
+
+  const query = new URLSearchParams({ address: params.address });
+  if (params.propertyType) query.set('propertyType', params.propertyType);
+  if (params.bedrooms != null) query.set('bedrooms', String(params.bedrooms));
+  if (params.bathrooms != null) query.set('bathrooms', String(params.bathrooms));
+
+  try {
+    const res = await fetch(`${RENTCAST_BASE_URL}/avm/rent/long-term?${query.toString()}`, {
+      method: 'GET',
+      headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const data = await res.json().catch(() => ({} as Record<string, unknown>));
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: (data.message as string) || `RentCast API error: ${res.status}` };
+    }
+
+    const rent = typeof data.rent === 'number' ? data.rent : undefined;
+    if (rent == null) {
+      return { ok: false, error: 'No rent estimate returned for this address' };
+    }
+    return {
+      ok: true,
+      rent,
+      rentRangeLow: typeof data.rentRangeLow === 'number' ? data.rentRangeLow : undefined,
+      rentRangeHigh: typeof data.rentRangeHigh === 'number' ? data.rentRangeHigh : undefined,
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'RentCast rent estimate request failed' };
   }
 }
