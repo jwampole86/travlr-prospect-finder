@@ -6,8 +6,10 @@ import Sidebar from './Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Menu, Phone } from 'lucide-react';
 import NotificationDrawer, { BellButton } from './NotificationDrawer';
+import InboxButton from './InboxButton';
 import SyncSchedulerRunner from './SyncSchedulerRunner';
 import SyncToastEmitter from './SyncToastEmitter';
+import ChatToastEmitter from './ChatToastEmitter';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import ProfileMenu from './ProfileMenu';
@@ -110,6 +112,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <span className="text-sm font-semibold text-foreground flex-1">VAYO</span>
           <TimeClockWidget />
           <BellButton />
+          <InboxButton />
           <ProfileMenu />
         </div>
 
@@ -131,6 +134,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <div className="flex items-center gap-2">
             <TimeClockWidget />
             <BellButton />
+            <InboxButton />
             <ProfileMenu />
           </div>
         </div>
@@ -149,6 +153,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <NotificationDrawer />
       <SyncSchedulerRunner />
       <SyncToastEmitter />
+      <ChatToastEmitter />
       <FirstLoginPlatformGuide />
       <TimeClockIdleMonitor />
 

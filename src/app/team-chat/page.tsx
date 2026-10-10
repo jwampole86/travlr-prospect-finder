@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   MessageCircle, Send, Search, Plus, Users, X, Loader2, Check, ArrowLeft, Hash, Pencil, Trash2,
@@ -235,6 +236,13 @@ export default function TeamChatPage() {
 
   useEffect(() => { loadChannels(); }, [loadChannels]);
 
+  // Deep-link support: /team-chat?channel=<id> (used by the global chat toast's
+  // "Open" button) auto-opens that conversation once channels have loaded.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const deepLinkHandledRef = useRef(false);
+
   const activeChannel = useMemo(() => channels.find((c) => c.channel_id === activeChannelId) || null, [channels, activeChannelId]);
 
   const openChannel = useCallback(async (channelId: string) => {
@@ -251,6 +259,18 @@ export default function TeamChatPage() {
     } catch { /* silent */ }
     setLoadingMessages(false);
   }, []);
+
+  useEffect(() => {
+    if (deepLinkHandledRef.current || loadingChannels) return;
+    const channelParam = searchParams.get('channel');
+    if (!channelParam) return;
+    deepLinkHandledRef.current = true;
+    if (channels.some((c) => c.channel_id === channelParam)) {
+      openChannel(channelParam);
+    }
+    router.replace(pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingChannels, channels, searchParams, router, pathname, openChannel]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
