@@ -107,9 +107,18 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {})
         }
         return { ok: true, status: res.status, data };
       } catch (err) {
-        // A network-level failure (timeout, DNS, connection reset) is a property
-        // of the upstream host, not the key — retrying with a different key just
-        // doubles/triples the wait for the same flaky provider. Fail fast instead.
+        // Trulia in particular is a known-slow provider (~60% service level) —
+        // a single request timing out is often transient, not a sustained
+        // outage, so one retry meaningfully cuts the real-world failure rate
+        // (seen live: ~20% of portfolios timing out per sync run). Other
+        // network failures (DNS, connection reset) are less likely to clear
+        // on retry and fail fast as before.
+        const isTimeout = err instanceof Error && /timeout|aborted/i.test(err.name + err.message);
+        if (isTimeout && attempt === 1) {
+          lastError = err.message;
+          await sleep(500);
+          continue; // retry same key once more
+        }
         return { ok: false, error: err instanceof Error ? err.message : 'Request failed' };
       }
     }
