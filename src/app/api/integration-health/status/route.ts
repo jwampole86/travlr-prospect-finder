@@ -4,8 +4,10 @@ import { getResendConfigStatus } from '@/lib/email/resend';
 import { getDocuSignConfigStatus } from '@/lib/services/docusignService';
 import { getProviderHealth as getRentCastHealth } from '@/lib/services/rentcastService';
 import { getProviderHealth as getPropertyReachHealth } from '@/lib/services/propertyReachProvider';
-import { getTruliaHealth, getZillowDetailHealth, getZillowSearchHealth } from '@/lib/services/rapidApiRealEstateService';
+import { getTruliaHealth, getZillowDetailHealth, getZillowSearchHealth, getZillowRealEstateHealth, getRentComHealth, getUsPropertyDataHealth } from '@/lib/services/rapidApiRealEstateService';
 import { getSkipTracingHealth } from '@/lib/services/skipTracingProvider';
+import { getAirdnaHealth } from '@/lib/services/airdnaService';
+import { getPropertyReportHealth } from '@/lib/services/propertyReportProvider';
 
 function configured(value: string | undefined): boolean {
   return Boolean(value && !/your-|placeholder|changeme|example|here/i.test(value));
@@ -143,6 +145,11 @@ export async function GET() {
   const zillowDetailHealth = await getZillowDetailHealth();
   const zillowSearchHealth = await getZillowSearchHealth();
   const skipTracingHealth = await getSkipTracingHealth();
+  const zillowRealEstateHealth = await getZillowRealEstateHealth();
+  const rentComHealth = await getRentComHealth();
+  const usPropertyDataHealth = await getUsPropertyDataHealth();
+  const airdnaHealth = await getAirdnaHealth();
+  const propertyReportHealth = await getPropertyReportHealth();
 
   return NextResponse.json({
     checkedAt: new Date().toISOString(),
@@ -213,6 +220,31 @@ export async function GET() {
         configured: skipTracingHealth.hasApiKey,
         status: skipTracingHealth.status === 'ACTIVE' ? 'operational' : skipTracingHealth.status === 'DISABLED' ? 'down' : 'degraded',
         message: skipTracingHealth.message,
+      },
+      zillowRealEstate: {
+        configured: zillowRealEstateHealth.hasApiKey,
+        status: zillowRealEstateHealth.status === 'ACTIVE' ? 'operational' : zillowRealEstateHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: zillowRealEstateHealth.message,
+      },
+      rentCom: {
+        configured: rentComHealth.hasApiKey,
+        status: rentComHealth.status === 'ACTIVE' ? 'operational' : rentComHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: rentComHealth.message,
+      },
+      usPropertyData: {
+        configured: usPropertyDataHealth.hasApiKey,
+        status: usPropertyDataHealth.status === 'ACTIVE' ? 'operational' : usPropertyDataHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: usPropertyDataHealth.message,
+      },
+      airdna: {
+        configured: airdnaHealth.hasApiKey,
+        status: airdnaHealth.status === 'ACTIVE' ? 'operational' : airdnaHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: airdnaHealth.message,
+      },
+      propertyReport: {
+        configured: propertyReportHealth.hasApiKey,
+        status: propertyReportHealth.status === 'ACTIVE' ? 'operational' : propertyReportHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: propertyReportHealth.message,
       },
     },
   }, { headers: { 'Cache-Control': 'no-store' } });

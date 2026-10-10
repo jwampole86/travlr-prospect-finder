@@ -1,12 +1,16 @@
 /**
  * RapidAPI real-estate providers — Trulia rent search, Zillow property detail,
- * and Zillow (ToolzerHub) property search.
+ * Zillow (ToolzerHub) property search, Zillow Real Estate API, Rent.com, and
+ * US Property Data.
  *
  * SECURITY: RAPIDAPI_KEY_* are read server-side only, never exposed to the client.
  * Endpoints verified against each provider's published docs:
  *   - Trulia Real Estate Scraper (letsscrape): https://rapidapi.com/letsscrape/api/trulia-real-estate-scraper
  *   - Zillow Detail Scraper (benthepythondev0): https://rapidapi.com/benthepythondev0/api/zillow-detail-scraper1
  *   - Zillow Scraper API (ToolzerHub): https://docs.toolzerhub.com/reference/zillow
+ *   - Zillow Real Estate API (jdtpnjtp/Data Forge): https://rapidapi.com/jdtpnjtp/api/zillow-real-estate-api
+ *   - Rent.com API (skdeveloper): https://rapidapi.com/skdeveloper/api/rent-com-api
+ *   - US Property Data (PropertyData): https://rapidapi.com/propertydata-propertydata-default/api/us-property-data
  *
  * All 3 subscriptions live under one RapidAPI account; any configured key works
  * against any of the 3 hosts (RapidAPI subscriptions are account-level). Multiple
@@ -17,6 +21,18 @@
 const TRULIA_HOST = 'trulia-real-estate-scraper.p.rapidapi.com';
 const ZILLOW_DETAIL_HOST = 'zillow-detail-scraper1.p.rapidapi.com';
 const ZILLOW_SEARCH_HOST = 'zillow-scraper-api2.p.rapidapi.com';
+// Added 2026-10-10 — 3 newly-subscribed providers. Hosts/paths verified live via
+// curl (us-property-data) and the providers' own published quickstart docs
+// (zillow-real-estate-api, rent-com-api). NOTE: zillow-real-estate-api and
+// rent-com-api were just subscribed minutes before this was written and the
+// RapidAPI gateway was still returning "You are not subscribed to this API."
+// for the account's only real key at verification time — likely a short
+// propagation delay after a brand-new paid-plan purchase, not a code issue.
+// getZillowRealEstateHealth()/getRentComHealth() will correctly report
+// AUTH_ERROR until that clears; re-check the integration-health page once it does.
+const ZILLOW_REAL_ESTATE_HOST = 'zillow-real-estate-api.p.rapidapi.com';
+const RENT_COM_HOST = 'rent-com-api.p.rapidapi.com';
+const US_PROPERTY_DATA_HOST = 'us-property-data.p.rapidapi.com';
 
 function getRapidApiKeys(): string[] {
   return [process.env.RAPIDAPI_KEY_1, process.env.RAPIDAPI_KEY_2, process.env.RAPIDAPI_KEY_3]
@@ -130,7 +146,7 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {})
 // ─── Normalized listing shape (feeds directly into the CSV-import row contract) ──
 
 export interface NormalizedRentalListing {
-  source: 'Trulia' | 'Zillow';
+  source: 'Trulia' | 'Zillow' | 'Rent.com';
   externalId?: string;
   address: string;
   city: string;
@@ -422,4 +438,280 @@ export async function getZillowSearchHealth(): Promise<{ status: 'ACTIVE' | 'AUT
     return { status: 'DEGRADED', message: result.error || 'Zillow Scraper API unreachable', hasApiKey: true };
   }
   return { status: 'ACTIVE', message: 'Zillow Scraper API is reachable', hasApiKey: true };
+}
+
+// ─── Shared helper — split a single "street, city, ST zip" string ────────────
+
+/** Several of the newer providers return one combined address string instead of components. */
+function splitCombinedAddress(full: string): { street: string; city: string; state: string; zip: string } {
+  const match = full.match(/^(.*?),\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?/);
+  if (!match) return { street: full, city: '', state: '', zip: '' };
+  return { street: match[1].trim(), city: match[2].trim(), state: match[3], zip: match[4] || '' };
+}
+
+// ─── Zillow Real Estate API (jdtpnjtp / Data Forge) — property search ────────
+
+export interface ZillowRealEstateSearchParams {
+  location: string;
+  status?: 'for_sale' | 'for_rent' | 'sold';
+  priceMin?: number;
+  priceMax?: number;
+  bedsMin?: number;
+  sort?: string;
+  page?: number;
+}
+
+interface ZillowRealEstateResultRaw {
+  zpid?: string | number;
+  address?: string;
+  addressStreet?: string;
+  addressCity?: string;
+  addressState?: string;
+  addressZip?: string;
+  price?: number;
+  beds?: number;
+  baths?: number;
+  sqft?: number;
+  zestimate?: number;
+  rentZestimate?: number;
+  detailUrl?: string;
+  homeType?: string;
+  daysOnZillow?: number;
+}
+
+function normalizeZillowRealEstateResult(raw: ZillowRealEstateResultRaw): NormalizedRentalListing {
+  const parsed = raw.addressCity ? null : splitCombinedAddress(raw.address || '');
+  return {
+    source: 'Zillow',
+    externalId: raw.zpid != null ? String(raw.zpid) : undefined,
+    address: raw.addressStreet || parsed?.street || raw.address || '',
+    city: raw.addressCity || parsed?.city || '',
+    state: raw.addressState || parsed?.state || '',
+    zip: raw.addressZip || parsed?.zip || '',
+    beds: raw.beds ?? null,
+    baths: raw.baths ?? null,
+    price: raw.price ?? raw.rentZestimate ?? null,
+    sqftText: raw.sqft ? `${raw.sqft} sqft` : undefined,
+    listingUrl: raw.detailUrl,
+    notes: [raw.homeType, raw.zestimate ? `Zestimate: $${raw.zestimate.toLocaleString()}` : null, raw.daysOnZillow != null ? `${raw.daysOnZillow}d on Zillow` : null]
+      .filter(Boolean).join(' | '),
+  };
+}
+
+/** GET /v1/search — Zillow Real Estate API (35+ filters; search/rent/sold/for_sale). */
+export async function searchZillowRealEstate(
+  params: ZillowRealEstateSearchParams
+): Promise<{ ok: boolean; listings: NormalizedRentalListing[]; error?: string; status?: number }> {
+  const query = new URLSearchParams({ location: params.location });
+  if (params.status) query.set('status', params.status);
+  if (params.priceMin != null) query.set('price_min', String(params.priceMin));
+  if (params.priceMax != null) query.set('price_max', String(params.priceMax));
+  if (params.bedsMin != null) query.set('beds_min', String(params.bedsMin));
+  if (params.sort) query.set('sort', params.sort);
+  if (params.page) query.set('page', String(params.page));
+
+  const result = await rapidApiFetch(ZILLOW_REAL_ESTATE_HOST, `/v1/search?${query.toString()}`);
+  if (!result.ok) {
+    return { ok: false, listings: [], error: result.error, status: result.status };
+  }
+  const data = result.data as { data?: { results?: ZillowRealEstateResultRaw[] } };
+  const listings = (data?.data?.results || []).map(normalizeZillowRealEstateResult);
+  return { ok: true, listings };
+}
+
+export async function getZillowRealEstateHealth(): Promise<{ status: 'ACTIVE' | 'AUTH_ERROR' | 'DISABLED' | 'DEGRADED'; message: string; hasApiKey: boolean }> {
+  const keys = getRapidApiKeys();
+  if (keys.length === 0) {
+    return { status: 'DISABLED', message: 'No RAPIDAPI_KEY_* configured', hasApiKey: false };
+  }
+  const result = await rapidApiFetch(ZILLOW_REAL_ESTATE_HOST, '/v1/autocomplete?query=Austin');
+  if (result.status === 401 || result.status === 403) {
+    return { status: 'AUTH_ERROR', message: result.error || 'RapidAPI key not subscribed to Zillow Real Estate API', hasApiKey: true };
+  }
+  if (!result.ok) {
+    return { status: 'DEGRADED', message: result.error || 'Zillow Real Estate API unreachable', hasApiKey: true };
+  }
+  return { status: 'ACTIVE', message: 'Zillow Real Estate API is reachable', hasApiKey: true };
+}
+
+// ─── Rent.com API (skdeveloper) — location-based rental search ───────────────
+
+interface RentComListingRaw {
+  listingId?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  price?: number | string;
+  minPrice?: number;
+  maxPrice?: number;
+  beds?: number;
+  baths?: number;
+  sqft?: number;
+  url?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+function normalizeRentComListing(raw: RentComListingRaw): NormalizedRentalListing {
+  const parsed = raw.city ? null : splitCombinedAddress(raw.address || '');
+  const priceNum = typeof raw.price === 'string' ? Number(raw.price.replace(/[^0-9.]/g, '')) : raw.price;
+  return {
+    source: 'Rent.com',
+    externalId: raw.listingId,
+    address: raw.address || parsed?.street || '',
+    city: raw.city || parsed?.city || '',
+    state: raw.state || parsed?.state || '',
+    zip: raw.zip || parsed?.zip || '',
+    latitude: raw.latitude,
+    longitude: raw.longitude,
+    beds: raw.beds ?? null,
+    baths: raw.baths ?? null,
+    price: priceNum || raw.minPrice || null,
+    sqftText: raw.sqft ? `${raw.sqft} sqft` : undefined,
+    listingUrl: raw.url,
+  };
+}
+
+export interface RentComSearchParams {
+  city: string;
+  state: string;
+  locationSlug?: string;
+  sort?: 'PRICE_LOW_TO_HIGH' | 'PRICE_HIGH_TO_LOW';
+  resultsPerPage?: number;
+  page?: number;
+}
+
+/**
+ * Rent.com is a 2-step search: GET /location-search resolves a free-text query
+ * into a `locationSlug` (e.g. "arizona/oro-valley"), then POST /location-listings
+ * fetches results for that slug. Callers can skip step 1 by passing a known slug.
+ */
+export async function searchRentCom(
+  params: RentComSearchParams
+): Promise<{ ok: boolean; listings: NormalizedRentalListing[]; error?: string; status?: number }> {
+  let locationSlug = params.locationSlug;
+  if (!locationSlug) {
+    const searchResult = await rapidApiFetch(RENT_COM_HOST, `/location-search?${new URLSearchParams({ query: `${params.city}, ${params.state}`, limit: '1' })}`);
+    if (!searchResult.ok) {
+      return { ok: false, listings: [], error: searchResult.error, status: searchResult.status };
+    }
+    const matches = searchResult.data as Array<{ locationSlug?: string }> | { results?: Array<{ locationSlug?: string }> };
+    const first = Array.isArray(matches) ? matches[0] : matches?.results?.[0];
+    locationSlug = first?.locationSlug;
+    if (!locationSlug) {
+      return { ok: false, listings: [], error: `No Rent.com location match for "${params.city}, ${params.state}"` };
+    }
+  }
+
+  const result = await rapidApiFetch(RENT_COM_HOST, '/location-listings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      input: { city: params.city, locationSlug, state: params.state },
+      sort: params.sort,
+      resultsPerPage: params.resultsPerPage || 50,
+      page: params.page || 1,
+      showBuildings: true,
+    }),
+  });
+  if (!result.ok) {
+    return { ok: false, listings: [], error: result.error, status: result.status };
+  }
+  const data = result.data as { listings?: RentComListingRaw[]; results?: RentComListingRaw[] };
+  const rows = data?.listings || data?.results || (Array.isArray(result.data) ? (result.data as RentComListingRaw[]) : []);
+  return { ok: true, listings: rows.map(normalizeRentComListing) };
+}
+
+export async function getRentComHealth(): Promise<{ status: 'ACTIVE' | 'AUTH_ERROR' | 'DISABLED' | 'DEGRADED'; message: string; hasApiKey: boolean }> {
+  const keys = getRapidApiKeys();
+  if (keys.length === 0) {
+    return { status: 'DISABLED', message: 'No RAPIDAPI_KEY_* configured', hasApiKey: false };
+  }
+  const result = await rapidApiFetch(RENT_COM_HOST, `/location-search?${new URLSearchParams({ query: 'Austin, TX', limit: '1' })}`);
+  if (result.status === 401 || result.status === 403) {
+    return { status: 'AUTH_ERROR', message: result.error || 'RapidAPI key not subscribed to Rent.com API', hasApiKey: true };
+  }
+  if (!result.ok) {
+    return { status: 'DEGRADED', message: result.error || 'Rent.com API unreachable', hasApiKey: true };
+  }
+  return { status: 'ACTIVE', message: 'Rent.com API is reachable', hasApiKey: true };
+}
+
+// ─── US Property Data (PropertyData) — real-time Zillow scraper ──────────────
+
+export interface UsPropertyDataSearchParams {
+  location: string;
+  listingStatus?: 'for_sale' | 'for_rent' | 'sold';
+  page?: number;
+}
+
+interface UsPropertyDataResultRaw {
+  zpid?: string;
+  address?: string;
+  addressStreet?: string;
+  addressCity?: string;
+  addressState?: string;
+  addressZipcode?: string;
+  beds?: number;
+  baths?: number;
+  area?: number;
+  unformattedPrice?: number;
+  detailUrl?: string;
+  latLong?: { latitude?: number; longitude?: number };
+  hdpData?: { homeInfo?: { homeType?: string; rentZestimate?: number; daysOnZillow?: number; isPreforeclosureAuction?: boolean } };
+}
+
+function normalizeUsPropertyDataResult(raw: UsPropertyDataResultRaw): NormalizedRentalListing {
+  const homeInfo = raw.hdpData?.homeInfo;
+  const parsed = raw.addressCity ? null : splitCombinedAddress(raw.address || '');
+  return {
+    source: 'Zillow',
+    externalId: raw.zpid,
+    address: raw.addressStreet || parsed?.street || raw.address || '',
+    city: raw.addressCity || parsed?.city || '',
+    state: raw.addressState || parsed?.state || '',
+    zip: raw.addressZipcode || parsed?.zip || '',
+    latitude: raw.latLong?.latitude,
+    longitude: raw.latLong?.longitude,
+    beds: raw.beds ?? null,
+    baths: raw.baths ?? null,
+    price: raw.unformattedPrice ?? homeInfo?.rentZestimate ?? null,
+    sqftText: raw.area ? `${raw.area} sqft` : undefined,
+    listingUrl: raw.detailUrl,
+    notes: [homeInfo?.homeType, homeInfo?.isPreforeclosureAuction ? 'Pre-foreclosure/auction' : null, homeInfo?.daysOnZillow != null ? `${homeInfo.daysOnZillow}d on Zillow` : null]
+      .filter(Boolean).join(' | '),
+  };
+}
+
+/** GET /api/v1/search/by-location — redundant Zillow-sourced search (independent scraper from Zillow Detail/Search above). */
+export async function searchUsPropertyData(
+  params: UsPropertyDataSearchParams
+): Promise<{ ok: boolean; listings: NormalizedRentalListing[]; error?: string; status?: number }> {
+  const query = new URLSearchParams({ location: params.location });
+  if (params.listingStatus) query.set('listing_status', params.listingStatus);
+  if (params.page) query.set('page', String(params.page));
+
+  const result = await rapidApiFetch(US_PROPERTY_DATA_HOST, `/api/v1/search/by-location?${query.toString()}`);
+  if (!result.ok) {
+    return { ok: false, listings: [], error: result.error, status: result.status };
+  }
+  const data = result.data as { data?: UsPropertyDataResultRaw[] };
+  const listings = (data?.data || []).map(normalizeUsPropertyDataResult);
+  return { ok: true, listings };
+}
+
+export async function getUsPropertyDataHealth(): Promise<{ status: 'ACTIVE' | 'AUTH_ERROR' | 'DISABLED' | 'DEGRADED'; message: string; hasApiKey: boolean }> {
+  const keys = getRapidApiKeys();
+  if (keys.length === 0) {
+    return { status: 'DISABLED', message: 'No RAPIDAPI_KEY_* configured', hasApiKey: false };
+  }
+  const result = await rapidApiFetch(US_PROPERTY_DATA_HOST, `/api/v1/search/by-location?${new URLSearchParams({ location: 'Austin, TX', page: '1' })}`);
+  if (result.status === 401 || result.status === 403) {
+    return { status: 'AUTH_ERROR', message: result.error || 'RapidAPI key not subscribed to US Property Data', hasApiKey: true };
+  }
+  if (!result.ok) {
+    return { status: 'DEGRADED', message: result.error || 'US Property Data unreachable', hasApiKey: true };
+  }
+  return { status: 'ACTIVE', message: 'US Property Data API is reachable', hasApiKey: true };
 }

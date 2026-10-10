@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchTruliaRentals, searchZillowProperties, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
+import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
 
 const CHUNK_SIZE = 50;
 const MAX_PAGES = 5;
@@ -44,11 +44,13 @@ function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
  * /api/leads/csv-import — this route only fetches + normalizes + forwards).
  *
  * Body: {
- *   provider: 'trulia' | 'zillow-search',
- *   location?: string,   // Trulia: city/state or ZIP, e.g. "Austin, TX"
- *   region?: string,      // Zillow: region slug, e.g. "austin-tx"
+ *   provider: 'trulia' | 'zillow-search' | 'zillow-real-estate' | 'rent-com' | 'us-property-data',
+ *   location?: string,   // Trulia/zillow-real-estate/us-property-data: city/state or ZIP, e.g. "Austin, TX"
+ *   region?: string,      // Zillow (ToolzerHub): region slug, e.g. "austin-tx"
+ *   city?, state?: string, // rent-com
+ *   status?: 'for_sale' | 'for_rent' | 'sold', // zillow-real-estate / us-property-data
  *   maxPages?: number,    // default 1, capped at 5
- *   priceMin?, priceMax?, bedsMin?, bathsMin?: number, // Trulia only
+ *   priceMin?, priceMax?, bedsMin?, bathsMin?: number, // Trulia/zillow-real-estate only
  *   importedBy?: string,
  * }
  */
@@ -58,8 +60,9 @@ export async function POST(req: NextRequest) {
   const maxPages = Math.min(MAX_PAGES, Math.max(1, Number(body?.maxPages) || 1));
   const importedBy = typeof body?.importedBy === 'string' ? body.importedBy : undefined;
 
-  if (provider !== 'trulia' && provider !== 'zillow-search') {
-    return NextResponse.json({ error: "provider must be 'trulia' or 'zillow-search'" }, { status: 400 });
+  const VALID_PROVIDERS = ['trulia', 'zillow-search', 'zillow-real-estate', 'rent-com', 'us-property-data'];
+  if (!VALID_PROVIDERS.includes(provider)) {
+    return NextResponse.json({ error: `provider must be one of: ${VALID_PROVIDERS.join(', ')}` }, { status: 400 });
   }
 
   const allListings: NormalizedRentalListing[] = [];
@@ -80,7 +83,7 @@ export async function POST(req: NextRequest) {
       }
       if (result.listings.length === 0) break;
       allListings.push(...result.listings);
-    } else {
+    } else if (provider === 'zillow-search') {
       const region = body?.region as string;
       if (!region) {
         return NextResponse.json({ error: 'region is required for provider=zillow-search' }, { status: 400 });
@@ -88,6 +91,47 @@ export async function POST(req: NextRequest) {
       const result = await searchZillowProperties({ region, status: body?.status === 'sold' ? 'sold' : 'for_sale', page });
       if (!result.ok) {
         if (page === 1) return NextResponse.json({ error: result.error || 'Zillow Scraper API request failed' }, { status: result.status || 503 });
+        break;
+      }
+      if (result.listings.length === 0) break;
+      allListings.push(...result.listings);
+    } else if (provider === 'zillow-real-estate') {
+      const location = body?.location as string;
+      if (!location) {
+        return NextResponse.json({ error: 'location is required for provider=zillow-real-estate' }, { status: 400 });
+      }
+      const result = await searchZillowRealEstate({
+        location, page, status: body?.status, sort: body?.sort,
+        priceMin: body?.priceMin, priceMax: body?.priceMax, bedsMin: body?.bedsMin,
+      });
+      if (!result.ok) {
+        if (page === 1) return NextResponse.json({ error: result.error || 'Zillow Real Estate API request failed' }, { status: result.status || 503 });
+        break;
+      }
+      if (result.listings.length === 0) break;
+      allListings.push(...result.listings);
+    } else if (provider === 'rent-com') {
+      const city = body?.city as string;
+      const state = body?.state as string;
+      if (!city || !state) {
+        return NextResponse.json({ error: 'city and state are required for provider=rent-com' }, { status: 400 });
+      }
+      const result = await searchRentCom({ city, state, locationSlug: body?.locationSlug, page, sort: body?.sort });
+      if (!result.ok) {
+        if (page === 1) return NextResponse.json({ error: result.error || 'Rent.com API request failed' }, { status: result.status || 503 });
+        break;
+      }
+      if (result.listings.length === 0) break;
+      allListings.push(...result.listings);
+    } else {
+      // us-property-data
+      const location = body?.location as string;
+      if (!location) {
+        return NextResponse.json({ error: 'location is required for provider=us-property-data' }, { status: 400 });
+      }
+      const result = await searchUsPropertyData({ location, page, listingStatus: body?.status });
+      if (!result.ok) {
+        if (page === 1) return NextResponse.json({ error: result.error || 'US Property Data request failed' }, { status: result.status || 503 });
         break;
       }
       if (result.listings.length === 0) break;
