@@ -242,16 +242,16 @@ function ServiceRow({ svc }: { svc: ServiceCheck }) {
         <div className="hidden sm:flex items-center gap-6 shrink-0">
           <div className="text-right">
             <p className={`text-sm ${slaClass(svc.uptime30d, svc.slaTarget)}`}>{svc.uptime30d === null ? 'Not tracked' : `${svc.uptime30d.toFixed(2)}%`}</p>
-            <p className="text-[10px] text-slate-400">30d uptime</p>
+            <p className="text-[10px] text-slate-500">30d uptime</p>
           </div>
           <div className="text-right">
             <p className={`text-sm ${slaClass(svc.uptime90d, svc.slaTarget)}`}>{svc.uptime90d === null ? 'Not tracked' : `${svc.uptime90d.toFixed(2)}%`}</p>
-            <p className="text-[10px] text-slate-400">90d uptime</p>
+            <p className="text-[10px] text-slate-500">90d uptime</p>
           </div>
           {svc.responseTime !== undefined && (
             <div className="text-right">
               <p className="text-sm font-semibold text-slate-700">{svc.responseTime}ms</p>
-              <p className="text-[10px] text-slate-400">response</p>
+              <p className="text-[10px] text-slate-500">response</p>
             </div>
           )}
         </div>
@@ -263,14 +263,14 @@ function ServiceRow({ svc }: { svc: ServiceCheck }) {
           <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-slate-500">90-day uptime history</span>
-              <span className="text-xs text-slate-400">SLA target: {svc.slaTarget}%</span>
+              <span className="text-xs text-slate-500">SLA target: {svc.slaTarget}%</span>
             </div>
             {svc.uptime90d === null ? (
               <p className="text-xs text-slate-500 bg-white/70 rounded-lg p-3 border border-white">Historical uptime is not available yet. Current status is based on the latest live check.</p>
             ) : <UptimeBar buckets={buckets} />}
             <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-slate-400">90 days ago</span>
-              <span className="text-[10px] text-slate-400">Today</span>
+              <span className="text-[10px] text-slate-500">90 days ago</span>
+              <span className="text-[10px] text-slate-500">Today</span>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -334,7 +334,7 @@ function IncidentCard({ inc }: { inc: IncidentEntry }) {
           </div>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             <span className="text-xs text-slate-500">{inc.service}</span>
-            <span className="text-xs text-slate-400">Started {fmt(inc.startedAt)}</span>
+            <span className="text-xs text-slate-500">Started {fmt(inc.startedAt)}</span>
             {inc.resolvedAt && <span className="text-xs text-emerald-600">Resolved {fmt(inc.resolvedAt)}</span>}
           </div>
         </div>
@@ -351,7 +351,7 @@ function IncidentCard({ inc }: { inc: IncidentEntry }) {
                   {i < inc.updates.length - 1 && <div className="w-px flex-1 bg-slate-200 mt-1" />}
                 </div>
                 <div className="pb-3 min-w-0">
-                  <p className="text-[10px] text-slate-400 mb-0.5">{fmt(u.time)}</p>
+                  <p className="text-[10px] text-slate-500 mb-0.5">{fmt(u.time)}</p>
                   <p className="text-xs text-slate-700">{u.message}</p>
                 </div>
               </div>
@@ -418,7 +418,7 @@ export default function SystemHealthPage() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">TRAVLR System Status</h1>
-                <p className="text-sm text-white/80">Real-time service health &amp; uptime</p>
+                <p className="text-sm text-white/90">Real-time service health &amp; uptime</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -521,13 +521,13 @@ export default function SystemHealthPage() {
 
         {/* Footer */}
         <div className="border-t border-slate-200 pt-6 flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-4 text-xs text-slate-400">
+          <div className="flex items-center gap-4 text-xs text-slate-500">
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-emerald-500" /><span>Operational</span></div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-amber-400" /><span>Degraded</span></div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-red-500" /><span>Outage</span></div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-slate-400" /><span>Maintenance</span></div>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <Globe size={11} />
             <span>status.travlr.com</span>
           </div>
