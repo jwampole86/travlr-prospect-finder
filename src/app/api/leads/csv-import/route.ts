@@ -1106,6 +1106,29 @@ export async function POST(req: NextRequest) {
         .then(undefined, () => {});
     }
 
+    // ── STEP 12: Queue Anthropic listing verification for every newly created
+    // lead (matches/prices/active-rental status against zillow/trulia/realtor/
+    // redfin via the /api/cron/listing-verification worker) — regardless of
+    // import source (CSV script, RapidAPI Trulia/Zillow sync, retry buttons).
+    // Previously this only happened for the master-homeowner-import path, so
+    // leads created by the RapidAPI sync pipeline never got verified/priced.
+    const newlyCreatedLeadIds = rowResults
+      .filter(r => r.outcome === 'NEW')
+      .map(r => r.leadId)
+      .filter(Boolean) as string[];
+
+    if (newlyCreatedLeadIds.length > 0) {
+      supabase.from('user_profiles').select('id').eq('role', 'admin').limit(1).maybeSingle()
+        .then(({ data: adminProfile }) => {
+          if (!adminProfile?.id) return;
+          return supabase.from('listing_verification_jobs').upsert(
+            newlyCreatedLeadIds.map((leadId) => ({ user_id: adminProfile.id, lead_id: leadId, priority: 50 })),
+            { onConflict: 'lead_id', ignoreDuplicates: true }
+          );
+        })
+        .then(undefined, () => {});
+    }
+
     return NextResponse.json({ success: true, summary, results: rowResults });
   } catch (err) {
     return NextResponse.json(

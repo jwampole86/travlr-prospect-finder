@@ -46,56 +46,67 @@ function formatCountdown(date: Date): string {
  * Trigger a background sync for all active portfolios in PARALLEL.
  * Returns a summary of results without blocking the UI.
  *
- * Each portfolio sync call receives a shared sync_run_id so the
- * portfolio_sync_status table can track per-source completion.
- * The caller can poll that table to show granular progress.
+ * Calls the same RapidAPI-backed pipeline (Trulia + Zillow) used by the
+ * Data Source Sync widget's per-source Retry buttons — NOT the legacy
+ * /api/sync/execute route, which only discovered via Trulia, only had a
+ * hardcoded state mapping for 11 of the (now 27) portfolios, and whose
+ * JSON response shape (`pipeline_summary.total_inserted` /
+ * `portfolios[].errors`) never matched what this function read
+ * (`total_leads_inserted` / `total_errors` / `insert_errors` at the root),
+ * so the UI always reported "0 new leads added" regardless of what the
+ * backend actually did.
  */
 async function triggerParallelSync(
-  portfolioLabels: string[],
-  syncRunId: string,
+  portfolios: { label: string; stateCode: string }[],
   onPortfolioComplete?: (portfolio: string, inserted: number, hasErrors: boolean) => void
 ): Promise<{ totalInserted: number; errors: string[] }> {
   const syncStart = Date.now();
 
+  async function syncOnePortfolio(p: { label: string; stateCode: string }): Promise<{ inserted: number; errors: string[] }> {
+    const [truliaRes, zillowRes] = await Promise.allSettled([
+      fetch('/api/leads/rapidapi-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'trulia', location: p.stateCode, maxPages: 1 }),
+      }).then((r) => r.json()),
+      fetch('/api/leads/rapidapi-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'zillow-search', region: p.stateCode.toLowerCase(), maxPages: 1 }),
+      }).then((r) => r.json()),
+    ]);
+
+    let inserted = 0;
+    const errors: string[] = [];
+    for (const res of [truliaRes, zillowRes]) {
+      if (res.status === 'fulfilled') {
+        inserted += Number(res.value?.totals?.rowsNew ?? 0);
+        if (res.value?.error) errors.push(`${p.label}: ${res.value.error}`);
+      } else {
+        errors.push(`${p.label}: ${res.reason?.message ?? 'Unknown sync error'}`);
+      }
+    }
+
+    onPortfolioComplete?.(p.label, inserted, errors.length > 0);
+    return { inserted, errors };
+  }
+
   // Limit concurrency so source ingestion cannot starve dashboard/API requests.
-  const results: PromiseSettledResult<Record<string, unknown>>[] = [];
+  const results: { inserted: number; errors: string[] }[] = [];
   const concurrency = 2;
-  for (let index = 0; index < portfolioLabels.length; index += concurrency) {
-    const batch = portfolioLabels.slice(index, index + concurrency);
-    const batchResults = await Promise.allSettled(
-      batch.map((portfolio) =>
-        fetch('/api/sync/execute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ portfolio, sync_run_id: syncRunId }),
-        })
-          .then((r) => r.json() as Promise<Record<string, unknown>>)
-          .then((data) => {
-            const inserted = Number(data?.total_leads_inserted ?? 0);
-            const hasErrors = Number(data?.total_errors ?? 0) > 0;
-            onPortfolioComplete?.(portfolio, inserted, hasErrors);
-            return data;
-          })
-      )
-    );
-    results.push(...batchResults);
+  for (let index = 0; index < portfolios.length; index += concurrency) {
+    const batch = portfolios.slice(index, index + concurrency);
+    results.push(...(await Promise.all(batch.map(syncOnePortfolio))));
   }
 
   const syncDuration = Date.now() - syncStart;
-  console.info(`[DashboardHeader] Parallel sync completed in ${syncDuration}ms across ${portfolioLabels.length} portfolios`);
+  console.info(`[DashboardHeader] Parallel sync completed in ${syncDuration}ms across ${portfolios.length} portfolios`);
 
   let totalInserted = 0;
   const errors: string[] = [];
-
   for (const result of results) {
-    if (result.status === 'fulfilled') {
-      totalInserted += Number(result.value?.total_leads_inserted ?? 0);
-      if (Number(result.value?.total_errors ?? 0) > 0 && Array.isArray(result.value?.insert_errors)) {
-        errors.push(...result.value.insert_errors.filter((error): error is string => typeof error === 'string'));
-      }
-    } else {
-      errors.push(result.reason?.message ?? 'Unknown sync error');
-    }
+    totalInserted += result.inserted;
+    errors.push(...result.errors);
   }
 
   return { totalInserted, errors };
@@ -230,12 +241,6 @@ export default function DashboardHeader({ onLeadsRefreshed }: DashboardHeaderPro
     syncInFlightRef.current = true;
     setSyncing(true);
 
-    // Generate a unique run ID to group all 10 parallel syncs together.
-    // This is passed to /api/sync/execute so portfolio_sync_status rows
-    // can be correlated back to this specific Refresh click.
-    // Must be a valid UUID — portfolio_sync_status.sync_run_id is uuid type.
-    const syncRunId = crypto.randomUUID();
-
     // Reset per-portfolio progress for this new run
     setPortfolioProgress({});
 
@@ -277,7 +282,7 @@ export default function DashboardHeader({ onLeadsRefreshed }: DashboardHeaderPro
     };
 
     try {
-      const syncResult = await triggerParallelSync(portfolioLabels, syncRunId, handlePortfolioComplete);
+      const syncResult = await triggerParallelSync(configuredPortfolios, handlePortfolioComplete);
 
       // ── Step 3: Final re-fetch from DB after all syncs complete ──────────
       onLeadsRefreshed?.();
