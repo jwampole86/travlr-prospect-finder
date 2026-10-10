@@ -5,6 +5,7 @@ import { getDocuSignConfigStatus } from '@/lib/services/docusignService';
 import { getProviderHealth as getRentCastHealth } from '@/lib/services/rentcastService';
 import { getProviderHealth as getPropertyReachHealth } from '@/lib/services/propertyReachProvider';
 import { getTruliaHealth, getZillowDetailHealth, getZillowSearchHealth } from '@/lib/services/rapidApiRealEstateService';
+import { getSkipTracingHealth } from '@/lib/services/skipTracingProvider';
 
 function configured(value: string | undefined): boolean {
   return Boolean(value && !/your-|placeholder|changeme|example|here/i.test(value));
@@ -141,6 +142,7 @@ export async function GET() {
   const truliaHealth = await getTruliaHealth();
   const zillowDetailHealth = await getZillowDetailHealth();
   const zillowSearchHealth = await getZillowSearchHealth();
+  const skipTracingHealth = await getSkipTracingHealth();
 
   return NextResponse.json({
     checkedAt: new Date().toISOString(),
@@ -206,6 +208,11 @@ export async function GET() {
         configured: zillowSearchHealth.hasApiKey,
         status: zillowSearchHealth.status === 'ACTIVE' ? 'operational' : zillowSearchHealth.status === 'DISABLED' ? 'down' : 'degraded',
         message: zillowSearchHealth.message,
+      },
+      skipTracing: {
+        configured: skipTracingHealth.hasApiKey,
+        status: skipTracingHealth.status === 'ACTIVE' ? 'operational' : skipTracingHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: skipTracingHealth.message,
       },
     },
   }, { headers: { 'Cache-Control': 'no-store' } });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeAddress, batchDataProvider, scoreOwnerMatch } from '@/lib/services/ownerEnrichmentService';
+import { skipTracingProvider } from '@/lib/services/skipTracingProvider';
 
 /**
  * POST /api/enrichment/owner-enrichment
@@ -287,7 +288,7 @@ async function runEnrichmentJob(
 
     // Step 4: Phone enrichment
     if (scope !== 'MISSING_OWNER' && bestMatch) {
-      const phones = await batchDataProvider.searchPhone({
+      let phones = await batchDataProvider.searchPhone({
         fullName: bestMatch.fullName,
         propertyAddress: normalized.normalizedAddress,
         city,
@@ -296,6 +297,19 @@ async function runEnrichmentJob(
         mailingAddress: bestMatch.mailingAddress,
         apn: resolvedApn,
       });
+
+      // Fall back to Skip Tracing API when BatchData has no phone for this owner.
+      if (phones.length === 0) {
+        phones = await skipTracingProvider.searchPhone({
+          fullName: bestMatch.fullName,
+          propertyAddress: normalized.normalizedAddress,
+          city,
+          state,
+          zip,
+          mailingAddress: bestMatch.mailingAddress,
+          apn: resolvedApn,
+        });
+      }
 
       for (const phone of phones) {
         if (!phone.phoneE164) continue;

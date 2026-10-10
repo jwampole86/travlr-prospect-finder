@@ -396,8 +396,11 @@ export const manualResearchProvider: OwnerEnrichmentProvider = {
 
 // ─── Provider Registry ───────────────────────────────────────────────────────
 
+import { skipTracingProvider } from './skipTracingProvider';
+
 export const PROVIDER_REGISTRY: Record<string, OwnerEnrichmentProvider> = {
   BATCHDATA: batchDataProvider,
+  SKIP_TRACING_API: skipTracingProvider,
   MANUAL_RESEARCH: manualResearchProvider,
 };
 
