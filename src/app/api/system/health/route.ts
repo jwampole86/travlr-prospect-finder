@@ -9,12 +9,15 @@ function configured(value: string | undefined): boolean {
   return Boolean(value && !/your-|placeholder|changeme|example/i.test(value));
 }
 
+// GET /api/system/health is intentionally public — it backs /system-health,
+// a public "status.travlr.com"-style page with no login wall. It previously
+// required an authenticated session and 401'd for every anonymous visitor,
+// which made the public status page report every service as "Outage" for
+// anyone not logged in. None of the checks below expose sensitive data: the
+// leads query uses head:true/count-only (no rows returned), and the rest are
+// just configured/not-configured booleans for third-party providers.
 export async function GET() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   const checkedAt = new Date().toISOString();
   const checks: Record<string, { status: HealthStatus; responseTime: number | null; detail: string }> = {};
