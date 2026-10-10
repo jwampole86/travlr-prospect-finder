@@ -14,7 +14,10 @@ const DS_ACCOUNT_ID = process.env.DOCUSIGN_ACCOUNT_ID ?? '';
 const DS_USER_ID = process.env.DOCUSIGN_USER_ID ?? '';
 const DS_PRIVATE_KEY = (process.env.DOCUSIGN_PRIVATE_KEY ?? '').replace(/\\n/g, '\n');
 
-const hasPlaceholderValue = (value: string) => !value || /your-|here|xxxxxxxx|BEGIN RSA PRIVATE KEY/.test(value);
+// Catches unfilled env vars (still the literal "your-...-here" template) or the
+// UI placeholder hint text (which uses "..." to show the expected PEM format) —
+// NOT a real key, which legitimately starts with "-----BEGIN RSA PRIVATE KEY-----".
+const hasPlaceholderValue = (value: string) => !value || /your-|here|xxxxxxxx|\.\.\./.test(value);
 
 // TRAVLR static config — never re-entered per deal
 export const TRAVLR_CONFIG = {
