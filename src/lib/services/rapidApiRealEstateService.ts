@@ -30,6 +30,37 @@ interface RapidApiFetchResult {
   error?: string;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Some of these RapidAPI subscriptions (observed live on zillow-scraper-api2,
+// "ULTRA" plan) enforce a per-second cap *tighter* than the plan name implies
+// and report it as a plain HTTP 200 body — e.g. {"message":"You have exceeded
+// the rate limit per second..."} — not a 429. Left unhandled, callers treated
+// that 200 as a real (empty) answer, which surfaced as "0 listings" → a false
+// "No importable listings found" error on the Dashboard's parallel portfolio
+// sync (some portfolios failing, some not, purely by which ones raced past
+// the 1-req/sec ceiling). Track the last call time per host and enforce a
+// floor between requests, plus retry once with backoff if the message still
+// slips through.
+const MIN_INTERVAL_MS = 1100;
+const lastCallAtByHost = new Map<string, number>();
+
+function isRateLimitMessage(data: unknown): boolean {
+  const msg = (data as { message?: string } | null)?.message;
+  return typeof msg === 'string' && /rate limit/i.test(msg);
+}
+
+async function throttleHost(host: string): Promise<void> {
+  const last = lastCallAtByHost.get(host);
+  if (last != null) {
+    const wait = MIN_INTERVAL_MS - (Date.now() - last);
+    if (wait > 0) await sleep(wait);
+  }
+  lastCallAtByHost.set(host, Date.now());
+}
+
 async function rapidApiFetch(host: string, path: string, init: RequestInit = {}): Promise<RapidApiFetchResult> {
   const keys = getRapidApiKeys();
   if (keys.length === 0) {
@@ -40,31 +71,47 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {})
   let lastError: string | undefined;
 
   for (const key of keys) {
-    try {
-      const res = await fetch(`https://${host}${path}`, {
-        ...init,
-        headers: { ...(init.headers || {}), 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': host },
-        signal: AbortSignal.timeout(30000),
-      });
+    // Up to 2 attempts per key: the provider's per-second rate-limit message
+    // (HTTP 200, not 429) is transient — a short backoff almost always clears it.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      await throttleHost(host);
+      try {
+        const res = await fetch(`https://${host}${path}`, {
+          ...init,
+          headers: { ...(init.headers || {}), 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': host },
+          signal: AbortSignal.timeout(30000),
+        });
 
-      // Only rotate to the next key on auth/quota failures — any other response
-      // (including the provider's own 4xx/5xx) is a real answer, not a bad key.
-      if (res.status === 401 || res.status === 403 || res.status === 429) {
-        lastStatus = res.status;
-        lastError = `HTTP ${res.status}`;
-        continue;
-      }
+        // Only rotate to the next key on auth/quota failures — any other response
+        // (including the provider's own 4xx/5xx) is a real answer, not a bad key.
+        if (res.status === 401 || res.status === 403 || res.status === 429) {
+          lastStatus = res.status;
+          lastError = `HTTP ${res.status}`;
+          break; // try the next key
+        }
 
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        return { ok: false, status: res.status, data, error: (data as { message?: string })?.message || `HTTP ${res.status}` };
+        const data = await res.json().catch(() => null);
+
+        if (isRateLimitMessage(data)) {
+          lastStatus = res.status;
+          lastError = (data as { message?: string }).message;
+          if (attempt === 1) {
+            await sleep(1500);
+            continue; // retry same key once more
+          }
+          break; // still rate-limited after backoff — try the next key
+        }
+
+        if (!res.ok) {
+          return { ok: false, status: res.status, data, error: (data as { message?: string })?.message || `HTTP ${res.status}` };
+        }
+        return { ok: true, status: res.status, data };
+      } catch (err) {
+        // A network-level failure (timeout, DNS, connection reset) is a property
+        // of the upstream host, not the key — retrying with a different key just
+        // doubles/triples the wait for the same flaky provider. Fail fast instead.
+        return { ok: false, error: err instanceof Error ? err.message : 'Request failed' };
       }
-      return { ok: true, status: res.status, data };
-    } catch (err) {
-      // A network-level failure (timeout, DNS, connection reset) is a property
-      // of the upstream host, not the key — retrying with a different key just
-      // doubles/triples the wait for the same flaky provider. Fail fast instead.
-      return { ok: false, error: err instanceof Error ? err.message : 'Request failed' };
     }
   }
 
