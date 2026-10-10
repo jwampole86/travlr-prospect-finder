@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { createClient } from '@/lib/supabase/client';
 import { PORTFOLIOS } from '@/contexts/PortfolioContext';
-import { ACTIVE_PIPELINE_STAGES } from '@/lib/kpiDefinitions';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend,
@@ -113,28 +112,34 @@ export default function ExecutiveOverviewPage() {
     const fetchStart = Date.now();
 
     try {
-      // Batch both queries in parallel
-      const [leadsResult, outreachResult] = await Promise.all([
-        supabase.from('leads').select('state, stage').not('state', 'is', null),
+      // Batch both queries in parallel. Lead counts come from server-side
+      // aggregation RPCs (not a raw .select() on `leads`) — PostgREST caps
+      // any unbounded row fetch at 1000, which previously truncated both
+      // the Total Leads KPI and the per-portfolio breakdown.
+      const [summaryResult, stateBreakdownResult, outreachResult] = await Promise.all([
+        supabase.rpc('get_dashboard_summary', { p_state: 'all' }),
+        supabase.rpc('get_portfolio_state_breakdown'),
         supabase.from('outreach_history').select('status, sent_at, lead:leads(estimated_net_monthly)').order('sent_at', { ascending: true }),
       ]);
 
-      if (leadsResult.error) throw leadsResult.error;
+      if (summaryResult.error) throw summaryResult.error;
+      if (stateBreakdownResult.error) throw stateBreakdownResult.error;
       if (outreachResult.error) throw outreachResult.error;
 
-      const leadsData = leadsResult.data || [];
+      const summary = summaryResult.data as { total_prospects?: number } | null;
+      const stateBreakdown = (stateBreakdownResult.data || []) as
+        { state: string; total_leads: number; active_leads: number }[];
       const outreachData = outreachResult.data || [];
 
       setQueryMs(Date.now() - fetchStart);
 
       // ── Portfolio health ──────────────────────────────────────────────────
       const portfolioRows = PORTFOLIOS.filter((p) => p.key !== 'all');
+      const breakdownByState = new Map(stateBreakdown.map((s) => [s.state, s]));
       const healthList: PortfolioHealth[] = portfolioRows.map((p) => {
-        const stateLeads = leadsData.filter((l) => l.state === p.stateCode);
-        const total = stateLeads.length;
-        const active = stateLeads.filter((l) =>
-          ACTIVE_PIPELINE_STAGES.includes(l.stage as (typeof ACTIVE_PIPELINE_STAGES)[number])
-        ).length;
+        const stateRow = breakdownByState.get(p.stateCode);
+        const total = stateRow?.total_leads ?? 0;
+        const active = stateRow?.active_leads ?? 0;
         const healthPct = total > 0 ? Math.round((active / total) * 100) : 0;
         return {
           key: p.key,
@@ -149,7 +154,7 @@ export default function ExecutiveOverviewPage() {
       }).sort((a, b) => b.totalLeads - a.totalLeads);
 
       // ── KPI summary ───────────────────────────────────────────────────────
-      const totalLeads = leadsData.length;
+      const totalLeads = Number(summary?.total_prospects ?? 0);
       const totalOutreach = outreachData.length;
       const delivered = outreachData.filter((o) => o.status === 'delivered').length;
       const deliveryRate = totalOutreach > 0 ? Math.round((delivered / totalOutreach) * 100) : 0;
