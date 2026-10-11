@@ -531,7 +531,11 @@ export default function DashboardPage() {
         <CollapsibleSection
           id="section-city-regs"
           title="City Regulations"
-          subtitle="STR rules by market · verified jurisdiction data"
+          subtitle={
+            selectedPortfolio.stateCode !== 'all'
+              ? `${selectedPortfolio.label} · STR rules by city`
+              : 'All portfolios · rule coverage by state and city'
+          }
           storageKey="dashboard_collapse_city_regs"
         >
           {/* Separate instance with city-specific title — fetches independently */}

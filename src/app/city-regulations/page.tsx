@@ -65,6 +65,22 @@ export default function CityRegulationsPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Prefill the add form from dashboard links: /city-regulations?add=1&city=Denver&state=CO
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('add') !== '1') return;
+    const city = params.get('city') ?? '';
+    const state = (params.get('state') ?? '').toUpperCase();
+    setActiveTab('regulations');
+    setAddForm((p) => ({
+      ...p,
+      city,
+      state,
+      jurisdictionName: city && state ? `${city}, ${state}` : city,
+    }));
+    setShowAddForm(true);
+  }, []);
+
   const filtered = regulations.filter(r => {
     const matchSearch = !search || [r.jurisdictionName, r.city, r.state, r.county].some(v => v?.toLowerCase().includes(search.toLowerCase()));
     const matchStatus = statusFilter === 'all' || r.status === statusFilter;

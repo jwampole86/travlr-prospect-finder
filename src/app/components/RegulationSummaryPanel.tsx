@@ -1,124 +1,137 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { AlertTriangle, CheckCircle, Info, Loader2, RefreshCw, ShieldCheck, Clock } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import {
+  AlertTriangle, ChevronDown, ChevronRight, ExternalLink, Info, Loader2, Plus, RefreshCw, ShieldCheck,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { usePortfolio } from '@/contexts/PortfolioContext';
+import {
+  CANONICAL_STATUS_COLORS,
+  CANONICAL_STATUS_LABELS,
+  formatRegDate,
+  getRegulationFreshnessStatus,
+} from '@/lib/services/cityRegulationService';
+import type { CanonicalRegStatus } from '@/lib/services/cityRegulationService';
 
-// ─── DB shape from regulation_rules table ────────────────────────────────────
-interface DbRegulationRule {
-  id: string;
+// ─── Data shape returned by public.get_regulation_markets ────────────────────
+interface Market {
   state: string;
-  city: string | null;
-  zone: string | null;
-  rule_key: string;
-  rule_label: string;
-  rule_description: string | null;
-  rule_type: string | null;
-  is_required: boolean | null;
-  is_verified: boolean | null;
-  verification_notes: string | null;
-  display_order: number | null;
-  is_active: boolean | null;
-  created_at: string;
-  updated_at: string;
+  city: string;
+  leads: number;
+  avg_score: number | null;
+  rule_id: string | null;
+  status: string | null;
+  review_status: string | null;
+  confidence: string | null;
+  last_verified_at: string | null;
+  agent_summary: string | null;
+  summary: string | null;
+  source_name: string | null;
+  source_url: string | null;
+  str_allowed: boolean | null;
+  permit_required: boolean | null;
+  license_required: boolean | null;
+  primary_residence_required: boolean | null;
+  night_cap: number | null;
+  minimum_stay: number | null;
 }
 
-// ─── Grouped market shape for display ────────────────────────────────────────
-interface MarketRegulation {
-  state: string;
-  city: string | null;
-  zone: string | null;
-  rules: DbRegulationRule[];
-  isVerified: boolean;
-  lastUpdated: string;
-  /** Derived status from rules */
-  status: 'VERIFIED' | 'REVIEW_REQUIRED' | 'STALE' | 'NO_DATA';
+interface StateGroup {
+  code: string;
+  name: string;
+  markets: Market[];
+  withRule: number;
+  needsReview: number;
+  leads: number;
+  leadsCovered: number;
+  uncoveredWithLeads: number;
 }
 
-function deriveStatus(rules: DbRegulationRule[], lastUpdated: string): MarketRegulation['status'] {
-  if (!rules.length) return 'NO_DATA';
-  const allVerified = rules.every((r) => r.is_verified);
-  if (!allVerified) return 'REVIEW_REQUIRED';
+const US_STATE_NAMES: Record<string, string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado',
+  CT: 'Connecticut', DE: 'Delaware', DC: 'District of Columbia', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky',
+  LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota',
+  MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire',
+  NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota',
+  OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island',
+  SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming', PR: 'Puerto Rico',
+};
 
-  // Check staleness — if last updated > 180 days ago, mark STALE
-  const daysSinceUpdate = (Date.now() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24);
-  if (daysSinceUpdate > 180) return 'STALE';
-  return 'VERIFIED';
+type Filter = 'all' | 'missing' | 'review' | 'covered';
+const INITIAL_ROWS = 20;
+
+function toStatus(s: string | null): CanonicalRegStatus {
+  const up = (s ?? '').toUpperCase();
+  return up in CANONICAL_STATUS_LABELS ? (up as CanonicalRegStatus) : 'UNKNOWN';
 }
 
-function statusIcon(status: MarketRegulation['status']) {
-  if (status === 'VERIFIED') return <ShieldCheck size={12} className="text-success" />;
-  if (status === 'REVIEW_REQUIRED') return <AlertTriangle size={12} className="text-warning" />;
-  if (status === 'STALE') return <Clock size={12} className="text-muted-foreground" />;
-  return <Info size={12} className="text-muted-foreground" />;
+function needsReview(m: Market): boolean {
+  if (!m.rule_id) return false;
+  const f = getRegulationFreshnessStatus(m.last_verified_at);
+  return f === 'STALE' || f === 'REVIEW_DUE' || f === 'UNKNOWN';
 }
 
-function statusColor(status: MarketRegulation['status']) {
-  if (status === 'VERIFIED') return 'text-success';
-  if (status === 'REVIEW_REQUIRED') return 'text-warning';
-  if (status === 'STALE') return 'text-muted-foreground';
-  return 'text-muted-foreground';
+function sortMarkets(a: Market, b: Market): number {
+  return b.leads - a.leads || a.city.localeCompare(b.city);
 }
 
-function statusLabel(status: MarketRegulation['status']) {
-  if (status === 'VERIFIED') return 'Verified';
-  if (status === 'REVIEW_REQUIRED') return 'Review Required';
-  if (status === 'STALE') return 'Stale';
-  return 'No Data';
+function pct(n: number, d: number): number {
+  return d > 0 ? Math.round((n / d) * 100) : 0;
 }
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch {
-    return iso;
+function addRuleHref(m: Market): string {
+  const q = new URLSearchParams({ add: '1', city: m.city, state: m.state });
+  return `/city-regulations?${q.toString()}`;
+}
+
+function groupByState(markets: Market[]): StateGroup[] {
+  const map = new Map<string, Market[]>();
+  for (const m of markets) {
+    if (!map.has(m.state)) map.set(m.state, []);
+    map.get(m.state)!.push(m);
   }
-}
-
-/** Group flat DB rows into per-market objects */
-function groupByMarket(rows: DbRegulationRule[]): MarketRegulation[] {
-  const map = new Map<string, DbRegulationRule[]>();
-  for (const row of rows) {
-    const key = `${row.state}|${row.city ?? ''}|${row.zone ?? ''}`;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(row);
-  }
-
-  const markets: MarketRegulation[] = [];
-  for (const [, rules] of map) {
-    const sorted = [...rules].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
-    const lastUpdated = sorted.reduce((latest, r) => {
-      return r.updated_at > latest ? r.updated_at : latest;
-    }, sorted[0].updated_at);
-
-    markets.push({
-      state: sorted[0].state,
-      city: sorted[0].city,
-      zone: sorted[0].zone,
-      rules: sorted,
-      isVerified: sorted.every((r) => r.is_verified),
-      lastUpdated,
-      status: deriveStatus(sorted, lastUpdated),
+  const groups: StateGroup[] = [];
+  for (const [code, list] of map) {
+    const sorted = [...list].sort(sortMarkets);
+    groups.push({
+      code,
+      name: US_STATE_NAMES[code] ?? code,
+      markets: sorted,
+      withRule: sorted.filter((m) => m.rule_id).length,
+      needsReview: sorted.filter(needsReview).length,
+      leads: sorted.reduce((s, m) => s + m.leads, 0),
+      leadsCovered: sorted.reduce((s, m) => s + (m.rule_id ? m.leads : 0), 0),
+      uncoveredWithLeads: sorted.filter((m) => !m.rule_id && m.leads > 0).length,
     });
   }
-
-  // Sort: verified first, then by state+city
-  return markets.sort((a, b) => {
-    if (a.status === 'VERIFIED' && b.status !== 'VERIFIED') return -1;
-    if (b.status === 'VERIFIED' && a.status !== 'VERIFIED') return 1;
-    const stateCompare = a.state.localeCompare(b.state);
-    if (stateCompare !== 0) return stateCompare;
-    return (a.city ?? '').localeCompare(b.city ?? '');
-  });
+  return groups.sort((a, b) => b.leads - a.leads || a.name.localeCompare(b.name));
 }
 
+function applyFilter(markets: Market[], filter: Filter): Market[] {
+  switch (filter) {
+    case 'missing': return markets.filter((m) => !m.rule_id);
+    case 'review': return markets.filter(needsReview);
+    case 'covered': return markets.filter((m) => m.rule_id);
+    default: return markets;
+  }
+}
+
+// ─── Panel ───────────────────────────────────────────────────────────────────
 export default function RegulationSummaryPanel({ showHeader = true }: { showHeader?: boolean }) {
-  const [markets, setMarkets] = useState<MarketRegulation[]>([]);
+  const { selectedPortfolio } = usePortfolio();
+  const stateCode = selectedPortfolio.stateCode && selectedPortfolio.stateCode !== 'all'
+    ? selectedPortfolio.stateCode.toUpperCase()
+    : 'all';
+  const isSingleState = stateCode !== 'all';
+
+  const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { selectedPortfolio } = usePortfolio();
-  const stateCode = selectedPortfolio.stateCode;
+  const [filter, setFilter] = useState<Filter>('all');
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -126,41 +139,24 @@ export default function RegulationSummaryPanel({ showHeader = true }: { showHead
     return () => { mountedRef.current = false; };
   }, []);
 
-  const fetchRegulations = useCallback(async () => {
-    if (mountedRef.current) {
-      setLoading(true);
-      setError(null);
-    }
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const supabase = createClient();
-      let query = supabase
-        .from('regulation_rules')
-        .select('id,state,city,zone,rule_key,rule_label,rule_description,rule_type,is_required,is_verified,verification_notes,display_order,is_active,created_at,updated_at')
-        .eq('is_active', true)
-        .order('state', { ascending: true })
-        .order('display_order', { ascending: true })
-        .limit(200);
-
-      if (stateCode && stateCode !== 'all') {
-        query = query.eq('state', stateCode);
-      }
-
-      // Timeout after 10 seconds — never spin forever
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out')), 10_000)
-      );
-      const { data, error: qErr } = await Promise.race([query, timeoutPromise]) as Awaited<typeof query>;
-
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), 15_000));
+      const { data, error: rpcErr } = await Promise.race([
+        supabase.rpc('get_regulation_markets', { p_state: stateCode }),
+        timeout,
+      ]);
       if (!mountedRef.current) return;
-
-      if (qErr) {
-        setError(qErr.message);
+      if (rpcErr) {
+        setError(rpcErr.message);
         setMarkets([]);
         return;
       }
-
-      const rows = (data ?? []) as DbRegulationRule[];
-      setMarkets(groupByMarket(rows));
+      setMarkets(((data as Market[] | null) ?? []).filter((m) => m.state && m.city));
     } catch (e) {
       if (!mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load regulations');
@@ -171,8 +167,33 @@ export default function RegulationSummaryPanel({ showHeader = true }: { showHead
   }, [stateCode]);
 
   useEffect(() => {
-    fetchRegulations();
-  }, [fetchRegulations]);
+    setFilter('all');
+    load();
+  }, [load]);
+
+  const totals = useMemo(() => {
+    const withRule = markets.filter((m) => m.rule_id).length;
+    const leads = markets.reduce((s, m) => s + m.leads, 0);
+    const leadsCovered = markets.reduce((s, m) => s + (m.rule_id ? m.leads : 0), 0);
+    return {
+      markets: markets.length,
+      withRule,
+      leads,
+      leadsCovered,
+      review: markets.filter(needsReview).length,
+      states: new Set(markets.map((m) => m.state)).size,
+    };
+  }, [markets]);
+
+  const groups = useMemo(() => (isSingleState ? [] : groupByState(markets)), [markets, isSingleState]);
+  const singleList = useMemo(
+    () => applyFilter([...markets].sort(sortMarkets), filter),
+    [markets, filter],
+  );
+
+  const scopeLabel = isSingleState
+    ? `${US_STATE_NAMES[stateCode] ?? stateCode} portfolio`
+    : `All portfolios · ${totals.states} states`;
 
   return (
     <div className="bg-card rounded-xl border border-border">
@@ -180,10 +201,10 @@ export default function RegulationSummaryPanel({ showHeader = true }: { showHead
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-foreground">City Regulations</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">STR rules by market · verified jurisdiction data</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{scopeLabel} · STR rules by market</p>
           </div>
           <button
-            onClick={fetchRegulations}
+            onClick={load}
             className="p-1.5 rounded-md hover:bg-muted transition-colors"
             title="Refresh regulations"
             aria-label="Refresh regulations"
@@ -193,7 +214,6 @@ export default function RegulationSummaryPanel({ showHeader = true }: { showHead
         </div>
       )}
 
-      {/* Body */}
       {loading ? (
         <div className="flex items-center justify-center py-10">
           <Loader2 size={16} className="animate-spin text-muted-foreground" />
@@ -203,131 +223,276 @@ export default function RegulationSummaryPanel({ showHeader = true }: { showHead
           <AlertTriangle size={16} className="text-destructive" />
           <p className="text-xs font-medium text-destructive">DATA ERROR</p>
           <p className="text-[11px] text-muted-foreground">{error}</p>
-          <button
-            onClick={fetchRegulations}
-            className="text-[11px] text-primary hover:underline mt-1"
-          >
-            Retry
-          </button>
+          <button onClick={load} className="text-[11px] text-primary hover:underline mt-1">Retry</button>
         </div>
       ) : markets.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 px-5 text-center gap-2">
           <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
             <Info size={14} className="text-muted-foreground" />
           </div>
-          <p className="text-xs font-medium text-foreground">No regulation data available</p>
+          <p className="text-xs font-medium text-foreground">No markets yet</p>
           <p className="text-[11px] text-muted-foreground leading-snug">
-            {stateCode && stateCode !== 'all'
-              ? `No verified regulation records found for ${stateCode}.`
-              : 'No verified regulation records found. Add records via the Regulations module.'}
+            {isSingleState
+              ? `No leads or regulation records found for ${US_STATE_NAMES[stateCode] ?? stateCode}.`
+              : 'No leads or regulation records found.'}
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-border max-h-[480px] overflow-y-auto scrollbar-thin">
-          {markets.map((market) => (
-            <MarketRow key={`${market.state}|${market.city ?? ''}|${market.zone ?? ''}`} market={market} />
-          ))}
+        <>
+          {/* Coverage summary */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border border-b border-border">
+            <Stat label={isSingleState ? 'Cities' : 'States'} value={isSingleState ? totals.markets : totals.states}
+              hint={isSingleState ? 'with leads or rules' : `${totals.markets.toLocaleString()} markets`} />
+            <Stat label="Rule on file" value={`${pct(totals.withRule, totals.markets)}%`}
+              hint={`${totals.withRule.toLocaleString()} of ${totals.markets.toLocaleString()} markets`} />
+            <Stat label="Leads covered" value={`${pct(totals.leadsCovered, totals.leads)}%`}
+              hint={`${totals.leadsCovered.toLocaleString()} of ${totals.leads.toLocaleString()} leads`} />
+            <Stat label="Needs review" value={totals.review} tone={totals.review > 0 ? 'warning' : undefined}
+              hint="stale or unverified" />
+          </div>
+
+          {isSingleState ? (
+            <>
+              <FilterBar filter={filter} onChange={setFilter} markets={markets} />
+              <MarketList markets={singleList} emptyText="No markets match this filter." />
+            </>
+          ) : (
+            <div className="divide-y divide-border max-h-[520px] overflow-y-auto scrollbar-thin">
+              {groups.map((g) => <StateRow key={g.code} group={g} />)}
+            </div>
+          )}
+
+          <div className="px-5 py-2.5 border-t border-border flex items-center justify-between">
+            <p className="text-[10px] text-muted-foreground">
+              Markets are built from your real leads. Rules shown only where verified data exists.
+            </p>
+            <Link href="/city-regulations" className="text-[11px] text-primary hover:underline whitespace-nowrap">
+              Manage rules →
+            </Link>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Pieces ──────────────────────────────────────────────────────────────────
+function Stat({ label, value, hint, tone }: {
+  label: string; value: string | number; hint: string; tone?: 'warning';
+}) {
+  return (
+    <div className="bg-card px-4 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={`text-lg font-bold leading-tight ${tone === 'warning' ? 'text-warning' : 'text-foreground'}`}>
+        {typeof value === 'number' ? value.toLocaleString() : value}
+      </p>
+      <p className="text-[10px] text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+function FilterBar({ filter, onChange, markets }: {
+  filter: Filter; onChange: (f: Filter) => void; markets: Market[];
+}) {
+  const counts: Record<Filter, number> = {
+    all: markets.length,
+    missing: markets.filter((m) => !m.rule_id).length,
+    review: markets.filter(needsReview).length,
+    covered: markets.filter((m) => m.rule_id).length,
+  };
+  const items: { key: Filter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'missing', label: 'Missing rule' },
+    { key: 'review', label: 'Needs review' },
+    { key: 'covered', label: 'Has rule' },
+  ];
+  return (
+    <div className="px-5 py-2.5 flex items-center gap-1.5 flex-wrap border-b border-border">
+      {items.map((i) => (
+        <button
+          key={i.key}
+          onClick={() => onChange(i.key)}
+          className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+            filter === i.key
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-card text-muted-foreground border-border hover:bg-muted'
+          }`}
+        >
+          {i.label} <span className="opacity-80">{counts[i.key]}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MarketList({ markets, emptyText }: { markets: Market[]; emptyText: string }) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? markets : markets.slice(0, INITIAL_ROWS);
+  if (markets.length === 0) {
+    return <p className="px-5 py-6 text-center text-[11px] text-muted-foreground">{emptyText}</p>;
+  }
+  return (
+    <div className="divide-y divide-border max-h-[480px] overflow-y-auto scrollbar-thin">
+      {visible.map((m) => <CityRow key={`${m.state}|${m.city}`} market={m} />)}
+      {markets.length > INITIAL_ROWS && (
+        <button
+          onClick={() => setShowAll((v) => !v)}
+          className="w-full px-5 py-2.5 text-[11px] text-primary hover:bg-muted transition-colors"
+        >
+          {showAll ? 'Show fewer' : `Show ${(markets.length - INITIAL_ROWS).toLocaleString()} more cities`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function StateRow({ group }: { group: StateGroup }) {
+  const [open, setOpen] = useState(false);
+  const covered = pct(group.withRule, group.markets.length);
+  const barColor = covered >= 60 ? 'bg-success' : covered >= 20 ? 'bg-warning' : 'bg-danger';
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full px-5 py-3 flex items-center gap-3 text-left hover:bg-muted/50 transition-colors"
+      >
+        {open
+          ? <ChevronDown size={14} className="text-muted-foreground shrink-0" />
+          : <ChevronRight size={14} className="text-muted-foreground shrink-0" />}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-foreground">{group.name}</span>
+            <span className="text-[10px] text-muted-foreground">{group.code}</span>
+            {group.uncoveredWithLeads > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/20">
+                {group.uncoveredWithLeads} {group.uncoveredWithLeads === 1 ? 'city' : 'cities'} with leads, no rule
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {group.markets.length.toLocaleString()} markets · {group.leads.toLocaleString()} leads
+            {group.needsReview > 0 ? ` · ${group.needsReview} need review` : ''}
+          </p>
+        </div>
+        <div className="w-28 shrink-0">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+            <span>{group.withRule}/{group.markets.length} rules</span>
+            <span className="font-medium text-foreground">{covered}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.max(covered, group.withRule > 0 ? 4 : 0)}%` }} />
+          </div>
+        </div>
+      </button>
+      {open && (
+        <div className="bg-muted/20 border-t border-border pl-4">
+          <MarketList markets={group.markets} emptyText="No markets." />
         </div>
       )}
     </div>
   );
 }
 
-// ─── Individual market row ────────────────────────────────────────────────────
+function Flag({ label, value }: { label: string; value: boolean | null }) {
+  if (value === null || value === undefined) return null;
+  return (
+    <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+      {label}: <span className="font-medium text-foreground">{value ? 'Required' : 'Not required'}</span>
+    </span>
+  );
+}
 
-function MarketRow({ market }: { market: MarketRegulation }) {
-  const [expanded, setExpanded] = useState(false);
-
-  // Find key rules to surface
-  const permitRule = market.rules.find((r) => r.rule_key === 'permit_required');
-  const primaryResRule = market.rules.find((r) => r.rule_key === 'primary_residence_only');
-  const nightCapRule = market.rules.find((r) => r.rule_key === 'night_cap');
-  const licenseRule = market.rules.find((r) => r.rule_key === 'license_required');
-
-  const marketLabel = market.city
-    ? `${market.city}${market.zone ? ` (${market.zone})` : ''}`
-    : market.state;
+function CityRow({ market: m }: { market: Market }) {
+  const [open, setOpen] = useState(false);
+  const hasRule = !!m.rule_id;
+  const status = toStatus(m.status);
+  const freshness = hasRule ? getRegulationFreshnessStatus(m.last_verified_at) : null;
+  const summary = m.agent_summary || m.summary;
 
   return (
-    <div className="px-5 py-3">
-      <button
-        className="w-full text-left"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-      >
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-1.5">
-            {statusIcon(market.status)}
-            <span className="text-xs font-semibold text-foreground">{marketLabel}</span>
-            {market.city && (
-              <span className="text-[10px] text-muted-foreground">{market.state}</span>
+    <div className="px-5 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <button
+          onClick={() => hasRule && setOpen((v) => !v)}
+          aria-expanded={hasRule ? open : undefined}
+          disabled={!hasRule}
+          className="flex items-center gap-2 min-w-0 text-left disabled:cursor-default"
+        >
+          {hasRule
+            ? (open ? <ChevronDown size={12} className="text-muted-foreground shrink-0" /> : <ChevronRight size={12} className="text-muted-foreground shrink-0" />)
+            : <span className="w-3 shrink-0" />}
+          <span className="text-xs font-medium text-foreground truncate">{m.city}</span>
+          <span className="text-[10px] text-muted-foreground shrink-0">{m.state}</span>
+          {m.leads > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary shrink-0">
+              {m.leads.toLocaleString()} {m.leads === 1 ? 'lead' : 'leads'}
+            </span>
+          )}
+        </button>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {hasRule ? (
+            <>
+              {(freshness === 'STALE' || freshness === 'REVIEW_DUE' || freshness === 'UNKNOWN') && (
+                <span className="text-[10px] text-warning" title={`Last verified ${formatRegDate(m.last_verified_at)}`}>
+                  {freshness === 'UNKNOWN' ? 'Unverified' : freshness === 'STALE' ? 'Stale' : 'Review due'}
+                </span>
+              )}
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${CANONICAL_STATUS_COLORS[status]}`}>
+                {CANONICAL_STATUS_LABELS[status]}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-[10px] text-muted-foreground">No rule on file</span>
+              <Link
+                href={addRuleHref(m)}
+                className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline"
+                title={`Add a regulation record for ${m.city}, ${m.state}`}
+              >
+                <Plus size={10} /> Add rule
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+
+      {hasRule && open && (
+        <div className="mt-2 ml-5 space-y-2 border-t border-border pt-2">
+          {summary && <p className="text-[11px] text-foreground leading-snug">{summary}</p>}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Flag label="Permit" value={m.permit_required} />
+            <Flag label="License" value={m.license_required} />
+            <Flag label="Primary residence" value={m.primary_residence_required} />
+            {m.night_cap ? (
+              <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                Night cap: <span className="font-medium text-foreground">{m.night_cap}/yr</span>
+              </span>
+            ) : null}
+            {m.minimum_stay ? (
+              <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                Min stay: <span className="font-medium text-foreground">{m.minimum_stay} nights</span>
+              </span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap text-[10px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <ShieldCheck size={10} className={freshness === 'CURRENT' ? 'text-success' : 'text-warning'} />
+              Verified {formatRegDate(m.last_verified_at)}
+            </span>
+            {m.confidence && <span>Confidence: {m.confidence.toLowerCase()}</span>}
+            {m.source_url && (
+              <a
+                href={m.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-0.5 text-primary hover:underline"
+              >
+                {m.source_name || 'Source'} <ExternalLink size={9} />
+              </a>
             )}
           </div>
-          <span className={`text-[11px] font-medium ${statusColor(market.status)}`}>
-            {statusLabel(market.status)}
-          </span>
-        </div>
-
-        {/* Key rule badges */}
-        <div className="flex items-center gap-1.5 flex-wrap mt-1">
-          {permitRule && (
-            <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-              {permitRule.rule_description ?? permitRule.rule_label}
-            </span>
-          )}
-          {licenseRule && (
-            <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-              {licenseRule.rule_description ?? licenseRule.rule_label}
-            </span>
-          )}
-          {primaryResRule && (
-            <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-              {primaryResRule.rule_description ?? primaryResRule.rule_label}
-            </span>
-          )}
-          {nightCapRule && (
-            <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-              {nightCapRule.rule_description ?? nightCapRule.rule_label}
-            </span>
-          )}
-          <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-0.5">
-            <Clock size={9} />
-            {formatDate(market.lastUpdated)}
-          </span>
-        </div>
-      </button>
-
-      {/* Expanded detail */}
-      {expanded && (
-        <div className="mt-2 space-y-1.5 border-t border-border pt-2">
-          {market.rules.map((rule) => (
-            <div key={rule.id} className="flex items-start gap-2">
-              {rule.is_verified ? (
-                <CheckCircle size={10} className="text-success mt-0.5 shrink-0" />
-              ) : (
-                <AlertTriangle size={10} className="text-warning mt-0.5 shrink-0" />
-              )}
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-foreground">{rule.rule_label}</p>
-                {rule.rule_description && (
-                  <p className="text-[10px] text-muted-foreground leading-snug">{rule.rule_description}</p>
-                )}
-                {rule.verification_notes && (
-                  <p className="text-[10px] text-muted-foreground/70 italic mt-0.5">{rule.verification_notes}</p>
-                )}
-              </div>
-            </div>
-          ))}
-          {market.status === 'REVIEW_REQUIRED' && (
-            <p className="text-[10px] text-warning mt-1">
-              ⚠ Some rules pending verification. Review before relying on this data.
-            </p>
-          )}
-          {market.status === 'STALE' && (
-            <p className="text-[10px] text-muted-foreground mt-1">
-              ⏱ Last verified {formatDate(market.lastUpdated)} — regulations may have changed.
-            </p>
-          )}
         </div>
       )}
     </div>
