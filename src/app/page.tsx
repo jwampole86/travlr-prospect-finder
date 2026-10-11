@@ -479,7 +479,7 @@ export default function DashboardPage() {
           ) : statsError ? (
             <SectionError title="State Regulations" onRetry={refreshStats} />
           ) : (
-            <RegulationPieChart regulationBreakdown={regulationBreakdown} />
+            <RegulationPieChart regulationBreakdown={regulationBreakdown} insightsState={portfolioState ?? 'all'} />
           )}
         </CollapsibleSection>
 
