@@ -205,7 +205,7 @@ function calculateRevenue(beds: number, state: string) {
   const projectedOwnerGross = projectedAnnualGross - projectedManagementRevenue;
   const estimatedOperatingCosts = Math.round(projectedAnnualGross * 0.15);
   const projectedOwnerNet = projectedOwnerGross - estimatedOperatingCosts;
-  return { projectedADR, projectedOccupancy: Math.round(projectedOccupancy * 100), projectedMonthlyGross, projectedAnnualGross, projectedManagementRevenue, projectedOwnerNet };
+  return { projectedADR, projectedOccupancy: Math.round(projectedOccupancy * 100), projectedMonthlyGross, projectedAnnualGross, projectedManagementRevenue, projectedOwnerNet, projectedOwnerNetMonthly: Math.round(projectedOwnerNet / 12) };
 }
 
 // ─── Prospect score ───────────────────────────────────────────────────────────
@@ -745,7 +745,7 @@ export async function POST(req: NextRequest) {
             estimated_adr: revenue.projectedADR,
             estimated_occupancy: revenue.projectedOccupancy,
             estimated_gross_monthly: revenue.projectedMonthlyGross,
-            estimated_net_monthly: revenue.projectedOwnerNet,
+            estimated_net_monthly: revenue.projectedOwnerNetMonthly,
             photos: [],
             created_at: now,
             updated_at: now,

@@ -135,6 +135,7 @@ function calculateTravlrRevenue(beds: number, baths: number, state: string, curr
     estimatedManagementFee: Math.round(estimatedManagementFee * 100),
     projectedManagementRevenue, projectedOwnerGross, estimatedOperatingCosts,
     projectedOwnerNet, potentialUplift, potentialUpliftPct,
+    projectedOwnerNetMonthly: Math.round(projectedOwnerNet / 12),
     calculationVersion: 'travlr-v1.0', calculatedAt: new Date().toISOString(),
   };
 }
@@ -358,8 +359,8 @@ export async function POST(req: NextRequest) {
       const rawCity = String(row.city || row.City || '').trim();
       const rawState = String(row.state || row.State || '').trim();
       const rawZip = String(row.zip || row.Zip || row.zipcode || '').trim();
-      const rawBeds = parseInt(String(row.beds || row.Beds || '3')) || 3;
-      const rawBaths = parseFloat(String(row.baths || row.Baths || '2')) || 2;
+      const rawBeds = parseInt(String(row.beds || row.Beds || '0')) || 0;
+      const rawBaths = parseFloat(String(row.baths || row.Baths || '0')) || 0;
       const rawPrice = parseFloat(String(row.price || row.Price || '0').replace(/[^0-9.]/g, '')) || 0;
       // Defaults to 'rent' to preserve existing behavior for manual CSV uploads
       // (which by established convention are rental research), but RapidAPI-sourced
@@ -620,7 +621,7 @@ export async function POST(req: NextRequest) {
           price: pr.rawPriceType === 'sale' ? pr.rawPrice : currentRent, benchmarks,
         });
         const prospectScore = calculateProspectScore({
-          estimatedNetMonthly: revenue.projectedOwnerNet,
+          estimatedNetMonthly: revenue.projectedOwnerNetMonthly,
           estimatedGrossMonthly: revenue.projectedMonthlyGross,
           price: pr.rawPriceType === 'sale' ? pr.rawPrice : currentRent,
           priceType: pr.rawPriceType,
@@ -810,7 +811,7 @@ export async function POST(req: NextRequest) {
           updateData.estimated_adr = revenue.projectedADR;
           updateData.estimated_occupancy = revenue.projectedOccupancy;
           updateData.estimated_gross_monthly = revenue.projectedMonthlyGross;
-          updateData.estimated_net_monthly = revenue.projectedOwnerNet;
+          updateData.estimated_net_monthly = revenue.projectedOwnerNetMonthly;
           updateData.enrichment_status = 'PENDING';
           updateData.calculation_version = revenue.calculationVersion;
           updateData.calculated_at = revenue.calculatedAt;
@@ -938,7 +939,7 @@ export async function POST(req: NextRequest) {
             estimated_adr: revenue.projectedADR,
             estimated_occupancy: revenue.projectedOccupancy,
             estimated_gross_monthly: revenue.projectedMonthlyGross,
-            estimated_net_monthly: revenue.projectedOwnerNet,
+            estimated_net_monthly: revenue.projectedOwnerNetMonthly,
             photos: [],
             created_at: now,
             updated_at: now,

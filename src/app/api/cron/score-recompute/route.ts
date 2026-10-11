@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     evaluated += rows.length;
 
     if (!dryRun) {
-      const pending = scored.filter((_, i) => rows[i].score_model_version !== SCORE_MODEL_VERSION);
+      const pending = scored.filter((s, i) => s.before !== s.after || rows[i].score_model_version !== SCORE_MODEL_VERSION);
       written += await writeScores(db, pending);
     }
     if (data.length < PAGE) break;
