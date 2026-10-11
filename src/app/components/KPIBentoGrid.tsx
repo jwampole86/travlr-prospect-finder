@@ -32,7 +32,7 @@ interface KPIBentoGridProps {
   /** Luxury KPI counts */
   luxuryProspects?: number;
   luxuryFullyVerified?: number;
-  luxuryVerifiedNumber?: number;
+  luxuryPhoneAvailable?: number;
   luxuryPriority?: number;
   luxuryUnassignedPriority?: number;
   /** Active portfolio count */
@@ -64,7 +64,7 @@ export default React.memo(function KPIBentoGrid({
   newLeads = 0,
   luxuryProspects = 0,
   luxuryFullyVerified = 0,
-  luxuryVerifiedNumber = 0,
+  luxuryPhoneAvailable = 0,
   luxuryPriority = 0,
   luxuryUnassignedPriority = 0,
   activePortfolios = 0,
@@ -276,9 +276,9 @@ export default React.memo(function KPIBentoGrid({
             </div>
           </Link>
 
-          {/* Luxury + Verified Number */}
+          {/* Luxury + phone available: skip-traced numbers are not verified */}
           <Link
-            href="/lead-management?luxury=true&verifiedNumberOnly=true"
+            href="/lead-management?luxury=true&phoneAvailableOnly=true"
             className="bg-card rounded-xl border border-amber-500/30 p-3 sm:p-4 flex flex-col justify-between min-h-[90px] hover:border-amber-500/60 hover:bg-amber-500/5 transition-all cursor-pointer active:scale-[0.98]"
           >
             <div className="flex items-center justify-between">
@@ -292,10 +292,10 @@ export default React.memo(function KPIBentoGrid({
             </div>
             <div>
               <p className="font-mono-data text-2xl sm:text-3xl font-bold text-foreground leading-none">
-                {luxuryVerifiedNumber.toLocaleString()}
+                {luxuryPhoneAvailable.toLocaleString()}
               </p>
               <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1">
-                Luxury + Verified Phone
+                Luxury + Phone Available
               </p>
             </div>
           </Link>

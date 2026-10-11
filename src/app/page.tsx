@@ -456,7 +456,7 @@ export default function DashboardPage() {
               newLeads={stats.newLeads}
               luxuryProspects={stats.luxuryProspects}
               luxuryFullyVerified={stats.luxuryFullyVerified}
-              luxuryVerifiedNumber={stats.luxuryVerifiedNumber}
+              luxuryPhoneAvailable={stats.luxuryPhoneAvailable}
               luxuryPriority={stats.luxuryPriority}
               luxuryUnassignedPriority={stats.luxuryUnassignedPriority}
               activePortfolios={(stats as { activePortfolios?: number }).activePortfolios ?? 0}

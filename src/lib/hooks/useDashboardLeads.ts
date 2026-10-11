@@ -84,7 +84,7 @@ export interface DashboardStats {
   // Luxury KPI counts
   luxuryProspects: number;
   luxuryFullyVerified: number;
-  luxuryVerifiedNumber: number;
+  luxuryPhoneAvailable: number;
   luxuryPriority: number;
   luxuryUnassignedPriority: number;
   // Portfolio count
@@ -137,7 +137,7 @@ const EMPTY_STATS: DashboardStats = {
   newLeads: 0,
   luxuryProspects: 0,
   luxuryFullyVerified: 0,
-  luxuryVerifiedNumber: 0,
+  luxuryPhoneAvailable: 0,
   luxuryPriority: 0,
   luxuryUnassignedPriority: 0,
   activePortfolios: 0,
@@ -406,7 +406,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
             newLeads: Number(summary.new_leads_30d ?? 0),
             luxuryProspects: Number(summary.luxury_prospects ?? 0),
             luxuryFullyVerified: Number(summary.luxury_fully_verified ?? 0),
-            luxuryVerifiedNumber: Number(summary.luxury_verified_number ?? 0),
+            luxuryPhoneAvailable: Number(summary.luxury_phone_available ?? 0),
             luxuryPriority: Number(summary.luxury_priority ?? 0),
             luxuryUnassignedPriority: Number(summary.luxury_unassigned_priority ?? 0),
             activePortfolios: Number(summary.active_portfolios ?? 0),
@@ -474,7 +474,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
           newLeadsRes,
           luxuryProspectsRes,
           luxuryFullyVerifiedRes,
-          luxuryVerifiedNumberRes,
+          luxuryPhoneAvailableRes,
           luxuryPriorityRes,
           luxuryUnassignedPriorityRes,
           strEligibleRes,
@@ -556,7 +556,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').eq('luxury', true).eq('verified_number', true);
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').eq('luxury', true).not('contact_phone', 'is', null).neq('contact_phone', '');
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),
@@ -614,7 +614,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
           newLeads: getCount(newLeadsRes as PromiseSettledResult<{ count: number | null; error: unknown }>),
           luxuryProspects: getCount(luxuryProspectsRes as PromiseSettledResult<{ count: number | null; error: unknown }>),
           luxuryFullyVerified: getCount(luxuryFullyVerifiedRes as PromiseSettledResult<{ count: number | null; error: unknown }>),
-          luxuryVerifiedNumber: getCount(luxuryVerifiedNumberRes as PromiseSettledResult<{ count: number | null; error: unknown }>),
+          luxuryPhoneAvailable: getCount(luxuryPhoneAvailableRes as PromiseSettledResult<{ count: number | null; error: unknown }>),
           luxuryPriority: getCount(luxuryPriorityRes as PromiseSettledResult<{ count: number | null; error: unknown }>),
           luxuryUnassignedPriority: getCount(luxuryUnassignedPriorityRes as PromiseSettledResult<{ count: number | null; error: unknown }>),
           activePortfolios: 0,
