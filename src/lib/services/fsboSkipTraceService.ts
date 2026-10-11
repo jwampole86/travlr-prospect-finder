@@ -37,6 +37,7 @@ export interface FsboSkipTraceSummary {
   errors: number;
   apiCalls: number;
   stoppedEarly?: 'RATE_LIMITED' | 'DEADLINE';
+  stopReason?: string;
 }
 
 const last10 = (phone?: string | null) => (phone || '').replace(/\D/g, '').slice(-10);
@@ -91,6 +92,7 @@ export async function runFsboSkipTrace(
       // Quota/auth problem, not a lack of data: put the lead back in the queue and stop the run.
       await db.from('leads').update({ skip_trace_status: 'PENDING', skip_traced_at: null }).eq('id', lead.id);
       summary.stoppedEarly = 'RATE_LIMITED';
+      summary.stopReason = result.error;
       break;
     }
     if (result.status === 'ERROR') {

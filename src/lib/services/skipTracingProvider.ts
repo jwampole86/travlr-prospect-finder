@@ -55,6 +55,7 @@ async function skipTraceFetch(path: string): Promise<SkipTraceFetchResult> {
   let lastError: string | undefined;
 
   for (const key of keys) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const res = await fetch(`https://${SKIP_TRACING_HOST}${path}`, {
         headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': SKIP_TRACING_HOST },
@@ -62,9 +63,12 @@ async function skipTraceFetch(path: string): Promise<SkipTraceFetchResult> {
       });
 
       if (res.status === 401 || res.status === 403 || res.status === 429) {
+        const body = await res.json().catch(() => null) as { message?: string; Message?: string } | null;
         lastStatus = res.status;
-        lastError = `HTTP ${res.status}`;
-        continue;
+        lastError = `HTTP ${res.status}${body?.message || body?.Message ? `: ${body.message || body.Message}` : ''}`;
+        // 429s from this provider are intermittent (single calls succeed back to back), so pause and retry once.
+        if (res.status === 429 && attempt === 1) { await new Promise(r => setTimeout(r, 3000)); continue; }
+        break;
       }
 
       const remainingHeader = res.headers.get('x-ratelimit-requests-remaining');
@@ -77,6 +81,7 @@ async function skipTraceFetch(path: string): Promise<SkipTraceFetchResult> {
       return { ok: true, status: res.status, data };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : 'Request failed' };
+    }
     }
   }
 
