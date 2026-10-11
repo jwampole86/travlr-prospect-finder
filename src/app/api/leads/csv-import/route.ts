@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // ─── Luxury threshold map (per state, lowest luxury tier) ────────────────────
 const LUXURY_THRESHOLDS: Record<string, number> = {
-  AZ: 15000, CA: 15000, CO: 15000, FL: 15000, GA: 15000, ID: 15000, KS: 15000,
+  AK: 6000, AZ: 15000, CA: 15000, CO: 15000, FL: 15000, GA: 15000, ID: 15000, KS: 15000,
   MA: 10000, MD: 10000, MN: 10000, MO: 10000, MT: 10000, NC: 10000, NE: 7500,
   NH: 10000, NJ: 10000, NM: 10000, NV: 10000, NY: 15000, OR: 10000, TX: 10000,
   UT: 10000, VT: 10000, WA: 10000, WI: 10000, WY: 10000,
@@ -157,6 +157,7 @@ function calculateProspectScore(params: {
   isManualVerifiedImport: boolean; currentRent: number | null;
   projectedAnnualGross: number; beds: number; regulationStatus: string; hasPhone: boolean;
   priceType?: 'sale' | 'rent'; isFsbo?: boolean;
+  isFurnished?: boolean | null; isApartmentCommunity?: boolean | null;
 }): number {
   let score = 0;
   if (params.verifiedNumber) score += 50;
@@ -178,6 +179,11 @@ function calculateProspectScore(params: {
   // A for-sale-by-owner listing still has a direct owner contact, even
   // though converting it to an STR deal is a harder sell than a rental.
   else if (params.isFsbo) score += 5;
+  // Furnished = STR-ready with no furnishing cost to convert.
+  if (params.isFurnished) score += 10;
+  // A unit inside a larger apartment/condo community is the least
+  // STR-convertible type (HOA/management rules, no individual owner control).
+  if (params.isApartmentCommunity) score -= 15;
   return Math.min(100, Math.max(0, score));
 }
 
@@ -232,6 +238,7 @@ interface CsvRow {
   listingBrokerName?: string; listingBrokerPhone?: string;
   mlsNumber?: string; mlsSourceName?: string; listingUpdatedAt?: string;
   isFsbo?: boolean;
+  isApartmentCommunity?: boolean; propertyTypeLabel?: string; isFurnished?: boolean;
   [key: string]: unknown;
 }
 
@@ -378,6 +385,9 @@ export async function POST(req: NextRequest) {
       rawMlsSourceName: string | null;
       rawListingUpdatedAt: string | null;
       rawIsFsbo: boolean | null;
+      rawIsApartmentCommunity: boolean | null;
+      rawPropertyTypeLabel: string | null;
+      rawIsFurnished: boolean | null;
       normalized: NormalizedAddress;
       normalizedPhone: string | null;
       hasPhone: boolean;
@@ -437,6 +447,9 @@ export async function POST(req: NextRequest) {
       const rawMlsSourceName = String(row.mlsSourceName || '').trim() || null;
       const rawListingUpdatedAt = String(row.listingUpdatedAt || '').trim() || null;
       const rawIsFsbo = typeof row.isFsbo === 'boolean' ? row.isFsbo : null;
+      const rawIsApartmentCommunity = typeof row.isApartmentCommunity === 'boolean' ? row.isApartmentCommunity : null;
+      const rawPropertyTypeLabel = String(row.propertyTypeLabel || '').trim() || null;
+      const rawIsFurnished = typeof row.isFurnished === 'boolean' ? row.isFurnished : null;
 
       if (!rawAddress || rawAddress.length < 5) continue;
 
@@ -466,7 +479,7 @@ export async function POST(req: NextRequest) {
         rawBeds, rawBaths, rawPrice, rawPriceType, rawNotes, rawLink, rawSource, rawStage,
         rawSourcePropertyId, rawAPN, rawRentEstimate, rawListingAgentName, rawListingAgentPhone,
         rawListingBrokerName, rawListingBrokerPhone, rawMlsNumber, rawMlsSourceName,
-        rawListingUpdatedAt, rawIsFsbo,
+        rawListingUpdatedAt, rawIsFsbo, rawIsApartmentCommunity, rawPropertyTypeLabel, rawIsFurnished,
         normalized, normalizedPhone, hasPhone,
         verifiedOwner, currentRent, normalizationResult,
       });
@@ -553,7 +566,7 @@ export async function POST(req: NextRequest) {
     if (fingerprints.length > 0) {
       const { data: byFingerprint } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
         .in('dedup_fingerprint', fingerprints);
 
       if (byFingerprint) {
@@ -567,7 +580,7 @@ export async function POST(req: NextRequest) {
     if (sourceIds.length > 0) {
       const { data: bySourceId } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
         .in('source_property_id', sourceIds);
 
       if (bySourceId) {
@@ -581,7 +594,7 @@ export async function POST(req: NextRequest) {
     if (apns.length > 0) {
       const { data: byAPN } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
         .in('apn', apns);
 
       if (byAPN) {
@@ -629,7 +642,7 @@ export async function POST(req: NextRequest) {
         if (!existingLead && normalized.standardizedAddress) {
           const { data: fallback } = await supabase
             .from('leads')
-            .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+            .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
             .or(`standardized_address.ilike.${normalized.standardizedAddress},address.ilike.${pr.rawAddress}`)
             .limit(1);
 
@@ -648,6 +661,7 @@ export async function POST(req: NextRequest) {
           projectedAnnualGross: revenue.projectedAnnualGross,
           beds: pr.rawBeds, regulationStatus: 'Unknown', hasPhone,
           priceType: pr.rawPriceType, isFsbo: !!pr.rawIsFsbo,
+          isFurnished: pr.rawIsFurnished, isApartmentCommunity: pr.rawIsApartmentCommunity,
         });
         const priorityTier = getPriorityTier(verifiedOwner, false, hasPhone);
         const { score: verificationScore, breakdown: verificationBreakdown } = buildVerificationScore({
@@ -678,7 +692,10 @@ export async function POST(req: NextRequest) {
           const willUpdateListingAttribution = !!(
             (pr.rawListingAgentName && !existingLead.listing_agent_name) ||
             (pr.rawMlsNumber && !existingLead.mls_number) ||
-            (pr.rawRentEstimate && !existingLead.estimated_monthly_rent_ai)
+            (pr.rawRentEstimate && !existingLead.estimated_monthly_rent_ai) ||
+            (pr.rawIsFsbo !== null && existingLead.is_fsbo == null) ||
+            (pr.rawIsFurnished !== null && existingLead.is_furnished == null) ||
+            (pr.rawIsApartmentCommunity !== null && existingLead.is_apartment_community == null)
           );
           const hasChanges = willUpdatePhone || willUpdateContact || willUpdateRent || willUpdateNotes || willCorrectPriceType || willUpdateListingAttribution;
 
@@ -694,7 +711,13 @@ export async function POST(req: NextRequest) {
           const isMultiSource = newSourceTypes.length > 1;
 
           if (!hasChanges) {
-            // UNCHANGED_EXISTING — no new information
+            // UNCHANGED_EXISTING — no new information. Still stamp price_verified_at
+            // for re-verification syncs so a backfill job can track progress via
+            // ordering by price_verified_at, instead of reprocessing the same
+            // already-correct leads forever.
+            if (importFilename?.includes('rapidapi')) {
+              await supabase.from('leads').update({ price_verified_at: now }).eq('id', existingLead.id as string);
+            }
             const result: RowResult = {
               rowIndex: pr.rowIndex, outcome: 'UNCHANGED_EXISTING',
               leadId: existingLead.id as string, address: pr.rawAddress,
@@ -718,6 +741,9 @@ export async function POST(req: NextRequest) {
             match_strategy: matchStrategy,
             match_confidence: matchConfidence,
             dedup_fingerprint: normalized.fingerprint || null,
+            // Stamped on every re-verification sync so a backfill job can track
+            // progress by ordering on price_verified_at, not just on real changes.
+            ...(importFilename?.includes('rapidapi') ? { price_verified_at: now } : {}),
           };
 
           // Only update contact if new data is strictly better (longer, non-empty)
@@ -773,7 +799,6 @@ export async function POST(req: NextRequest) {
           if (willCorrectPriceType) {
             updateData.price = pr.rawPrice || 0;
             updateData.price_type = 'sale';
-            updateData.price_verified_at = now;
           }
           // Backfill listing attribution (agent/broker/MLS) only if missing —
           // never overwrites data a previous sync already captured.
@@ -782,7 +807,16 @@ export async function POST(req: NextRequest) {
             updateData.listing_agent_phone = pr.rawListingAgentPhone;
             updateData.listing_broker_name = pr.rawListingBrokerName;
             updateData.listing_broker_phone = pr.rawListingBrokerPhone;
+          }
+          if (pr.rawIsFsbo !== null && existingLead.is_fsbo == null) {
             updateData.is_fsbo = pr.rawIsFsbo;
+          }
+          if (pr.rawIsFurnished !== null && existingLead.is_furnished == null) {
+            updateData.is_furnished = pr.rawIsFurnished;
+          }
+          if (pr.rawIsApartmentCommunity !== null && existingLead.is_apartment_community == null) {
+            updateData.is_apartment_community = pr.rawIsApartmentCommunity;
+            updateData.property_type_label = pr.rawPropertyTypeLabel;
           }
           if (pr.rawMlsNumber && !existingLead.mls_number) {
             updateData.mls_number = pr.rawMlsNumber;
@@ -904,6 +938,9 @@ export async function POST(req: NextRequest) {
             mls_source_name: pr.rawMlsSourceName,
             listing_updated_at: pr.rawListingUpdatedAt,
             is_fsbo: pr.rawIsFsbo,
+            is_apartment_community: pr.rawIsApartmentCommunity,
+            property_type_label: pr.rawPropertyTypeLabel,
+            is_furnished: pr.rawIsFurnished,
             source: pr.rawSource,
             stage: pr.rawStage,
             notes: pr.rawNotes,

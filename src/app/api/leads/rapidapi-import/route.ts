@@ -23,6 +23,9 @@ interface ImportRow {
   mlsSourceName?: string;
   listingUpdatedAt?: string;
   isFsbo?: boolean;
+  isApartmentCommunity?: boolean;
+  propertyTypeLabel?: string;
+  isFurnished?: boolean;
   notes: string;
   link?: string;
   stage: string;
@@ -30,10 +33,14 @@ interface ImportRow {
 }
 
 function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
-  if (!listing.address || !listing.state) return null;
+  if (!listing.city || !listing.state) return null;
   return {
     source: listing.source,
-    address: listing.address,
+    // Some listings (confirmed live on Trulia) disclose no street address at
+    // all — still worth leading on (city/state/zip + lat/long are real), but
+    // the externalId keeps the placeholder unique so dedup doesn't collapse
+    // multiple distinct undisclosed-address listings in the same zip together.
+    address: listing.address || `Address Not Disclosed (${listing.source} ${listing.externalId || 'unknown'})`,
     city: listing.city,
     state: listing.state,
     zip: listing.zip,
@@ -51,6 +58,9 @@ function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
     mlsSourceName: listing.mlsSourceName,
     listingUpdatedAt: listing.listingUpdatedAt,
     isFsbo: listing.isFsbo,
+    isApartmentCommunity: listing.isApartmentCommunity,
+    propertyTypeLabel: listing.propertyTypeLabel,
+    isFurnished: listing.isFurnished,
     notes: [listing.sqftText, listing.notes].filter(Boolean).join(' | ').slice(0, 2000),
     link: listing.listingUrl,
     stage: 'New Lead',
@@ -174,7 +184,17 @@ export async function POST(req: NextRequest) {
   }
   }
 
-  const rows = allListings.map(toImportRow).filter((r): r is ImportRow => r !== null);
+  // Optional filter — import only specific listings matched by their
+  // provider externalId (zpid/legacyId), e.g. to test a handful of named
+  // properties before running a provider's full search result set.
+  const externalIdFilter = Array.isArray(body?.externalIds)
+    ? new Set(body.externalIds.map((id: unknown) => String(id)))
+    : null;
+  const filteredListings = externalIdFilter
+    ? allListings.filter(l => l.externalId && externalIdFilter.has(l.externalId))
+    : allListings;
+
+  const rows = filteredListings.map(toImportRow).filter((r): r is ImportRow => r !== null);
   if (rows.length === 0) {
     return NextResponse.json({ error: 'No importable listings found (missing address/state on all results)' }, { status: 422 });
   }

@@ -181,6 +181,13 @@ export interface NormalizedRentalListing {
   listingUpdatedAt?: string;
   /** True only when the live listing had no agent/broker attribution at all. */
   isFsbo?: boolean;
+  /** True when the unit is in a multi-unit apartment/condo community rather
+   *  than a standalone home/townhome — lower STR conversion priority. */
+  isApartmentCommunity?: boolean;
+  /** Raw property type string (e.g. 'single-family home', 'apartment', 'townhouse'). */
+  propertyTypeLabel?: string;
+  /** Listing explicitly marked furnished — strong STR-readiness signal. */
+  isFurnished?: boolean;
 }
 
 // ─── Trulia — rent search ─────────────────────────────────────────────────────
@@ -201,14 +208,16 @@ interface TruliaListingRaw {
     communityLocation?: string;
     coordinates?: { latitude?: number; longitude?: number };
   };
-  price?: { min?: number; max?: number; formattedPrice?: string };
+  price?: { min?: number; max?: number; price?: number; formattedPrice?: string };
   url?: string;
   homeUrl?: string | null;
   floorSpace?: { formattedDimension?: string };
   bedrooms?: { min?: number; max?: number };
   bathrooms?: { min?: number; max?: number };
-  tags?: Array<{ formattedName?: string }>;
+  tags?: Array<{ kind?: string; formattedName?: string }>;
   metadata?: { compositeId?: string; legacyIdForSave?: string };
+  propertyType?: { value?: string };
+  activeListing?: { provider?: { listingAgent?: { name?: string } | null; broker?: { name?: string } | null } };
 }
 
 function normalizeTruliaListing(raw: TruliaListingRaw): NormalizedRentalListing {
@@ -219,12 +228,28 @@ function normalizeTruliaListing(raw: TruliaListingRaw): NormalizedRentalListing 
     ? Math.round(((beds.min ?? beds.max ?? 0) + (beds.max ?? beds.min ?? 0)) / 2) : null;
   const avgBaths = baths && (baths.min != null || baths.max != null)
     ? Math.round((((baths.min ?? baths.max ?? 0) + (baths.max ?? baths.min ?? 0)) / 2) * 2) / 2 : null;
-  const price = raw.price && (raw.price.min != null || raw.price.max != null)
-    ? Math.round(((raw.price.min ?? raw.price.max ?? 0) + (raw.price.max ?? raw.price.min ?? 0)) / 2) : null;
+  const price = raw.price?.min != null || raw.price?.max != null
+    ? Math.round(((raw.price.min ?? raw.price.max ?? 0) + (raw.price.max ?? raw.price.min ?? 0)) / 2)
+    // Confirmed live 2026-10-11: some listings (e.g. single-point luxury
+    // rentals) use a flat `price.price` field instead of a min/max range.
+    : (raw.price?.price ?? null);
   const rawUrl = raw.homeUrl || raw.url || '';
   const listingUrl = rawUrl ? (rawUrl.startsWith('http') ? rawUrl : `https://www.trulia.com${rawUrl}`) : undefined;
   const tagText = (raw.tags || []).map(t => t.formattedName).filter(Boolean).join('; ');
   const notesParts = [loc.communityLocation, raw.floorSpace?.formattedDimension, tagText].filter(Boolean);
+  // Confirmed live 2026-10-11: top-level `propertyType.value` (e.g.
+  // 'SINGLE_FAMILY_HOME') is the cleanest signal — apartment communities
+  // (url starts with /building/) are the least STR-convertible unit type.
+  const propertyTypeLabel = raw.propertyType?.value;
+  const isApartmentCommunity = rawUrl.includes('/building/') || propertyTypeLabel === 'APARTMENT';
+  const isFurnished = (raw.tags || []).some(t => t.kind === 'FURNISHED');
+  const provider = raw.activeListing?.provider;
+  const agentName = provider?.listingAgent?.name || undefined;
+  const brokerName = provider?.broker?.name || undefined;
+  // No agent AND no broker at all — this scraper has no separate field for
+  // the owner/property-manager name Trulia's own site shows under "Contact
+  // This Property"; that's a known gap, not fabricated here.
+  const isFsbo = !agentName && !brokerName;
 
   return {
     source: 'Trulia',
@@ -240,6 +265,12 @@ function normalizeTruliaListing(raw: TruliaListingRaw): NormalizedRentalListing 
     price,
     // Only /v1/search/rent is ever called in this app — always a real rental.
     listingStatus: 'for_rent',
+    listingAgentName: agentName,
+    listingBrokerName: brokerName,
+    isFsbo,
+    isApartmentCommunity,
+    propertyTypeLabel,
+    isFurnished,
     sqftText: raw.floorSpace?.formattedDimension,
     listingUrl,
     notes: notesParts.join(' | ').slice(0, 2000),
