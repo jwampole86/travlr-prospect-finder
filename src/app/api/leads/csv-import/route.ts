@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { isSkipTraceEligible } from '@/lib/services/fsboSkipTraceService';
 
 // ─── Luxury threshold map (per state, lowest luxury tier) ────────────────────
 const LUXURY_THRESHOLDS: Record<string, number> = {
@@ -941,6 +942,12 @@ export async function POST(req: NextRequest) {
             is_apartment_community: pr.rawIsApartmentCommunity,
             property_type_label: pr.rawPropertyTypeLabel,
             is_furnished: pr.rawIsFurnished,
+            skip_trace_status: isSkipTraceEligible({
+              isFsbo: pr.rawIsFsbo,
+              isApartmentCommunity: pr.rawIsApartmentCommunity,
+              address: normalized.streetAddress || pr.rawAddress,
+              contactName: pr.rawContact || (pr.rawIsFsbo ? pr.rawListingAgentName : null),
+            }) ? 'PENDING' : null,
             source: pr.rawSource,
             stage: pr.rawStage,
             notes: pr.rawNotes,

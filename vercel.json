@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/listing-verification",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/fsbo-skip-trace",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

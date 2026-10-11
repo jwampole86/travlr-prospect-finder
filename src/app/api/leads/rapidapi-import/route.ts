@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { runFsboSkipTrace } from '@/lib/services/fsboSkipTraceService';
 import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, getZillowPropertyDetails, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
 
 const CHUNK_SIZE = 50;
@@ -222,6 +224,18 @@ export async function POST(req: NextRequest) {
     for (const [key, value] of Object.entries(data?.summary || {})) {
       if (typeof value === 'number') totals[key] = (totals[key] || 0) + value;
     }
+  }
+
+  // Runs after the response is sent so a sync never waits on skip-trace API calls; the
+  // cron route picks up anything this bounded pass doesn't reach.
+  if (rows.some(r => r.isFsbo)) {
+    after(async () => {
+      try {
+        await runFsboSkipTrace(getSupabaseAdmin(), { limit: 20, deadlineMs: 45_000 });
+      } catch (err) {
+        console.warn('[rapidapi-import] post-sync skip trace failed:', err instanceof Error ? err.message : err);
+      }
+    });
   }
 
   return NextResponse.json({ fetched: allListings.length, imported: rows.length, totals, importBatchId });

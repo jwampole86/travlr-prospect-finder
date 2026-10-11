@@ -86,12 +86,20 @@ interface PersonSearchRaw {
 interface PersonDetailsRaw {
   'Person Details'?: Array<{ Person_name?: string; Telephone?: string }>;
   'Current Address Details List'?: Array<{ street_address?: string }>;
-  'All Phone Details'?: Array<{ phone_number?: string; phone_type?: string }>;
+  'Previous Address Details'?: Array<{ streetAddress?: string; street_address?: string }>;
+  'All Phone Details'?: Array<{ phone_number?: string; phone_type?: string; phone_info?: string; last_reported?: string }>;
   'Email Addresses'?: string[];
 }
 
+const STREET_WORDS: Record<string, string> = {
+  road: 'rd', street: 'st', avenue: 'ave', drive: 'dr', circle: 'cir', court: 'ct', lane: 'ln',
+  place: 'pl', boulevard: 'blvd', terrace: 'ter', trail: 'trl', highway: 'hwy', parkway: 'pkwy',
+  north: 'n', south: 's', east: 'e', west: 'w',
+};
+
 function normalizeStreet(street: string): string {
-  return street.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return street.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+    .split(' ').map(w => STREET_WORDS[w] ?? w).join(' ');
 }
 
 /**
@@ -141,6 +149,89 @@ async function findBestCurrentResident(people: PersonSearchRaw[], street: string
     if (isCurrentResident) return { person, details };
   }
   return null;
+}
+
+export interface ResidentMatch {
+  personId: string;
+  name: string;
+  age?: number | string;
+  matchType: 'CURRENT_RESIDENT' | 'PREVIOUS_RESIDENT';
+  phones: Array<{ e164: string; raw: string; type: PhoneResult['phoneType']; isPrimary: boolean; lastReported?: string }>;
+  emails: string[];
+}
+
+export interface ResidentLookupResult {
+  status: 'FOUND' | 'NO_MATCH' | 'RATE_LIMITED' | 'ERROR';
+  matches: ResidentMatch[];
+  apiCalls: number;
+  error?: string;
+}
+
+/**
+ * One address search plus at most `maxDetailLookups` detail calls, returning only people
+ * whose current or previous address list contains the exact target street. Cheaper than
+ * calling searchOwner + searchPhone, which each repeat the same search and detail calls.
+ * A match is a resident of record at that address, not proof of ownership.
+ */
+export async function resolveResidentsByAddress(
+  input: { street: string; city: string; state: string; zip: string },
+  maxDetailLookups = 3
+): Promise<ResidentLookupResult> {
+  if (getRapidApiKeys().length === 0) return { status: 'ERROR', matches: [], apiCalls: 0, error: 'No RAPIDAPI_KEY_* configured' };
+  const citystatezip = `${input.city}, ${input.state} ${input.zip}`.trim();
+  const search = await skipTraceFetch(`/search/byaddress?${new URLSearchParams({ street: input.street.trim(), citystatezip, page: '1' })}`);
+  let apiCalls = 1;
+  if (!search.ok) {
+    const limited = search.status === 401 || search.status === 403 || search.status === 429;
+    return { status: limited ? 'RATE_LIMITED' : 'ERROR', matches: [], apiCalls, error: search.error };
+  }
+  const people = ((search.data as { PeopleDetails?: PersonSearchRaw[] })?.PeopleDetails || []).filter(p => p['Person ID']);
+  if (people.length === 0) return { status: 'NO_MATCH', matches: [], apiCalls };
+
+  // People living in the lead's own city are the likeliest matches; try them first to save detail calls.
+  const cityKey = `${input.city}, ${input.state}`.toLowerCase();
+  const ranked = [...people].sort((a, b) =>
+    Number((b['Lives in'] || '').toLowerCase().includes(cityKey)) - Number((a['Lives in'] || '').toLowerCase().includes(cityKey)));
+
+  const target = normalizeStreet(input.street);
+  const matches: ResidentMatch[] = [];
+  for (const person of ranked.slice(0, maxDetailLookups)) {
+    const res = await skipTraceFetch(`/search/detailsbyID?${new URLSearchParams({ peo_id: person['Person ID']! })}`);
+    apiCalls++;
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403 || res.status === 429) {
+        return { status: 'RATE_LIMITED', matches, apiCalls, error: res.error };
+      }
+      continue;
+    }
+    const details = res.data as PersonDetailsRaw;
+    const isCurrent = (details['Current Address Details List'] || []).some(a => a.street_address && normalizeStreet(a.street_address) === target);
+    const isPrevious = !isCurrent && (details['Previous Address Details'] || []).some(a => {
+      const s = a.streetAddress || a.street_address;
+      return !!s && normalizeStreet(s) === target;
+    });
+    if (!isCurrent && !isPrevious) continue;
+
+    const phones = (details['All Phone Details'] || []).flatMap(p => {
+      const e164 = normalizePhoneE164(p.phone_number || '');
+      if (!e164) return [];
+      const t = (p.phone_type || '').toLowerCase();
+      const type: PhoneResult['phoneType'] = t.includes('wireless') ? 'MOBILE' : t.includes('landline') ? 'LANDLINE' : t.includes('voip') ? 'VOIP' : 'UNKNOWN';
+      return [{ e164, raw: p.phone_number || '', type, isPrimary: /primary/i.test(p.phone_info || ''), lastReported: p.last_reported }];
+    }).slice(0, 5);
+
+    matches.push({
+      personId: person['Person ID']!,
+      name: person.Name || details['Person Details']?.[0]?.Person_name || '',
+      age: person.Age,
+      matchType: isCurrent ? 'CURRENT_RESIDENT' : 'PREVIOUS_RESIDENT',
+      phones,
+      emails: (details['Email Addresses'] || []).slice(0, 5),
+    });
+    if (matches.length >= 2) break;
+  }
+  matches.sort((a, b) => Number(b.matchType === 'CURRENT_RESIDENT') - Number(a.matchType === 'CURRENT_RESIDENT'));
+  return { status: matches.length > 0 ? 'FOUND' : 'NO_MATCH', matches, apiCalls };
 }
 
 export const skipTracingProvider: OwnerEnrichmentProvider = {
