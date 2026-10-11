@@ -152,7 +152,13 @@ export const KPI_METRIC_DEFINITIONS: Record<MetricId, KpiMetricDefinition> = {
     label: 'STR-Eligible',
     description: 'Prospects in markets where STR operation is potentially legal (Allowed or Restricted)',
     canonicalDefinition: "regulation_status IN ('Allowed', 'Restricted')",
-    tolerance: 20,
+    // Tolerance of 20 was sized for when this metric sat in the low thousands.
+    // It now runs in the tens of thousands (AI-assisted regulation research
+    // reclassifies large batches of leads at once, and live source syncs keep
+    // adding new ones continuously), so 20 flagged false "critical divergence"
+    // alerts from completely normal background drift between the Dashboard's
+    // displayed snapshot and a fresh canonical query. Scaled up proportionally.
+    tolerance: 250,
     clickThroughFilter: '/lead-management?regulation=Allowed&regulation=Restricted',
   },
 };

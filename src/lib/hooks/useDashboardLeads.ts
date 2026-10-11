@@ -654,6 +654,15 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
     // Fire all three fetches simultaneously — they are fully independent
     fetchTopLeads();
     fetchStats();
+
+    // Periodic stats refresh — without this, a tab left open for a long
+    // session shows increasingly stale KPI values while the KPI Monitor's
+    // own hourly check compares against the live DB, which can flag a large
+    // legitimate backend change (e.g. a bulk regulation/enrichment update) as
+    // a false "critical divergence" purely because the displayed snapshot
+    // never refreshed. Re-fetching stats periodically keeps the two in sync.
+    const statsRefreshInterval = setInterval(fetchStats, 5 * 60 * 1000);
+    return () => clearInterval(statsRefreshInterval);
   }, [fetchTopLeads, fetchStats]);
 
   // Backward-compat: expose a combined error for consumers that use the old API
