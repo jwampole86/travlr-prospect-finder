@@ -214,6 +214,7 @@ interface CsvRow {
   beds?: string | number; Beds?: string | number;
   baths?: string | number; Baths?: string | number;
   price?: string | number; Price?: string | number;
+  priceType?: string; price_type?: string; PriceType?: string;
   notes?: string; Notes?: string;
   link?: string; Link?: string; url?: string; URL?: string;
   source?: string; Source?: string;
@@ -349,6 +350,7 @@ export async function POST(req: NextRequest) {
       rawBeds: number;
       rawBaths: number;
       rawPrice: number;
+      rawPriceType: 'sale' | 'rent';
       rawNotes: string;
       rawLink: string;
       rawSource: string;
@@ -376,6 +378,10 @@ export async function POST(req: NextRequest) {
       const rawBeds = parseInt(String(row.beds || row.Beds || '3')) || 3;
       const rawBaths = parseFloat(String(row.baths || row.Baths || '2')) || 2;
       const rawPrice = parseFloat(String(row.price || row.Price || '0').replace(/[^0-9.]/g, '')) || 0;
+      // Defaults to 'rent' to preserve existing behavior for manual CSV uploads
+      // (which by established convention are rental research), but RapidAPI-sourced
+      // rows always carry an explicit priceType from the provider's listing status.
+      const rawPriceType: 'sale' | 'rent' = String(row.priceType || row.price_type || row.PriceType || '').trim().toLowerCase() === 'sale' ? 'sale' : 'rent';
       const rawNotes = String(row.notes || row.Notes || '').trim();
       const rawLink = String(row.link || row.Link || row.url || row.URL || '').trim();
       const rawSource = String(row.source || row.Source || 'Direct').trim();
@@ -408,7 +414,10 @@ export async function POST(req: NextRequest) {
       const normalizedPhone = normalizePhone(rawPhone);
       const hasPhone = !!normalizedPhone;
       const verifiedOwner = rawContact.length > 1;
-      const currentRent = rawPrice > 0 && rawPrice < 50000 ? rawPrice : null;
+      // Sale/sold listings are never a monthly rent, regardless of price magnitude —
+      // the $50k heuristic below is now only a sanity check for genuine rent rows,
+      // not the primary signal (an explicit priceType always wins).
+      const currentRent = rawPriceType === 'rent' && rawPrice > 0 && rawPrice < 50000 ? rawPrice : null;
 
       const normalizationResult = {
         rawAddress, rawCity, rawState, rawZip,
@@ -424,7 +433,7 @@ export async function POST(req: NextRequest) {
 
       parsedRows.push({
         rowIndex: i, rawAddress, rawContact, rawPhone, rawCity, rawState, rawZip,
-        rawBeds, rawBaths, rawPrice, rawNotes, rawLink, rawSource, rawStage,
+        rawBeds, rawBaths, rawPrice, rawPriceType, rawNotes, rawLink, rawSource, rawStage,
         rawSourcePropertyId, rawAPN, normalized, normalizedPhone, hasPhone,
         verifiedOwner, currentRent, normalizationResult,
       });
@@ -511,7 +520,7 @@ export async function POST(req: NextRequest) {
     if (fingerprints.length > 0) {
       const { data: byFingerprint } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
         .in('dedup_fingerprint', fingerprints);
 
       if (byFingerprint) {
@@ -525,7 +534,7 @@ export async function POST(req: NextRequest) {
     if (sourceIds.length > 0) {
       const { data: bySourceId } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
         .in('source_property_id', sourceIds);
 
       if (bySourceId) {
@@ -539,7 +548,7 @@ export async function POST(req: NextRequest) {
     if (apns.length > 0) {
       const { data: byAPN } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
         .in('apn', apns);
 
       if (byAPN) {
@@ -587,7 +596,7 @@ export async function POST(req: NextRequest) {
         if (!existingLead && normalized.standardizedAddress) {
           const { data: fallback } = await supabase
             .from('leads')
-            .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+            .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
             .or(`standardized_address.ilike.${normalized.standardizedAddress},address.ilike.${pr.rawAddress}`)
             .limit(1);
 
@@ -715,6 +724,14 @@ export async function POST(req: NextRequest) {
           if (willUpdateNotes) {
             updateData.notes = pr.rawNotes;
           }
+          // Correct a previously-mislabeled sale listing (price_type defaulted to
+          // 'rent' before this fix existed) whenever a sync confirms it's for-sale.
+          // Never flips a confirmed sale back to rent on re-sync — only corrects
+          // the sale direction, since that's the direction that was mislabeled.
+          if (pr.rawPriceType === 'sale' && existingLead.price_type !== 'sale') {
+            updateData.price = pr.rawPrice || 0;
+            updateData.price_type = 'sale';
+          }
           // Update score/revenue
           updateData.prospect_score = Math.max(prospectScore, (existingLead.prospect_score as number) || 0);
           updateData.estimated_adr = revenue.projectedADR;
@@ -799,8 +816,11 @@ export async function POST(req: NextRequest) {
             zip: normalized.zipCode,
             beds: pr.rawBeds,
             baths: pr.rawBaths,
-            price: currentRent || 0,
-            price_type: 'rent',
+            // Sale/sold listings store the real sale price (never a fabricated
+            // monthly rent); a rent estimate for these is added separately via
+            // the AI rent-estimate batch job, not invented here.
+            price: pr.rawPriceType === 'sale' ? (pr.rawPrice || 0) : (currentRent || 0),
+            price_type: pr.rawPriceType,
             source: pr.rawSource,
             stage: pr.rawStage,
             notes: pr.rawNotes,
@@ -1063,17 +1083,20 @@ export async function POST(req: NextRequest) {
     // NOT NULL `user_id` column — both caused every insert to fail, and the
     // `.then(undefined, () => {})` swallow meant the failure was invisible.
     const activityMessages: string[] = [];
+    const isLiveSync = !!importFilename?.includes('rapidapi');
     if (summary.newProspectsCreated > 0) {
-      activityMessages.push(`CSV import completed — ${summary.newProspectsCreated} new prospect${summary.newProspectsCreated !== 1 ? 's' : ''} created.`);
+      activityMessages.push(isLiveSync
+        ? `Live sync completed — ${summary.newProspectsCreated} new prospect${summary.newProspectsCreated !== 1 ? 's' : ''} added.`
+        : `CSV import completed — ${summary.newProspectsCreated} new prospect${summary.newProspectsCreated !== 1 ? 's' : ''} created.`);
     }
     if (summary.existingProspectsEnriched > 0) {
-      activityMessages.push(`${summary.existingProspectsEnriched} existing prospect${summary.existingProspectsEnriched !== 1 ? 's' : ''} enriched from CSV import.`);
+      activityMessages.push(`${summary.existingProspectsEnriched} existing prospect${summary.existingProspectsEnriched !== 1 ? 's' : ''} enriched from ${isLiveSync ? 'live sync' : 'CSV import'}.`);
     }
     if (summary.phoneNumbersImported > 0) {
       activityMessages.push(`${summary.phoneNumbersImported} prospect${summary.phoneNumbersImported !== 1 ? 's' : ''} gained verified phone numbers.`);
     }
     if (summary.newPortfoliosCreated > 0) {
-      activityMessages.push(`${summary.newPortfoliosCreated} new state portfolio${summary.newPortfoliosCreated !== 1 ? 's' : ''} created from CSV import.`);
+      activityMessages.push(`${summary.newPortfoliosCreated} new state portfolio${summary.newPortfoliosCreated !== 1 ? 's' : ''} created from ${isLiveSync ? 'live sync' : 'CSV import'}.`);
     }
 
     if (activityMessages.length > 0) {
@@ -1085,9 +1108,9 @@ export async function POST(req: NextRequest) {
         for (const msg of activityMessages) {
           await supabase.from('activity_events').insert({
             user_id: activityUserId,
-            event_type: 'csv_imported',
+            event_type: isLiveSync ? 'sync_imported' : 'csv_imported',
             description: msg,
-            source: importFilename?.includes('rapidapi') ? 'sync' : 'csv_upload',
+            source: isLiveSync ? 'sync' : 'csv_upload',
             metadata: {
               importBatchId,
               importFilename,

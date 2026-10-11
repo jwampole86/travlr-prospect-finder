@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Upload,
   RefreshCw,
+  Wifi,
   Tag,
   MessageSquare,
   TrendingUp,
@@ -34,6 +35,7 @@ import Link from 'next/link';
 const EVENT_ICON: Record<ActivityEventType, React.ElementType> = {
   lead_created: Plus,
   csv_imported: Upload,
+  sync_imported: Wifi,
   stage_changed: Tag,
   score_updated: TrendingUp,
   note_added: MessageSquare,
@@ -56,6 +58,7 @@ const EVENT_ICON: Record<ActivityEventType, React.ElementType> = {
 const EVENT_COLOR: Record<ActivityEventType, string> = {
   lead_created: 'text-primary',
   csv_imported: 'text-primary',
+  sync_imported: 'text-teal-500',
   stage_changed: 'text-warning',
   score_updated: 'text-success',
   note_added: 'text-secondary',

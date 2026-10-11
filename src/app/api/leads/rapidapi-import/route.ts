@@ -13,6 +13,7 @@ interface ImportRow {
   beds: number;
   baths: number;
   price: number;
+  priceType: 'sale' | 'rent';
   notes: string;
   link?: string;
   stage: string;
@@ -30,6 +31,8 @@ function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
     beds: listing.beds ?? 0,
     baths: listing.baths ?? 0,
     price: listing.price ?? 0,
+    // 'sold' listings aren't an ongoing monthly cost either — treat like a sale price.
+    priceType: listing.listingStatus === 'for_rent' ? 'rent' : 'sale',
     notes: [listing.sqftText, listing.notes].filter(Boolean).join(' | ').slice(0, 2000),
     link: listing.listingUrl,
     stage: 'New Lead',

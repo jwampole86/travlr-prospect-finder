@@ -157,6 +157,14 @@ export interface NormalizedRentalListing {
   beds: number | null;
   baths: number | null;
   price: number | null;
+  /**
+   * Whether `price` is a monthly rent, a sale price, or a sold price.
+   * CRITICAL: several providers (Zillow Detail Scraper, Zillow Scraper
+   * API/ToolzerHub, Zillow Real Estate API, US Property Data) can return
+   * for-sale/sold listings — their price is NOT a monthly rent. Always set
+   * this explicitly; never assume 'for_rent'.
+   */
+  listingStatus: 'for_rent' | 'for_sale' | 'sold';
   sqftText?: string;
   listingUrl?: string;
   notes?: string;
@@ -217,6 +225,8 @@ function normalizeTruliaListing(raw: TruliaListingRaw): NormalizedRentalListing 
     beds: avgBeds,
     baths: avgBaths,
     price,
+    // Only /v1/search/rent is ever called in this app — always a real rental.
+    listingStatus: 'for_rent',
     sqftText: raw.floorSpace?.formattedDimension,
     listingUrl,
     notes: notesParts.join(' | ').slice(0, 2000),
@@ -302,6 +312,7 @@ interface ZillowDetailRaw {
 
 function normalizeZillowDetail(raw: ZillowDetailRaw): NormalizedRentalListing {
   const isRental = raw.homeStatus === 'FOR_RENT';
+  const isSold = raw.homeStatus === 'SOLD' || raw.homeStatus === 'RECENTLY_SOLD';
   return {
     source: 'Zillow',
     externalId: raw.zpid,
@@ -314,6 +325,7 @@ function normalizeZillowDetail(raw: ZillowDetailRaw): NormalizedRentalListing {
     beds: raw.bedrooms ?? null,
     baths: raw.bathrooms ?? null,
     price: (isRental ? raw.rentZestimate : raw.price) ?? raw.price ?? null,
+    listingStatus: isRental ? 'for_rent' : isSold ? 'sold' : 'for_sale',
     sqftText: raw.livingArea ? `${raw.livingArea} sqft` : undefined,
     listingUrl: raw.url,
     notes: [raw.homeStatus, raw.homeType, raw.agentName ? `Agent: ${raw.agentName}` : null, raw.agentPhone]
@@ -386,7 +398,9 @@ interface ZillowSearchResultRaw {
   broker_name?: string;
 }
 
-function normalizeZillowSearchResult(raw: ZillowSearchResultRaw): NormalizedRentalListing {
+function normalizeZillowSearchResult(raw: ZillowSearchResultRaw, queriedStatus?: 'for_sale' | 'sold'): NormalizedRentalListing {
+  const statusText = (raw.status_text || '').toLowerCase();
+  const isSold = statusText.includes('sold') || queriedStatus === 'sold';
   return {
     source: 'Zillow',
     externalId: raw.zpid,
@@ -399,6 +413,8 @@ function normalizeZillowSearchResult(raw: ZillowSearchResultRaw): NormalizedRent
     beds: raw.bedrooms ?? null,
     baths: raw.bathrooms ?? null,
     price: raw.price ?? null,
+    // This provider never returns rentals — confirmed via its own status param (for_sale/sold only).
+    listingStatus: isSold ? 'sold' : 'for_sale',
     sqftText: raw.living_area ? `${raw.living_area} sqft` : undefined,
     listingUrl: raw.url,
     notes: [raw.status_text, raw.broker_name ? `Broker: ${raw.broker_name}` : null].filter(Boolean).join(' | '),
@@ -418,7 +434,7 @@ export async function searchZillowProperties(
     return { ok: false, listings: [], error: result.error, status: result.status };
   }
   const data = result.data as { data?: { results?: ZillowSearchResultRaw[] } };
-  const listings = (data?.data?.results || []).map(normalizeZillowSearchResult);
+  const listings = (data?.data?.results || []).map(r => normalizeZillowSearchResult(r, params.status));
   return { ok: true, listings };
 }
 
@@ -479,8 +495,10 @@ interface ZillowRealEstateResultRaw {
   daysOnZillow?: number;
 }
 
-function normalizeZillowRealEstateResult(raw: ZillowRealEstateResultRaw): NormalizedRentalListing {
+function normalizeZillowRealEstateResult(raw: ZillowRealEstateResultRaw, queriedStatus?: 'for_sale' | 'for_rent' | 'sold'): NormalizedRentalListing {
   const parsed = raw.addressCity ? null : splitCombinedAddress(raw.address || '');
+  const isRental = queriedStatus === 'for_rent';
+  const isSold = queriedStatus === 'sold';
   return {
     source: 'Zillow',
     externalId: raw.zpid != null ? String(raw.zpid) : undefined,
@@ -490,7 +508,9 @@ function normalizeZillowRealEstateResult(raw: ZillowRealEstateResultRaw): Normal
     zip: raw.addressZip || parsed?.zip || '',
     beds: raw.beds ?? null,
     baths: raw.baths ?? null,
-    price: raw.price ?? raw.rentZestimate ?? null,
+    price: isRental ? (raw.rentZestimate ?? raw.price ?? null) : (raw.price ?? null),
+    // Derived from the caller's own status query param — results match what was asked for.
+    listingStatus: isRental ? 'for_rent' : isSold ? 'sold' : 'for_sale',
     sqftText: raw.sqft ? `${raw.sqft} sqft` : undefined,
     listingUrl: raw.detailUrl,
     notes: [raw.homeType, raw.zestimate ? `Zestimate: $${raw.zestimate.toLocaleString()}` : null, raw.daysOnZillow != null ? `${raw.daysOnZillow}d on Zillow` : null]
@@ -515,7 +535,7 @@ export async function searchZillowRealEstate(
     return { ok: false, listings: [], error: result.error, status: result.status };
   }
   const data = result.data as { data?: { results?: ZillowRealEstateResultRaw[] } };
-  const listings = (data?.data?.results || []).map(normalizeZillowRealEstateResult);
+  const listings = (data?.data?.results || []).map(r => normalizeZillowRealEstateResult(r, params.status));
   return { ok: true, listings };
 }
 
@@ -568,6 +588,8 @@ function normalizeRentComListing(raw: RentComListingRaw): NormalizedRentalListin
     beds: raw.beds ?? null,
     baths: raw.baths ?? null,
     price: priceNum || raw.minPrice || null,
+    // This endpoint is Rent.com-specific — always genuine rentals.
+    listingStatus: 'for_rent',
     sqftText: raw.sqft ? `${raw.sqft} sqft` : undefined,
     listingUrl: raw.url,
   };
@@ -659,12 +681,15 @@ interface UsPropertyDataResultRaw {
   unformattedPrice?: number;
   detailUrl?: string;
   latLong?: { latitude?: number; longitude?: number };
-  hdpData?: { homeInfo?: { homeType?: string; rentZestimate?: number; daysOnZillow?: number; isPreforeclosureAuction?: boolean } };
+  hdpData?: { homeInfo?: { homeType?: string; homeStatus?: string; rentZestimate?: number; daysOnZillow?: number; isPreforeclosureAuction?: boolean } };
 }
 
-function normalizeUsPropertyDataResult(raw: UsPropertyDataResultRaw): NormalizedRentalListing {
+function normalizeUsPropertyDataResult(raw: UsPropertyDataResultRaw, queriedStatus?: 'for_sale' | 'for_rent' | 'sold'): NormalizedRentalListing {
   const homeInfo = raw.hdpData?.homeInfo;
   const parsed = raw.addressCity ? null : splitCombinedAddress(raw.address || '');
+  const statusRaw = (homeInfo?.homeStatus || '').toUpperCase();
+  const isRental = statusRaw === 'FOR_RENT' || queriedStatus === 'for_rent';
+  const isSold = statusRaw.includes('SOLD') || queriedStatus === 'sold';
   return {
     source: 'Zillow',
     externalId: raw.zpid,
@@ -676,7 +701,8 @@ function normalizeUsPropertyDataResult(raw: UsPropertyDataResultRaw): Normalized
     longitude: raw.latLong?.longitude,
     beds: raw.beds ?? null,
     baths: raw.baths ?? null,
-    price: raw.unformattedPrice ?? homeInfo?.rentZestimate ?? null,
+    price: isRental ? (homeInfo?.rentZestimate ?? raw.unformattedPrice ?? null) : (raw.unformattedPrice ?? null),
+    listingStatus: isRental ? 'for_rent' : isSold ? 'sold' : 'for_sale',
     sqftText: raw.area ? `${raw.area} sqft` : undefined,
     listingUrl: raw.detailUrl,
     notes: [homeInfo?.homeType, homeInfo?.isPreforeclosureAuction ? 'Pre-foreclosure/auction' : null, homeInfo?.daysOnZillow != null ? `${homeInfo.daysOnZillow}d on Zillow` : null]
@@ -697,7 +723,7 @@ export async function searchUsPropertyData(
     return { ok: false, listings: [], error: result.error, status: result.status };
   }
   const data = result.data as { data?: UsPropertyDataResultRaw[] };
-  const listings = (data?.data || []).map(normalizeUsPropertyDataResult);
+  const listings = (data?.data || []).map(r => normalizeUsPropertyDataResult(r, params.listingStatus));
   return { ok: true, listings };
 }
 

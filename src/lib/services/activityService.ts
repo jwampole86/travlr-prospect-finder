@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ActivityEventType =
-  | 'lead_created' |'csv_imported' |'stage_changed' |'score_updated' |'note_added' |'note_edited' |'regulation_refreshed' |'live_status' |'lead_edited' |'contact_updated' |'lead_assigned' |'lead_archived' |'lead_restored' |'bulk_update' |'enrichment_completed' |'outreach_sent' |'email_sent' |'sms_sent' |'call_completed';
+  | 'lead_created' |'csv_imported' |'sync_imported' |'stage_changed' |'score_updated' |'note_added' |'note_edited' |'regulation_refreshed' |'live_status' |'lead_edited' |'contact_updated' |'lead_assigned' |'lead_archived' |'lead_restored' |'bulk_update' |'enrichment_completed' |'outreach_sent' |'email_sent' |'sms_sent' |'call_completed';
 
 export interface ActivityEvent {
   id: string;
@@ -204,6 +204,21 @@ export async function recordCSVImported(params: {
     description: `CSV uploaded — ${params.count} new lead${params.count !== 1 ? 's' : ''} added`,
     detail: params.batchLabel ?? undefined,
     source: 'csv_upload',
+    metadata: { count: params.count },
+  });
+}
+
+export async function recordSyncImported(params: {
+  count: number;
+  state?: string;
+  batchLabel?: string;
+}): Promise<void> {
+  await activityService.record({
+    leadState: params.state ?? undefined,
+    eventType: 'sync_imported',
+    description: `Live sync completed — ${params.count} new lead${params.count !== 1 ? 's' : ''} added`,
+    detail: params.batchLabel ?? undefined,
+    source: 'sync',
     metadata: { count: params.count },
   });
 }

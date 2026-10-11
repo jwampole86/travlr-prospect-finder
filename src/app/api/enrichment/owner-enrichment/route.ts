@@ -176,6 +176,20 @@ async function runEnrichmentJob(
         apn: resolvedApn,
       });
 
+      // Fall back to Skip Tracing API when BatchData finds no owner — this is
+      // the only provider that can resolve a name from an address alone with
+      // no prior owner-name input, which is the common case for fresh imports.
+      if (ownerCandidates.length === 0) {
+        ownerCandidates = await skipTracingProvider.searchOwner({
+          fullName: ownerOfRecord,
+          propertyAddress: normalized.normalizedAddress,
+          city,
+          state,
+          zip,
+          apn: resolvedApn,
+        });
+      }
+
       // Store owner candidates
       for (const candidate of ownerCandidates) {
         await supabase.from('enrichment_owner_candidates').insert({

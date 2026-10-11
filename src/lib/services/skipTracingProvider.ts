@@ -85,18 +85,31 @@ interface PersonSearchRaw {
 
 interface PersonDetailsRaw {
   'Person Details'?: Array<{ Person_name?: string; Telephone?: string }>;
+  'Current Address Details List'?: Array<{ street_address?: string }>;
   'All Phone Details'?: Array<{ phone_number?: string; phone_type?: string }>;
   'Email Addresses'?: string[];
 }
 
-/** Address-anchored search — name+address when a name is known, address-only otherwise. */
-async function searchPeople(fullName: string | undefined, city: string, state: string, zip: string): Promise<PersonSearchRaw[]> {
+function normalizeStreet(street: string): string {
+  return street.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/**
+ * Address-anchored search. Uses /search/bynameaddress when an owner name is
+ * already known (higher precision), otherwise falls back to /search/byaddress
+ * — this is the critical path for freshly-imported leads that have NO owner
+ * name yet, which is the most common case (RapidAPI listing scrapes never
+ * include an owner name, only the property address).
+ */
+async function searchPeople(fullName: string | undefined, street: string, city: string, state: string, zip: string): Promise<PersonSearchRaw[]> {
   const citystatezip = `${city}, ${state} ${zip}`.trim();
   if (!citystatezip) return [];
 
   const path = fullName?.trim()
     ? `/search/bynameaddress?${new URLSearchParams({ name: fullName.trim(), citystatezip, page: '1' })}`
-    : null;
+    : street.trim()
+      ? `/search/byaddress?${new URLSearchParams({ street: street.trim(), citystatezip, page: '1' })}`
+      : null;
   if (!path) return [];
 
   const result = await skipTraceFetch(path);
@@ -111,21 +124,48 @@ async function getPersonDetails(personId: string): Promise<PersonDetailsRaw | nu
   return result.data as PersonDetailsRaw;
 }
 
+/**
+ * Address-only searches return several loosely-related candidates (relatives,
+ * past residents in other states). Confirm the best match by checking each
+ * candidate's "Current Address Details List" against the target street —
+ * capped at 3 lookups to stay within free-tier quota.
+ */
+async function findBestCurrentResident(people: PersonSearchRaw[], street: string): Promise<{ person: PersonSearchRaw; details: PersonDetailsRaw } | null> {
+  const targetStreet = normalizeStreet(street);
+  for (const person of people.slice(0, 3)) {
+    if (!person['Person ID']) continue;
+    const details = await getPersonDetails(person['Person ID']);
+    if (!details) continue;
+    const isCurrentResident = (details['Current Address Details List'] || [])
+      .some(a => a.street_address && normalizeStreet(a.street_address) === targetStreet);
+    if (isCurrentResident) return { person, details };
+  }
+  return null;
+}
+
 export const skipTracingProvider: OwnerEnrichmentProvider = {
   providerName: 'SKIP_TRACING_API',
   providerType: 'PEOPLE',
 
   async searchOwner(input: OwnerSearchInput): Promise<OwnerCandidate[]> {
     if (getRapidApiKeys().length === 0) return [];
-    const people = await searchPeople(input.fullName, input.city, input.state, input.zip);
+    const people = await searchPeople(input.fullName, input.propertyAddress, input.city, input.state, input.zip);
+    if (people.length === 0) return [];
+
+    // When searching by address only, confirm which candidate(s) actually
+    // live there now — a confirmed current resident gets a much higher
+    // ownership-confidence score than an unconfirmed loose match.
+    const best = input.fullName ? null : await findBestCurrentResident(people, input.propertyAddress);
+
     return people.slice(0, 5).map(p => {
       const [firstName, ...rest] = (p.Name || '').trim().split(/\s+/);
+      const isConfirmedCurrent = best?.person['Person ID'] === p['Person ID'];
       return {
         fullName: p.Name || '',
         firstName,
         lastName: rest.join(' '),
         ownerType: 'INDIVIDUAL' as const,
-        ownershipConfidence: 50,
+        ownershipConfidence: isConfirmedCurrent ? 75 : 40,
         source: 'SKIP_TRACING_API',
         sourceRecordId: p['Person ID'],
       };
@@ -134,11 +174,13 @@ export const skipTracingProvider: OwnerEnrichmentProvider = {
 
   async searchPhone(input: PhoneSearchInput): Promise<PhoneResult[]> {
     if (getRapidApiKeys().length === 0) return [];
-    const people = await searchPeople(input.fullName, input.city, input.state, input.zip);
-    const topMatch = people[0];
-    if (!topMatch?.['Person ID']) return [];
+    const people = await searchPeople(input.fullName, input.propertyAddress, input.city, input.state, input.zip);
+    if (people.length === 0) return [];
 
-    const details = await getPersonDetails(topMatch['Person ID']);
+    // Prefer a candidate confirmed to currently live at the target address;
+    // fall back to the top-ranked search result if none can be confirmed.
+    const best = await findBestCurrentResident(people, input.propertyAddress);
+    const details = best?.details ?? (people[0]?.['Person ID'] ? await getPersonDetails(people[0]['Person ID']) : null);
     const phones = details?.['All Phone Details'] || [];
 
     return phones
@@ -158,7 +200,8 @@ export const skipTracingProvider: OwnerEnrichmentProvider = {
           phoneRaw: p.phone_number || '',
           phoneType,
           // First-listed phone is the provider's own "Possible Primary Phone" pick.
-          confidence: idx === 0 ? 70 : 55,
+          // Confirmed-current-resident matches outrank unconfirmed ones.
+          confidence: (best ? 15 : 0) + (idx === 0 ? 70 : 55),
           source: 'SKIP_TRACING_API',
           rankOrder: idx + 1,
         } as PhoneResult;
