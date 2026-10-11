@@ -397,6 +397,40 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
       return;
     }
 
+    // HotPads: same state-expansion approach (cities from sync_source_coverage). Craigslist is
+    // deliberately not wired here — its plan allows only ~124 requests/month total.
+    if (sourceName === 'HotPads') {
+      if (selectedPortfolio.stateCode === 'all') {
+        setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false } : s)));
+        toast.error('Select a specific state portfolio to pull live HotPads listings', { id: `retry-${sourceName}` });
+        return;
+      }
+      try {
+        const response = await fetch('/api/leads/rapidapi-import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: 'hotpads', state: selectedPortfolio.stateCode }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.error) {
+          throw new Error(result.error || `HotPads pull failed (${response.status})`);
+        }
+        const now = new Date();
+        saveSourcePull(sourceName, now);
+        setSources((prev) =>
+          prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, lastPull: now, health: 'healthy' } : s))
+        );
+        const newLeads = result?.totals?.rowsNew ?? 0;
+        toast.success(`HotPads pull complete — ${newLeads} new lead${newLeads === 1 ? '' : 's'}`, { id: `retry-${sourceName}` });
+        onLeadsRefreshed?.();
+        fetchPortfolioLeadCount();
+      } catch (err) {
+        setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, health: 'failed' } : s)));
+        toast.error(err instanceof Error ? err.message : 'HotPads retry failed', { id: `retry-${sourceName}` });
+      }
+      return;
+    }
+
     // PropertyReach is a per-lead OWNER/PHONE ENRICHMENT provider, not a lead
     // discovery source — it can't "pull" brand new leads like Trulia/Zillow.
     // The real, honest sync action is: find leads in this state missing

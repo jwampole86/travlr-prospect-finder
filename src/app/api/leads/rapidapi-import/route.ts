@@ -1,12 +1,32 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { runFsboSkipTrace } from '@/lib/services/fsboSkipTraceService';
-import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, searchPadMapperRentals, toPadMapperLocation, getZillowPropertyDetails, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
+import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, searchPadMapperRentals, searchHotPadsRentals, searchCraigslistRentals, toPadMapperLocation, getZillowPropertyDetails, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
 
 const CHUNK_SIZE = 50;
 const MAX_PAGES = 5;
 // PadMapper returns 20 listings per slug, so one import fans out over several slugs.
 const PADMAPPER_MAX_LOCATIONS = 20;
+// HotPads returns 5 listings per city (12k-request plan).
+const HOTPADS_MAX_LOCATIONS = 20;
+// Craigslist returns 5 listings per region and the plan allows only ~124 requests/month.
+const CRAIGSLIST_MAX_REGIONS = 5;
+
+/** "City, ST" locations configured for HotPads in sync_source_coverage for one state. */
+async function hotPadsLocationsForState(stateCode: string): Promise<string[]> {
+  const st = stateCode.trim().toLowerCase();
+  const { data } = await getSupabaseAdmin()
+    .from('sync_source_coverage')
+    .select('zone, sync_url')
+    .eq('source_name', 'HotPads')
+    .in('status', ['active', 'unconfirmed']);
+  const out = new Set<string>();
+  for (const row of data || []) {
+    const slug = /hotpads\.com\/([a-z0-9-]+)\//i.exec(row.sync_url || '')?.[1]?.toLowerCase();
+    if (row.zone && slug?.endsWith(`-${st}`)) out.add(`${row.zone}, ${st.toUpperCase()}`);
+  }
+  return [...out];
+}
 
 /** City slugs (e.g. "aspen-co") configured for PadMapper in sync_source_coverage for one state. */
 async function padMapperSlugsForState(stateCode: string): Promise<string[]> {
@@ -95,7 +115,11 @@ function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
  * /api/leads/csv-import — this route only fetches + normalizes + forwards).
  *
  * Body: {
- *   provider: 'trulia' | 'zillow-search' | 'zillow-real-estate' | 'rent-com' | 'us-property-data' | 'zillow-detail' | 'padmapper',
+ *   provider: 'trulia' | 'zillow-search' | 'zillow-real-estate' | 'rent-com' | 'us-property-data' | 'zillow-detail' | 'padmapper' | 'hotpads' | 'craigslist',
+ *   // hotpads: 5 listings per city, city-level only (ZIPs fail). Pass location ("Austin, TX"), locations[], city+state,
+ *   //   or state alone (uses HotPads rows in sync_source_coverage).
+ *   // craigslist: 5 listings per region, ~124 requests/month TOTAL. Pass regions: [{ region: "austin", city: "Austin",
+ *   //   state: "TX" }] (or region+city+state); capped at 5 regions per call. region is the craigslist subdomain.
  *   // padmapper: 20 listings per slug (no pagination). Pass ONE of: location ("austin-tx" or "austin-tx/78704"),
  *   //   locations[] of such slugs, city+state (+ optional zips[]), or state alone (uses the active PadMapper
  *   //   cities in sync_source_coverage). Per-ZIP slugs surface individual houses; city slugs mostly buildings.
@@ -115,7 +139,7 @@ export async function POST(req: NextRequest) {
   const maxPages = Math.min(MAX_PAGES, Math.max(1, Number(body?.maxPages) || 1));
   const importedBy = typeof body?.importedBy === 'string' ? body.importedBy : undefined;
 
-  const VALID_PROVIDERS = ['trulia', 'zillow-search', 'zillow-real-estate', 'rent-com', 'us-property-data', 'zillow-detail', 'padmapper'];
+  const VALID_PROVIDERS = ['trulia', 'zillow-search', 'zillow-real-estate', 'rent-com', 'us-property-data', 'zillow-detail', 'padmapper', 'hotpads', 'craigslist'];
   if (!VALID_PROVIDERS.includes(provider)) {
     return NextResponse.json({ error: `provider must be one of: ${VALID_PROVIDERS.join(', ')}` }, { status: 400 });
   }
@@ -174,6 +198,79 @@ export async function POST(req: NextRequest) {
     }
     if (allListings.length === 0 && failures > 0) {
       return NextResponse.json({ error: lastError || 'PadMapper request failed' }, { status: lastStatus || 503 });
+    }
+  } else if (provider === 'hotpads') {
+    let locations: string[] = [];
+    if (Array.isArray(body?.locations)) {
+      locations = body.locations.filter((l: unknown): l is string => typeof l === 'string' && l.trim() !== '');
+    } else if (typeof body?.location === 'string' && body.location.trim()) {
+      locations = [body.location];
+    } else if (typeof body?.city === 'string' && typeof body?.state === 'string' && body.city.trim() && body.state.trim()) {
+      locations = [`${body.city.trim()}, ${body.state.trim().toUpperCase()}`];
+    } else if (typeof body?.state === 'string' && body.state.trim()) {
+      locations = await hotPadsLocationsForState(body.state);
+      if (locations.length === 0) {
+        return NextResponse.json({ error: `No HotPads cities configured in sync_source_coverage for state ${body.state}; pass location or city+state` }, { status: 404 });
+      }
+    } else {
+      return NextResponse.json({ error: 'provider=hotpads needs location, locations[], city+state, or state' }, { status: 400 });
+    }
+    locations = [...new Set(locations.map(l => l.trim()))].slice(0, HOTPADS_MAX_LOCATIONS);
+
+    const seen = new Set<string>();
+    let failures = 0;
+    let lastError: string | undefined;
+    let lastStatus: number | undefined;
+    for (const location of locations) {
+      const result = await searchHotPadsRentals({ location });
+      if (!result.ok) {
+        failures++;
+        lastError = result.error;
+        lastStatus = result.status;
+        continue;
+      }
+      for (const l of result.listings) {
+        const key = l.externalId || `${l.address}|${l.zip}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        allListings.push(l);
+      }
+    }
+    if (allListings.length === 0 && failures > 0) {
+      return NextResponse.json({ error: lastError || 'HotPads request failed' }, { status: lastStatus || 503 });
+    }
+  } else if (provider === 'craigslist') {
+    type Region = { region: string; city: string; state: string };
+    const requested: Region[] = Array.isArray(body?.regions)
+      ? body.regions
+      : (body?.region ? [{ region: body.region, city: body.city, state: body.state }] : []);
+    const regions = requested
+      .filter((r): r is Region => !!r && typeof r.region === 'string' && typeof r.city === 'string' && typeof r.state === 'string' && !!r.region.trim() && !!r.city.trim() && !!r.state.trim())
+      .slice(0, CRAIGSLIST_MAX_REGIONS);
+    if (regions.length === 0) {
+      return NextResponse.json({ error: 'provider=craigslist needs regions[] (or region+city+state); Craigslist posts carry no city/state so the caller must supply them' }, { status: 400 });
+    }
+
+    const seen = new Set<string>();
+    let failures = 0;
+    let lastError: string | undefined;
+    let lastStatus: number | undefined;
+    for (const r of regions) {
+      const result = await searchCraigslistRentals({ region: r.region, city: r.city, state: r.state.toUpperCase() });
+      if (!result.ok) {
+        failures++;
+        lastError = result.error;
+        lastStatus = result.status;
+        continue;
+      }
+      for (const l of result.listings) {
+        if (l.externalId && seen.has(l.externalId)) continue;
+        if (l.externalId) seen.add(l.externalId);
+        allListings.push(l);
+      }
+    }
+    if (allListings.length === 0 && failures > 0) {
+      return NextResponse.json({ error: lastError || 'Craigslist request failed' }, { status: lastStatus || 503 });
     }
   } else {
   for (let page = 1; page <= maxPages; page++) {

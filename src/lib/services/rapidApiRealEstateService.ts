@@ -37,6 +37,9 @@ const US_PROPERTY_DATA_HOST = 'us-property-data.p.rapidapi.com';
 // public docs reachable): POST "/" with JSON {"location": "<slug>"}; see the PadMapper
 // section below for the verified request/response behaviour.
 const PADMAPPER_HOST = 'padmapper-rental-scraper.p.rapidapi.com';
+// HotPads + Craigslist scrapers — subscribed 2026-10-11, same discovery method as PadMapper.
+const HOTPADS_HOST = 'hotpads-rental-scraper.p.rapidapi.com';
+const CRAIGSLIST_HOST = 'craigslist-real-estate-scraper.p.rapidapi.com';
 
 function getRapidApiKeys(): string[] {
   return [process.env.RAPIDAPI_KEY_1, process.env.RAPIDAPI_KEY_2, process.env.RAPIDAPI_KEY_3]
@@ -150,7 +153,7 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {})
 // ─── Normalized listing shape (feeds directly into the CSV-import row contract) ──
 
 export interface NormalizedRentalListing {
-  source: 'Trulia' | 'Zillow' | 'Rent.com' | 'PadMapper';
+  source: 'Trulia' | 'Zillow' | 'Rent.com' | 'PadMapper' | 'HotPads' | 'Craigslist';
   externalId?: string;
   address: string;
   city: string;
@@ -995,4 +998,255 @@ export async function getPadMapperHealth(): Promise<{ status: 'ACTIVE' | 'AUTH_E
     return { status: 'DEGRADED', message: result.error || 'PadMapper Rental Scraper unreachable', hasApiKey: true };
   }
   return { status: 'ACTIVE', message: 'PadMapper Rental Scraper API is reachable', hasApiKey: true };
+}
+
+/**
+ * Subscription check that spends no quota: the gateway answers GET / with a 404 "Endpoint does not
+ * exist" when the key is subscribed and 401/403 when it is not. Used where a real search would burn
+ * a scarce request allowance on every health refresh.
+ */
+async function checkSubscriptionOnly(host: string, label: string): Promise<{ status: 'ACTIVE' | 'AUTH_ERROR' | 'DISABLED' | 'DEGRADED'; message: string; hasApiKey: boolean }> {
+  if (getRapidApiKeys().length === 0) {
+    return { status: 'DISABLED', message: 'No RAPIDAPI_KEY_* configured', hasApiKey: false };
+  }
+  const result = await rapidApiFetch(host, '/');
+  if (result.status === 401 || result.status === 403) {
+    return { status: 'AUTH_ERROR', message: `RapidAPI key not subscribed to ${label}`, hasApiKey: true };
+  }
+  if (result.status === 404 && /endpoint/i.test(result.error || '')) {
+    return { status: 'ACTIVE', message: `${label} subscription active`, hasApiKey: true };
+  }
+  return { status: 'DEGRADED', message: result.error || `${label} unreachable`, hasApiKey: true };
+}
+
+// ─── HotPads Rental Scraper — city search ────────────────────────────────────
+//
+// Contract (verified live 2026-10-11): POST / body {"location": "Austin, TX"} → bare JSON array of
+// exactly 5 listings (Apify-backed, ~5s/call). page/limit/filters are ignored; ZIP and "city-st/zip"
+// locations fail the actor run, so coverage comes from querying many cities. No agent, brokerage,
+// description or amenities are ever populated, so owner-vs-manager cannot be told apart (isFsbo is
+// left unset rather than guessed). `property_type`: house | townhouse | condo | large | medium
+// (large/medium = apartment buildings); `listing_type` is "rental" or "corporate" (managed corporate
+// / vacation housing with unit codes like "#ID1303961P").
+
+interface HotPadsListingRaw {
+  listing_id?: string;
+  url?: string;
+  name?: string;
+  street?: string | null;
+  city?: string;
+  state?: string;
+  zipcode?: string;
+  neighborhood?: string | null;
+  latitude?: number;
+  longitude?: number;
+  price_min?: number | null;
+  price_max?: number | null;
+  beds_min?: number | null;
+  beds_max?: number | null;
+  baths_min?: number | null;
+  baths_max?: number | null;
+  sqft_min?: number | null;
+  sqft_max?: number | null;
+  property_type?: string;
+  listing_type?: string;
+  is_verified?: boolean;
+  special_offer?: string | null;
+  phone?: string | null;
+  scraped_at?: string;
+}
+
+const HOTPADS_TYPE_LABELS: Record<string, string> = {
+  house: 'SINGLE_FAMILY_HOME',
+  townhouse: 'TOWNHOUSE',
+  condo: 'CONDO',
+  large: 'APARTMENT_BUILDING',
+  medium: 'APARTMENT_BUILDING',
+};
+
+function normalizeHotPadsListing(raw: HotPadsListingRaw): NormalizedRentalListing {
+  const type = (raw.property_type || '').toLowerCase();
+  const street = (raw.street || '').trim();
+  const isCorporate = raw.listing_type === 'corporate';
+  const isApartmentCommunity = type === 'large' || type === 'medium' || /(#|\b(apt|unit|ste|suite)\b)/i.test(street);
+
+  const price = midpoint(raw.price_min, raw.price_max);
+  const beds = midpoint(raw.beds_min, raw.beds_max);
+  const baths = midpoint(raw.baths_min, raw.baths_max);
+  const sqft = raw.sqft_min != null && raw.sqft_max != null && raw.sqft_min !== raw.sqft_max
+    ? `${raw.sqft_min}-${raw.sqft_max} sqft` : (raw.sqft_min ?? raw.sqft_max) != null ? `${raw.sqft_min ?? raw.sqft_max} sqft` : undefined;
+  const phone = (raw.phone || '').trim().replace(/^1-/, '');
+
+  const notesParts = [
+    raw.neighborhood,
+    isCorporate ? 'Corporate/managed housing listing' : null,
+    raw.special_offer,
+    raw.price_min != null && raw.price_max != null && raw.price_min !== raw.price_max
+      ? `Rent range $${raw.price_min}-$${raw.price_max}` : null,
+  ].filter(Boolean);
+
+  return {
+    source: 'HotPads',
+    externalId: raw.listing_id,
+    address: street,
+    city: (raw.city || '').trim(),
+    state: (raw.state || '').trim(),
+    zip: (raw.zipcode || '').trim(),
+    latitude: raw.latitude,
+    longitude: raw.longitude,
+    beds: beds != null ? Math.round(beds) : null,
+    baths: baths != null ? Math.round(baths * 2) / 2 : null,
+    price: price != null ? Math.round(price) : null,
+    listingStatus: 'for_rent',
+    listingAgentPhone: phone || undefined,
+    listingUpdatedAt: raw.scraped_at,
+    isApartmentCommunity,
+    propertyTypeLabel: HOTPADS_TYPE_LABELS[type] || type.toUpperCase() || undefined,
+    // Corporate housing is furnished by definition.
+    isFurnished: isCorporate ? true : undefined,
+    sqftText: sqft,
+    listingUrl: raw.url,
+    notes: notesParts.join(' | ').slice(0, 2000),
+  };
+}
+
+/** POST / — one "City, ST" → 5 listings. */
+export async function searchHotPadsRentals(
+  params: { location: string }
+): Promise<{ ok: boolean; listings: NormalizedRentalListing[]; error?: string; status?: number }> {
+  const location = params.location.trim();
+  if (!/^[A-Za-z.' -]+,\s*[A-Za-z]{2}$/.test(location)) {
+    return { ok: false, listings: [], error: `Invalid HotPads location "${params.location}" — expected "City, ST"`, status: 400 };
+  }
+  const result = await rapidApiFetch(HOTPADS_HOST, '/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ location }),
+  });
+  if (!result.ok) {
+    return { ok: false, listings: [], error: result.error, status: result.status };
+  }
+  if (!Array.isArray(result.data)) {
+    // The Apify actor reports failures as {error:{message}} with HTTP 201.
+    const msg = (result.data as { error?: { message?: string } } | null)?.error?.message;
+    return { ok: false, listings: [], error: msg || 'HotPads returned an unexpected response shape', status: 502 };
+  }
+  return { ok: true, listings: (result.data as HotPadsListingRaw[]).map(normalizeHotPadsListing) };
+}
+
+export async function getHotPadsHealth() {
+  return checkSubscriptionOnly(HOTPADS_HOST, 'HotPads Rental Scraper');
+}
+
+// ─── Craigslist Real Estate Scraper — region search ──────────────────────────
+//
+// Contract (verified live 2026-10-11): POST / body {"city": "<craigslist region subdomain>"} (e.g.
+// "austin", "sfbay", "nashville"; default region is sfbay) → bare JSON array of exactly 5 recent
+// rental posts. QUOTA IS TINY (124 requests/month on the current plan) — never call this from health
+// checks or loops. by_owner/limit/page/state params are ignored.
+// Responses carry NO city/state/zip: the region is a metro ("nashville" includes Franklin), so
+// city/state come from the caller, overridden by a full "street, City, ST zip" line when the post
+// body has one. `location` is a street or cross-street, often absent. Contact info is hidden behind
+// Craigslist's relay (`reply_link`); `by_owner` is the native owner-posted flag.
+
+interface CraigslistListingRaw {
+  url?: string;
+  post_id?: string;
+  title?: string;
+  price?: number | null;
+  body?: string;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  sqft?: number | null;
+  location?: string | null;
+  latitude?: number;
+  longitude?: number;
+  posting_date?: string;
+  attributes?: string[] | null;
+  by_owner?: boolean;
+  scraped_at?: string;
+}
+
+const CRAIGSLIST_PHONE = /(?:\+?1[\s.-]?)?\(?\b[2-9]\d{2}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/;
+const CRAIGSLIST_BODY_ADDRESS = /(\d{1,6}\s[^\n,]{3,60}),\s*([A-Za-z][A-Za-z .'-]{1,40}),\s*([A-Z]{2})\s*(\d{5})/;
+const CRAIGSLIST_APARTMENT_TYPES = /^(apartment|loft|flat)$/;
+const CRAIGSLIST_HOME_TYPES = ['house', 'townhouse', 'condo', 'duplex', 'cottage/cabin', 'in-law', 'manufactured'];
+
+function normalizeCraigslistListing(raw: CraigslistListingRaw, ctx: { city: string; state: string }): NormalizedRentalListing {
+  const attrs = (raw.attributes || []).map(a => a.toLowerCase().trim());
+  const body = raw.body || '';
+
+  const periodIdx = attrs.indexOf('rent period:');
+  const period = periodIdx >= 0 ? attrs[periodIdx + 1] : 'monthly';
+  const rawPrice = raw.price ?? null;
+  // Vacation/short-term posts quote per night or week; the lead's price is always monthly.
+  const price = rawPrice == null ? null
+    : period === 'daily' ? rawPrice * 30
+    : period === 'weekly' ? Math.round(rawPrice * 4.33)
+    : period === 'yearly' ? Math.round(rawPrice / 12)
+    : rawPrice;
+
+  const bodyAddr = CRAIGSLIST_BODY_ADDRESS.exec(body.slice(0, 600));
+  // `location` is only a usable street when it starts with a house number (else it is a cross-street/"google map").
+  const locStreet = (raw.location || '').replace(/\s+near\s+.*$/i, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+  const street = /^\d+\s+\S/.test(locStreet) ? locStreet : (bodyAddr ? bodyAddr[1].trim() : '');
+
+  const propertyType = [...CRAIGSLIST_HOME_TYPES, 'apartment', 'loft', 'flat'].find(t => attrs.includes(t));
+  const isApartmentCommunity = (propertyType ? CRAIGSLIST_APARTMENT_TYPES.test(propertyType) : false) || /(#|\b(apt|unit|ste|suite)\b)/i.test(street);
+  // by_owner on a unit inside an apartment building is a small landlord, not a standalone home.
+  const isFsbo = raw.by_owner === true && !isApartmentCommunity;
+
+  const phoneMatch = raw.by_owner ? CRAIGSLIST_PHONE.exec(body) : null;
+  const sqftAttr = raw.sqft ? `${raw.sqft} sqft` : undefined;
+
+  return {
+    source: 'Craigslist',
+    externalId: raw.post_id,
+    address: street,
+    city: (bodyAddr?.[2] || ctx.city).trim(),
+    state: (bodyAddr?.[3] || ctx.state).trim(),
+    zip: bodyAddr?.[4] || '',
+    latitude: raw.latitude,
+    longitude: raw.longitude,
+    beds: raw.bedrooms ?? null,
+    baths: raw.bathrooms ?? null,
+    price,
+    listingStatus: 'for_rent',
+    listingAgentPhone: phoneMatch ? phoneMatch[0].trim() : undefined,
+    listingUpdatedAt: raw.posting_date,
+    isFsbo,
+    isApartmentCommunity,
+    propertyTypeLabel: propertyType ? propertyType.toUpperCase() : undefined,
+    isFurnished: attrs.includes('furnished'),
+    sqftText: sqftAttr,
+    listingUrl: raw.url,
+    notes: [raw.title, raw.by_owner ? 'Posted by owner' : null, period !== 'monthly' ? `Quoted ${period}` : null].filter(Boolean).join(' | ').slice(0, 2000),
+  };
+}
+
+/** POST / — one Craigslist region subdomain → 5 listings. Spends 1 of a ~124/month allowance. */
+export async function searchCraigslistRentals(
+  params: { region: string; city: string; state: string }
+): Promise<{ ok: boolean; listings: NormalizedRentalListing[]; error?: string; status?: number }> {
+  const region = params.region.trim().toLowerCase();
+  if (!/^[a-z0-9]+$/.test(region)) {
+    return { ok: false, listings: [], error: `Invalid Craigslist region "${params.region}" — expected a subdomain like "austin"`, status: 400 };
+  }
+  const result = await rapidApiFetch(CRAIGSLIST_HOST, '/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ city: region }),
+  });
+  if (!result.ok) {
+    return { ok: false, listings: [], error: result.error, status: result.status };
+  }
+  if (!Array.isArray(result.data)) {
+    return { ok: false, listings: [], error: 'Craigslist returned an unexpected response shape', status: 502 };
+  }
+  const ctx = { city: params.city, state: params.state };
+  return { ok: true, listings: (result.data as CraigslistListingRaw[]).map(r => normalizeCraigslistListing(r, ctx)) };
+}
+
+export async function getCraigslistHealth() {
+  return checkSubscriptionOnly(CRAIGSLIST_HOST, 'Craigslist Real Estate Scraper');
 }

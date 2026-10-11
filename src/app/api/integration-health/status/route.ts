@@ -4,7 +4,7 @@ import { getResendConfigStatus } from '@/lib/email/resend';
 import { getDocuSignConfigStatus } from '@/lib/services/docusignService';
 import { getProviderHealth as getRentCastHealth } from '@/lib/services/rentcastService';
 import { getProviderHealth as getPropertyReachHealth } from '@/lib/services/propertyReachProvider';
-import { getTruliaHealth, getZillowDetailHealth, getZillowSearchHealth, getZillowRealEstateHealth, getRentComHealth, getUsPropertyDataHealth, getPadMapperHealth } from '@/lib/services/rapidApiRealEstateService';
+import { getTruliaHealth, getZillowDetailHealth, getZillowSearchHealth, getZillowRealEstateHealth, getRentComHealth, getUsPropertyDataHealth, getPadMapperHealth, getHotPadsHealth, getCraigslistHealth } from '@/lib/services/rapidApiRealEstateService';
 import { getSkipTracingHealth } from '@/lib/services/skipTracingProvider';
 import { getAirdnaHealth } from '@/lib/services/airdnaService';
 import { getPropertyReportHealth } from '@/lib/services/propertyReportProvider';
@@ -149,6 +149,8 @@ export async function GET() {
   const rentComHealth = await getRentComHealth();
   const usPropertyDataHealth = await getUsPropertyDataHealth();
   const padMapperHealth = await getPadMapperHealth();
+  const hotPadsHealth = await getHotPadsHealth();
+  const craigslistHealth = await getCraigslistHealth();
   const airdnaHealth = await getAirdnaHealth();
   const propertyReportHealth = await getPropertyReportHealth();
 
@@ -241,6 +243,16 @@ export async function GET() {
         configured: padMapperHealth.hasApiKey,
         status: padMapperHealth.status === 'ACTIVE' ? 'operational' : padMapperHealth.status === 'DISABLED' ? 'down' : 'degraded',
         message: padMapperHealth.message,
+      },
+      hotPads: {
+        configured: hotPadsHealth.hasApiKey,
+        status: hotPadsHealth.status === 'ACTIVE' ? 'operational' : hotPadsHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: hotPadsHealth.message,
+      },
+      craigslist: {
+        configured: craigslistHealth.hasApiKey,
+        status: craigslistHealth.status === 'ACTIVE' ? 'operational' : craigslistHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: craigslistHealth.message,
       },
       airdna: {
         configured: airdnaHealth.hasApiKey,
