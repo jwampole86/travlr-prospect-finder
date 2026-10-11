@@ -921,6 +921,7 @@ export async function POST(req: NextRequest) {
               isApartmentCommunity: pr.rawIsApartmentCommunity,
               priceType: pr.rawPriceType,
               hasListingAttribution: !!(pr.rawListingAgentName || pr.rawListingBrokerName),
+              luxury: luxuryResult.luxury,
               address: normalized.streetAddress || pr.rawAddress,
               contactName: pr.rawContact || (pr.rawIsFsbo ? pr.rawListingAgentName : null),
             }) ? 'PENDING' : null,

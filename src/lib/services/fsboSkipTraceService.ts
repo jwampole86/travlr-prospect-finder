@@ -6,7 +6,7 @@ const STALE_RUNNING_MS = 15 * 60 * 1000;
 
 /**
  * Standalone-home leads with a real street address and no contact name yet, where the resident of record is
- * worth tracing: owner-listed, for-sale (the resident is usually the owner), or a rental with no agent/broker.
+ * worth tracing: luxury, owner-listed, for-sale (the resident is usually the owner), or a rental with no agent/broker.
  * Apartment units and agent-managed rentals are excluded: the person at the address would be a tenant.
  */
 export function isSkipTraceEligible(lead: {
@@ -16,8 +16,10 @@ export function isSkipTraceEligible(lead: {
   contactName?: string | null;
   priceType?: 'sale' | 'rent' | null;
   hasListingAttribution?: boolean | null;
+  luxury?: boolean | null;
 }): boolean {
-  const worthTracing = !!lead.isFsbo || lead.priceType === 'sale' || (lead.priceType === 'rent' && !lead.hasListingAttribution);
+  // Luxury homes are worth a contact lookup even when an agent is listed.
+  const worthTracing = !!lead.isFsbo || !!lead.luxury || lead.priceType === 'sale' || (lead.priceType === 'rent' && !lead.hasListingAttribution);
   return worthTracing
     && !lead.isApartmentCommunity
     && !lead.contactName
@@ -63,7 +65,7 @@ export async function runFsboSkipTrace(
   const candidateQuery = db.from('leads').select(columns);
   const { data: candidates, error } = opts.leadId
     ? await candidateQuery.eq('id', opts.leadId)
-    : await candidateQuery.or(queueFilter).order('created_at').limit(limit);
+    : await candidateQuery.or(queueFilter).order('luxury', { ascending: false, nullsFirst: false }).order('created_at').limit(limit);
   if (error || !candidates) return summary;
 
   for (const lead of candidates) {

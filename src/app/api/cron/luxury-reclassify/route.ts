@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { classifyLuxury, loadBenchmarks } from '@/lib/services/luxuryClassifier';
+import { isSkipTraceEligible } from '@/lib/services/fsboSkipTraceService';
 
 export const maxDuration = 300;
 const PAGE = 1000;
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   for (let from = 0; ; from += PAGE) {
     const { data: leads, error } = await db.from('leads')
-      .select('id,address,city,state,zip,price,price_type,luxury,is_synthetic')
+      .select('id,address,city,state,zip,price,price_type,luxury,is_synthetic,contact_name,is_apartment_community,skip_trace_status')
       .gt('price', 0)
       .order('id')
       .range(from, from + PAGE - 1);
@@ -58,6 +59,9 @@ export async function GET(request: NextRequest) {
           luxury_threshold_used: result.threshold,
           luxury_basis: result.basis,
           luxury_classified_at: now,
+          ...(!lead.skip_trace_status && isSkipTraceEligible({
+            luxury: true, isApartmentCommunity: lead.is_apartment_community, address: lead.address, contactName: lead.contact_name,
+          }) ? { skip_trace_status: 'PENDING' } : {}),
         }).eq('id', lead.id);
       }
     }
