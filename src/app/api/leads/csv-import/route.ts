@@ -1,22 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { isSkipTraceEligible } from '@/lib/services/fsboSkipTraceService';
-
-// ─── Luxury threshold map (per state, lowest luxury tier) ────────────────────
-const LUXURY_THRESHOLDS: Record<string, number> = {
-  AK: 6000, AZ: 15000, CA: 15000, CO: 15000, FL: 15000, GA: 15000, ID: 15000, KS: 15000,
-  MA: 10000, MD: 10000, MN: 10000, MO: 10000, MT: 10000, NC: 10000, NE: 7500,
-  NH: 10000, NJ: 10000, NM: 10000, NV: 10000, NY: 15000, OR: 10000, TX: 10000,
-  UT: 10000, VT: 10000, WA: 10000, WI: 10000, WY: 10000,
-};
-
-/** Returns true if the property qualifies as luxury based on state + price */
-function isLuxuryProperty(stateCode: string, price: number | null): boolean {
-  if (!stateCode || !price || price <= 0) return false;
-  const threshold = LUXURY_THRESHOLDS[stateCode.toUpperCase()];
-  if (!threshold) return false;
-  return price >= threshold;
-}
+import { classifyLuxury, loadBenchmarks } from '@/lib/services/luxuryClassifier';
 
 // ─── State name map ───────────────────────────────────────────────────────────
 const STATE_NAMES: Record<string, string> = {
@@ -488,6 +473,13 @@ export async function POST(req: NextRequest) {
       if (normalized.state) statesSeen.add(normalized.state);
     }
 
+    // Market-aware luxury thresholds for every ZIP/state in this batch (one lookup, not per row).
+    const benchmarks = await loadBenchmarks(
+      supabase,
+      parsedRows.map(r => r.normalized.zipCode || r.rawZip),
+      parsedRows.map(r => r.normalized.state),
+    );
+
     // ── STEP 0 (continued): Now that parsedRows is populated, create portfolios ─
     for (const stateCode of [...new Set(parsedRows.map(r => r.normalized.state).filter(Boolean))]) {
       if (!stateCode || stateCode.length !== 2) continue;
@@ -771,10 +763,16 @@ export async function POST(req: NextRequest) {
             updateData.phone_source = 'MANUAL_CSV';
           }
           // Luxury classification — if CSV price qualifies, mark luxury (never downgrade)
-          const csvLuxury = isLuxuryProperty(normalized.state, currentRent);
-          if (csvLuxury && !existingLead.luxury) {
+          const csvLuxury = classifyLuxury({
+            state: normalized.state, zip: normalized.zipCode || pr.rawZip, priceType: pr.rawPriceType,
+            price: pr.rawPriceType === 'sale' ? pr.rawPrice : currentRent, benchmarks,
+          });
+          if (csvLuxury.luxury && !existingLead.luxury) {
             updateData.luxury = true;
-            updateData.luxury_source_field = 'SOURCE_CONFIGURATION';
+            updateData.luxury_source_field = 'MARKET_BENCHMARK';
+            updateData.luxury_threshold_used = csvLuxury.threshold;
+            updateData.luxury_basis = csvLuxury.basis;
+            updateData.luxury_classified_at = now;
           }
           // Verified owner provenance
           if (willUpdateContact) {
@@ -1038,9 +1036,20 @@ export async function POST(req: NextRequest) {
             phone_source: hasPhone ? 'MANUAL_IMPORT' : null,
             rent_price_source: currentRent ? 'MANUAL_IMPORT' : null,
             rent_price_retrieved_at: currentRent ? now : null,
-            // Luxury classification — derived from state + price
-            luxury: isLuxuryProperty(normalized.state, currentRent),
-            luxury_source_field: 'SOURCE_CONFIGURATION',
+            // Luxury classification — compared to the ZIP's (else state's) market benchmark
+            ...(() => {
+              const lux = classifyLuxury({
+                state: normalized.state, zip: normalized.zipCode || pr.rawZip, priceType: pr.rawPriceType,
+                price: pr.rawPriceType === 'sale' ? pr.rawPrice : currentRent, benchmarks,
+              });
+              return {
+                luxury: lux.luxury,
+                luxury_source_field: 'MARKET_BENCHMARK',
+                luxury_threshold_used: lux.threshold,
+                luxury_basis: lux.basis,
+                luxury_classified_at: now,
+              };
+            })(),
             // Verified fields with provenance
             verified_owner_source: verifiedOwner ? 'MANUAL_CSV' : null,
             verified_owner_method: verifiedOwner ? 'MANUAL_RESEARCH' : null,
