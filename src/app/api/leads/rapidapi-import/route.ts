@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { runFsboSkipTrace } from '@/lib/services/fsboSkipTraceService';
+import { runFsboSkipTrace, isSkipTraceEligible } from '@/lib/services/fsboSkipTraceService';
 import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, searchPadMapperRentals, searchHotPadsRentals, searchCraigslistRentals, toPadMapperLocation, getZillowPropertyDetails, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
 
 const CHUNK_SIZE = 50;
@@ -393,7 +393,10 @@ export async function POST(req: NextRequest) {
 
   // Runs after the response is sent so a sync never waits on skip-trace API calls; the
   // cron route picks up anything this bounded pass doesn't reach.
-  if (rows.some(r => r.isFsbo)) {
+  if (rows.some(r => isSkipTraceEligible({
+    isFsbo: r.isFsbo, isApartmentCommunity: r.isApartmentCommunity, address: r.address,
+    priceType: r.priceType, hasListingAttribution: !!(r.listingAgentName || r.listingBrokerName),
+  }))) {
     after(async () => {
       try {
         await runFsboSkipTrace(getSupabaseAdmin(), { limit: 20, deadlineMs: 45_000 });

@@ -43,6 +43,10 @@ interface SkipTraceFetchResult {
   error?: string;
 }
 
+// Leave headroom for owner-listed leads and manual lookups once the monthly allowance runs low.
+const QUOTA_RESERVE = 150;
+let lastKnownRemaining: number | null = null;
+
 async function skipTraceFetch(path: string): Promise<SkipTraceFetchResult> {
   const keys = getRapidApiKeys();
   if (keys.length === 0) return { ok: false, error: 'No RAPIDAPI_KEY_* configured' };
@@ -62,6 +66,9 @@ async function skipTraceFetch(path: string): Promise<SkipTraceFetchResult> {
         lastError = `HTTP ${res.status}`;
         continue;
       }
+
+      const remainingHeader = res.headers.get('x-ratelimit-requests-remaining');
+      if (remainingHeader !== null && Number.isFinite(Number(remainingHeader))) lastKnownRemaining = Number(remainingHeader);
 
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -83,10 +90,18 @@ interface PersonSearchRaw {
   'Lives in'?: string;
 }
 
+interface AddressDetailRaw {
+  street_address?: string; streetAddress?: string;
+  address_locality?: string; addressLocality?: string;
+  address_region?: string; addressRegion?: string;
+  postal_code?: string; postalCode?: string;
+  date_range?: string; timespan?: string;
+}
+
 interface PersonDetailsRaw {
   'Person Details'?: Array<{ Person_name?: string; Telephone?: string }>;
-  'Current Address Details List'?: Array<{ street_address?: string }>;
-  'Previous Address Details'?: Array<{ streetAddress?: string; street_address?: string }>;
+  'Current Address Details List'?: AddressDetailRaw[];
+  'Previous Address Details'?: AddressDetailRaw[];
   'All Phone Details'?: Array<{ phone_number?: string; phone_type?: string; phone_info?: string; last_reported?: string }>;
   'Email Addresses'?: string[];
 }
@@ -100,6 +115,31 @@ const STREET_WORDS: Record<string, string> = {
 function normalizeStreet(street: string): string {
   return street.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
     .split(' ').map(w => STREET_WORDS[w] ?? w).join(' ');
+}
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+/** Months since a "(Jan 2020 - Oct 2026)" range ended; 0 when open-ended or unparseable. */
+function monthsSinceRangeEnd(range?: string): number {
+  const m = /-\s*([A-Za-z]{3})[a-z]*\.?\s+(\d{4})/.exec(range || '');
+  if (!m) return 0;
+  const month = MONTHS.indexOf(m[1].toLowerCase());
+  if (month < 0) return 0;
+  const now = new Date();
+  return (now.getFullYear() - Number(m[2])) * 12 + (now.getMonth() - month);
+}
+
+/** Same street AND same state plus either city or ZIP, so an identical street name elsewhere never matches. */
+function sameAddress(a: AddressDetailRaw, target: string, input: { city: string; state: string; zip: string }): boolean {
+  const street = a.street_address || a.streetAddress;
+  if (!street || normalizeStreet(street) !== target) return false;
+  const region = (a.address_region || a.addressRegion || '').trim().toLowerCase();
+  if (region && region !== input.state.trim().toLowerCase()) return false;
+  const locality = (a.address_locality || a.addressLocality || '').trim().toLowerCase();
+  const zip5 = (a.postal_code || a.postalCode || '').slice(0, 5);
+  const cityOk = !!locality && locality === input.city.trim().toLowerCase();
+  const zipOk = !!zip5 && zip5 === input.zip.slice(0, 5);
+  return cityOk || zipOk || (!locality && !zip5);
 }
 
 /**
@@ -178,6 +218,9 @@ export async function resolveResidentsByAddress(
   maxDetailLookups = 3
 ): Promise<ResidentLookupResult> {
   if (getRapidApiKeys().length === 0) return { status: 'ERROR', matches: [], apiCalls: 0, error: 'No RAPIDAPI_KEY_* configured' };
+  if (lastKnownRemaining !== null && lastKnownRemaining < QUOTA_RESERVE) {
+    return { status: 'RATE_LIMITED', matches: [], apiCalls: 0, error: `Skip Tracing quota reserve reached (${lastKnownRemaining} calls left)` };
+  }
   const citystatezip = `${input.city}, ${input.state} ${input.zip}`.trim();
   const search = await skipTraceFetch(`/search/byaddress?${new URLSearchParams({ street: input.street.trim(), citystatezip, page: '1' })}`);
   let apiCalls = 1;
@@ -205,12 +248,16 @@ export async function resolveResidentsByAddress(
       continue;
     }
     const details = res.data as PersonDetailsRaw;
-    const isCurrent = (details['Current Address Details List'] || []).some(a => a.street_address && normalizeStreet(a.street_address) === target);
-    const isPrevious = !isCurrent && (details['Previous Address Details'] || []).some(a => {
-      const s = a.streetAddress || a.street_address;
-      return !!s && normalizeStreet(s) === target;
-    });
+    const currentRecord = (details['Current Address Details List'] || []).find(a => sameAddress(a, target, input));
+    // A "current" address last reported over two years ago is a former resident, not someone to call as the owner.
+    const isCurrent = !!currentRecord && monthsSinceRangeEnd(currentRecord.date_range) <= 24;
+    const isPrevious = !isCurrent && (
+      !!currentRecord
+      || (details['Previous Address Details'] || []).some(a => sameAddress(a, target, input))
+    );
     if (!isCurrent && !isPrevious) continue;
+    const name = person.Name || details['Person Details']?.[0]?.Person_name || '';
+    if (!name.trim()) continue;
 
     const phones = (details['All Phone Details'] || []).flatMap(p => {
       const e164 = normalizePhoneE164(p.phone_number || '');
@@ -222,7 +269,7 @@ export async function resolveResidentsByAddress(
 
     matches.push({
       personId: person['Person ID']!,
-      name: person.Name || details['Person Details']?.[0]?.Person_name || '',
+      name,
       age: person.Age,
       matchType: isCurrent ? 'CURRENT_RESIDENT' : 'PREVIOUS_RESIDENT',
       phones,

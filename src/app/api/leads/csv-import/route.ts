@@ -919,6 +919,8 @@ export async function POST(req: NextRequest) {
             skip_trace_status: isSkipTraceEligible({
               isFsbo: pr.rawIsFsbo,
               isApartmentCommunity: pr.rawIsApartmentCommunity,
+              priceType: pr.rawPriceType,
+              hasListingAttribution: !!(pr.rawListingAgentName || pr.rawListingBrokerName),
               address: normalized.streetAddress || pr.rawAddress,
               contactName: pr.rawContact || (pr.rawIsFsbo ? pr.rawListingAgentName : null),
             }) ? 'PENDING' : null,

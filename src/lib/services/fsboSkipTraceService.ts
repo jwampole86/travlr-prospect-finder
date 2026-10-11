@@ -4,19 +4,27 @@ import { resolveResidentsByAddress, type ResidentMatch } from './skipTracingProv
 export const UNDISCLOSED_ADDRESS_PREFIX = 'Address Not Disclosed';
 const STALE_RUNNING_MS = 15 * 60 * 1000;
 
-/** Owner-listed, standalone-home leads with a real street address and no contact name yet. */
+/**
+ * Standalone-home leads with a real street address and no contact name yet, where the resident of record is
+ * worth tracing: owner-listed, for-sale (the resident is usually the owner), or a rental with no agent/broker.
+ * Apartment units and agent-managed rentals are excluded: the person at the address would be a tenant.
+ */
 export function isSkipTraceEligible(lead: {
   isFsbo?: boolean | null;
   isApartmentCommunity?: boolean | null;
   address?: string | null;
   contactName?: string | null;
+  priceType?: 'sale' | 'rent' | null;
+  hasListingAttribution?: boolean | null;
 }): boolean {
-  return !!lead.isFsbo
+  const worthTracing = !!lead.isFsbo || lead.priceType === 'sale' || (lead.priceType === 'rent' && !lead.hasListingAttribution);
+  return worthTracing
     && !lead.isApartmentCommunity
     && !lead.contactName
     && !!lead.address
     && !lead.address.startsWith(UNDISCLOSED_ADDRESS_PREFIX)
-    && /\d/.test(lead.address);
+    && /\d/.test(lead.address)
+    && !/#|\b(apt|unit|ste|suite)\b/i.test(lead.address);
 }
 
 export interface FsboSkipTraceSummary {
