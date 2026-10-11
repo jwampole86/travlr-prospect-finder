@@ -111,6 +111,7 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
     features: [
       'Everything in Pro',
       'Higher user, portfolio, and lead limits',
+      'Luxury lead access with market-aware luxury tiers',
       'AI Interview Assistant',
       'Automated & bulk interview scheduling',
       'Candidate interview calendar',
@@ -195,6 +196,7 @@ export const FEATURE_COMPARISON: FeatureComparisonRow[] = [
   { key: 'multiple_portfolios', label: 'Multiple Portfolios', values: { starter: 'no', pro: 'yes', business: 'yes', enterprise: 'yes' } },
   { key: 'team_members', label: 'Team Members', values: { starter: 'no', pro: 'yes', business: 'yes', enterprise: 'yes' } },
   { key: 'property_enrichment', label: 'Property Enrichment', values: { starter: 'limited', pro: 'limited', business: 'limited', enterprise: 'yes' } },
+  { key: 'luxury_leads', label: 'Luxury Lead Access', values: { starter: 'no', pro: 'no', business: 'yes', enterprise: 'yes' } },
   { key: 'ai_assisted_workflows', label: 'AI-Assisted Workflows', values: { starter: 'no', pro: 'yes', business: 'yes', enterprise: 'yes' } },
   { key: 'ai_interview_assistant', label: 'AI Interview Assistant', values: { starter: 'no', pro: 'limited', business: 'yes', enterprise: 'yes' } },
   { key: 'automated_interview_scheduling', label: 'Automated Interview Scheduling', values: { starter: 'no', pro: 'no', business: 'yes', enterprise: 'yes' } },
@@ -229,7 +231,7 @@ function rowsFor(keys: string[]): FeatureComparisonRow[] {
 export const FEATURE_CATEGORIES: FeatureCategoryGroup[] = [
   { category: 'Core Platform', rows: rowsFor(['lead_management', 'dashboard', 'property_profiles', 'csv_imports']) },
   { category: 'Lead Management', rows: rowsFor(['lead_search', 'lead_filtering', 'lead_assignment', 'pipeline_management', 'multiple_portfolios', 'team_members']) },
-  { category: 'Property & Contact Intelligence', rows: rowsFor(['verified_contact_workflows', 'property_enrichment']) },
+  { category: 'Property & Contact Intelligence', rows: rowsFor(['verified_contact_workflows', 'property_enrichment', 'luxury_leads']) },
   { category: 'AI & Automation', rows: rowsFor(['ai_assisted_workflows', 'automation_rules', 'bulk_workflows']) },
   { category: 'Interviews & Team Tools', rows: rowsFor(['ai_interview_assistant', 'automated_interview_scheduling', 'bulk_interview_scheduling', 'interview_calendar', 'zoom_integration']) },
   { category: 'Analytics', rows: rowsFor(['advanced_analytics']) },

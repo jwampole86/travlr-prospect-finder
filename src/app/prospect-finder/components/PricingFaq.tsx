@@ -21,6 +21,10 @@ const FAQS: Array<{ q: string; a: string }> = [
     a: 'AI-assisted workflows are available starting on the Pro plan. Full AI Interview Assistant functionality, automated scheduling, and bulk AI interviews are available on Business and Enterprise.',
   },
   {
+    q: 'Which plans include luxury leads?',
+    a: 'Luxury lead access is included on the Business and Enterprise plans. It identifies luxury properties relative to each local market, so a high-end home in a lower-cost state is not overlooked, and adds luxury views and dashboard metrics. Starter and Pro do not include it.',
+  },
+  {
     q: 'Which plan includes the complete platform?',
     a: 'Enterprise is the only VAYO plan that includes full access to all platform features, advanced tools, integrations, and custom usage limits.',
   },

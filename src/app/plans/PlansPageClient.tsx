@@ -37,6 +37,7 @@ const PRICING_REASSURANCE = [
 ];
 
 const COMPLETENESS_SIGNALS = [
+  'Luxury leads: market-aware luxury tiers, views, and KPIs included on Business and Enterprise',
   'AI interviews: limited on Pro, included on Business, complete on Enterprise',
   'Automation: basic on Pro, advanced on Business, custom workflow controls on Enterprise',
   'Analytics: Business adds advanced analytics; Enterprise includes the full analytics suite',

@@ -235,7 +235,7 @@ export default function WelcomePage() {
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-5 text-center">Why Teams Choose VAYO</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              'Discover and prioritize high-value homeowner opportunities',
+              'Discover and prioritize high-value homeowner opportunities, with luxury lead access on Business and Enterprise plans',
               'Access available property and contact intelligence',
               'Manage your pipeline from first contact to signed contract',
               'Automate outreach and follow-up without losing the personal touch',
