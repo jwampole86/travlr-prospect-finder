@@ -125,7 +125,7 @@ export default React.memo(function KPIBentoGrid({
           className="bg-warning-bg rounded-xl border border-warning/30 p-4 sm:p-5 flex flex-col justify-between min-h-[90px] sm:min-h-[100px] hover:border-warning/60 transition-all cursor-pointer active:scale-[0.98]"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-warning/80">
+            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-warning/95">
               Action Needed
             </span>
             <AlertTriangle size={13} className="text-warning" />
@@ -134,7 +134,7 @@ export default React.memo(function KPIBentoGrid({
             <p className="font-mono-data text-2xl sm:text-3xl font-bold text-warning leading-none">
               {actionNeededLeads.toLocaleString()}
             </p>
-            <p className="text-[10px] text-warning/70 mt-1">
+            <p className="text-[10px] text-warning/95 mt-1">
               Score ≥ 75, not yet contacted
             </p>
           </div>
@@ -149,7 +149,7 @@ export default React.memo(function KPIBentoGrid({
           className="bg-card rounded-xl border border-success/30 bg-success-bg p-3 sm:p-4 flex flex-col justify-between min-h-[90px] hover:border-success/60 transition-all cursor-pointer active:scale-[0.98]"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-success/80">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-success/95">
               Fully Verified
             </span>
             <ShieldCheck size={13} className="text-success" />
@@ -158,7 +158,7 @@ export default React.memo(function KPIBentoGrid({
             <p className="font-mono-data text-2xl sm:text-3xl font-bold text-success leading-none">
               {fullyVerified.toLocaleString()}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-success/70 mt-1">
+            <p className="text-[10px] sm:text-[11px] text-success/95 mt-1">
               Owner + Address + Phone
             </p>
           </div>
@@ -170,7 +170,7 @@ export default React.memo(function KPIBentoGrid({
           className="bg-card rounded-xl border border-destructive/30 p-3 sm:p-4 flex flex-col justify-between min-h-[90px] hover:border-destructive/60 hover:bg-destructive/5 transition-all cursor-pointer active:scale-[0.98]"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-destructive/80">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-destructive/95">
               Unassigned Priority
             </span>
             <UserX size={13} className="text-destructive" />
@@ -179,7 +179,7 @@ export default React.memo(function KPIBentoGrid({
             <p className="font-mono-data text-2xl sm:text-3xl font-bold text-destructive leading-none">
               {unassignedPriority.toLocaleString()}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-destructive/70 mt-1">
+            <p className="text-[10px] sm:text-[11px] text-destructive/95 mt-1">
               High-value, needs agent
             </p>
           </div>
@@ -425,7 +425,7 @@ export default React.memo(function KPIBentoGrid({
             className="bg-card rounded-xl border border-success/30 bg-success-bg p-3 sm:p-4 flex flex-col justify-between min-h-[90px] hover:border-success/60 transition-all cursor-pointer active:scale-[0.98]"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-success/80">
+              <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-success/95">
                 Live Revenue
               </span>
               <DollarSign size={13} className="text-success" />
@@ -434,7 +434,7 @@ export default React.memo(function KPIBentoGrid({
               <p className="font-mono-data text-xl sm:text-2xl font-bold text-success leading-none">
                 {estimatedMonthlyRevenue === null ? '—' : estimatedMonthlyRevenue > 0 ? formatCurrency(estimatedMonthlyRevenue) : '$0'}
               </p>
-              <p className="text-[10px] sm:text-[11px] text-success/70 mt-1">
+              <p className="text-[10px] sm:text-[11px] text-success/95 mt-1">
                 {estimatedMonthlyRevenue === null ? 'Unable to load' : estimatedMonthlyRevenue > 0 ? 'Net / month from Live' : 'No signed contracts yet'}
               </p>
             </div>

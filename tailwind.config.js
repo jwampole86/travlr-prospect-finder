@@ -1,3 +1,11 @@
+// Theme colors are CSS variables, which Tailwind cannot apply opacity modifiers to
+// (e.g. text-danger/80, bg-primary/10 would silently generate no CSS).
+// Resolve alpha with color-mix so every token supports the /NN syntax.
+const withAlpha = (variable) => ({ opacityValue }) =>
+  opacityValue === undefined
+    ? `var(${variable})`
+    : `color-mix(in srgb, var(${variable}) calc(${opacityValue} * 100%), transparent)`;
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -11,45 +19,60 @@ module.exports = {
     },
     extend: {
       colors: {
-        background: 'var(--background)',
-        foreground: 'var(--foreground)',
+        background: withAlpha('--background'),
+        foreground: withAlpha('--foreground'),
         primary: {
-          DEFAULT: 'var(--primary)',
-          foreground: 'var(--primary-foreground)',
+          DEFAULT: withAlpha('--primary'),
+          foreground: withAlpha('--primary-foreground'),
         },
         secondary: {
-          DEFAULT: 'var(--secondary)',
-          foreground: 'var(--secondary-foreground)',
+          DEFAULT: withAlpha('--secondary'),
+          foreground: withAlpha('--secondary-foreground'),
         },
         accent: {
-          DEFAULT: 'var(--accent)',
-          foreground: 'var(--accent-foreground)',
+          DEFAULT: withAlpha('--accent'),
+          foreground: withAlpha('--accent-foreground'),
         },
         muted: {
-          DEFAULT: 'var(--muted)',
-          foreground: 'var(--muted-foreground)',
+          DEFAULT: withAlpha('--muted'),
+          foreground: withAlpha('--muted-foreground'),
         },
         card: {
-          DEFAULT: 'var(--card)',
-          foreground: 'var(--card-foreground)',
+          DEFAULT: withAlpha('--card'),
+          foreground: withAlpha('--card-foreground'),
         },
-        border: 'var(--border)',
-        input: 'var(--input)',
-        ring: 'var(--ring)',
+        border: withAlpha('--border'),
+        input: withAlpha('--input'),
+        ring: withAlpha('--ring'),
         success: {
-          DEFAULT: 'var(--success)',
-          bg: 'var(--success-bg)',
-          border: 'var(--success-border)',
+          DEFAULT: withAlpha('--success'),
+          foreground: withAlpha('--primary-foreground'),
+          bg: withAlpha('--success-bg'),
+          border: withAlpha('--success-border'),
         },
         warning: {
-          DEFAULT: 'var(--warning)',
-          bg: 'var(--warning-bg)',
-          border: 'var(--warning-border)',
+          DEFAULT: withAlpha('--warning'),
+          bg: withAlpha('--warning-bg'),
+          border: withAlpha('--warning-border'),
         },
         danger: {
-          DEFAULT: 'var(--danger)',
-          bg: 'var(--danger-bg)',
-          border: 'var(--danger-border)',
+          DEFAULT: withAlpha('--danger'),
+          bg: withAlpha('--danger-bg'),
+          border: withAlpha('--danger-border'),
+        },
+        destructive: {
+          DEFAULT: withAlpha('--danger'),
+          foreground: withAlpha('--primary-foreground'),
+        },
+        info: {
+          DEFAULT: withAlpha('--info'),
+          bg: withAlpha('--info-bg'),
+          border: withAlpha('--info-border'),
+        },
+        neutral: {
+          DEFAULT: withAlpha('--neutral'),
+          bg: withAlpha('--neutral-bg'),
+          border: withAlpha('--neutral-border'),
         },
       },
       borderRadius: {
