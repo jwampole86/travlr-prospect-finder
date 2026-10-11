@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
+import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, getZillowPropertyDetails, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
 
 const CHUNK_SIZE = 50;
 const MAX_PAGES = 5;
@@ -14,6 +14,15 @@ interface ImportRow {
   baths: number;
   price: number;
   priceType: 'sale' | 'rent';
+  rentEstimate?: number;
+  listingAgentName?: string;
+  listingAgentPhone?: string;
+  listingBrokerName?: string;
+  listingBrokerPhone?: string;
+  mlsNumber?: string;
+  mlsSourceName?: string;
+  listingUpdatedAt?: string;
+  isFsbo?: boolean;
   notes: string;
   link?: string;
   stage: string;
@@ -33,6 +42,15 @@ function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
     price: listing.price ?? 0,
     // 'sold' listings aren't an ongoing monthly cost either — treat like a sale price.
     priceType: listing.listingStatus === 'for_rent' ? 'rent' : 'sale',
+    rentEstimate: listing.rentEstimate,
+    listingAgentName: listing.listingAgentName,
+    listingAgentPhone: listing.listingAgentPhone,
+    listingBrokerName: listing.listingBrokerName,
+    listingBrokerPhone: listing.listingBrokerPhone,
+    mlsNumber: listing.mlsNumber,
+    mlsSourceName: listing.mlsSourceName,
+    listingUpdatedAt: listing.listingUpdatedAt,
+    isFsbo: listing.isFsbo,
     notes: [listing.sqftText, listing.notes].filter(Boolean).join(' | ').slice(0, 2000),
     link: listing.listingUrl,
     stage: 'New Lead',
@@ -47,11 +65,12 @@ function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
  * /api/leads/csv-import — this route only fetches + normalizes + forwards).
  *
  * Body: {
- *   provider: 'trulia' | 'zillow-search' | 'zillow-real-estate' | 'rent-com' | 'us-property-data',
+ *   provider: 'trulia' | 'zillow-search' | 'zillow-real-estate' | 'rent-com' | 'us-property-data' | 'zillow-detail',
  *   location?: string,   // Trulia/zillow-real-estate/us-property-data: city/state or ZIP, e.g. "Austin, TX"
  *   region?: string,      // Zillow (ToolzerHub): region slug, e.g. "austin-tx"
  *   city?, state?: string, // rent-com
  *   status?: 'for_sale' | 'for_rent' | 'sold', // zillow-real-estate / us-property-data
+ *   urls?: string[],      // zillow-detail: up to 20 Zillow URLs, ZPIDs, or street addresses
  *   maxPages?: number,    // default 1, capped at 5
  *   priceMin?, priceMax?, bedsMin?, bathsMin?: number, // Trulia/zillow-real-estate only
  *   importedBy?: string,
@@ -63,12 +82,24 @@ export async function POST(req: NextRequest) {
   const maxPages = Math.min(MAX_PAGES, Math.max(1, Number(body?.maxPages) || 1));
   const importedBy = typeof body?.importedBy === 'string' ? body.importedBy : undefined;
 
-  const VALID_PROVIDERS = ['trulia', 'zillow-search', 'zillow-real-estate', 'rent-com', 'us-property-data'];
+  const VALID_PROVIDERS = ['trulia', 'zillow-search', 'zillow-real-estate', 'rent-com', 'us-property-data', 'zillow-detail'];
   if (!VALID_PROVIDERS.includes(provider)) {
     return NextResponse.json({ error: `provider must be one of: ${VALID_PROVIDERS.join(', ')}` }, { status: 400 });
   }
 
   const allListings: NormalizedRentalListing[] = [];
+
+  if (provider === 'zillow-detail') {
+    const urls = Array.isArray(body?.urls) ? body.urls.filter((u: unknown) => typeof u === 'string' && u.trim()) : [];
+    if (urls.length === 0) {
+      return NextResponse.json({ error: 'urls (array of Zillow URLs, ZPIDs, or street addresses) is required for provider=zillow-detail' }, { status: 400 });
+    }
+    const result = await getZillowPropertyDetails(urls);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error || 'Zillow Detail Scraper request failed' }, { status: result.status || 503 });
+    }
+    allListings.push(...result.listings);
+  } else {
   for (let page = 1; page <= maxPages; page++) {
     if (provider === 'trulia') {
       const location = body?.location as string;
@@ -140,6 +171,7 @@ export async function POST(req: NextRequest) {
       if (result.listings.length === 0) break;
       allListings.push(...result.listings);
     }
+  }
   }
 
   const rows = allListings.map(toImportRow).filter((r): r is ImportRow => r !== null);

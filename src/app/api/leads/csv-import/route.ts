@@ -156,6 +156,7 @@ function calculateProspectScore(params: {
   verifiedOwner: boolean; verifiedAddress: boolean; verifiedNumber: boolean;
   isManualVerifiedImport: boolean; currentRent: number | null;
   projectedAnnualGross: number; beds: number; regulationStatus: string; hasPhone: boolean;
+  priceType?: 'sale' | 'rent'; isFsbo?: boolean;
 }): number {
   let score = 0;
   if (params.verifiedNumber) score += 50;
@@ -171,6 +172,12 @@ function calculateProspectScore(params: {
   if (params.regulationStatus === 'Allowed') score += 10;
   else if (params.regulationStatus === 'Restricted') score += 3;
   if (params.hasPhone) score += 10;
+  // A for-rent listing posted directly by the owner is the ideal STR
+  // prospect — no agent/brokerage to route around, direct contact in hand.
+  if (params.priceType === 'rent' && params.isFsbo) score += 15;
+  // A for-sale-by-owner listing still has a direct owner contact, even
+  // though converting it to an STR deal is a harder sell than a rental.
+  else if (params.isFsbo) score += 5;
   return Math.min(100, Math.max(0, score));
 }
 
@@ -220,6 +227,11 @@ interface CsvRow {
   source?: string; Source?: string;
   stage?: string; Stage?: string;
   source_property_id?: string; apn?: string; APN?: string;
+  rentEstimate?: string | number;
+  listingAgentName?: string; listingAgentPhone?: string;
+  listingBrokerName?: string; listingBrokerPhone?: string;
+  mlsNumber?: string; mlsSourceName?: string; listingUpdatedAt?: string;
+  isFsbo?: boolean;
   [key: string]: unknown;
 }
 
@@ -357,6 +369,15 @@ export async function POST(req: NextRequest) {
       rawStage: string;
       rawSourcePropertyId: string | null;
       rawAPN: string | null;
+      rawRentEstimate: number | null;
+      rawListingAgentName: string | null;
+      rawListingAgentPhone: string | null;
+      rawListingBrokerName: string | null;
+      rawListingBrokerPhone: string | null;
+      rawMlsNumber: string | null;
+      rawMlsSourceName: string | null;
+      rawListingUpdatedAt: string | null;
+      rawIsFsbo: boolean | null;
       normalized: NormalizedAddress;
       normalizedPhone: string | null;
       hasPhone: boolean;
@@ -407,6 +428,15 @@ export async function POST(req: NextRequest) {
 
       const rawSourcePropertyId = String(row.source_property_id || '').trim() || null;
       const rawAPN = String(row.apn || row.APN || '').trim() || null;
+      const rawRentEstimate = row.rentEstimate != null ? (parseFloat(String(row.rentEstimate).replace(/[^0-9.]/g, '')) || null) : null;
+      const rawListingAgentName = String(row.listingAgentName || '').trim() || null;
+      const rawListingAgentPhone = String(row.listingAgentPhone || '').trim() || null;
+      const rawListingBrokerName = String(row.listingBrokerName || '').trim() || null;
+      const rawListingBrokerPhone = String(row.listingBrokerPhone || '').trim() || null;
+      const rawMlsNumber = String(row.mlsNumber || '').trim() || null;
+      const rawMlsSourceName = String(row.mlsSourceName || '').trim() || null;
+      const rawListingUpdatedAt = String(row.listingUpdatedAt || '').trim() || null;
+      const rawIsFsbo = typeof row.isFsbo === 'boolean' ? row.isFsbo : null;
 
       if (!rawAddress || rawAddress.length < 5) continue;
 
@@ -434,7 +464,10 @@ export async function POST(req: NextRequest) {
       parsedRows.push({
         rowIndex: i, rawAddress, rawContact, rawPhone, rawCity, rawState, rawZip,
         rawBeds, rawBaths, rawPrice, rawPriceType, rawNotes, rawLink, rawSource, rawStage,
-        rawSourcePropertyId, rawAPN, normalized, normalizedPhone, hasPhone,
+        rawSourcePropertyId, rawAPN, rawRentEstimate, rawListingAgentName, rawListingAgentPhone,
+        rawListingBrokerName, rawListingBrokerPhone, rawMlsNumber, rawMlsSourceName,
+        rawListingUpdatedAt, rawIsFsbo,
+        normalized, normalizedPhone, hasPhone,
         verifiedOwner, currentRent, normalizationResult,
       });
 
@@ -520,7 +553,7 @@ export async function POST(req: NextRequest) {
     if (fingerprints.length > 0) {
       const { data: byFingerprint } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
         .in('dedup_fingerprint', fingerprints);
 
       if (byFingerprint) {
@@ -534,7 +567,7 @@ export async function POST(req: NextRequest) {
     if (sourceIds.length > 0) {
       const { data: bySourceId } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
         .in('source_property_id', sourceIds);
 
       if (bySourceId) {
@@ -548,7 +581,7 @@ export async function POST(req: NextRequest) {
     if (apns.length > 0) {
       const { data: byAPN } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
         .in('apn', apns);
 
       if (byAPN) {
@@ -596,7 +629,7 @@ export async function POST(req: NextRequest) {
         if (!existingLead && normalized.standardizedAddress) {
           const { data: fallback } = await supabase
             .from('leads')
-            .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+            .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
             .or(`standardized_address.ilike.${normalized.standardizedAddress},address.ilike.${pr.rawAddress}`)
             .limit(1);
 
@@ -614,6 +647,7 @@ export async function POST(req: NextRequest) {
           isManualVerifiedImport: true, currentRent,
           projectedAnnualGross: revenue.projectedAnnualGross,
           beds: pr.rawBeds, regulationStatus: 'Unknown', hasPhone,
+          priceType: pr.rawPriceType, isFsbo: !!pr.rawIsFsbo,
         });
         const priorityTier = getPriorityTier(verifiedOwner, false, hasPhone);
         const { score: verificationScore, breakdown: verificationBreakdown } = buildVerificationScore({
@@ -638,7 +672,15 @@ export async function POST(req: NextRequest) {
           const willUpdateContact = verifiedOwner && rawContact_better(pr.rawContact, existingContact);
           const willUpdateRent = currentRent !== null && (existingRent === null || existingRent === 0);
           const willUpdateNotes = !!pr.rawNotes && !existingLead.notes;
-          const hasChanges = willUpdatePhone || willUpdateContact || willUpdateRent || willUpdateNotes;
+          // Corrects a previously-mislabeled sale listing (price_type defaulted
+          // to 'rent' before this fix existed) whenever a sync confirms for-sale.
+          const willCorrectPriceType = pr.rawPriceType === 'sale' && existingLead.price_type !== 'sale';
+          const willUpdateListingAttribution = !!(
+            (pr.rawListingAgentName && !existingLead.listing_agent_name) ||
+            (pr.rawMlsNumber && !existingLead.mls_number) ||
+            (pr.rawRentEstimate && !existingLead.estimated_monthly_rent_ai)
+          );
+          const hasChanges = willUpdatePhone || willUpdateContact || willUpdateRent || willUpdateNotes || willCorrectPriceType || willUpdateListingAttribution;
 
           // Always mark the existing record as having a CSV source, even if no field changes
           // This ensures the source provenance is tracked for cross-source dedup
@@ -728,9 +770,32 @@ export async function POST(req: NextRequest) {
           // 'rent' before this fix existed) whenever a sync confirms it's for-sale.
           // Never flips a confirmed sale back to rent on re-sync — only corrects
           // the sale direction, since that's the direction that was mislabeled.
-          if (pr.rawPriceType === 'sale' && existingLead.price_type !== 'sale') {
+          if (willCorrectPriceType) {
             updateData.price = pr.rawPrice || 0;
             updateData.price_type = 'sale';
+            updateData.price_verified_at = now;
+          }
+          // Backfill listing attribution (agent/broker/MLS) only if missing —
+          // never overwrites data a previous sync already captured.
+          if (pr.rawListingAgentName && !existingLead.listing_agent_name) {
+            updateData.listing_agent_name = pr.rawListingAgentName;
+            updateData.listing_agent_phone = pr.rawListingAgentPhone;
+            updateData.listing_broker_name = pr.rawListingBrokerName;
+            updateData.listing_broker_phone = pr.rawListingBrokerPhone;
+            updateData.is_fsbo = pr.rawIsFsbo;
+          }
+          if (pr.rawMlsNumber && !existingLead.mls_number) {
+            updateData.mls_number = pr.rawMlsNumber;
+            updateData.mls_source_name = pr.rawMlsSourceName;
+          }
+          if (pr.rawListingUpdatedAt) {
+            updateData.listing_updated_at = pr.rawListingUpdatedAt;
+          }
+          if (pr.rawRentEstimate && !existingLead.estimated_monthly_rent_ai) {
+            updateData.estimated_monthly_rent_ai = pr.rawRentEstimate;
+            updateData.estimated_monthly_rent_ai_source = 'ZILLOW_RENT_ZESTIMATE';
+            updateData.estimated_monthly_rent_ai_confidence = 'MEDIUM';
+            updateData.estimated_monthly_rent_ai_at = now;
           }
           // Update score/revenue
           updateData.prospect_score = Math.max(prospectScore, (existingLead.prospect_score as number) || 0);
@@ -821,12 +886,33 @@ export async function POST(req: NextRequest) {
             // the AI rent-estimate batch job, not invented here.
             price: pr.rawPriceType === 'sale' ? (pr.rawPrice || 0) : (currentRent || 0),
             price_type: pr.rawPriceType,
+            price_verified_at: now,
+            // Real market rent estimate (e.g. Zillow rentZestimate) for for-sale
+            // listings — genuine comparable data, not a guess, and never
+            // overwrites the actual sale price in `price`.
+            ...(pr.rawPriceType === 'sale' && pr.rawRentEstimate ? {
+              estimated_monthly_rent_ai: pr.rawRentEstimate,
+              estimated_monthly_rent_ai_source: 'ZILLOW_RENT_ZESTIMATE',
+              estimated_monthly_rent_ai_confidence: 'MEDIUM',
+              estimated_monthly_rent_ai_at: now,
+            } : {}),
+            listing_agent_name: pr.rawListingAgentName,
+            listing_agent_phone: pr.rawListingAgentPhone,
+            listing_broker_name: pr.rawListingBrokerName,
+            listing_broker_phone: pr.rawListingBrokerPhone,
+            mls_number: pr.rawMlsNumber,
+            mls_source_name: pr.rawMlsSourceName,
+            listing_updated_at: pr.rawListingUpdatedAt,
+            is_fsbo: pr.rawIsFsbo,
             source: pr.rawSource,
             stage: pr.rawStage,
             notes: pr.rawNotes,
             listing_url: pr.rawLink || null,
-            contact_name: pr.rawContact || null,
-            contact_phone: normalizedPhone || (pr.rawPhone || null),
+            // No brokerage backing the listing is the strongest available FSBO
+            // signal — any listing agent name/phone present is then most
+            // likely the owner's own direct contact info.
+            contact_name: pr.rawContact || (pr.rawIsFsbo ? pr.rawListingAgentName : null) || null,
+            contact_phone: normalizedPhone || (pr.rawPhone || null) || (pr.rawIsFsbo ? pr.rawListingAgentPhone : null) || null,
             regulation_status: 'Unknown',
             prospect_score: prospectScore,
             days_on_market: 0,

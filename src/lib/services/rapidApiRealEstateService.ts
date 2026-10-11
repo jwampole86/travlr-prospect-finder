@@ -168,6 +168,19 @@ export interface NormalizedRentalListing {
   sqftText?: string;
   listingUrl?: string;
   notes?: string;
+  /** Real market rent estimate (e.g. Zillow's rentZestimate) — populated even
+   *  for for-sale listings, since it's genuine comparable-market data, not a
+   *  guess. Distinct from `price`, which always reflects the listing's own type. */
+  rentEstimate?: number;
+  listingAgentName?: string;
+  listingAgentPhone?: string;
+  listingBrokerName?: string;
+  listingBrokerPhone?: string;
+  mlsNumber?: string;
+  mlsSourceName?: string;
+  listingUpdatedAt?: string;
+  /** True only when the live listing had no agent/broker attribution at all. */
+  isFsbo?: boolean;
 }
 
 // ─── Trulia — rent search ─────────────────────────────────────────────────────
@@ -307,12 +320,22 @@ interface ZillowDetailRaw {
   livingArea?: number;
   agentName?: string;
   agentPhone?: string;
+  brokerName?: string;
+  brokerPhone?: string;
+  mlsId?: string;
+  mlsName?: string;
+  listingUpdated?: string;
   error?: string;
 }
 
 function normalizeZillowDetail(raw: ZillowDetailRaw): NormalizedRentalListing {
   const isRental = raw.homeStatus === 'FOR_RENT';
   const isSold = raw.homeStatus === 'SOLD' || raw.homeStatus === 'RECENTLY_SOLD';
+  // Confirmed live 2026-10-11: a real owner-listed rental ("Listed by property
+  // owner" on Zillow) returns NO agentName/brokerName at all — the owner's own
+  // phone lands in `brokerPhone` regardless, and `mlsName` is 'Zillow Rentals'
+  // rather than a real MLS feed. Both are independent, reliable FSBO signals.
+  const isFsbo = !raw.brokerName || raw.mlsName === 'Zillow Rentals';
   return {
     source: 'Zillow',
     externalId: raw.zpid,
@@ -326,9 +349,22 @@ function normalizeZillowDetail(raw: ZillowDetailRaw): NormalizedRentalListing {
     baths: raw.bathrooms ?? null,
     price: (isRental ? raw.rentZestimate : raw.price) ?? raw.price ?? null,
     listingStatus: isRental ? 'for_rent' : isSold ? 'sold' : 'for_sale',
+    // Captured regardless of listing type — genuine comparable-market data,
+    // useful for STR potential even on a for-sale listing.
+    rentEstimate: raw.rentZestimate,
     sqftText: raw.livingArea ? `${raw.livingArea} sqft` : undefined,
     listingUrl: raw.url,
-    notes: [raw.homeStatus, raw.homeType, raw.agentName ? `Agent: ${raw.agentName}` : null, raw.agentPhone]
+    listingAgentName: raw.agentName,
+    // FSBO listings put the owner's real phone in `brokerPhone` even with no
+    // brokerName at all — surface it as the contact phone in that case.
+    listingAgentPhone: raw.agentPhone || (isFsbo ? raw.brokerPhone : undefined),
+    listingBrokerName: raw.brokerName,
+    listingBrokerPhone: raw.brokerPhone,
+    mlsNumber: raw.mlsId,
+    mlsSourceName: raw.mlsName,
+    listingUpdatedAt: raw.listingUpdated,
+    isFsbo,
+    notes: [raw.homeStatus, raw.homeType, raw.agentName ? `Agent: ${raw.agentName}` : null, raw.brokerName ? `Broker: ${raw.brokerName}` : null, isFsbo ? 'For-sale/rent by owner' : null]
       .filter(Boolean).join(' | '),
   };
 }
