@@ -184,7 +184,7 @@ const columns: { key: keyof Lead | 'actions' | 'owner' | 'enrichment'; label: st
   { key: 'actions', label: '', sortable: false, width: 120 },
 ];
 
-const ROW_HEIGHT = 60;
+const ROW_HEIGHT = 80;
 
 function getMonthlyDisplay(lead: Lead) {
   if (lead.price > 0) return { value: lead.price, label: '/mo' };
@@ -249,20 +249,23 @@ const LeadRow = memo(function LeadRow({
       </div>
 
       {/* Address */}
-      <div className="px-3 shrink-0" style={{ width: 220 }}>
+      <div className="px-3 shrink-0 overflow-hidden" style={{ width: 220 }}>
         <div className="min-w-0">
           {(() => {
             const { display, isIncomplete } = getAddressDisplayValue(lead.address);
             return (
               <>
-                <div className="flex items-center gap-1 flex-wrap">
+                <div className="flex items-center gap-1 min-w-0">
                   {isIncomplete && <AlertTriangle size={10} className="text-amber-500 shrink-0" aria-label="Address incomplete — listing ID detected" />}
                   {!canAct && (
                     <span title="Assigned to another agent" className="shrink-0">
                       <svg className="w-2.5 h-2.5 text-muted-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     </span>
                   )}
-                  <p className={`font-medium text-xs truncate ${isIncomplete ? 'text-amber-600' : 'text-foreground'}`}>{display}</p>
+                  <p className={`font-medium text-xs truncate min-w-0 ${isIncomplete ? 'text-amber-600' : 'text-foreground'}`} title={display}>{display}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate">{lead.city}, {lead.state} {lead.zip}</p>
+                <div className="flex items-center gap-1 flex-nowrap overflow-hidden mt-0.5">
                   {(lead as any).isSynthetic && (
                     <span className="shrink-0 inline-flex items-center px-1 py-0 rounded text-[8px] font-semibold bg-amber-500/15 text-amber-600 border border-amber-500/20" title="Synthetic test data">
                       SYN
@@ -296,7 +299,6 @@ const LeadRow = memo(function LeadRow({
                     </span>
                   ) : null}
                 </div>
-                <p className="text-[10px] text-muted-foreground">{lead.city}, {lead.state} {lead.zip}</p>
               </>
             );
           })()}
@@ -305,7 +307,7 @@ const LeadRow = memo(function LeadRow({
               href={getPropertyListingUrl(lead.listingUrl, lead.address, lead.city, lead.state, lead.zip, lead.source)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline mt-0.5"
+              className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline mt-0.5 whitespace-nowrap"
               aria-label={`View listing for ${lead.address}`}
             >
               <ExternalLink size={9} />
@@ -316,7 +318,7 @@ const LeadRow = memo(function LeadRow({
               href={getPropertyListingUrl(lead.listingUrl, lead.address, lead.city, lead.state, lead.zip, lead.source)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline mt-0.5"
+              className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline mt-0.5 whitespace-nowrap"
               aria-label={`Search listing for ${lead.address}`}
             >
               <ExternalLink size={9} />
