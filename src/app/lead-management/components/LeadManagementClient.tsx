@@ -406,9 +406,9 @@ export default function LeadManagementClient({
       if (currentFilters.propertyReachEnriched) params.set('propertyReachEnriched', 'true');
       if (currentFilters.needsEnrichment) params.set('needsEnrichment', 'true');
       if (currentFilters.enrichmentReviewRequired) params.set('enrichmentReviewRequired', 'true');
-      // NOTE: Do NOT send isSynthetic param by default.
-      // The API defaults isSynthetic=null which means "show all leads" (no synthetic filter).
-      // This ensures leads with is_synthetic=NULL (e.g. newly imported) are always visible.
+      // Dashboard KPI counts exclude synthetic leads, so the list must too or click-throughs
+      // (e.g. Action Needed = 1) show extra rows. isSynthetic=false still includes NULL rows.
+      params.set('isSynthetic', 'false');
 
       const res = await fetch(`/api/leads/paginated?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
