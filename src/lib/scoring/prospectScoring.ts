@@ -47,7 +47,7 @@ export interface ProspectScoringInput {
 }
 
 /** Bump when the formula changes so stored scores can be recomputed. */
-export const SCORE_MODEL_VERSION = 'v2-market-signals';
+export const SCORE_MODEL_VERSION = 'v3-calibrated';
 
 export interface ProspectScoreFactor {
   key: string;
@@ -77,6 +77,11 @@ const TERMINAL_STAGES = new Set(['Not a Fit', 'Live', 'closed_dead', 'Closed Dea
 
 function clampScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+/** Raw sums top out near 70 on real data, so stretch above 40 to make the dashboard's 75 bar mean top tier (raw 60 -> 75, raw 63 -> 80). */
+function calibrate(raw: number): number {
+  return raw <= 40 ? raw : clampScore(40 + (raw - 40) * 1.75);
 }
 
 function normalizeWeights(weights: ProspectScoringWeights) {
@@ -271,7 +276,7 @@ export function calculateProspectScore(
     };
   });
 
-  let score = clampScore(factors.reduce((sum, factor) => sum + factor.weightedPoints, 0));
+  let score = calibrate(clampScore(factors.reduce((sum, factor) => sum + factor.weightedPoints, 0)));
 
   const hasRevenue = Boolean(revenueBasis(input));
   const hasPropertyFacts = Boolean(positiveNumber(input.beds) || positiveNumber(input.baths) || input.propertyType);
