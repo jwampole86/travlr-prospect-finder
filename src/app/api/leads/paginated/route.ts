@@ -292,13 +292,31 @@ export async function GET(req: NextRequest) {
     const to = from + params.pageSize - 1;
     const adjustsProspectScoreSort = dbSortKey === 'prospect_score';
     const queryFrom = adjustsProspectScoreSort ? 0 : from;
-    const queryTo = adjustsProspectScoreSort ? Math.min(params.page * params.pageSize * 5 - 1, 999) : to;
+    // Widened from `page*pageSize*5 - 1, 999` — the stored prospect_score column
+    // can be stale relative to the adjusted score computed below, so a narrow
+    // window ordered by the stale column can exclude genuinely high-quality
+    // leads (real revenue/beds data) from ever being considered, while
+    // stale-high-scored, fact-less leads dominate the window and get demoted
+    // after the fact. Net visible effect: Warm/Cold leads surfacing ahead of
+    // true Hot ones on page 1. A larger window makes that far less likely.
+    const queryTo = adjustsProspectScoreSort ? Math.min(params.page * params.pageSize * 20 - 1, 1999) : to;
 
     // For luxury views: default sort is priority_tier ASC, then prospect_score DESC
     if (params.luxury === true && params.sortKey === 'prospect_score') {
       query = query
         .order('priority_tier', { ascending: true })
         .order('prospect_score', { ascending: false })
+        .range(queryFrom, queryTo);
+    } else if (adjustsProspectScoreSort) {
+      // Default sort — order by the strongest real-fact signals first (revenue,
+      // then price) ahead of the stale prospect_score column, so leads that
+      // could legitimately earn a high ADJUSTED score are prioritized into the
+      // fetch window instead of being crowded out by fact-less rows that
+      // merely share a high stale score.
+      query = query
+        .order('estimated_net_monthly', { ascending: false, nullsFirst: false })
+        .order('price', { ascending: false, nullsFirst: false })
+        .order('prospect_score', { ascending: params.sortDir === 'asc' })
         .range(queryFrom, queryTo);
     } else {
       query = query
