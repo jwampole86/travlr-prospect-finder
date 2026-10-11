@@ -584,6 +584,13 @@ export default function LeadDetailPanel({ lead, onClose, onStageChange, onDelete
   const [callSessions, setCallSessions] = useState<CallSession[]>([]);
   const [loadingCallSessions, setLoadingCallSessions] = useState(false);
 
+  // Agent-confirmed phone (verified_number): skip-traced numbers stay unverified until an agent confirms them
+  const [phoneConfirmed, setPhoneConfirmed] = useState(Boolean((lead as unknown as { verified_number?: boolean }).verified_number));
+  const [confirmingPhone, setConfirmingPhone] = useState(false);
+  useEffect(() => {
+    setPhoneConfirmed(Boolean((lead as unknown as { verified_number?: boolean }).verified_number));
+  }, [lead.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Contact verification state
   const [verification, setVerification] = useState<ContactVerification>({
     phoneStatus: 'unverified',
@@ -813,6 +820,25 @@ export default function LeadDetailPanel({ lead, onClose, onStageChange, onDelete
   async function updateCadenceStatus(id: string, status: 'pending' | 'sent' | 'skipped') {
     await supabase.from('outreach_cadences').update({ status }).eq('id', id);
     setCadences((prev) => prev.map((c) => c.id === id ? { ...c, status } : c));
+  }
+
+  async function handleConfirmPhone() {
+    setConfirmingPhone(true);
+    try {
+      const res = await fetch('/api/leads/confirm-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: lead.id }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `Confirm failed (${res.status})`);
+      setPhoneConfirmed(true);
+      toast.success('Phone number confirmed');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not confirm phone');
+    } finally {
+      setConfirmingPhone(false);
+    }
   }
 
   async function handleCallLead() {
@@ -1150,6 +1176,24 @@ export default function LeadDetailPanel({ lead, onClose, onStageChange, onDelete
                       </div>
                       <VerificationBadge status={verification.phoneStatus} />
                     </div>
+
+                    {lead.contactPhone && (
+                      phoneConfirmed ? (
+                        <p className="flex items-center gap-1 text-[11px] font-medium text-success">
+                          <ShieldCheck size={11} />Phone confirmed by agent
+                        </p>
+                      ) : (
+                        <button
+                          onClick={handleConfirmPhone}
+                          disabled={confirmingPhone}
+                          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline disabled:opacity-60"
+                          title="Marks this number as verified once you have reached the homeowner on it"
+                        >
+                          {confirmingPhone ? <Loader2 size={11} className="animate-spin" /> : <ShieldCheck size={11} />}
+                          Confirm phone number
+                        </button>
+                      )
+                    )}
 
                     {/* ── CALL BUTTON ── */}
                     {lead.contactPhone && (
