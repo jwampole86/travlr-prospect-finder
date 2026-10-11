@@ -90,6 +90,8 @@ export interface FilterState {
   // Luxury filters
   luxury?: boolean;
   fullyVerified?: boolean;
+  // Admin-only testing toggle: include synthetic (generated) leads in the list
+  includeSynthetic?: boolean;
 }
 
 export const defaultFilters: FilterState = {
@@ -122,6 +124,7 @@ export const defaultFilters: FilterState = {
   ingestionSource: 'ALL',
   luxury: false,
   fullyVerified: false,
+  includeSynthetic: false,
 };
 
 interface AgentOption {
@@ -408,7 +411,7 @@ export default function LeadManagementClient({
       if (currentFilters.enrichmentReviewRequired) params.set('enrichmentReviewRequired', 'true');
       // Dashboard KPI counts exclude synthetic leads, so the list must too or click-throughs
       // (e.g. Action Needed = 1) show extra rows. isSynthetic=false still includes NULL rows.
-      params.set('isSynthetic', 'false');
+      if (!(currentFilters.includeSynthetic && role === 'admin')) params.set('isSynthetic', 'false');
 
       const res = await fetch(`/api/leads/paginated?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1237,6 +1240,20 @@ export default function LeadManagementClient({
         {/* Admin controls row */}
         {isAdminOrTeamLead && (
           <div className="mb-3 flex items-center justify-end gap-2">
+            {role === 'admin' && (
+              <label
+                className="mr-auto flex items-center gap-1.5 px-3 py-1.5 text-xs border border-amber-500/30 text-amber-700 bg-amber-500/10 rounded-lg cursor-pointer select-none"
+                title="Testing only: includes generated (synthetic) leads, which dashboard counts exclude"
+              >
+                <input
+                  type="checkbox"
+                  className="accent-amber-600"
+                  checked={!!filters.includeSynthetic}
+                  onChange={(e) => { setFilters(prev => ({ ...prev, includeSynthetic: e.target.checked })); setCurrentPage(1); }}
+                />
+                Show synthetic test leads
+              </label>
+            )}
             <button
               onClick={() => setCsvAssignModalOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors font-medium"
