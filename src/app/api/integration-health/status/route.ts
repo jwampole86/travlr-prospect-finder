@@ -4,7 +4,7 @@ import { getResendConfigStatus } from '@/lib/email/resend';
 import { getDocuSignConfigStatus } from '@/lib/services/docusignService';
 import { getProviderHealth as getRentCastHealth } from '@/lib/services/rentcastService';
 import { getProviderHealth as getPropertyReachHealth } from '@/lib/services/propertyReachProvider';
-import { getTruliaHealth, getZillowDetailHealth, getZillowSearchHealth, getZillowRealEstateHealth, getRentComHealth, getUsPropertyDataHealth } from '@/lib/services/rapidApiRealEstateService';
+import { getTruliaHealth, getZillowDetailHealth, getZillowSearchHealth, getZillowRealEstateHealth, getRentComHealth, getUsPropertyDataHealth, getPadMapperHealth } from '@/lib/services/rapidApiRealEstateService';
 import { getSkipTracingHealth } from '@/lib/services/skipTracingProvider';
 import { getAirdnaHealth } from '@/lib/services/airdnaService';
 import { getPropertyReportHealth } from '@/lib/services/propertyReportProvider';
@@ -148,6 +148,7 @@ export async function GET() {
   const zillowRealEstateHealth = await getZillowRealEstateHealth();
   const rentComHealth = await getRentComHealth();
   const usPropertyDataHealth = await getUsPropertyDataHealth();
+  const padMapperHealth = await getPadMapperHealth();
   const airdnaHealth = await getAirdnaHealth();
   const propertyReportHealth = await getPropertyReportHealth();
 
@@ -235,6 +236,11 @@ export async function GET() {
         configured: usPropertyDataHealth.hasApiKey,
         status: usPropertyDataHealth.status === 'ACTIVE' ? 'operational' : usPropertyDataHealth.status === 'DISABLED' ? 'down' : 'degraded',
         message: usPropertyDataHealth.message,
+      },
+      padMapper: {
+        configured: padMapperHealth.hasApiKey,
+        status: padMapperHealth.status === 'ACTIVE' ? 'operational' : padMapperHealth.status === 'DISABLED' ? 'down' : 'degraded',
+        message: padMapperHealth.message,
       },
       airdna: {
         configured: airdnaHealth.hasApiKey,

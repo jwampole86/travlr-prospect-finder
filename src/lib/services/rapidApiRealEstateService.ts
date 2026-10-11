@@ -33,6 +33,10 @@ const ZILLOW_SEARCH_HOST = 'zillow-scraper-api2.p.rapidapi.com';
 const ZILLOW_REAL_ESTATE_HOST = 'zillow-real-estate-api.p.rapidapi.com';
 const RENT_COM_HOST = 'rent-com-api.p.rapidapi.com';
 const US_PROPERTY_DATA_HOST = 'us-property-data.p.rapidapi.com';
+// PadMapper Rental Scraper — subscribed 2026-10-11. Host/contract discovered live (no
+// public docs reachable): POST "/" with JSON {"location": "<slug>"}; see the PadMapper
+// section below for the verified request/response behaviour.
+const PADMAPPER_HOST = 'padmapper-rental-scraper.p.rapidapi.com';
 
 function getRapidApiKeys(): string[] {
   return [process.env.RAPIDAPI_KEY_1, process.env.RAPIDAPI_KEY_2, process.env.RAPIDAPI_KEY_3]
@@ -146,7 +150,7 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {})
 // ─── Normalized listing shape (feeds directly into the CSV-import row contract) ──
 
 export interface NormalizedRentalListing {
-  source: 'Trulia' | 'Zillow' | 'Rent.com';
+  source: 'Trulia' | 'Zillow' | 'Rent.com' | 'PadMapper';
   externalId?: string;
   address: string;
   city: string;
@@ -807,4 +811,188 @@ export async function getUsPropertyDataHealth(): Promise<{ status: 'ACTIVE' | 'A
     return { status: 'DEGRADED', message: result.error || 'US Property Data unreachable', hasApiKey: true };
   }
   return { status: 'ACTIVE', message: 'US Property Data API is reachable', hasApiKey: true };
+}
+
+// ─── PadMapper Rental Scraper — location-slug rental search ──────────────────
+//
+// Contract (verified live 2026-10-11 — the provider publishes no reachable docs):
+//   POST /  body {"location": "<city>-<st>" | "<city>-<st>/<zip>"}  → 201 + bare JSON array.
+//   - Exactly 20 listings per call; `page`/`limit`/filter params are silently ignored, so
+//     coverage comes from querying many slugs (city slug, then per-ZIP slugs).
+//   - The city slug returns apartment BUILDINGS almost exclusively; individual houses and
+//     owner/manager rentals (`/rentals/` URLs) surface mainly via the per-ZIP slug.
+//   - `property_type` is ALWAYS "Apartment" (even for houses) — never use it to classify.
+//   - Agent/broker fields are unreliable: `agent_name` is often the listing's title text, and
+//     `phone` is a PadMapper call-tracking relay "(844) xxx-xxxx ext. NNNN", not the lister's
+//     own number. Only non-relay numbers are kept as contact data.
+//   - There is no explicit for-sale-by-owner flag; the only owner signal is the lister being a
+//     DIY-landlord platform (TurboTenant, Ziprent, ...) on a standalone-home listing.
+
+interface PadMapperListingRaw {
+  listing_id?: number | string;
+  url?: string;
+  name?: string;
+  address?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zipcode?: string;
+  neighborhood?: string | null;
+  latitude?: number;
+  longitude?: number;
+  price_min?: number | null;
+  price_max?: number | null;
+  beds_min?: number | null;
+  beds_max?: number | null;
+  baths_min?: number | null;
+  baths_max?: number | null;
+  property_type?: string;
+  amenities?: string[] | null;
+  pets_allowed?: string[] | null;
+  phone?: string | null;
+  agent_name?: string | null;
+  brokerage_name?: string | null;
+  date_available?: string | null;
+  scraped_at?: string;
+}
+
+/** Self-serve landlord platforms: a listing posted through one is an individual owner, not a PM. */
+const PADMAPPER_DIY_LANDLORD_PLATFORMS = /^(turbotenant|ziprent|rentredi|avail|innago|rentler|cozy|zillow rental manager)\b/i;
+/** Room-by-room co-living operators — shared housing, not a whole-home STR candidate. */
+const PADMAPPER_COLIVING_OPERATORS = /^padsplit\b/i;
+/** Words that mark an `agent_name` as marketing copy / a company instead of a person. */
+const PADMAPPER_NON_PERSON_WORDS = /\b(bed(room)?s?|bath(room)?s?|bd|ba|home|house|spacious|walking|charming|updated|beautiful|newer|pet|apartment|townhouse|duplex|luxury|lovely|property|properties|management|realty|real estate|team|group|rentals?|leasing|llc|inc|co|corp|company|team|apartments|residential|holdings|homes|living)\b/i;
+
+function looksLikePersonName(value: string | null | undefined): value is string {
+  const v = (value || '').trim();
+  if (!v || v.length > 40 || /[\d#:,&@/❀]/.test(v)) return false;
+  if (PADMAPPER_NON_PERSON_WORDS.test(v)) return false;
+  return /^[A-Za-z][A-Za-z'.-]*(\s+[A-Za-z][A-Za-z'.-]*){1,3}$/.test(v);
+}
+
+/** PadMapper routes its call-tracking lines as "(844) 334-2712 ext. 7672" — not a real contact number. */
+function isPadMapperRelayPhone(phone: string): boolean {
+  return /ext\.?\s*\d+/i.test(phone) || /^\(?8(00|33|44|55|66|77|88)\)?/.test(phone.trim());
+}
+
+function midpoint(min: number | null | undefined, max: number | null | undefined): number | null {
+  if (min == null && max == null) return null;
+  return ((min ?? max ?? 0) + (max ?? min ?? 0)) / 2;
+}
+
+function normalizePadMapperListing(raw: PadMapperListingRaw): NormalizedRentalListing {
+  const url = raw.url || '';
+  const street = (raw.street || '').trim();
+  const brokerage = (raw.brokerage_name || '').trim();
+  const agentRaw = (raw.agent_name || '').trim();
+
+  const isBuilding = url.includes('/buildings/');
+  const hasUnitMarker = /(#|\b(apt|unit|ste|suite)\b)/i.test(street);
+  const isColiving = PADMAPPER_COLIVING_OPERATORS.test(brokerage);
+  // Same STR-priority rule as Trulia/Zillow: units inside apartment communities (and
+  // co-living rooms) are the weakest prospects; only standalone homes qualify as owner-listed.
+  const isApartmentCommunity = isBuilding || hasUnitMarker || isColiving;
+
+  const isDiyLandlord = PADMAPPER_DIY_LANDLORD_PLATFORMS.test(brokerage);
+  const isFsbo = !isApartmentCommunity && isDiyLandlord;
+
+  // On building listings agent_name is the building's name ("The Mercury"), and on
+  // corporate/co-living listings it echoes the operator ("Blueground Us", "sales teamblueground"),
+  // so a person's name is only trusted on standalone listings from a non-corporate lister.
+  const agentEchoesBrokerage = !!brokerage && agentRaw.toLowerCase().replace(/[^a-z]/g, '').includes(brokerage.toLowerCase().replace(/[^a-z]/g, '').slice(0, 8));
+  const agentIsPerson = !isApartmentCommunity && !agentEchoesBrokerage && looksLikePersonName(agentRaw);
+  const rawPhone = (raw.phone || '').trim();
+  const directPhone = rawPhone && !isPadMapperRelayPhone(rawPhone) ? rawPhone : undefined;
+
+  const price = midpoint(raw.price_min, raw.price_max);
+  const beds = midpoint(raw.beds_min, raw.beds_max);
+  const baths = midpoint(raw.baths_min, raw.baths_max);
+  const amenities = raw.amenities || [];
+
+  const propertyTypeLabel = isBuilding ? 'APARTMENT_BUILDING'
+    : isColiving ? 'ROOM'
+    : hasUnitMarker ? 'APARTMENT'
+    : 'HOME';
+
+  const notesParts = [
+    raw.neighborhood,
+    brokerage ? `Listed by ${brokerage}${isDiyLandlord ? ' (self-serve landlord platform)' : ''}` : null,
+    // When agent_name is marketing copy rather than a person, it is the listing's title.
+    agentRaw && !agentIsPerson && agentRaw !== brokerage ? agentRaw : null,
+    raw.pets_allowed?.length ? `Pets: ${raw.pets_allowed.join(', ')}` : null,
+    raw.date_available ? `Available ${raw.date_available}` : null,
+    raw.price_min != null && raw.price_max != null && raw.price_min !== raw.price_max
+      ? `Rent range $${raw.price_min}-$${raw.price_max}` : null,
+  ].filter(Boolean);
+
+  return {
+    source: 'PadMapper',
+    externalId: raw.listing_id != null ? String(raw.listing_id) : undefined,
+    address: street,
+    city: (raw.city || '').trim(),
+    state: (raw.state || '').trim(),
+    zip: (raw.zipcode || '').trim(),
+    latitude: raw.latitude,
+    longitude: raw.longitude,
+    beds: beds != null ? Math.round(beds) : null,
+    baths: baths != null ? Math.round(baths * 2) / 2 : null,
+    price: price != null ? Math.round(price) : null,
+    // The scraper only searches rentals.
+    listingStatus: 'for_rent',
+    listingAgentName: agentIsPerson ? agentRaw : undefined,
+    listingAgentPhone: directPhone,
+    listingBrokerName: brokerage || undefined,
+    listingUpdatedAt: raw.scraped_at,
+    isFsbo,
+    isApartmentCommunity,
+    propertyTypeLabel,
+    isFurnished: amenities.some(a => /^furnished$/i.test(a.trim())),
+    listingUrl: url || undefined,
+    notes: notesParts.join(' | ').slice(0, 2000),
+  };
+}
+
+/** Lowercase slug PadMapper expects: "Austin" + "TX" → "austin-tx"; optional ZIP → "austin-tx/78704". */
+export function toPadMapperLocation(city: string, state: string, zip?: string): string {
+  const citySlug = city.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const base = `${citySlug}-${state.trim().toLowerCase()}`;
+  const zip5 = (zip || '').trim().slice(0, 5);
+  return /^\d{5}$/.test(zip5) ? `${base}/${zip5}` : base;
+}
+
+/** POST / — one PadMapper location slug → up to 20 listings. */
+export async function searchPadMapperRentals(
+  params: { location: string }
+): Promise<{ ok: boolean; listings: NormalizedRentalListing[]; error?: string; status?: number }> {
+  const location = params.location.trim().toLowerCase();
+  if (!/^[a-z0-9-]+(\/\d{5})?$/.test(location)) {
+    return { ok: false, listings: [], error: `Invalid PadMapper location "${params.location}" — expected "<city>-<st>" or "<city>-<st>/<zip>"`, status: 400 };
+  }
+  const result = await rapidApiFetch(PADMAPPER_HOST, '/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ location }),
+  });
+  if (!result.ok) {
+    return { ok: false, listings: [], error: result.error, status: result.status };
+  }
+  if (!Array.isArray(result.data)) {
+    return { ok: false, listings: [], error: 'PadMapper returned an unexpected response shape', status: 502 };
+  }
+  return { ok: true, listings: (result.data as PadMapperListingRaw[]).map(normalizePadMapperListing) };
+}
+
+export async function getPadMapperHealth(): Promise<{ status: 'ACTIVE' | 'AUTH_ERROR' | 'DISABLED' | 'DEGRADED'; message: string; hasApiKey: boolean }> {
+  const keys = getRapidApiKeys();
+  if (keys.length === 0) {
+    return { status: 'DISABLED', message: 'No RAPIDAPI_KEY_* configured', hasApiKey: false };
+  }
+  const result = await searchPadMapperRentals({ location: 'austin-tx' });
+  if (result.status === 401 || result.status === 403) {
+    return { status: 'AUTH_ERROR', message: 'RapidAPI key not subscribed to PadMapper Rental Scraper', hasApiKey: true };
+  }
+  if (!result.ok) {
+    return { status: 'DEGRADED', message: result.error || 'PadMapper Rental Scraper unreachable', hasApiKey: true };
+  }
+  return { status: 'ACTIVE', message: 'PadMapper Rental Scraper API is reachable', hasApiKey: true };
 }

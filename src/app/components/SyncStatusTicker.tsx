@@ -363,6 +363,40 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
       return;
     }
 
+    // PadMapper pulls live through the RapidAPI "PadMapper Rental Scraper" — the route expands
+    // the state into the active PadMapper cities configured in sync_source_coverage.
+    if (sourceName === 'PadMapper') {
+      if (selectedPortfolio.stateCode === 'all') {
+        setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false } : s)));
+        toast.error('Select a specific state portfolio to pull live PadMapper listings', { id: `retry-${sourceName}` });
+        return;
+      }
+      try {
+        const response = await fetch('/api/leads/rapidapi-import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: 'padmapper', state: selectedPortfolio.stateCode }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.error) {
+          throw new Error(result.error || `PadMapper pull failed (${response.status})`);
+        }
+        const now = new Date();
+        saveSourcePull(sourceName, now);
+        setSources((prev) =>
+          prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, lastPull: now, health: 'healthy' } : s))
+        );
+        const newLeads = result?.totals?.rowsNew ?? 0;
+        toast.success(`PadMapper pull complete — ${newLeads} new lead${newLeads === 1 ? '' : 's'}`, { id: `retry-${sourceName}` });
+        onLeadsRefreshed?.();
+        fetchPortfolioLeadCount();
+      } catch (err) {
+        setSources((prev) => prev.map((s) => (s.name === sourceName ? { ...s, retrying: false, health: 'failed' } : s)));
+        toast.error(err instanceof Error ? err.message : 'PadMapper retry failed', { id: `retry-${sourceName}` });
+      }
+      return;
+    }
+
     // PropertyReach is a per-lead OWNER/PHONE ENRICHMENT provider, not a lead
     // discovery source — it can't "pull" brand new leads like Trulia/Zillow.
     // The real, honest sync action is: find leads in this state missing

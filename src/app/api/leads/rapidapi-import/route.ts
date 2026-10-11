@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { runFsboSkipTrace } from '@/lib/services/fsboSkipTraceService';
-import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, getZillowPropertyDetails, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
+import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, searchPadMapperRentals, toPadMapperLocation, getZillowPropertyDetails, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
 
 const CHUNK_SIZE = 50;
 const MAX_PAGES = 5;
+// PadMapper returns 20 listings per slug, so one import fans out over several slugs.
+const PADMAPPER_MAX_LOCATIONS = 20;
+
+/** City slugs (e.g. "aspen-co") configured for PadMapper in sync_source_coverage for one state. */
+async function padMapperSlugsForState(stateCode: string): Promise<string[]> {
+  const st = stateCode.trim().toLowerCase();
+  const { data } = await getSupabaseAdmin()
+    .from('sync_source_coverage')
+    .select('sync_url')
+    .eq('source_name', 'PadMapper')
+    .eq('status', 'active');
+  const slugs = new Set<string>();
+  for (const row of data || []) {
+    const slug = /padmapper\.com\/apartments\/([a-z0-9-]+)/i.exec(row.sync_url || '')?.[1]?.toLowerCase();
+    if (slug && slug.endsWith(`-${st}`)) slugs.add(slug);
+  }
+  return [...slugs];
+}
 
 interface ImportRow {
   source: string;
@@ -77,7 +95,10 @@ function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
  * /api/leads/csv-import — this route only fetches + normalizes + forwards).
  *
  * Body: {
- *   provider: 'trulia' | 'zillow-search' | 'zillow-real-estate' | 'rent-com' | 'us-property-data' | 'zillow-detail',
+ *   provider: 'trulia' | 'zillow-search' | 'zillow-real-estate' | 'rent-com' | 'us-property-data' | 'zillow-detail' | 'padmapper',
+ *   // padmapper: 20 listings per slug (no pagination). Pass ONE of: location ("austin-tx" or "austin-tx/78704"),
+ *   //   locations[] of such slugs, city+state (+ optional zips[]), or state alone (uses the active PadMapper
+ *   //   cities in sync_source_coverage). Per-ZIP slugs surface individual houses; city slugs mostly buildings.
  *   location?: string,   // Trulia/zillow-real-estate/us-property-data: city/state or ZIP, e.g. "Austin, TX"
  *   region?: string,      // Zillow (ToolzerHub): region slug, e.g. "austin-tx"
  *   city?, state?: string, // rent-com
@@ -94,7 +115,7 @@ export async function POST(req: NextRequest) {
   const maxPages = Math.min(MAX_PAGES, Math.max(1, Number(body?.maxPages) || 1));
   const importedBy = typeof body?.importedBy === 'string' ? body.importedBy : undefined;
 
-  const VALID_PROVIDERS = ['trulia', 'zillow-search', 'zillow-real-estate', 'rent-com', 'us-property-data', 'zillow-detail'];
+  const VALID_PROVIDERS = ['trulia', 'zillow-search', 'zillow-real-estate', 'rent-com', 'us-property-data', 'zillow-detail', 'padmapper'];
   if (!VALID_PROVIDERS.includes(provider)) {
     return NextResponse.json({ error: `provider must be one of: ${VALID_PROVIDERS.join(', ')}` }, { status: 400 });
   }
@@ -111,6 +132,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: result.error || 'Zillow Detail Scraper request failed' }, { status: result.status || 503 });
     }
     allListings.push(...result.listings);
+  } else if (provider === 'padmapper') {
+    let slugs: string[] = [];
+    if (Array.isArray(body?.locations)) {
+      slugs = body.locations.filter((l: unknown): l is string => typeof l === 'string' && l.trim() !== '');
+    } else if (typeof body?.location === 'string' && body.location.trim()) {
+      slugs = [body.location];
+    } else if (typeof body?.city === 'string' && typeof body?.state === 'string' && body.city.trim() && body.state.trim()) {
+      const zips: string[] = Array.isArray(body?.zips) ? body.zips.map(String) : [];
+      slugs = zips.length > 0
+        ? zips.map(z => toPadMapperLocation(body.city, body.state, z))
+        : [toPadMapperLocation(body.city, body.state)];
+    } else if (typeof body?.state === 'string' && body.state.trim()) {
+      slugs = await padMapperSlugsForState(body.state);
+      if (slugs.length === 0) {
+        return NextResponse.json({ error: `No active PadMapper cities configured in sync_source_coverage for state ${body.state}` }, { status: 404 });
+      }
+    } else {
+      return NextResponse.json({ error: 'provider=padmapper needs location, locations[], city+state, or state' }, { status: 400 });
+    }
+    slugs = [...new Set(slugs.map(s => s.trim().toLowerCase()))].slice(0, PADMAPPER_MAX_LOCATIONS);
+
+    const seen = new Set<string>();
+    let failures = 0;
+    let lastError: string | undefined;
+    let lastStatus: number | undefined;
+    for (const location of slugs) {
+      const result = await searchPadMapperRentals({ location });
+      if (!result.ok) {
+        failures++;
+        lastError = result.error;
+        lastStatus = result.status;
+        continue; // one bad slug must not discard the rest of the batch
+      }
+      for (const l of result.listings) {
+        const key = l.externalId || `${l.address}|${l.zip}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        allListings.push(l);
+      }
+    }
+    if (allListings.length === 0 && failures > 0) {
+      return NextResponse.json({ error: lastError || 'PadMapper request failed' }, { status: lastStatus || 503 });
+    }
   } else {
   for (let page = 1; page <= maxPages; page++) {
     if (provider === 'trulia') {
@@ -207,6 +271,10 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
     const chunk = rows.slice(i, i + CHUNK_SIZE);
+    // csv-import treats an already-COMPLETED importBatchId as a duplicate submission and
+    // returns the earlier summary without importing, so every chunk needs its own batch id —
+    // otherwise only the first CHUNK_SIZE rows of any import were ever stored.
+    const chunkBatchId = rows.length > CHUNK_SIZE ? `${importBatchId}-c${Math.floor(i / CHUNK_SIZE) + 1}` : importBatchId;
     const res = await fetch(`${origin}/api/leads/csv-import`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -214,7 +282,7 @@ export async function POST(req: NextRequest) {
         rows: chunk,
         importFilename: `rapidapi-${provider}-live-import.json`,
         importedBy,
-        importBatchId,
+        importBatchId: chunkBatchId,
       }),
     });
     const data = await res.json().catch(() => ({}));

@@ -194,6 +194,18 @@ const INTEGRATION_META: IntegrationMeta[] = [
     notes: 'Independent Zillow-sourced property search (for_sale/for_rent/sold) with pre-foreclosure flags. Requires RAPIDAPI_KEY_1 (or _2/_3).',
   },
   {
+    id: 'padMapper',
+    name: 'PadMapper Rental Scraper (RapidAPI)',
+    category: 'Lead Sourcing',
+    icon: Database,
+    iconColor: 'text-green-400',
+    iconBg: 'bg-green-500/10',
+    fallbackEnabled: false,
+    fallbackMode: 'none',
+    endpoint: '/api/leads/rapidapi-import',
+    notes: 'PadMapper rental search by city/ZIP slug (20 listings per call) feeding the lead-import pipeline. Requires RAPIDAPI_KEY_1 (or _2/_3).',
+  },
+  {
     id: 'airdna',
     name: 'Airdna (RapidAPI)',
     category: 'Rental Market Data',
