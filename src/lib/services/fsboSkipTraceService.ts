@@ -50,7 +50,7 @@ export async function runFsboSkipTrace(
 
   const staleCutoff = new Date(Date.now() - STALE_RUNNING_MS).toISOString();
   const queueFilter = `skip_trace_status.eq.PENDING,and(skip_trace_status.eq.RUNNING,skip_traced_at.lt.${staleCutoff})`;
-  const columns = 'id,address,city,state,zip,contact_name,contact_phone,listing_agent_phone,secondary_phones';
+  const columns = 'id,address,city,state,zip,contact_name,contact_phone,listing_agent_phone,secondary_phones,price_type,is_fsbo';
 
   const candidateQuery = db.from('leads').select(columns);
   const { data: candidates, error } = opts.leadId
@@ -127,8 +127,11 @@ export async function runFsboSkipTrace(
     };
     if (!lead.contact_name) {
       update.contact_name = primary.name;
-      update.owner_name = primary.name;
-      update.owner_source = 'SKIP_TRACING_API';
+      // At a for-sale or owner-listed home the resident is the owner; at a managed rental they may be the tenant.
+      if (lead.price_type === 'sale' || lead.is_fsbo) {
+        update.owner_name = primary.name;
+        update.owner_source = 'SKIP_TRACING_API';
+      }
     }
     if (primaryPhone && !lead.contact_phone) {
       update.contact_phone = primaryPhone.e164;
