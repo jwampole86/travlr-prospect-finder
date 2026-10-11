@@ -404,7 +404,7 @@ export default function DashboardPage() {
               unassignedPriority: stats.unassignedPriority,
               assignedLeads: stats.assignedLeads,
               activeLeads: stats.activeLeads,
-              regulationFriendly: stats.regulationFriendly,
+              strEligible: stats.strEligible ?? 0,
             }}
             portfolioState={portfolioState}
             isAdmin={isAdmin}

@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Brain, TrendingUp, Users, Database, ChevronDown, ChevronUp, Search, Loader2, RefreshCw, Phone, Mail, Info, Building2, Zap, ArrowUp, ArrowDown, Minus, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import Icon from '@/components/ui/AppIcon';
-import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
+import { calculateProspectScore, leadRowToScoringInput, SCORING_LEAD_COLUMNS } from '@/lib/scoring/prospectScoring';
 
 
 interface Lead {
@@ -78,23 +78,7 @@ function toScoreFactor(factor: ReturnType<typeof calculateProspectScore>['factor
 }
 
 function generateBreakdown(lead: Lead): ScoreBreakdown {
-  const result = calculateProspectScore({
-    estimatedNetMonthly: lead.estimated_net_monthly,
-    estimatedGrossMonthly: lead.estimated_gross_monthly,
-    estimatedADR: lead.estimated_adr,
-    beds: lead.bedrooms,
-    baths: lead.bathrooms,
-    propertyType: lead.property_type,
-    regulationStatus: lead.regulation_status,
-    verifiedOwner: lead.verified_owner,
-    verifiedNumber: lead.verified_number,
-    verifiedAddress: lead.verified_address,
-    contactPhone: lead.contact_phone,
-    contactEmail: lead.contact_email,
-    doNotContact: lead.do_not_contact || lead.dnc_flagged,
-    stage: lead.stage,
-    luxury: lead.luxury,
-  });
+  const result = calculateProspectScore(leadRowToScoringInput(lead as unknown as Record<string, unknown>));
 
   const factorMap = new Map(result.factors.map((factor) => [factor.key, toScoreFactor(factor)]));
   const blockerFactors: ScoreFactor[] = result.blockers.map((blocker) => ({
@@ -228,15 +212,19 @@ export default function ScoreBreakdownPage() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('leads')
-        .select('id, address, city, state, stage, prospect_score, contact_name, contact_phone, contact_email, estimated_net_monthly, estimated_gross_monthly, estimated_adr, regulation_status, enrichment_status, dnc_flagged, do_not_contact, tcpa_risk, property_type, bedrooms, bathrooms, square_feet, year_built, verified_owner, verified_number, verified_address, luxury, assigned_agent_id, created_at')
-        .eq('user_id', user.id)
+        .select(`id, address, city, state, prospect_score, ${SCORING_LEAD_COLUMNS}`)
+        .eq('is_synthetic', false)
         .not('prospect_score', 'is', null)
         .order('prospect_score', { ascending: false })
         .limit(100);
-      setLeads(data || []);
-      if (data && data.length > 0) setSelectedLead(data[0]);
+      if (error) {
+        toast.error(`Failed to load leads: ${error.message}`);
+        return;
+      }
+      setLeads((data || []) as unknown as Lead[]);
+      if (data && data.length > 0) setSelectedLead(data[0] as unknown as Lead);
     } catch {
       toast.error('Failed to load leads');
     } finally {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { isSkipTraceEligible } from '@/lib/services/fsboSkipTraceService';
 import { classifyLuxury, loadBenchmarks } from '@/lib/services/luxuryClassifier';
+import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
+import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
 
 // ─── State name map ───────────────────────────────────────────────────────────
 const STATE_NAMES: Record<string, string> = {
@@ -135,42 +137,6 @@ function calculateTravlrRevenue(beds: number, baths: number, state: string, curr
     projectedOwnerNet, potentialUplift, potentialUpliftPct,
     calculationVersion: 'travlr-v1.0', calculatedAt: new Date().toISOString(),
   };
-}
-
-// ─── Prospect score calculation ───────────────────────────────────────────────
-function calculateProspectScore(params: {
-  verifiedOwner: boolean; verifiedAddress: boolean; verifiedNumber: boolean;
-  isManualVerifiedImport: boolean; currentRent: number | null;
-  projectedAnnualGross: number; beds: number; regulationStatus: string; hasPhone: boolean;
-  priceType?: 'sale' | 'rent'; isFsbo?: boolean;
-  isFurnished?: boolean | null; isApartmentCommunity?: boolean | null;
-}): number {
-  let score = 0;
-  if (params.verifiedNumber) score += 50;
-  if (params.verifiedOwner) score += 25;
-  if (params.verifiedAddress) score += 20;
-  if (params.isManualVerifiedImport) score += 20;
-  if (params.projectedAnnualGross > 100000) score += 20;
-  else if (params.projectedAnnualGross > 60000) score += 12;
-  else if (params.projectedAnnualGross > 40000) score += 6;
-  if (params.beds >= 4) score += 8;
-  else if (params.beds >= 3) score += 5;
-  else if (params.beds >= 2) score += 2;
-  if (params.regulationStatus === 'Allowed') score += 10;
-  else if (params.regulationStatus === 'Restricted') score += 3;
-  if (params.hasPhone) score += 10;
-  // A for-rent listing posted directly by the owner is the ideal STR
-  // prospect — no agent/brokerage to route around, direct contact in hand.
-  if (params.priceType === 'rent' && params.isFsbo) score += 15;
-  // A for-sale-by-owner listing still has a direct owner contact, even
-  // though converting it to an STR deal is a harder sell than a rental.
-  else if (params.isFsbo) score += 5;
-  // Furnished = STR-ready with no furnishing cost to convert.
-  if (params.isFurnished) score += 10;
-  // A unit inside a larger apartment/condo community is the least
-  // STR-convertible type (HOA/management rules, no individual owner control).
-  if (params.isApartmentCommunity) score -= 15;
-  return Math.min(100, Math.max(0, score));
 }
 
 function getPriorityTier(verifiedOwner: boolean, verifiedAddress: boolean, verifiedNumber: boolean): number {
@@ -648,14 +614,26 @@ export async function POST(req: NextRequest) {
 
         // ── 5b. Revenue & score ───────────────────────────────────────────────
         const revenue = calculateTravlrRevenue(pr.rawBeds, pr.rawBaths, normalized.state, currentRent);
-        const prospectScore = calculateProspectScore({
-          verifiedOwner, verifiedAddress: false, verifiedNumber: hasPhone,
-          isManualVerifiedImport: true, currentRent,
-          projectedAnnualGross: revenue.projectedAnnualGross,
-          beds: pr.rawBeds, regulationStatus: 'Unknown', hasPhone,
-          priceType: pr.rawPriceType, isFsbo: !!pr.rawIsFsbo,
-          isFurnished: pr.rawIsFurnished, isApartmentCommunity: pr.rawIsApartmentCommunity,
+        // Luxury is classified once and reused for both the score and the stored flag.
+        const luxuryResult = classifyLuxury({
+          state: normalized.state, zip: normalized.zipCode || pr.rawZip, priceType: pr.rawPriceType,
+          price: pr.rawPriceType === 'sale' ? pr.rawPrice : currentRent, benchmarks,
         });
+        const prospectScore = calculateProspectScore({
+          estimatedNetMonthly: revenue.projectedOwnerNet,
+          estimatedGrossMonthly: revenue.projectedMonthlyGross,
+          price: pr.rawPriceType === 'sale' ? pr.rawPrice : currentRent,
+          priceType: pr.rawPriceType,
+          estimatedMonthlyRentAi: pr.rawPriceType === 'sale' ? pr.rawRentEstimate : null,
+          beds: pr.rawBeds, baths: pr.rawBaths,
+          regulationStatus: 'Unknown',
+          verifiedOwner, verifiedNumber: hasPhone, hasPhone,
+          contactPhone: normalizedPhone || pr.rawPhone || (pr.rawIsFsbo ? pr.rawListingAgentPhone : null),
+          contactName: pr.rawContact || (pr.rawIsFsbo ? pr.rawListingAgentName : null),
+          stage: pr.rawStage,
+          luxury: luxuryResult.luxury,
+          isFsbo: pr.rawIsFsbo, isFurnished: pr.rawIsFurnished, isApartmentCommunity: pr.rawIsApartmentCommunity,
+        }).score;
         const priorityTier = getPriorityTier(verifiedOwner, false, hasPhone);
         const { score: verificationScore, breakdown: verificationBreakdown } = buildVerificationScore({
           hasPhone, verifiedOwner, verifiedAddress: false,
@@ -763,10 +741,7 @@ export async function POST(req: NextRequest) {
             updateData.phone_source = 'MANUAL_CSV';
           }
           // Luxury classification — if CSV price qualifies, mark luxury (never downgrade)
-          const csvLuxury = classifyLuxury({
-            state: normalized.state, zip: normalized.zipCode || pr.rawZip, priceType: pr.rawPriceType,
-            price: pr.rawPriceType === 'sale' ? pr.rawPrice : currentRent, benchmarks,
-          });
+          const csvLuxury = luxuryResult;
           if (csvLuxury.luxury && !existingLead.luxury) {
             updateData.luxury = true;
             updateData.luxury_source_field = 'MARKET_BENCHMARK';
@@ -1037,19 +1012,11 @@ export async function POST(req: NextRequest) {
             rent_price_source: currentRent ? 'MANUAL_IMPORT' : null,
             rent_price_retrieved_at: currentRent ? now : null,
             // Luxury classification — compared to the ZIP's (else state's) market benchmark
-            ...(() => {
-              const lux = classifyLuxury({
-                state: normalized.state, zip: normalized.zipCode || pr.rawZip, priceType: pr.rawPriceType,
-                price: pr.rawPriceType === 'sale' ? pr.rawPrice : currentRent, benchmarks,
-              });
-              return {
-                luxury: lux.luxury,
-                luxury_source_field: 'MARKET_BENCHMARK',
-                luxury_threshold_used: lux.threshold,
-                luxury_basis: lux.basis,
-                luxury_classified_at: now,
-              };
-            })(),
+            luxury: luxuryResult.luxury,
+            luxury_source_field: 'MARKET_BENCHMARK',
+            luxury_threshold_used: luxuryResult.threshold,
+            luxury_basis: luxuryResult.basis,
+            luxury_classified_at: now,
             // Verified fields with provenance
             verified_owner_source: verifiedOwner ? 'MANUAL_CSV' : null,
             verified_owner_method: verifiedOwner ? 'MANUAL_RESEARCH' : null,
@@ -1275,6 +1242,12 @@ export async function POST(req: NextRequest) {
       .filter(Boolean) as string[];
 
     if (newAndUpdatedIds.length > 0) {
+      // Score from the final stored rows so merged leads reflect their combined data, not just this file's row.
+      try {
+        await rescoreLeadsByIds(supabase, newAndUpdatedIds);
+      } catch (err) {
+        console.warn('[csv-import] post-import rescore failed, keeping inline scores:', err instanceof Error ? err.message : err);
+      }
       Promise.resolve(supabase.from('leads')
         .update({ is_high_priority: true, updated_at: now })
         .in('id', newAndUpdatedIds)

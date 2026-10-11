@@ -1047,22 +1047,19 @@ export default function LeadManagementClient({
     const supabaseClient = createClient();
 
     try {
+      // Scores come from the server so they use the same model and stored data as every other page.
+      const res = await fetch('/api/leads/rescore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedLeads.map((l) => l.id) }),
+      });
+      if (!res.ok) throw new Error(`Re-score request failed (${res.status})`);
+      const { results } = await res.json() as { results: Array<{ id: string; before: number; after: number }> };
+      const scoreById = new Map(results.map((r) => [r.id, r.after]));
+
       for (const lead of selectedLeads) {
-        // Recalculate score using weighted factors
-        const baseScore = lead.prospectScore ?? 50;
-        const bedsBonus = Math.min((lead.beds ?? 0) * 3, 15);
-        const priceBonus = lead.price > 0 ? Math.min(Math.floor((lead.price / 500000) * 10), 10) : 0;
-        const domPenalty = Math.min((lead.daysOnMarket ?? 0) / 10, 15);
-        const regulationBonus = lead.regulationStatus === 'Allowed' ? 10 : lead.regulationStatus === 'Restricted' ? -5 : 0;
-        const newScore = Math.max(0, Math.min(100, Math.round(baseScore + bedsBonus + priceBonus - domPenalty + regulationBonus)));
-
-        // Update score in DB
-        await supabaseClient
-          .from('leads')
-          .update({ prospect_score: newScore, updated_at: new Date().toISOString() })
-          .eq('id', lead.id);
-
-        // Update local state
+        const newScore = scoreById.get(lead.id);
+        if (newScore === undefined) continue;
         setAllLeads((prev) =>
           prev.map((l) => l.id === lead.id ? { ...l, prospectScore: newScore } : l)
         );

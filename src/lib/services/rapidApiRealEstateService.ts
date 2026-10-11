@@ -246,10 +246,10 @@ function normalizeTruliaListing(raw: TruliaListingRaw): NormalizedRentalListing 
   const provider = raw.activeListing?.provider;
   const agentName = provider?.listingAgent?.name || undefined;
   const brokerName = provider?.broker?.name || undefined;
-  // No agent AND no broker at all — this scraper has no separate field for
-  // the owner/property-manager name Trulia's own site shows under "Contact
-  // This Property"; that's a known gap, not fabricated here.
-  const isFsbo = !agentName && !brokerName;
+  // No agent AND no broker on a standalone home is the only owner signal this scraper has. Building
+  // listings carry neither field but are run by a leasing office, so they are never owner-listed.
+  // The scraper has no field for the "Contact This Property" owner name Trulia's site shows.
+  const isFsbo = !agentName && !brokerName && !isApartmentCommunity;
 
   return {
     source: 'Trulia',

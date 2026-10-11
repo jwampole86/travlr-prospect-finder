@@ -33,7 +33,21 @@ export interface ProspectScoringInput {
   callbackRequests?: number | null;
   stage?: string | null;
   luxury?: boolean | null;
+  /** 'sale' means `price` is a purchase price, never monthly income. */
+  priceType?: 'rent' | 'sale' | null;
+  /** Market rent estimate (e.g. Zillow rentZestimate) for for-sale listings. */
+  estimatedMonthlyRentAi?: number | null;
+  /** No listing agent or broker: the contact is most likely the owner. */
+  isFsbo?: boolean | null;
+  isFurnished?: boolean | null;
+  /** Unit inside a multi-unit apartment community, the least STR-convertible type. */
+  isApartmentCommunity?: boolean | null;
+  /** Resident of record or listing contact; unverified, so worth less than verifiedOwner. */
+  contactName?: string | null;
 }
+
+/** Bump when the formula changes so stored scores can be recomputed. */
+export const SCORE_MODEL_VERSION = 'v2-market-signals';
 
 export interface ProspectScoreFactor {
   key: string;
@@ -81,8 +95,16 @@ function positiveNumber(value: number | null | undefined): number {
   return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
+/** Monthly income basis: STR estimates first, then listed rent. A sale price never counts. */
+export function revenueBasis(input: ProspectScoringInput): number {
+  const rentBasis = input.priceType === 'sale'
+    ? positiveNumber(input.estimatedMonthlyRentAi)
+    : positiveNumber(input.price);
+  return positiveNumber(input.estimatedNetMonthly) || positiveNumber(input.estimatedGrossMonthly) || rentBasis;
+}
+
 function scoreRevenue(input: ProspectScoringInput): ProspectScoreFactor {
-  const revenue = positiveNumber(input.estimatedNetMonthly) || positiveNumber(input.estimatedGrossMonthly) || positiveNumber(input.price);
+  const revenue = revenueBasis(input);
   let score = 8;
   if (revenue >= 12000) score = 100;
   else if (revenue >= 8000) score = 90;
@@ -90,7 +112,7 @@ function scoreRevenue(input: ProspectScoringInput): ProspectScoreFactor {
   else if (revenue >= 3000) score = 62;
   else if (revenue >= 1500) score = 45;
 
-  if (input.luxury) score = Math.min(100, score + 8);
+  if (input.luxury) score = Math.min(100, score + 15);
 
   return {
     key: 'revenuePotential',
@@ -98,9 +120,12 @@ function scoreRevenue(input: ProspectScoringInput): ProspectScoreFactor {
     score: clampScore(score),
     weight: 0,
     weightedPoints: 0,
-    explanation: revenue > 0
+    explanation: (revenue > 0
       ? `Estimated monthly opportunity is $${Math.round(revenue).toLocaleString()}.`
-      : 'No revenue estimate is available, so this factor stays conservative.',
+      : input.priceType === 'sale'
+        ? 'For-sale listing with no monthly revenue estimate; the sale price is not income, so this factor stays conservative.'
+        : 'No revenue estimate is available, so this factor stays conservative.')
+      + (input.luxury ? ' Luxury for its local market (+15).' : ''),
   };
 }
 
@@ -117,8 +142,18 @@ function scorePropertyFit(input: ProspectScoringInput): ProspectScoreFactor {
   if (baths >= 2) score += 25;
   else if (baths >= 1.5) score += 12;
 
-  if (/single|sfr|house|townhome|townhouse|villa|estate/.test(type)) score += 20;
+  if (input.isApartmentCommunity) score -= 20;
+  else if (/single|sfr|house|townhome|townhouse|villa|estate/.test(type)) score += 20;
   else if (/condo|apartment/.test(type)) score += 5;
+
+  if (input.isFurnished) score += 12;
+  if (input.luxury) score += 10;
+
+  const notes = [
+    input.isApartmentCommunity ? 'apartment community (-20)' : null,
+    input.isFurnished ? 'furnished, STR-ready (+12)' : null,
+    input.luxury ? 'luxury tier (+10)' : null,
+  ].filter(Boolean).join(', ');
 
   return {
     key: 'propertyFit',
@@ -126,7 +161,7 @@ function scorePropertyFit(input: ProspectScoringInput): ProspectScoreFactor {
     score: clampScore(score),
     weight: 0,
     weightedPoints: 0,
-    explanation: `${beds || 'Unknown'} beds / ${baths || 'unknown'} baths; larger private-home profiles score best for luxury STR demand.`,
+    explanation: `${beds || 'Unknown'} beds / ${baths || 'unknown'} baths; larger private-home profiles score best for luxury STR demand.${notes ? ` ${notes}.` : ''}`,
   };
 }
 
@@ -156,9 +191,12 @@ function scoreLeadQuality(input: ProspectScoringInput): ProspectScoreFactor {
   let score = 0;
   const phoneReady = input.verifiedNumber || input.hasPhone || Boolean(input.contactPhone);
   if (input.verifiedOwner) score += 25;
+  else if (input.contactName && input.contactName.trim()) score += 10;
   if (hasVerifiedAddress(input.verifiedAddress)) score += 25;
   if (phoneReady) score += 25;
   if (input.contactEmail) score += 5;
+  // An owner-listed rental is the ideal STR prospect: the owner decides and there is no agent to route around.
+  if (input.isFsbo) score += input.priceType === 'sale' ? 4 : 12;
 
   return {
     key: 'leadQuality',
@@ -166,7 +204,9 @@ function scoreLeadQuality(input: ProspectScoringInput): ProspectScoreFactor {
     score: clampScore(score),
     weight: 0,
     weightedPoints: 0,
-    explanation: 'Owner, address, and phone verification are the strongest send-readiness signals.',
+    explanation: 'Owner, address, and phone verification are the strongest send-readiness signals.'
+      + (input.isFsbo ? (input.priceType === 'sale' ? ' Owner-listed sale (+4).' : ' Owner-listed rental, direct decision maker (+12).') : '')
+      + (!input.verifiedOwner && input.contactName ? ' Unverified contact name (+10).' : ''),
   };
 }
 
@@ -233,9 +273,9 @@ export function calculateProspectScore(
 
   let score = clampScore(factors.reduce((sum, factor) => sum + factor.weightedPoints, 0));
 
-  const hasRevenue = Boolean(positiveNumber(input.estimatedNetMonthly) || positiveNumber(input.estimatedGrossMonthly) || positiveNumber(input.price));
+  const hasRevenue = Boolean(revenueBasis(input));
   const hasPropertyFacts = Boolean(positiveNumber(input.beds) || positiveNumber(input.baths) || input.propertyType);
-  const hasContactSignal = Boolean(input.verifiedOwner || input.verifiedNumber || hasVerifiedAddress(input.verifiedAddress) || input.hasPhone || input.contactPhone || input.contactEmail);
+  const hasContactSignal = Boolean(input.verifiedOwner || input.verifiedNumber || hasVerifiedAddress(input.verifiedAddress) || input.hasPhone || input.contactPhone || input.contactEmail || input.contactName);
   const hasRegulatorySignal = !['', 'Unknown'].includes(String(input.regulationStatus || 'Unknown'));
   const hasEngagementSignal = Boolean(input.smsReplies || input.callbackRequests || input.emailClicks || input.callsAnswered || input.emailOpens || typeof input.daysOnMarket === 'number');
 
@@ -265,4 +305,40 @@ export function getProspectScoreBandLabel(score: number): string {
   if (score >= 60) return 'Warm';
   if (score >= 40) return 'Nurture';
   return 'Cold';
+}
+
+/** Columns a leads row needs for leadRowToScoringInput. Use in every select that feeds the model. */
+export const SCORING_LEAD_COLUMNS =
+  'estimated_net_monthly,estimated_gross_monthly,estimated_adr,price,price_type,beds,baths,property_type,regulation_status,' +
+  'verified_owner,verified_number,verified_address,has_phone,contact_phone,contact_name,stage,days_on_market,luxury,' +
+  'is_fsbo,is_furnished,is_apartment_community,estimated_monthly_rent_ai';
+
+/** Maps a leads table row to model input, so no route hand-builds its own field list. */
+export function leadRowToScoringInput(row: Record<string, unknown>): ProspectScoringInput {
+  const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const flag = (v: unknown) => (typeof v === 'boolean' ? v : null);
+  return {
+    estimatedNetMonthly: Number(row.estimated_net_monthly || 0),
+    estimatedGrossMonthly: Number(row.estimated_gross_monthly || 0),
+    estimatedADR: Number(row.estimated_adr || 0),
+    price: Number(row.price || 0),
+    priceType: row.price_type === 'sale' ? 'sale' : row.price_type === 'rent' ? 'rent' : null,
+    estimatedMonthlyRentAi: Number(row.estimated_monthly_rent_ai || 0),
+    beds: Number(row.beds || 0),
+    baths: Number(row.baths || 0),
+    propertyType: text(row.property_type),
+    regulationStatus: text(row.regulation_status) ?? 'Unknown',
+    verifiedOwner: Boolean(row.verified_owner),
+    verifiedNumber: Boolean(row.verified_number),
+    verifiedAddress: row.verified_address as string | boolean | null,
+    hasPhone: Boolean(row.has_phone),
+    contactPhone: text(row.contact_phone),
+    contactName: text(row.contact_name),
+    stage: text(row.stage),
+    daysOnMarket: typeof row.days_on_market === 'number' ? row.days_on_market : null,
+    luxury: Boolean(row.luxury),
+    isFsbo: flag(row.is_fsbo),
+    isFurnished: flag(row.is_furnished),
+    isApartmentCommunity: flag(row.is_apartment_community),
+  };
 }

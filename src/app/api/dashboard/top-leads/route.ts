@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
+import { calculateProspectScore, leadRowToScoringInput, SCORING_LEAD_COLUMNS } from '@/lib/scoring/prospectScoring';
 
 function hasLeadFacts(row: Record<string, unknown>) {
   return Boolean(
@@ -12,15 +12,7 @@ function hasLeadFacts(row: Record<string, unknown>) {
 }
 
 function withAdjustedProspectScore(row: Record<string, unknown>) {
-  const calculated = calculateProspectScore({
-    estimatedNetMonthly: Number(row.estimated_net_monthly || 0),
-    price: Number(row.price || 0),
-    beds: Number(row.beds || 0),
-    baths: Number(row.baths || 0),
-    regulationStatus: String(row.regulation_status || 'Unknown'),
-    contactPhone: row.contact_phone ? String(row.contact_phone) : null,
-    stage: row.stage ? String(row.stage) : null,
-  }).score;
+  const calculated = calculateProspectScore(leadRowToScoringInput(row)).score;
   const stored = Number(row.prospect_score || 0);
   const adjusted = hasLeadFacts(row) ? Math.min(stored || calculated, calculated) : calculated;
   return { ...row, prospect_score: adjusted, raw_prospect_score: stored, score_needs_refresh: stored !== adjusted };
@@ -96,7 +88,7 @@ export async function GET(request: NextRequest) {
     console.warn('[/api/dashboard/top-leads] RPC unavailable or returned no factual leads, using fallback:', rpcError?.message);
 
     const fallbackStart = Date.now();
-    const baseSelect = 'id,address,city,state,zip,beds,baths,price,stage,regulation_status,prospect_score,estimated_net_monthly,listing_url,contact_name,contact_phone,source,created_at';
+    const baseSelect = `id,address,city,state,zip,source,listing_url,created_at,prospect_score,${SCORING_LEAD_COLUMNS}`;
     const terminalStages = ['Not a Fit'];
 
     // Two queries to cover IS DISTINCT FROM true semantics:

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@supabase/supabase-js';
 import { requireApiActor } from '@/lib/auth/apiAuthorization';
-import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
+import { calculateProspectScore, leadRowToScoringInput } from '@/lib/scoring/prospectScoring';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -139,23 +139,7 @@ function hasLeadFacts(row: Record<string, unknown>) {
 }
 
 function withAdjustedProspectScore(row: Record<string, unknown>) {
-  const calculated = calculateProspectScore({
-    estimatedNetMonthly: Number(row.estimated_net_monthly || 0),
-    estimatedGrossMonthly: Number(row.estimated_gross_monthly || 0),
-    estimatedADR: Number(row.estimated_adr || 0),
-    price: Number(row.price || 0),
-    beds: Number(row.beds || 0),
-    baths: Number(row.baths || 0),
-    propertyType: String(row.property_type || ''),
-    regulationStatus: String(row.regulation_status || 'Unknown'),
-    verifiedOwner: Boolean(row.verified_owner),
-    verifiedNumber: Boolean(row.verified_number),
-    verifiedAddress: row.verified_address as string | boolean | null,
-    contactPhone: row.contact_phone ? String(row.contact_phone) : null,
-    stage: row.stage ? String(row.stage) : null,
-    daysOnMarket: typeof row.days_on_market === 'number' ? row.days_on_market : null,
-    luxury: Boolean(row.luxury),
-  }).score;
+  const calculated = calculateProspectScore(leadRowToScoringInput(row)).score;
   const stored = Number(row.prospect_score || 0);
   const adjusted = hasLeadFacts(row) ? Math.min(stored || calculated, calculated) : calculated;
   return { ...row, prospect_score: adjusted, raw_prospect_score: stored, score_needs_refresh: stored !== adjusted };
@@ -259,6 +243,10 @@ export async function GET(req: NextRequest) {
       'outreach_status', 'enrichment_status', 'priority_tier',
       // Luxury fields
       'luxury', 'fully_verified', 'luxury_source_ids',
+      'luxury_threshold_used', 'luxury_basis',
+      // Scoring inputs and listing signals
+      'property_type', 'is_fsbo', 'is_furnished', 'is_apartment_community',
+      'estimated_monthly_rent_ai', 'skip_trace_status',
       'verified_number_source', 'verified_number_method',
       'verified_owner_source', 'verified_owner_method',
       'owner_source', 'phone_source',

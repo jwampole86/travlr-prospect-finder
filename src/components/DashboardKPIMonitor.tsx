@@ -156,8 +156,8 @@ interface DashboardKPIMonitorProps {
     unassignedPriority: number;
     assignedLeads: number;
     activeLeads: number;
-    /** STR Eligible = Allowed + Restricted (same as Dashboard card) */
-    regulationFriendly: number;
+    /** STR Eligible = Allowed + Restricted (same as Dashboard card). Not regulationFriendly, a stricter metric. */
+    strEligible: number;
   };
   portfolioState?: string;
   /** Only show to admin/owner roles */
@@ -175,7 +175,7 @@ const DISPLAYED_STAT_MAP: Record<MetricId, keyof DashboardKPIMonitorProps['displ
   UNASSIGNED_PRIORITY: 'unassignedPriority',
   ASSIGNED: 'assignedLeads',
   ACTIVE_PIPELINE: 'activeLeads',
-  STR_ELIGIBLE: 'regulationFriendly',
+  STR_ELIGIBLE: 'strEligible',
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────

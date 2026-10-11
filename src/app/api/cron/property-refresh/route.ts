@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJobRequest } from '@/lib/jobAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { calculateProspectScore } from '@/lib/scoring/prospectScoring';
+import { calculateProspectScore, leadRowToScoringInput, SCORING_LEAD_COLUMNS, SCORE_MODEL_VERSION } from '@/lib/scoring/prospectScoring';
 
 /**
  * POST /api/cron/property-refresh
@@ -47,7 +47,7 @@ async function runPropertyRefresh(req: NextRequest) {
     const batchSize = Math.min(Math.max(Number(new URL(req.url).searchParams.get('limit') || 500), 1), 500);
     const { data: leads, error: leadsErr } = await supabase
       .from('leads')
-      .select('id, prospect_score, last_contacted_at, created_at, enrichment_status, stage, address, city, state, beds, baths, price, estimated_net_monthly, estimated_gross_monthly, estimated_adr, regulation_status, verified_owner, verified_number, verified_address, contact_phone, luxury, days_on_market')
+      .select(`id, prospect_score, last_contacted_at, created_at, enrichment_status, address, city, state, ${SCORING_LEAD_COLUMNS}`)
       .not('stage', 'eq', 'Not a Fit')
       .not('stage', 'eq', 'Closed')
       .order('updated_at', { ascending: true })
@@ -70,22 +70,7 @@ async function runPropertyRefresh(req: NextRequest) {
 
     for (const lead of allLeads) {
       // ── 2. Recalculate using the same deterministic factor model as the AI API ──
-      const score = calculateProspectScore({
-        estimatedNetMonthly: lead.estimated_net_monthly,
-        estimatedGrossMonthly: lead.estimated_gross_monthly,
-        estimatedADR: lead.estimated_adr,
-        price: lead.price,
-        beds: lead.beds,
-        baths: lead.baths,
-        regulationStatus: lead.regulation_status,
-        verifiedOwner: lead.verified_owner,
-        verifiedNumber: lead.verified_number,
-        verifiedAddress: lead.verified_address,
-        contactPhone: lead.contact_phone,
-        daysOnMarket: lead.days_on_market,
-        stage: lead.stage,
-        luxury: lead.luxury,
-      });
+      const score = calculateProspectScore(leadRowToScoringInput(lead as Record<string, unknown>));
 
       scoreUpdates.push({
         id: lead.id,
@@ -110,7 +95,7 @@ async function runPropertyRefresh(req: NextRequest) {
     const SCORE_CONCURRENCY = 20;
     for (let i = 0; i < scoreUpdates.length; i += SCORE_CONCURRENCY) {
       const chunk = scoreUpdates.slice(i, i + SCORE_CONCURRENCY);
-      const updates = await Promise.all(chunk.map(update => supabase.from('leads').update({ prospect_score: update.prospect_score, score_refreshed_at: update.score_refreshed_at }).eq('id', update.id)));
+      const updates = await Promise.all(chunk.map(update => supabase.from('leads').update({ prospect_score: update.prospect_score, score_refreshed_at: update.score_refreshed_at, score_model_version: SCORE_MODEL_VERSION }).eq('id', update.id)));
       updates.forEach((result, index) => {
         if (result.error) results.errors.push(`Score update ${chunk[index].id}: ${result.error.message}`);
         else results.scoresRecalculated += 1;
