@@ -523,7 +523,7 @@ export default function LeadManagementClient({
     const luxuryParam = searchParams.get('luxury');
     const fullyVerifiedParam = searchParams.get('fullyVerified');
     const priorityParam2 = searchParams.get('priorityTier');
-    // actionNeeded param: score >= 75 AND stage = 'New Lead'
+    // actionNeeded param: score >= 70 AND stage = 'New Lead'
     const actionNeededParam = searchParams.get('actionNeeded');
     // excludeTerminal=true: exclude terminal stages (Not a Fit, Live) from results
     const excludeTerminalParam = searchParams.get('excludeTerminal');
@@ -604,11 +604,11 @@ export default function LeadManagementClient({
       updates.stages = [stageParam];
     }
 
-    // ?actionNeeded=true → score >= 75 AND stage = 'New Lead'
+    // ?actionNeeded=true → score >= 70 AND stage = 'New Lead'
     // This ensures the Action Needed KPI click returns exactly the same
     // population as the dashboard count.
     if (actionNeededParam === 'true') {
-      updates.scoreMin = '75';
+      updates.scoreMin = '70';
       updates.stages = ['New Lead'];
     }
 

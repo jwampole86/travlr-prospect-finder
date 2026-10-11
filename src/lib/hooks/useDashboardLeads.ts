@@ -42,7 +42,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { extractRpcMetric, TERMINAL_STAGES, ACTIVE_PIPELINE_STAGES, HIGH_PRIORITY_SCORE_THRESHOLD } from '@/lib/kpiDefinitions';
+import { extractRpcMetric, TERMINAL_STAGES, ACTIVE_PIPELINE_STAGES, HIGH_PRIORITY_SCORE_THRESHOLD, ACTION_NEEDED_SCORE_THRESHOLD } from '@/lib/kpiDefinitions';
 
 // ─── Minimal shape needed by the Dashboard ───────────────────────────────────
 export interface DashboardLead {
@@ -490,7 +490,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
             return q;
           })(),
           (() => {
-            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').gte('prospect_score', HIGH_PRIORITY_SCORE_THRESHOLD).eq('stage', 'New Lead');
+            let q = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false').gte('prospect_score', ACTION_NEEDED_SCORE_THRESHOLD).eq('stage', 'New Lead');
             if (portfolioState && portfolioState !== 'all') q = q.eq('state', portfolioState);
             return q;
           })(),

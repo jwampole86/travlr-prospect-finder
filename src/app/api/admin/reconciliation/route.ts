@@ -14,7 +14,7 @@ import { createClient as createServerClient } from '@supabase/supabase-js';
  *   Total Leads       — COUNT(DISTINCT id) WHERE is_synthetic IS NOT TRUE
  *   High Priority     — score >= 75 AND stage NOT IN ('Not a Fit','Live')
  *   Avg Score         — ROUND(AVG(prospect_score)) WHERE score > 0
- *   Action Needed     — score >= 75 AND stage = 'New Lead'
+ *   Action Needed     — score >= 70 AND stage = 'New Lead'
  *   Fully Verified    — verified_owner=true AND verified_address IS NOT NULL AND verified_number=true
  *   Phone Available   — contact_phone IS NOT NULL AND contact_phone <> ''
  *   Unassigned Prio   — primary_agent_id IS NULL AND score >= 75 AND not terminal
@@ -156,7 +156,7 @@ export async function GET() {
           high_priority_threshold: 'prospect_score >= 75',
           terminal_stages: ['Not a Fit', 'Live'],
           active_pipeline_stages: ['Contacted', 'Interested', 'Proposal Sent', 'Under Contract'],
-          action_needed_criteria: 'prospect_score >= 75 AND stage = New Lead',
+          action_needed_criteria: 'prospect_score >= 70 AND stage = New Lead',
           fully_verified_criteria: 'verified_owner=true AND verified_address IS NOT NULL/empty AND verified_number=true',
           phone_available_field: 'contact_phone (canonical phone field)',
           assignment_field: 'primary_agent_id (canonical, not agent_name text)',
@@ -183,7 +183,7 @@ export async function GET() {
     ] = await Promise.all([
       base,
       supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).gte('prospect_score', 75).not('stage', 'in', '("Not a Fit","Closed","Archived")'),
-      supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).gte('prospect_score', 75).eq('stage', 'New Lead'),
+      supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).gte('prospect_score', 70).eq('stage', 'New Lead'),
       supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).eq('verified_owner', true).eq('verified_number', true).not('verified_address', 'is', null).neq('verified_address', '').neq('verified_address', 'false'),
       supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).not('contact_phone', 'is', null).neq('contact_phone', ''),
       supabase.from('leads').select('*', { count: 'exact', head: true }).neq('is_synthetic', true).is('primary_agent_id', null).gte('prospect_score', 75).not('stage', 'in', '("Not a Fit","Closed","Archived")'),

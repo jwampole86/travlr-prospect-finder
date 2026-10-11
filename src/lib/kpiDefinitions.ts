@@ -52,6 +52,8 @@ export const ACTIVE_PIPELINE_STAGES = [
 
 /** High Priority score threshold */
 export const HIGH_PRIORITY_SCORE_THRESHOLD = 75;
+/** Action Needed is lower than High Priority: the calibrated model rarely scores real leads above ~72. */
+export const ACTION_NEEDED_SCORE_THRESHOLD = 70;
 
 // ─── Metric Definitions ───────────────────────────────────────────────────────
 
@@ -101,10 +103,10 @@ export const KPI_METRIC_DEFINITIONS: Record<MetricId, KpiMetricDefinition> = {
     metricId: 'ACTION_NEEDED',
     label: 'Action Needed',
     description: 'High-score prospects not yet contacted (New Lead stage)',
-    canonicalDefinition: `prospect_score >= ${HIGH_PRIORITY_SCORE_THRESHOLD} AND stage = 'New Lead'`,
+    canonicalDefinition: `prospect_score >= ${ACTION_NEEDED_SCORE_THRESHOLD} AND stage = 'New Lead'`,
     tolerance: 10,
-    // After pipeline stage correction (Active Pipeline = 0), Action Needed = High Priority.
-    // Both filters use the same score threshold. actionNeeded=true maps to stage=New Lead + score>=75.
+    // actionNeeded=true maps to stage=New Lead + score>=ACTION_NEEDED_SCORE_THRESHOLD (70).
+    // High Priority keeps its own 75 threshold.
     clickThroughFilter: `/lead-management?actionNeeded=true`,
   },
   FULLY_VERIFIED: {
