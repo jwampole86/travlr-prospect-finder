@@ -10,6 +10,7 @@ import { CONTACT_EMAIL, CONTACT_PHONE, WEBSITE_URL, WEBSITE_LABEL, telHref } fro
 import type { EquipmentKey } from '@/lib/homeownerReportContent';
 import { PermitsSection, SafetySection, OwnerDashboardSection } from './ReportSections';
 import TrustCard from './TrustCard';
+import WhyTravlrCard from './WhyTravlrCard';
 
 // The report is a document: it keeps a fixed light palette so it reads the same on screen, in a saved PDF and in print.
 
@@ -331,6 +332,8 @@ export default function HomeownerReportView({
                 ))}
               </ol>
             </section>
+
+            <WhyTravlrCard />
 
             <TrustCard />
 

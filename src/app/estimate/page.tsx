@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import TrustCard from '@/app/estimate/components/TrustCard';
+import WhyTravlrCard from '@/app/estimate/components/WhyTravlrCard';
 import ReportChat from '@/app/estimate/components/ReportChat';
 import ReportActions from '@/app/estimate/components/ReportActions';
 import { EQUIPMENT, type EquipmentKey } from '@/lib/homeownerReportContent';
@@ -712,7 +713,12 @@ function EstimateLandingContent() {
           </div>
         )}
 
-        <TrustCard className="print:hidden" />
+        {step !== 'success' && (
+          <>
+            <WhyTravlrCard className="print:hidden" />
+            <TrustCard className="print:hidden" />
+          </>
+        )}
       </main>
       {estimate && (step === 'estimate' || step === 'success') && (
         <ReportChat address={displayAddress} equipment={equipment} onTalkToPerson={() => openContact('question')} />
