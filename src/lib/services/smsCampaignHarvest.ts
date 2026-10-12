@@ -1,6 +1,6 @@
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { classifyReply } from '@/lib/services/smsConsent';
+import { classifyReply, isWrongContact } from '@/lib/services/smsConsent';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Meta = Record<string, any>;
@@ -42,6 +42,7 @@ export function scoreEngagement(s: {
   website: boolean; callRequested: boolean; submitted: boolean; replyIntent: string | null; optedOut: boolean; phoneQuality: string; sent: boolean;
 }): Scored {
   if (s.optedOut || s.replyIntent === 'stop') return { score: 0, temperature: 'opted_out' };
+  if (s.replyIntent === 'wrong_contact') return { score: 0, temperature: 'wrong_contact' };
   let score = 0;
   if (s.delivered) score += 5;
   if (s.humanClicks > 0) score += 20;
@@ -127,7 +128,7 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
     const delivered = status === 'delivered' || status === 'read';
     const deliveredAt = m.delivered_at ? Date.parse(m.delivered_at) : delivered ? sendAt : NaN;
     const errorCode = m.twilio_error_code ? String(m.twilio_error_code) : null;
-    const quality = phoneQualityFor(status, errorCode);
+    let quality = phoneQualityFor(status, errorCode);
 
     const myLinks = (linkBy.get(r.lead_id) ?? []).filter(l => Date.parse(l.occurred_at) >= sendAt - 60_000);
     const human = myLinks.filter(l => !l.is_bot && !(Date.parse(l.occurred_at) - (Number.isNaN(deliveredAt) ? sendAt : deliveredAt) < BOT_WINDOW_MS));
@@ -143,10 +144,14 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
     const contactAt = myJ.find(e => e.event === 'call_requested' || e.event === 'question_requested')?.created_at;
     const myReplies = (replyBy.get(r.lead_id) ?? []).filter(x => Date.parse(x.sent_at) >= sendAt);
     const reply = myReplies[myReplies.length - 1];
-    const replyIntent = reply ? String(reply.metadata?.intent ?? classifyReply(String(reply.metadata?.body ?? ''))) : null;
+    const replyBody = reply ? String(reply.metadata?.body ?? '') : '';
+    let replyIntent = reply ? String(reply.metadata?.intent ?? classifyReply(replyBody)) : null;
+    // A reply that says we have the wrong person tells us about the phone data, not about interest.
+    if (replyIntent && replyIntent !== 'stop' && isWrongContact(replyBody)) replyIntent = 'wrong_contact';
     const optedOut = !!lead.sms_opted_out_at;
     const optedIn = lead.sms_opt_in === true;
     const chat = myJ.filter(e => e.event === 'chat_question').length;
+    if (reply && isWrongContact(replyBody)) quality = 'wrong_person';
     const sc = scoreEngagement({
       delivered, humanClicks: human.length, viewed: has('estimate_shown') || has('page_view'), seconds: maxNum('time_on_page', 'seconds'), scroll: maxNum('scroll_depth', 'pct'),
       step, downloaded: has('report_downloaded') || has('report_printed') || has('link_copied'), chat, website: has('website_clicked'),

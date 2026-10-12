@@ -80,6 +80,8 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
     if ((data ?? []).length < 1000) break;
   }
   const total = audience.length;
+  // Leads texted earlier already passed the phone screening, so they count toward how many numbers were screened.
+  const alreadyPassed = audience.filter(l => textedLeads.has(l.id)).length;
   audience = audience.filter(l => !textedLeads.has(l.id) && !textedPhones.has(toE164(l.contact_phone) ?? '#'));
   console.log(`audience "${AUDIENCE}": ${total} leads | already texted by an earlier campaign: ${total - audience.length} | new: ${audience.length}`);
 
@@ -93,6 +95,7 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
   console.log(`${audience.length} leads -> ${leads.length} distinct phone numbers`);
 
   const skipped: Record<string, number> = {}; const skip = (r: string) => { skipped[r] = (skipped[r] ?? 0) + 1; };
+  const prefiltered: Array<{ id: string; reason: 'landline' | 'invalid' }> = [];
   const plan: Array<{ lead: OutreachLead; to: string; sendAt: Date; message: string; variant: string; by: string; segments: number; range: string }> = [];
 
   await pool(leads, 4, async (lead, i) => {
@@ -104,8 +107,8 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
     const blockers = d.blockers as Blocker[];
     if (blockers.length || !d.to) return skip(blockers[0] ?? 'no_phone');
     const look = await lookupPhoneNumber(d.to);
-    if (look.twilioConfigured && look.valid === false) return skip('invalid_number');
-    if (look.twilioConfigured && look.lineType === 'landline') return skip('landline');
+    if (look.twilioConfigured && look.valid === false) { prefiltered.push({ id: lead.id, reason: 'invalid' }); return skip('invalid_number'); }
+    if (look.twilioConfigured && look.lineType === 'landline') { prefiltered.push({ id: lead.id, reason: 'landline' }); return skip('landline'); }
     plan.push({ lead, to: d.to, sendAt, message: d.message, variant, by: d.generatedBy, segments: d.segments, range: d.range });
     // The real short link is only created when we actually schedule.
     (plan[plan.length - 1] as { draft?: unknown }).draft = d;
@@ -124,6 +127,19 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
 
   if (!GO) { console.log('\nDRY RUN: nothing scheduled. Re-run with --go to schedule.'); return; }
 
+  // Keep the pre-send phone screening: it is the first measure of how accurate the phone numbers are, and the CRM should know which leads to call instead of text.
+  if (prefiltered.length) {
+    for (const reason of ['landline', 'invalid'] as const) {
+      for (const id of prefiltered.filter(p => p.reason === reason).map(p => p.id)) {
+        const { data: row } = await db.from('leads').select('tags').eq('id', id).maybeSingle();
+        const tags = [...new Set([...(row?.tags as string[] | null ?? []).filter(t => !t.startsWith('sms:phone:')), `sms:phone:${reason}`])];
+        await db.from('leads').update({ tags }).eq('id', id);
+      }
+    }
+  }
+  await db.from('campaign_insight_snapshots').delete().eq('batch', `${batch}:prefilter`);
+  await db.from('campaign_insight_snapshots').insert({ batch: `${batch}:prefilter`, report: { audience: AUDIENCE, audienceLeads: alreadyPassed + leads.length, landline: prefiltered.filter(p => p.reason === 'landline').length, invalid: prefiltered.filter(p => p.reason === 'invalid').length, recordedAt: new Date().toISOString() } });
+
   // ── Schedule ──
   const manifest: Array<{ sid: string; leadId: string; to: string; sendAt: string }> = []; const failures: Array<{ leadId: string; error?: string }> = [];
   await pool(plan, 5, async p => {
@@ -138,7 +154,9 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
         message_sid: r.sid, twilio_status: 'scheduled', scheduled_for: p.sendAt.toISOString(), named: /^Hi [A-Z]/.test(message) && !message.startsWith('Hi there') },
     });
   });
+  // Merge with any earlier run of this batch so the cancel list always covers every scheduled text, and never overwrite it with an empty list.
   const file = `/tmp/campaign-${batch}.json`;
-  fs.writeFileSync(file, JSON.stringify({ batch, messages: manifest }, null, 1));
+  const earlier = fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, 'utf8')).messages as typeof manifest) : [];
+  if (manifest.length) fs.writeFileSync(file, JSON.stringify({ batch, messages: [...earlier, ...manifest] }, null, 1));
   console.log(`\nSCHEDULED ${manifest.length} | failed ${failures.length}`, failures.slice(0, 5), `\nmanifest (use --cancel to undo): ${file}`);
 })().catch(e => { console.error(e); process.exit(1); });

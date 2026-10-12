@@ -12,6 +12,7 @@ interface Overview {
   funnel: { texts: number; sent: number; delivered: number; clicked: number; viewed: number; contactStarted: number; submitted: number; replied: number; optedIn: number; optedOut: number };
   statuses: Record<string, number>; deliveryErrors: Record<string, number>; replyIntents: Record<string, number>;
   by: Record<string, Record<string, Bucket>>; hotLeads: Hot[]; replies: Array<{ leadId: string; at: string; intent: string; text: string }>; chatQuestions: string[];
+  skipTrace: Array<{ audience: string; texts: number; sent: number; delivered: number; deliveredPct: number; unreachable: number; wrongPerson: number; engaged: number; engagedPct: number; likelyReachedPct: number; screenedLeads: number | null; prefilterLandline: number | null; prefilterInvalid: number | null; landlinePct: number | null }>;
   cost: { totalUsd: number; pricedTexts: number; perClick: number | null; perSubmission: number | null; perHotLead: number | null }; botClicksFiltered: number;
 }
 interface Insights { headline: string; whatWorked: string[]; whatDidNot: string[]; objections: string[]; nextCampaign: { audience: string; copyTests: string[]; sendTiming: string; followUp: string[] }; crmActions: string[]; dataGaps: string[]; confidence: string; _createdAt?: string }
@@ -20,7 +21,7 @@ const BREAKDOWNS: Array<[string, string]> = [
   ['audience', 'Audience'], ['variant', 'Tone'], ['writtenBy', 'AI vs template'], ['segments', 'Length'], ['estimate', 'Estimate size'], ['state', 'State'],
   ['device', 'Device'], ['os', 'Phone OS'], ['sendHourUtc', 'Send hour (UTC)'], ['timeToClick', 'Time to click'], ['phone', 'Phone quality'], ['temperature', 'Outcome'],
 ];
-const TEMP_STYLE: Record<string, string> = { hot: 'bg-red-100 text-red-700', warm: 'bg-amber-100 text-amber-700', cold: 'bg-slate-100 text-slate-600', unreachable: 'bg-purple-100 text-purple-700', opted_out: 'bg-rose-100 text-rose-700', declined: 'bg-slate-200 text-slate-700', untouched: 'bg-slate-100 text-slate-500', pending: 'bg-blue-100 text-blue-700' };
+const TEMP_STYLE: Record<string, string> = { wrong_contact: 'bg-orange-100 text-orange-700', hot: 'bg-red-100 text-red-700', warm: 'bg-amber-100 text-amber-700', cold: 'bg-slate-100 text-slate-600', unreachable: 'bg-purple-100 text-purple-700', opted_out: 'bg-rose-100 text-rose-700', declined: 'bg-slate-200 text-slate-700', untouched: 'bg-slate-100 text-slate-500', pending: 'bg-blue-100 text-blue-700' };
 const fmtDate = (s: string) => new Date(s).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 1000) / 10}%` : '0%');
 
@@ -148,6 +149,18 @@ export default function CampaignsView() {
                   <div className="text-xs space-y-1">{Object.entries(data.statuses).map(([k, v]) => <div key={k} className="flex justify-between"><span className="text-muted-foreground capitalize">{k}</span><span>{v}</span></div>)}
                     {Object.entries(data.deliveryErrors).map(([k, v]) => <div key={k} className="flex justify-between text-amber-700"><span>Error {k}</span><span>{v}</span></div>)}</div></div>
               </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-5">
+              <h2 className="text-sm font-semibold mb-1">Skip-trace accuracy</h2>
+              <p className="text-[11px] text-muted-foreground mb-3">How reliable the phone numbers were, by audience. A delivered text shows a live phone, not that the owner read it, and wrong-person replies only count people who answered.</p>
+              <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground"><th className="py-2 pr-3">Audience</th><th className="pr-3 text-right">Landline or invalid before sending</th><th className="pr-3 text-right">Delivered</th><th className="pr-3 text-right">Wrong person</th><th className="pr-3 text-right">Engaged</th><th className="text-right">Likely reached</th></tr></thead>
+                <tbody>{(data.skipTrace ?? []).map(s => (
+                  <tr key={s.audience} className="border-t border-border"><td className="py-2 pr-3 font-medium">{s.audience}</td>
+                    <td className="pr-3 text-right tabular-nums">{s.landlinePct != null ? `${s.landlinePct}% (${(s.prefilterLandline ?? 0) + (s.prefilterInvalid ?? 0)} of ${s.screenedLeads})` : 'not recorded'}</td>
+                    <td className="pr-3 text-right tabular-nums">{s.sent ? `${s.deliveredPct}% (${s.delivered} of ${s.sent})` : 'not sent yet'}</td>
+                    <td className="pr-3 text-right tabular-nums">{s.wrongPerson}</td><td className="pr-3 text-right tabular-nums">{s.engaged} <span className="text-muted-foreground text-xs">({s.engagedPct}% of delivered)</span></td>
+                    <td className="text-right tabular-nums font-semibold">{s.sent ? `${s.likelyReachedPct}%` : '-'}</td></tr>))}</tbody></table></div>
             </div>
 
             <div className="bg-card border border-border rounded-xl p-5">

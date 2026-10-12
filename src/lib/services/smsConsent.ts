@@ -17,6 +17,12 @@ export function classifyReply(raw: string): ReplyIntent {
   return 'other';
 }
 
+/** A reply saying we reached the wrong person or someone who no longer owns the home. Kept separate from classifyReply so opt-out handling is unchanged. */
+export function isWrongContact(raw: string): boolean {
+  const text = raw.replace(/[^\w\s'’]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  return /\b(wrong|incorrect) (number|person|party|guy|lady|contact)\b|\bnot (the )?(owner|homeowner)\b|\b(i )?(do not|don'?t|dont|never|no longer) own\b|\bnot my (house|home|property|number|name)\b|\b(i )?sold (it|this|that|the (house|home|property))\b|\b(this|that) (is not|isn'?t|aint) (me|mine|my (house|home|number))\b|\bwho (is|are) (this|you)\b.*\bwrong\b/.test(text);
+}
+
 export function toE164(raw: string | null | undefined): string | null {
   const digits = String(raw ?? '').replace(/\D/g, '');
   if (digits.length === 10) return `+1${digits}`;

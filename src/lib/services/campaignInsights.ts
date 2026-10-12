@@ -57,6 +57,27 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
     if (r.price_usd != null) { cost += Number(r.price_usd); costRows++; }
     chatQuestions += r.chat_questions ?? 0; botClicks += r.bot_clicks ?? 0;
   }
+  // How reliable the phone data was, per audience: reached, wrong person, landline or invalid, and who actually engaged.
+  const st: Record<string, { texts: number; sent: number; delivered: number; unreachable: number; wrongPerson: number; engaged: number; optedOut: number }> = {};
+  for (const r of rows) {
+    const a = (st[r.audience ?? 'fully-verified'] ??= { texts: 0, sent: 0, delivered: 0, unreachable: 0, wrongPerson: 0, engaged: 0, optedOut: 0 });
+    a.texts++; a.sent += +(Date.parse(r.scheduled_for) < now && r.twilio_status !== 'canceled');
+    a.delivered += +['delivered', 'read'].includes(r.twilio_status); a.unreachable += +['landline', 'invalid', 'unreachable', 'filtered'].includes(r.phone_quality);
+    a.wrongPerson += +(r.phone_quality === 'wrong_person'); a.optedOut += +r.opted_out;
+    a.engaged += +(r.human_clicks > 0 || !!r.reply_at || !!r.estimate_submitted_at);
+  }
+  const { data: pre } = await db.from('campaign_insight_snapshots').select('batch, report').like('batch', '%:prefilter');
+  const prefilter: Record<string, { audienceLeads: number; landline: number; invalid: number }> = {};
+  for (const p of pre ?? []) { const rp = p.report as Row; if (batches === 'all' || batches.includes(String(p.batch).replace(':prefilter', ''))) { const k = rp.audience ?? 'fully-verified'; const e = (prefilter[k] ??= { audienceLeads: 0, landline: 0, invalid: 0 }); e.audienceLeads += rp.audienceLeads ?? 0; e.landline += rp.landline ?? 0; e.invalid += rp.invalid ?? 0; } }
+  const skipTrace = Object.entries(st).map(([audience, a]) => {
+    const pf = prefilter[audience]; const screened = pf?.audienceLeads ?? null;
+    return {
+      audience, texts: a.texts, sent: a.sent, delivered: a.delivered, deliveredPct: pct(a.delivered, a.sent), unreachable: a.unreachable, wrongPerson: a.wrongPerson, engaged: a.engaged, engagedPct: pct(a.engaged, a.delivered),
+      // Share of sent texts that reached a live phone and were not flagged as the wrong person. It does not prove the owner read it.
+      likelyReachedPct: pct(a.delivered - a.wrongPerson, a.sent),
+      screenedLeads: screened, prefilterLandline: pf?.landline ?? null, prefilterInvalid: pf?.invalid ?? null, landlinePct: screened ? pct(pf.landline + pf.invalid, screened) : null,
+    };
+  });
   const rates = (b: Bucket) => ({ ...b, deliveredPct: pct(b.delivered, b.texts), clickPct: pct(b.clicked, b.delivered || b.texts), viewPct: pct(b.viewed, b.texts), submitPct: pct(b.submitted, b.texts), replyPct: pct(b.replied, b.texts), optOutPct: pct(b.optOut, b.texts), hotPct: pct(b.hot, b.texts), cost: Math.round(b.cost * 100) / 100 });
   const by = Object.fromEntries(Object.entries(groups).map(([g, m]) => [g, Object.fromEntries(Object.entries(m).sort((a, b) => b[1].texts - a[1].texts).map(([k, b]) => [k, rates(b)]))]));
   const t = rates(total);
@@ -80,7 +101,7 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
     batches, empty: false as const, updatedAt: new Date(lastUpdated).toISOString(), final: rows.every(r => r.final),
     totals: t, funnel, statuses, deliveryErrors: errors, replyIntents: intents, by, hotLeads, replies, chatQuestions: chat,
     cost: { totalUsd: Math.round(cost * 100) / 100, pricedTexts: costRows, perClick: t.clicked ? Math.round((cost / t.clicked) * 100) / 100 : null, perSubmission: t.submitted ? Math.round((cost / t.submitted) * 100) / 100 : null, perHotLead: t.hot ? Math.round((cost / t.hot) * 100) / 100 : null },
-    botClicksFiltered: botClicks, chatQuestionCount: chatQuestions,
+    botClicksFiltered: botClicks, chatQuestionCount: chatQuestions, skipTrace,
   };
 }
 
@@ -113,6 +134,7 @@ export async function generateInsights(overview: Overview): Promise<{ insights: 
 Rules:
 - Ground every statement in the numbers provided. Quote the figures. Never invent data.
 - Sample sizes are small. When a difference rests on few messages, say so, and call it a hypothesis to test, not a finding.
+- skipTrace compares phone-data quality across audiences: landline/invalid share found before sending, delivery, replies saying wrong person, and engagement. Say plainly how accurate each audience's phone numbers look, and that wrong-person replies only capture people who answered.
 - Counts of clicks exclude link-preview bots. "hot" means the homeowner submitted the form, asked for a call or replied YES.
 - Be specific and practical: concrete copy ideas, audiences, timing, follow-up steps. No filler.
 Return ONLY JSON with exactly these keys: {"headline": string, "whatWorked": string[], "whatDidNot": string[], "objections": string[], "nextCampaign": {"audience": string, "copyTests": string[], "sendTiming": string, "followUp": string[]}, "crmActions": string[], "dataGaps": string[], "confidence": string}. Each array has at most 5 short items.`,
