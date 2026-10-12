@@ -98,8 +98,9 @@ export function inSendWindow(state: string | null, now = new Date()): boolean {
   return h !== null && h >= 9 && h < 20;
 }
 
-function longEstimateUrl(lead: OutreachLead, site: string): string {
-  const addr = [lead.address, lead.city, lead.state].filter(Boolean).join(', ');
+export function longEstimateUrl(lead: OutreachLead, site: string): string {
+  // The ZIP must be included: the estimate looks up local market data by ZIP, so without it the page can show a different range than the text.
+  const addr = [lead.address, lead.city, lead.state, lead.zip].filter(Boolean).join(', ');
   // "+" for spaces and literal commas keep the link about 15 characters shorter than full percent-encoding.
   return `${site.replace(/\/$/, '')}/estimate?address=${encodeURIComponent(addr).replace(/%20/g, '+').replace(/%2C/g, ',')}`;
 }
