@@ -5,6 +5,9 @@ import { useSearchParams } from 'next/navigation';
 import { MapPin, DollarSign, TrendingUp, Shield, ChevronRight, CheckCircle, Loader2, Phone, Home, Star, Building2, Calendar, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
+import HomeownerReportView from '@/app/estimate/components/HomeownerReport';
+import type { HomeownerEstimate } from '@/lib/homeownerEstimateTypes';
+import { useForceLightTheme } from '@/lib/hooks/useForceLightTheme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,15 +20,7 @@ interface AddressSuggestion {
   };
 }
 
-interface PropertyEstimate {
-  estimatedADR: number;
-  estimatedOccupancy: number;
-  grossMonthly: number;
-  netMonthly: number;
-  annualNet: number;
-  regulationSummary: string;
-  regulationStatus: 'permitted' | 'restricted' | 'unknown';
-}
+type PropertyEstimate = HomeownerEstimate;
 
 interface ContactForm {
   firstName: string;
@@ -199,12 +194,15 @@ function ProgressBar({ step }: { step: Step }) {
 // ─── Main Landing Page ────────────────────────────────────────────────────────
 
 function EstimateLandingContent() {
+  useForceLightTheme();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>('address');
   const [addressInput, setAddressInput] = useState(searchParams.get('address') ?? '');
   const [selectedAddress, setSelectedAddress] = useState('');
   const [estimate, setEstimate] = useState<PropertyEstimate | null>(null);
   const [loadingEstimate, setLoadingEstimate] = useState(false);
+  const [estimateError, setEstimateError] = useState(false);
+  const [emailed, setEmailed] = useState(false);
   const [contact, setContact] = useState<ContactForm>({ firstName: '', lastName: '', phone: '', email: '' });
   const [qualification, setQualification] = useState<QualificationForm>({
     propertyType: '',
@@ -230,6 +228,8 @@ function EstimateLandingContent() {
     const address = addr ?? selectedAddress ?? addressInput;
     if (!address.trim()) { toast.error('Please select an address from the suggestions'); return; }
     setLoadingEstimate(true);
+    setEstimateError(false);
+    setEstimate(null);
     setStep('estimate');
     try {
       const res = await fetch('/api/estimate/property', {
@@ -244,16 +244,7 @@ function EstimateLandingContent() {
         throw new Error('No estimate returned');
       }
     } catch {
-      // Fallback estimate
-      setEstimate({
-        estimatedADR: 185,
-        estimatedOccupancy: 68,
-        grossMonthly: 3774,
-        netMonthly: 2850,
-        annualNet: 34200,
-        regulationSummary: 'Short-term rentals are generally permitted in this area with a local business license. Verify current regulations with your municipality.',
-        regulationStatus: 'permitted',
-      });
+      setEstimateError(true);
     } finally {
       setLoadingEstimate(false);
     }
@@ -277,7 +268,7 @@ function EstimateLandingContent() {
   async function handleFinalSubmit() {
     setSubmitting(true);
     try {
-      await fetch('/api/estimate/submit-lead', {
+      const submitRes = await fetch('/api/estimate/submit-lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -287,6 +278,8 @@ function EstimateLandingContent() {
           qualification,
         }),
       });
+      const submitData = await submitRes.json().catch(() => ({}));
+      setEmailed(submitData?.emailed === true);
       setStep('success');
     } catch {
       toast.error('Something went wrong. Please try again.');
@@ -302,7 +295,7 @@ function EstimateLandingContent() {
       <Toaster position="top-center" />
 
       {/* Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-40">
+      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-40 print:hidden">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Home size={16} className="text-primary-foreground" />
@@ -318,7 +311,7 @@ function EstimateLandingContent() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      <main className={`${step === 'success' ? 'max-w-4xl' : 'max-w-2xl'} mx-auto px-4 py-8 space-y-6 print:max-w-none print:p-0`}>
 
         {/* Progress bar (hide on success) */}
         {step !== 'success' && <ProgressBar step={step} />}
@@ -393,57 +386,31 @@ function EstimateLandingContent() {
               </div>
             ) : estimate ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <EstimateCard label="Avg Daily Rate (ADR)" value={`$${estimate.estimatedADR}`} sub="per night" />
-                  <EstimateCard label="Occupancy Rate" value={`${estimate.estimatedOccupancy}%`} sub="avg nights booked" />
-                  <EstimateCard label="Gross Monthly" value={`$${estimate.grossMonthly.toLocaleString()}`} sub="before expenses" />
-                  <EstimateCard label="Net Monthly" value={`$${estimate.netMonthly.toLocaleString()}`} sub="after mgmt & costs" highlight />
-                </div>
-
-                <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Estimated Annual Net</p>
-                    <p className="text-2xl font-bold text-primary">${estimate.annualNet.toLocaleString()}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-muted-foreground">Based on {estimate.estimatedOccupancy}% occupancy</p>
-                    <p className="text-[10px] text-muted-foreground">at ${estimate.estimatedADR}/night ADR</p>
-                  </div>
-                </div>
-
-                {/* Regulation status */}
-                <div className={`rounded-xl p-4 border flex items-start gap-3 ${
-                  estimate.regulationStatus === 'permitted' ? 'bg-emerald-50 border-emerald-200' :
-                  estimate.regulationStatus === 'restricted'? 'bg-amber-50 border-amber-200' : 'bg-muted border-border'
-                }`}>
-                  <Shield size={15} className={
-                    estimate.regulationStatus === 'permitted' ? 'text-emerald-600 shrink-0 mt-0.5' :
-                    estimate.regulationStatus === 'restricted'? 'text-amber-600 shrink-0 mt-0.5' : 'text-muted-foreground shrink-0 mt-0.5'
-                  } />
-                  <div>
-                    <p className={`text-xs font-semibold mb-0.5 ${
-                      estimate.regulationStatus === 'permitted' ? 'text-emerald-800' :
-                      estimate.regulationStatus === 'restricted'? 'text-amber-800' : 'text-foreground'
-                    }`}>
-                      {estimate.regulationStatus === 'permitted' ? 'STR Generally Permitted' :
-                       estimate.regulationStatus === 'restricted'? 'STR Restrictions Apply' : 'Regulations Vary'}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">{estimate.regulationSummary}</p>
-                  </div>
+                <HomeownerReportView report={estimate.report} variant="preview" />
+                <div className="rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground leading-relaxed">
+                  Your full report adds the monthly cost breakdown, a five-year comparison with a traditional lease, the permits and taxes required for your address, and a step-by-step plan to go live.
                 </div>
 
                 <button
                   onClick={() => setStep('contact')}
                   className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                 >
-                  Claim This Estimate — It's Free
+                  Get My Full Report — It's Free
                   <ChevronRight size={14} />
                 </button>
                 <button onClick={() => { setStep('address'); setSelectedAddress(''); }} className="w-full text-xs text-muted-foreground hover:text-foreground text-center py-1 transition-colors">
                   ← Try a different address
                 </button>
               </>
-            ) : null}
+            ) : (
+              <div className="bg-card border border-border rounded-2xl p-8 text-center space-y-3">
+                <AlertCircle size={22} className="text-amber-500 mx-auto" />
+                <p className="text-sm font-semibold text-foreground">We couldn't build your estimate just now</p>
+                <p className="text-xs text-muted-foreground">Please check the address and try again.</p>
+                <button onClick={() => handleGenerateEstimate(displayAddress)} className="text-xs font-semibold text-primary hover:underline">Try again</button>
+                <button onClick={() => { setStep('address'); setSelectedAddress(''); }} className="block w-full text-xs text-muted-foreground hover:text-foreground">← Try a different address</button>
+              </div>
+            )}
           </div>
         )}
 
@@ -604,45 +571,25 @@ function EstimateLandingContent() {
 
         {/* ── Step: Success ── */}
         {step === 'success' && (
-          <div className="text-center space-y-6 py-8">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
-              <CheckCircle size={32} className="text-emerald-600" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-foreground">You're all set, {contact.firstName}!</h2>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                A TRAVLR specialist will reach out within 1 business day with your personalized property report.
-              </p>
-            </div>
-
-            {estimate && (
-              <div className="bg-card border border-border rounded-2xl p-5 text-left space-y-3 max-w-sm mx-auto">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Estimate Summary</p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Net Monthly</span>
-                    <span className="font-bold text-primary">${estimate.netMonthly.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Annual Net</span>
-                    <span className="font-semibold text-foreground">${estimate.annualNet.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">ADR</span>
-                    <span className="font-semibold text-foreground">${estimate.estimatedADR}/night</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Occupancy</span>
-                    <span className="font-semibold text-foreground">{estimate.estimatedOccupancy}%</span>
-                  </div>
-                </div>
+          <div className="space-y-6">
+            <div className="text-center space-y-2 print:hidden">
+              <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                <CheckCircle size={28} className="text-emerald-600" />
               </div>
-            )}
-
-            <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-              <Star size={12} className="text-amber-400 fill-amber-400" />
-              <span>Trusted by 2,400+ homeowners across the US</span>
+              <h2 className="text-2xl font-bold text-foreground">Your report is ready, {contact.firstName}!</h2>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                {emailed ? <>We&apos;ve emailed a copy to {contact.email}. </> : <>Save or print your report below. </>}A TRAVLR specialist will reach out within 1 business day to refine these numbers with your home&apos;s details.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                <button onClick={() => window.print()} className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all">
+                  Download PDF
+                </button>
+                <a href={`/estimate/report?address=${encodeURIComponent(displayAddress)}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors">
+                  Open shareable link
+                </a>
+              </div>
             </div>
+            {estimate && <HomeownerReportView report={estimate.report} variant="full" />}
           </div>
         )}
       </main>

@@ -1,6 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/client';
 import { getChatCompletion } from '@/lib/ai/chatCompletion';
+import { buildHomeownerReport } from '@/lib/homeownerEstimate';
+import { buildHomeownerReportEmail } from '@/lib/email/homeownerReportEmail';
+import { getResendClient, getResendFrom } from '@/lib/email/resend';
+
+// Emails the homeowner their report. Numbers are rebuilt server-side so they cannot be altered through the form.
+async function emailHomeownerReport(address: string, firstName: string, to: string, req: NextRequest): Promise<boolean> {
+  try {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return false;
+    const base = (process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin).replace(/\/$/, '');
+    const report = await buildHomeownerReport(address);
+    const reportUrl = `${base}/estimate/report?address=${encodeURIComponent(address)}`;
+    const { subject, html, text } = buildHomeownerReportEmail(report, firstName, reportUrl);
+    const { error } = await getResendClient().emails.send({ from: getResendFrom(), to: [to], subject, html, text, replyTo: process.env.RESEND_FROM_EMAIL });
+    if (error) { console.warn('[estimate/submit-lead] report email failed:', error.message); return false; }
+    return true;
+  } catch (err) {
+    console.warn('[estimate/submit-lead] report email error:', err instanceof Error ? err.message : err);
+    return false;
+  }
+}
 
 // ─── Lead Submission API ──────────────────────────────────────────────────────
 // Handles self-submitted homeowner leads from the landing page.
@@ -149,7 +169,8 @@ Write a 2-3 sentence agent-facing summary.`,
         body: JSON.stringify({ leadId: matchedLead.id, address, prospectScore: 70 }),
       }).then(undefined, () => {});
 
-      return NextResponse.json({ success: true, leadId: matchedLead.id, merged: true });
+      const emailed = await emailHomeownerReport(address, contact.firstName, contact.email, req);
+      return NextResponse.json({ success: true, leadId: matchedLead.id, merged: true, emailed });
     } else {
       // ── 3b. Create new lead ───────────────────────────────────────────────────
       const { data: newLead, error: insertError } = await supabase
@@ -182,7 +203,8 @@ Write a 2-3 sentence agent-facing summary.`,
 
       if (insertError) {
         console.warn('[estimate/submit-lead] insert error:', insertError.message);
-        return NextResponse.json({ success: true, leadId: null, merged: false });
+        const emailed = await emailHomeownerReport(address, contact.firstName, contact.email, req);
+        return NextResponse.json({ success: true, leadId: null, merged: false, emailed });
       }
 
       // Auto-enroll in default cadence sequence
@@ -244,7 +266,8 @@ Write a 2-3 sentence agent-facing summary.`,
         }).then(undefined, () => {});
       }
 
-      return NextResponse.json({ success: true, leadId: newLead?.id, merged: false });
+      const emailed = await emailHomeownerReport(address, contact.firstName, contact.email, req);
+      return NextResponse.json({ success: true, leadId: newLead?.id, merged: false, emailed });
     }
   } catch (err) {
     console.error('[estimate/submit-lead]', err);
