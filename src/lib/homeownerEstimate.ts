@@ -1,8 +1,9 @@
 import 'server-only';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import type {
-  HomeownerReport, EstimateScenario, RegulationReport, RegulationRequirement, RegulationTone,
+  HomeownerReport, EstimateScenario, RegulationReport, RegulationRequirement, RegulationTone, PermitDetails,
 } from '@/lib/homeownerEstimateTypes';
+import { tidySentence } from '@/lib/homeownerReportContent';
 
 const STATE_NAMES: Record<string, string> = {
   AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut',
@@ -123,6 +124,26 @@ const REG_HEADLINE: Record<string, string> = {
   REVIEW_REQUIRED: 'Local rules are being confirmed',
 };
 
+function permitDetails(row: Record<string, any>): PermitDetails | null {
+  const steps: string[] = Array.isArray(row.permit_steps) ? row.permit_steps.map(String).filter(Boolean) : [];
+  const safety: Array<{ item: string; detail: string }> = Array.isArray(row.safety_requirements)
+    ? row.safety_requirements.filter((s: any) => s?.item).map((s: any) => ({ item: String(s.item), detail: tidySentence(String(s.detail || '')) || '' }))
+    : [];
+  const cost = tidySentence(row.permit_cost_summary);
+  if (!steps.length && !safety.length && !cost) return null;
+  const n = (v: unknown) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+  return {
+    name: row.permit_name ? String(row.permit_name) : null,
+    costSummary: cost,
+    costLow: n(row.permit_cost_low),
+    costHigh: n(row.permit_cost_high),
+    renewal: tidySentence(row.permit_renewal),
+    processingTime: tidySentence(row.permit_processing_time),
+    applicationUrl: /^https:\/\//i.test(String(row.permit_application_url || '')) ? String(row.permit_application_url) : null,
+    steps, safety,
+  };
+}
+
 function yn(v: unknown): boolean | null { return typeof v === 'boolean' ? v : null; }
 
 async function regulationFor(db: ReturnType<typeof getSupabaseAdmin>, a: ParsedAddress): Promise<RegulationReport> {
@@ -131,7 +152,7 @@ async function regulationFor(db: ReturnType<typeof getSupabaseAdmin>, a: ParsedA
     found: false, jurisdiction: place, status: 'UNKNOWN', tone: 'unknown', headline: REG_HEADLINE.UNKNOWN,
     summary: `We have not finished documenting the short-term rental rules for ${place}. The checklist below covers what almost every market requires, and your TRAVLR specialist will confirm the exact permit and tax steps for your address before anything is listed.`,
     requirements: [], taxes: null, additional: null, sourceName: null, sourceUrl: null, lastVerified: null, aiResearched: false,
-    typicalChecklist: GENERIC_CHECKLIST, note: null,
+    typicalChecklist: GENERIC_CHECKLIST, note: null, permit: null,
   };
   if (!a.city || !a.state) return empty;
 
@@ -181,6 +202,7 @@ async function regulationFor(db: ReturnType<typeof getSupabaseAdmin>, a: ParsedA
     lastVerified: data.last_verified_at ? String(data.last_verified_at) : null,
     aiResearched: data.source_type === 'AI_RESEARCHED',
     typicalChecklist: [],
+    permit: permitDetails(data),
     note: prohibited
       ? 'Revenue shown assumes you can obtain approval. Because this market is restricted, your specialist will review which options are open to your specific property before any projection is relied on.'
       : status === 'RESTRICTED' || status === 'PRIMARY_RESIDENCE_REQUIRED'
@@ -278,7 +300,7 @@ export async function buildHomeownerReport(rawAddress: string): Promise<Homeowne
       found: false, jurisdiction: place || 'your area', status: 'UNKNOWN', tone: 'unknown', headline: REG_HEADLINE.UNKNOWN,
       summary: 'Your TRAVLR specialist will confirm the permit and tax steps for your address.',
       requirements: [], taxes: null, additional: null, sourceName: null, sourceUrl: null, lastVerified: null,
-      aiResearched: false, typicalChecklist: GENERIC_CHECKLIST, note: null,
+      aiResearched: false, typicalChecklist: GENERIC_CHECKLIST, note: null, permit: null,
     },
     generatedAt: new Date().toISOString(),
   };

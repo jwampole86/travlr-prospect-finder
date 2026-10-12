@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { isSuppressed } from '@/lib/services/smsConsent';
 import {
   runPersonalizationReconciliation,
   resolveRecipientPersonalization,
@@ -8,8 +10,15 @@ import {
 } from '@/lib/services/smsPersonalizationService';
 import { dispatchSMS, isTwilioConfigured } from '@/lib/services/twilioService';
 
+const OPT_OUT_LINE = 'Reply YES for info, NO to opt out';
+// Every outreach text must tell the recipient how to reply or opt out.
+const withOptOut = (msg: string) => (/\b(stop|opt out)\b/i.test(msg) ? msg : `${msg.trimEnd()}\n${OPT_OUT_LINE}`);
+
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireAdminActor(req);
+    if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
     const body = await req.json();
     const {
       leadIds,
@@ -24,16 +33,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'leadIds array is required' }, { status: 400 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = getSupabaseAdmin();
+    const firstTouchOn = process.env.SMS_FIRST_TOUCH_ENABLED === 'true';
+    const isBlocked = async (l: { contact_phone: string | null; sms_opt_in: boolean | null; sms_opted_out_at: string | null }) =>
+      !!l.sms_opted_out_at || (l.sms_opt_in !== true && !firstTouchOn) || await isSuppressed(supabase, l.contact_phone);
 
     // ── Load canonical lead data from DB (send-time revalidation) ────────────
     const { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select(
-        'id, contact_name, contact_phone, owner_name, address, city, state, zip, verified_owner, verified_number, verified_address, has_phone, do_not_contact, enrichment_status'
+        'id, contact_name, contact_phone, owner_name, address, city, state, zip, verified_owner, verified_number, verified_address, has_phone, sms_opt_in, sms_opted_out_at, enrichment_status'
       )
       .in('id', leadIds);
 
@@ -46,6 +55,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Map DB rows to SmsRecipient shape
+    const blockedIds = new Set<string>();
+    for (const l of leads) if (await isBlocked(l)) blockedIds.add(l.id);
     const recipients: SmsRecipient[] = leads.map(l => ({
       leadId: l.id,
       phone: l.contact_phone || '',
@@ -59,7 +70,7 @@ export async function POST(req: NextRequest) {
       verifiedNumber: l.verified_number === true,
       verifiedAddress: l.verified_address || null,
       hasPhone: l.has_phone === true,
-      doNotContact: l.do_not_contact === true,
+      doNotContact: blockedIds.has(l.id),
     }));
 
     // Filter out DNC leads before personalization
@@ -99,7 +110,7 @@ export async function POST(req: NextRequest) {
           firstName: r.firstName,
           propertyAddress: r.outreachAddress,
           phone: r.phone,
-          renderedMessage: r.renderedMessage,
+          renderedMessage: withOptOut(r.renderedMessage),
           status: r.status,
           firstNameSource: r.firstNameSource,
           addressSource: r.addressSource,
@@ -160,11 +171,11 @@ export async function POST(req: NextRequest) {
           // Send-time revalidation: reload this specific lead
           const { data: freshLead } = await supabase
             .from('leads')
-            .select('contact_phone, do_not_contact, verified_owner, verified_number, verified_address, contact_name, owner_name, address, city, state, zip')
+            .select('contact_phone, sms_opt_in, sms_opted_out_at, verified_owner, verified_number, verified_address, contact_name, owner_name, address, city, state, zip')
             .eq('id', recipient.leadId)
             .single();
 
-          if (!freshLead || freshLead.do_not_contact) {
+          if (!freshLead || await isBlocked(freshLead)) {
             sendResults.push({ leadId: recipient.leadId, phone: recipient.phone, status: 'blocked_dnc' });
             continue;
           }
@@ -199,7 +210,7 @@ export async function POST(req: NextRequest) {
           // Dispatch via Twilio
           const result = await dispatchSMS({
             to: freshResolved.phone,
-            body: freshResolved.renderedMessage,
+            body: withOptOut(freshResolved.renderedMessage),
             leadId: recipient.leadId,
             templateId: templateId ?? undefined,
             agentId: agentId ?? undefined,
@@ -219,7 +230,7 @@ export async function POST(req: NextRequest) {
             address_source: freshResolved.addressSource,
             first_name_verified: freshResolved.firstNameVerified,
             address_verified: freshResolved.addressVerified,
-            rendered_message: freshResolved.renderedMessage,
+            rendered_message: withOptOut(freshResolved.renderedMessage),
             rendered_at: new Date().toISOString(),
             twilio_message_sid: result.messageSid || null,
             send_status: result.success ? 'sent' : 'failed',
@@ -241,7 +252,7 @@ export async function POST(req: NextRequest) {
               campaign_id: campaignRef,
               resolved_first_name: freshResolved.firstName,
               resolved_address: freshResolved.outreachAddress,
-              rendered_message: freshResolved.renderedMessage,
+              rendered_message: withOptOut(freshResolved.renderedMessage),
             },
           });
 

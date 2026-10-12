@@ -3,7 +3,8 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { buildHomeownerReport } from '@/lib/homeownerEstimate';
 import { upsertHomeownerLead, logHomeownerActivity, createFollowUpTask } from '@/lib/homeownerLeads';
 import { buildTeamInquiryEmail, buildHomeownerConfirmationEmail, whenLabel, type InquiryDetails } from '@/lib/email/homeownerInquiryEmails';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { sendTrackedEmail } from '@/lib/email/trackedSend';
+import { validateContact } from '@/lib/contactValidation';
 import { allowRequest, clientIp } from '@/lib/publicRateLimit';
 import { CONTACT_EMAIL } from '@/lib/homeownerContact';
 
@@ -40,8 +41,8 @@ export async function POST(req: NextRequest) {
   const address = clean(body.address, 300);
   const firstName = clean(body.firstName, 60);
   const lastName = clean(body.lastName, 60);
-  const email = clean(body.email, 160).toLowerCase();
-  const phone = clean(body.phone, 30);
+  const emailRaw = clean(body.email, 160).toLowerCase();
+  const phoneRaw = clean(body.phone, 30);
   const message = clean(body.message, 2000);
   const timezone = clean(body.timezone, 60) || null;
   const smsConsent = body.smsConsent === true;
@@ -56,12 +57,17 @@ export async function POST(req: NextRequest) {
   const errors: Record<string, string> = {};
   if (address.length < 5) errors.address = 'Address is required';
   if (!firstName) errors.firstName = 'Please enter your first name';
-  if (!EMAIL_RE.test(email)) errors.email = 'Please enter a valid email';
-  const digits = phone.replace(/\D/g, '');
+  if (!EMAIL_RE.test(emailRaw)) errors.email = 'Please enter a valid email';
+  const digits = phoneRaw.replace(/\D/g, '');
   if (type === 'call' && digits.length < 10) errors.phone = 'Please enter a phone number we can call';
-  if (phone && digits.length < 10) errors.phone = 'Please enter a valid phone number';
+  if (phoneRaw && digits.length < 10) errors.phone = 'Please enter a valid phone number';
   if (type === 'question' && message.length < 5) errors.message = 'Please type your question';
   if (Object.keys(errors).length) return NextResponse.json({ error: 'Please check the highlighted fields', fields: errors }, { status: 422 });
+  const check = await validateContact({ email: emailRaw, phone: phoneRaw, phoneRequired: type === 'call', keepEmail: body.emailConfirmed === true });
+  if (Object.keys(check.errors).length) return NextResponse.json({ error: 'Please check the highlighted fields', fields: check.errors, suggestion: check.emailSuggestion }, { status: 422 });
+  const email = check.email.normalized;
+  const phone = check.phone.normalized;
+  const phoneDisplay = check.phone.formatted || phone;
 
   let db;
   try { db = getSupabaseAdmin(); } catch { return NextResponse.json({ error: 'Service unavailable' }, { status: 503 }); }
@@ -79,7 +85,7 @@ export async function POST(req: NextRequest) {
     });
 
     const details: InquiryDetails = {
-      type, name: `${firstName} ${lastName}`.trim(), email, phone, address, preferredDate, preferredWindow, timezone, message,
+      type, name: `${firstName} ${lastName}`.trim(), email, phone: phoneDisplay, address, preferredDate, preferredWindow, timezone, message,
     };
 
     const { data: inquiry, error: insErr } = await db.from('homeowner_inquiries').insert({
@@ -116,16 +122,15 @@ export async function POST(req: NextRequest) {
     let teamNotified = false;
     let confirmed = false;
     try {
-      const resend = getResendClient();
-      const from = getResendFrom();
       const team = buildTeamInquiryEmail(details, report, { lead: leadUrl, report: reportUrl });
       const teamTo = process.env.ESTIMATE_NOTIFY_EMAIL || process.env.RESEND_FROM_EMAIL || CONTACT_EMAIL;
-      const [t, c] = await Promise.allSettled([
-        resend.emails.send({ from, to: [teamTo], replyTo: email, subject: team.subject, html: team.html, text: team.text }),
-        resend.emails.send({ from, to: [email], replyTo: process.env.RESEND_FROM_EMAIL || CONTACT_EMAIL, ...(() => { const m = buildHomeownerConfirmationEmail(details, report, { report: reportUrl }, CONTACT_EMAIL); return { subject: m.subject, html: m.html, text: m.text }; })() }),
+      const ack = buildHomeownerConfirmationEmail(details, report, { report: reportUrl }, CONTACT_EMAIL);
+      const [t, c] = await Promise.all([
+        sendTrackedEmail(db, { to: teamTo, replyTo: email, subject: team.subject, html: team.html, text: team.text, leadId: lead.leadId, kind: 'team_inquiry_alert', metadata: { inquiry_id: inquiry?.id } }),
+        sendTrackedEmail(db, { to: email, replyTo: process.env.RESEND_FROM_EMAIL || CONTACT_EMAIL, subject: ack.subject, html: ack.html, text: ack.text, leadId: lead.leadId, kind: 'homeowner_confirmation', metadata: { inquiry_id: inquiry?.id } }),
       ]);
-      teamNotified = t.status === 'fulfilled' && !t.value.error;
-      confirmed = c.status === 'fulfilled' && !c.value.error;
+      teamNotified = t.ok;
+      confirmed = c.ok;
     } catch (e) {
       console.warn('[estimate/contact-request] email failed:', e instanceof Error ? e.message : e);
     }

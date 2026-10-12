@@ -34,6 +34,7 @@ export async function upsertHomeownerLead(db: Db, input: {
   origin: 'estimate_form' | 'call_request' | 'question';
   qualification?: Record<string, unknown>;
   summary?: string;
+  validation?: Record<string, unknown>;
 }): Promise<HomeownerLeadResult> {
   const { report, contact, origin } = input;
   const a = parseAddress(input.address);
@@ -55,6 +56,7 @@ export async function upsertHomeownerLead(db: Db, input: {
     contact_capture: { first_name: contact.firstName, last_name: contact.lastName, phone: contact.phone, email: contact.email },
     optional_questionnaire: input.qualification ?? null,
     claude_summary: input.summary ?? null,
+    validation: input.validation ?? null,
   };
 
   // Existing lead: exact address fingerprint first, then street + city + state.

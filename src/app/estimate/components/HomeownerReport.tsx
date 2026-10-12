@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import type { HomeownerReport, RegulationTone } from '@/lib/homeownerEstimateTypes';
 import { CONTACT_EMAIL, CONTACT_PHONE, telHref } from '@/lib/homeownerContact';
+import type { EquipmentKey } from '@/lib/homeownerReportContent';
+import { PermitsSection, SafetySection, OwnerDashboardSection } from './ReportSections';
 
 // The report is a document: it keeps a fixed light palette so it reads the same on screen, in a saved PDF and in print.
 
@@ -26,7 +28,7 @@ const TONE: Record<RegulationTone, { chip: string; panel: string; icon: React.Re
 
 function SectionTitle({ eyebrow, title, sub }: { eyebrow: string; title: string; sub?: string }) {
   return (
-    <div className="mb-5">
+    <div className="mb-5 break-inside-avoid break-after-avoid">
       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-indigo-600">{eyebrow}</p>
       <h2 className="mt-1 text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{title}</h2>
       {sub && <p className="mt-1.5 text-sm text-slate-500 leading-relaxed max-w-2xl">{sub}</p>}
@@ -63,8 +65,8 @@ const STEPS = [
 ];
 
 export default function HomeownerReportView({
-  report, variant = 'full', onPrint, onContact,
-}: { report: HomeownerReport; variant?: 'preview' | 'full'; onPrint?: () => void; onContact?: (mode: 'call' | 'question') => void }) {
+  report, variant = 'full', onPrint, onContact, equipment = null,
+}: { report: HomeownerReport; variant?: 'preview' | 'full'; onPrint?: () => void; onContact?: (mode: 'call' | 'question') => void; equipment?: EquipmentKey[] | null }) {
   const [cons, exp, opt] = report.scenarios;
   const reg = report.regulation;
   const tone = TONE[reg.tone];
@@ -77,7 +79,7 @@ export default function HomeownerReportView({
 
   return (
     <>
-    <style>{`@media print { @page { margin: 12mm; } .report-doc, .report-doc * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }`}</style>
+    <style>{`@media print { @page { size: letter portrait; margin: 10mm; } html, body { background: #fff !important; } .report-doc, .report-doc * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } .report-doc { width: 100% !important; max-width: none !important; } .report-doc h2 { break-after: avoid; page-break-after: avoid; } .report-doc li { break-inside: avoid; page-break-inside: avoid; } }`}</style>
     <article className="report-doc bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-sm overflow-hidden print:shadow-none print:border-0 print:rounded-none">
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="relative bg-gradient-to-br from-slate-950 via-indigo-950 to-indigo-800 text-white px-6 sm:px-10 pt-8 pb-9">
@@ -101,7 +103,7 @@ export default function HomeownerReportView({
         <p className="mt-2 text-sm text-indigo-100/90">
           Net to you after all operating costs. Realistic range <strong className="text-white">{compact(cons.annualNet)} to {compact(opt.annualNet)}</strong> a year.
         </p>
-        <div className="mt-7 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="mt-7 grid grid-cols-2 lg:grid-cols-4 print:grid-cols-4 gap-3">
           <Stat label="Net per month" value={usd(exp.netMonthly)} sub="to you" />
           <Stat label="Gross bookings" value={usd(exp.grossMonthly)} sub="per month" />
           <Stat label="Nightly rate" value={usd(exp.adr)} sub="average (ADR)" />
@@ -114,7 +116,7 @@ export default function HomeownerReportView({
         {/* ── Scenarios ───────────────────────────────────────── */}
         <section className="break-inside-avoid">
           <SectionTitle eyebrow="Revenue outlook" title="Three ways the year could go" sub="Occupancy and nightly rates move with the season, local events and how well a listing is managed. We plan around the expected case." />
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-3 print:grid-cols-3 gap-4">
             {report.scenarios.map(s => {
               const featured = s.key === 'expected';
               return (
@@ -147,7 +149,7 @@ export default function HomeownerReportView({
                   <div key={c.label} className={['bg-indigo-700', 'bg-indigo-500', 'bg-slate-500', 'bg-slate-400'][i] ?? 'bg-slate-400'} style={{ width: `${c.pct}%` }} title={`${c.label} ${c.pct}%`} />
                 ))}
               </div>
-              <ul className="mt-4 grid sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+              <ul className="mt-4 grid sm:grid-cols-2 print:grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 <li className="flex justify-between border-b border-slate-100 pb-2"><span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />Owner net income</span><strong>{usd(exp.netMonthly)}</strong></li>
                 {report.costs.map((c, i) => (
                   <li key={c.label} className="flex justify-between border-b border-slate-100 pb-2">
@@ -161,7 +163,7 @@ export default function HomeownerReportView({
             {/* ── Short-term vs long-term ──────────────────────── */}
             <section className="break-inside-avoid">
               <SectionTitle eyebrow="The advantage" title="Vacation rental vs. a traditional lease" sub="The same home, two strategies. Both figures are net of operating costs and use the same growth assumption (3% a year)." />
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid lg:grid-cols-2 print:grid-cols-2 gap-6">
                 <div className="rounded-2xl border border-slate-200 p-5">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Per month</p>
                   <div className="mt-4 space-y-4">
@@ -181,7 +183,7 @@ export default function HomeownerReportView({
                         : <>Comparable to a standard lease, with far more flexibility: you can still use the home yourself.</>}
                     </p>
                   </div>
-                  <p className="mt-3 text-[11px] text-slate-400">Lease figure is an estimate of market rent for a home like yours.</p>
+                  <p className="mt-3 text-[11px] text-slate-500">Lease figure is an estimate of market rent for a home like yours.</p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 p-5">
@@ -209,15 +211,15 @@ export default function HomeownerReportView({
             </section>
 
             {/* ── Why partner ──────────────────────────────────── */}
-            <section>
+            <section className="break-inside-avoid">
               <SectionTitle eyebrow="Why partner with TRAVLR" title="Hands-off for you. Fully managed by us." sub="You own a valuable asset. We turn it into a well-run vacation rental business, and handle the work that makes it profitable." />
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 print:grid-cols-2 gap-4">
                 {SERVICES.map(s => (
                   <div key={s.title} className="break-inside-avoid flex gap-3.5 rounded-xl border border-slate-200 p-4">
                     <span className="w-9 h-9 shrink-0 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">{s.icon}</span>
                     <div>
                       <p className="text-sm font-semibold">{s.title}</p>
-                      <p className="mt-0.5 text-[13px] text-slate-500 leading-relaxed">{s.body}</p>
+                      <p className="mt-0.5 text-[13px] text-slate-600 leading-relaxed">{s.body}</p>
                     </div>
                   </div>
                 ))}
@@ -227,11 +229,13 @@ export default function HomeownerReportView({
                 <p className="text-sm text-slate-600 leading-relaxed"><strong className="text-slate-900">Your interests and ours line up.</strong> Our fee is a share of what your home earns, so we only do well when you do. You stay in control of your home and can block dates for your own stays.</p>
               </div>
             </section>
+
+            <OwnerDashboardSection />
           </>
         )}
 
         {/* ── Regulations ─────────────────────────────────────── */}
-        <section className="break-inside-avoid">
+        <section>
           <SectionTitle eyebrow="Rules & permits" title={`Short-term rental rules${place ? ` in ${place}` : ' for your area'}`} sub="What your city or county requires before you can host, so there are no surprises." />
           <div className={`rounded-2xl border p-5 ${tone.panel}`}>
             <div className="flex items-start gap-3">
@@ -254,10 +258,10 @@ export default function HomeownerReportView({
                 {reg.requirements.map(r => (
                   <li key={r.label} className="px-5 py-3 flex items-start gap-3 text-sm">
                     <span className="mt-0.5 shrink-0">
-                      {r.required === true ? <CheckCircle2 size={16} className="text-indigo-600" /> : r.required === false ? <XCircle size={16} className="text-slate-300" /> : <Info size={16} className="text-slate-400" />}
+                      {r.required === true ? <CheckCircle2 size={16} className="text-indigo-600" /> : r.required === false ? <XCircle size={16} className="text-slate-400" /> : <Info size={16} className="text-slate-500" />}
                     </span>
-                    <span className="w-40 shrink-0 font-medium text-slate-800">{r.label}</span>
-                    <span className={r.required === false ? 'text-slate-400' : 'text-slate-600'}>{r.value}</span>
+                    <span className="w-28 sm:w-40 shrink-0 font-medium text-slate-800">{r.label}</span>
+                    <span className={`min-w-0 break-words ${r.required === false ? 'text-slate-500' : 'text-slate-600'}`}>{r.value}</span>
                   </li>
                 ))}
               </ul>
@@ -265,7 +269,7 @@ export default function HomeownerReportView({
           )}
 
           {(reg.taxes || reg.additional) && (
-            <div className="mt-4 grid sm:grid-cols-2 gap-4">
+            <div className="mt-4 grid sm:grid-cols-2 print:grid-cols-2 gap-4">
               {reg.taxes && (
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Taxes</p>
@@ -301,7 +305,7 @@ export default function HomeownerReportView({
           )}
 
           {variant === 'full' && reg.found && (
-            <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
+            <p className="mt-3 text-[11px] text-slate-500 leading-relaxed">
               Compiled from public sources{reg.sourceName ? `, including ${reg.sourceName}` : ''}{verified ? `, last checked ${verified}` : ''}. Rules change, so your TRAVLR specialist confirms the current requirements for your exact address before anything is listed.{' '}
               {reg.sourceUrl && <a href={reg.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline inline-flex items-center gap-0.5">View the official source <ExternalLink size={10} /></a>}
             </p>
@@ -310,15 +314,18 @@ export default function HomeownerReportView({
 
         {variant === 'full' && (
           <>
+            <PermitsSection report={report} />
+            <SafetySection report={report} equipment={equipment} />
+
             {/* ── Next steps ─────────────────────────────────── */}
             <section className="break-inside-avoid">
               <SectionTitle eyebrow="Getting started" title="From estimate to first booking" />
-              <ol className="grid sm:grid-cols-4 gap-4">
+              <ol className="grid sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4 gap-4">
                 {STEPS.map(s => (
                   <li key={s.n} className="rounded-xl border border-slate-200 p-4">
                     <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">{s.n}</span>
                     <p className="mt-3 text-sm font-semibold">{s.title}</p>
-                    <p className="mt-1 text-[13px] text-slate-500 leading-relaxed">{s.body}</p>
+                    <p className="mt-1 text-[13px] text-slate-600 leading-relaxed">{s.body}</p>
                   </li>
                 ))}
               </ol>
@@ -353,23 +360,20 @@ export default function HomeownerReportView({
           </>
         )}
 
-        <footer className="text-[11px] leading-relaxed text-slate-400 border-t border-slate-100 pt-5">
+        <footer className="text-[11px] leading-relaxed text-slate-500 border-t border-slate-100 pt-5">
           <p>
             This report is an estimate for planning purposes, not a guarantee of income. Projections are based on typical performance for homes like yours and local market data and will vary with seasonality, pricing, regulations, property condition and guest demand. Regulatory information is a summary of public sources and is not legal advice; please confirm requirements with your local authority. TRAVLR Vacation Homes is not responsible for decisions made solely on this estimate.
           </p>
           {onPrint && variant === 'full' && (
-            <button onClick={onPrint} className="print:hidden mt-4 inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:underline"><Printer size={13} /> Download or print this report (Save as PDF)</button>
+            <button onClick={onPrint} className="print:hidden mt-4 inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:underline"><Printer size={13} /> Print this report</button>
           )}
         </footer>
       </div>
       {onContact && variant === 'full' && (
-        <div className="print:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md">
-          <div className="flex items-center gap-2 p-2 rounded-2xl bg-slate-900/95 backdrop-blur shadow-2xl border border-white/10">
-            <button onClick={() => onContact('call')} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition">
+        <div className="print:hidden fixed bottom-4 left-4 right-20 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-40 sm:w-72">
+          <div className="p-2 rounded-2xl bg-slate-900/95 backdrop-blur shadow-2xl border border-white/10">
+            <button onClick={() => onContact('call')} className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition">
               <CalendarCheck size={16} /> Schedule a call
-            </button>
-            <button onClick={() => onContact('question')} aria-label="Ask a question" className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition">
-              <MessageSquare size={16} /> <span className="hidden sm:inline">Ask a question</span>
             </button>
           </div>
         </div>

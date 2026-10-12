@@ -30,19 +30,14 @@ const PROOF_POINTS = [
 const FIELD_PROOF = [
   {
     label: 'Operational Proof',
-    stat: '5 live systems',
-    body: 'Twilio, Resend, Anthropic, Supabase, and Vercel are connected for real calling, messaging, AI assistance, auth, and deployment workflows.',
+    stat: 'Calling, SMS, email, AI',
+    body: 'Twilio, Resend, Anthropic, Supabase, and Vercel power real calling, messaging, AI assistance, auth, and deployment workflows.',
   },
   {
     label: 'Workflow Proof',
     stat: 'End-to-end agent loop',
     body: 'Candidate intake, AI interview routing, follow-up teleprompters, lead scoring, assignments, and outreach history are wired into one operating path.',
   },
-];
-
-const OPERATOR_QUOTES = [
-  { quote: 'The value is not another CRM — it is knowing which homeowner deserves a call today and why.', name: 'Founding operator feedback', market: 'Luxury STR portfolio' },
-  { quote: 'The teleprompter makes training new outreach agents feel less risky because the property context is right there.', name: 'Growth team preview', market: 'Vacation rental manager' },
 ];
 
 const WHO_ITS_FOR = [
@@ -123,20 +118,6 @@ export default function WelcomePage() {
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">From discovering high-value homeowner opportunities to outreach, automation, team operations, and performance intelligence, VAYO brings your growth workflow together in one platform.</p>
         </div>
         <ProductShowcase />
-      </section>
-
-      {/* Social proof */}
-      <section className="max-w-5xl mx-auto px-6 pb-16">
-        <div className="grid sm:grid-cols-2 gap-4">
-          {OPERATOR_QUOTES.map((item) => (
-            <figure key={item.quote} className="bg-card border border-border rounded-2xl p-6">
-              <blockquote className="text-sm text-foreground leading-relaxed">“{item.quote}”</blockquote>
-              <figcaption className="mt-4 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">{item.name}</span> · {item.market}
-              </figcaption>
-            </figure>
-          ))}
-        </div>
       </section>
 
       {/* Platform Workflow */}

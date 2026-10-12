@@ -3,9 +3,10 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getChatCompletion } from '@/lib/ai/chatCompletion';
 import { buildHomeownerReport } from '@/lib/homeownerEstimate';
 import { upsertHomeownerLead, logHomeownerActivity, createFollowUpTask } from '@/lib/homeownerLeads';
-import { buildHomeownerReportEmail } from '@/lib/email/homeownerReportEmail';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { deliverReportEmail } from '@/lib/homeownerReportDelivery';
+import { validateContact } from '@/lib/contactValidation';
 import { allowRequest, clientIp } from '@/lib/publicRateLimit';
+import { parseEquipment, EQUIPMENT } from '@/lib/homeownerReportContent';
 
 export const maxDuration = 30;
 
@@ -17,20 +18,6 @@ function nextBusinessDay(): Date {
   do { d.setUTCDate(d.getUTCDate() + 1); } while ([0, 6].includes(d.getUTCDay()));
   d.setUTCHours(16, 0, 0, 0);
   return d;
-}
-
-/** Emails the homeowner their report. Numbers are rebuilt server-side so they cannot be altered through the form. */
-async function emailHomeownerReport(address: string, firstName: string, to: string, base: string, report: Awaited<ReturnType<typeof buildHomeownerReport>>): Promise<boolean> {
-  try {
-    const reportUrl = `${base}/estimate/report?address=${encodeURIComponent(address)}`;
-    const { subject, html, text } = buildHomeownerReportEmail(report, firstName, reportUrl);
-    const { error } = await getResendClient().emails.send({ from: getResendFrom(), to: [to], subject, html, text, replyTo: process.env.RESEND_FROM_EMAIL });
-    if (error) { console.warn('[estimate/submit-lead] report email failed:', error.message); return false; }
-    return true;
-  } catch (err) {
-    console.warn('[estimate/submit-lead] report email error:', err instanceof Error ? err.message : err);
-    return false;
-  }
 }
 
 /**
@@ -60,10 +47,25 @@ export async function POST(req: NextRequest) {
     rentalStatus: clean(body.qualification?.rentalStatus, 80),
     timelineInterest: clean(body.qualification?.timelineInterest, 80),
     smsConsent: contact.smsConsent,
+    // null = not answered. Stored so the agent knows which safety and smart-home items the home still needs.
+    equipment: Array.isArray(body.qualification?.equipment) ? parseEquipment(body.qualification.equipment.join(',')) : null,
   };
   if (address.length < 5 || !EMAIL_RE.test(contact.email) || !contact.firstName) {
     return NextResponse.json({ error: 'Address, name and a valid email are required' }, { status: 400 });
   }
+
+  // Validate on our side too: a bad address means the report never arrives and the lead cannot be reached.
+  const check = await validateContact({ email: contact.email, phone: contact.phone, phoneRequired: true, keepEmail: body.contact?.emailConfirmed === true });
+  if (Object.keys(check.errors).length) {
+    return NextResponse.json({ error: 'Please check your contact details', fields: check.errors, suggestion: check.emailSuggestion }, { status: 422 });
+  }
+  contact.email = check.email.normalized;
+  contact.phone = check.phone.normalized || contact.phone;
+  const validation = {
+    checked_at: new Date().toISOString(),
+    email: { level: check.email.level, code: check.email.code, mx: check.email.mx },
+    phone: { level: check.phone.level, code: check.phone.code, normalized: check.phone.normalized },
+  };
 
   let db;
   try { db = getSupabaseAdmin(); } catch { return NextResponse.json({ error: 'Service unavailable' }, { status: 503 }); }
@@ -72,12 +74,14 @@ export async function POST(req: NextRequest) {
     const report = await buildHomeownerReport(address);
     const expected = report.scenarios[1];
 
+    const have = new Set(qualification.equipment ?? []);
+    const equipmentLine = qualification.equipment === null ? 'not answered' : (EQUIPMENT.filter(e => have.has(e.key)).map(e => e.label).join(', ') || 'none of the listed items');
     let summary = '';
     try {
       const res = await Promise.race([
         getChatCompletion('ANTHROPIC', 'claude-haiku-4-5-20251001', [
           { role: 'system', content: 'You are a CRM assistant for TRAVLR Vacation Homes. Write a concise, factual 2-3 sentence summary of a homeowner self-submission for an agent to read.' },
-          { role: 'user', content: `Homeowner self-submitted via the estimate page.\nAddress: ${address}\nName: ${contact.firstName} ${contact.lastName}\nProperty type: ${qualification.propertyType || 'not specified'}\nCurrent rental status: ${qualification.rentalStatus || 'not specified'}\nTimeline: ${qualification.timelineInterest || 'not specified'}\nEstimate shown: $${expected.netMonthly.toLocaleString()}/mo net, $${expected.annualNet.toLocaleString()}/yr. Local rules: ${report.regulation.headline}.` },
+          { role: 'user', content: `Homeowner self-submitted via the estimate page.\nAddress: ${address}\nName: ${contact.firstName} ${contact.lastName}\nProperty type: ${qualification.propertyType || 'not specified'}\nCurrent rental status: ${qualification.rentalStatus || 'not specified'}\nTimeline: ${qualification.timelineInterest || 'not specified'}\nExisting equipment: ${equipmentLine}\nEstimate shown: $${expected.netMonthly.toLocaleString()}/mo net, $${expected.annualNet.toLocaleString()}/yr. Local rules: ${report.regulation.headline}.` },
         ], { max_tokens: 200, temperature: 0.3 }),
         new Promise<null>(resolve => setTimeout(() => resolve(null), 8000)),
       ]);
@@ -87,13 +91,13 @@ export async function POST(req: NextRequest) {
       summary = `Homeowner self-submitted via the estimate page for ${address}. Property type: ${qualification.propertyType || 'unspecified'}. Timeline: ${qualification.timelineInterest || 'unspecified'}.`;
     }
 
-    const lead = await upsertHomeownerLead(db, { address, report, contact, origin: 'estimate_form', qualification, summary });
+    const lead = await upsertHomeownerLead(db, { address, report, contact, origin: 'estimate_form', qualification, summary, validation });
 
     const phoneLine = contact.phone ? `Phone: ${contact.phone}` : 'No phone given';
     await Promise.allSettled([
       createFollowUpTask(db, lead, {
         title: `Call new homeowner inquiry: ${contact.firstName} ${contact.lastName}`.trim(),
-        description: `${summary}\nEmail: ${contact.email}\n${phoneLine}\nTimeline: ${qualification.timelineInterest || 'not specified'}`,
+        description: `${summary}\nEmail: ${contact.email}\n${phoneLine}\nTimeline: ${qualification.timelineInterest || 'not specified'}\nExisting equipment: ${equipmentLine}`,
         type: 'call', due: nextBusinessDay(),
       }),
       logHomeownerActivity(db, lead, { title: 'Homeowner self-submitted via estimate page', body: summary, kind: 'homeowner_estimate_submitted', metadata: { merged: lead.merged } }),
@@ -112,8 +116,8 @@ export async function POST(req: NextRequest) {
     }
 
     const base = (process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin).replace(/\/$/, '');
-    const emailed = await emailHomeownerReport(address, contact.firstName, contact.email, base, report);
-    return NextResponse.json({ success: true, leadId: lead.leadId, merged: lead.merged, emailed });
+    const delivery = await deliverReportEmail(db, { base, address, leadId: lead.leadId, firstName: contact.firstName, to: contact.email, report, equipment: qualification.equipment ?? undefined });
+    return NextResponse.json({ success: true, leadId: lead.leadId, merged: lead.merged, emailed: delivery.ok, emailError: delivery.ok ? null : delivery.error });
   } catch (err) {
     console.error('[estimate/submit-lead]', err);
     return NextResponse.json({ error: 'We could not save your details. Please try again.' }, { status: 500 });

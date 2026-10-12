@@ -30,6 +30,8 @@ export default function ContactRequestModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
   const [serverError, setServerError] = useState('');
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [emailKept, setEmailKept] = useState(false);
   const firstRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -38,6 +40,8 @@ export default function ContactRequestModal({
     setStatus('idle');
     setServerError('');
     setErrors({});
+    setSuggestion(null);
+    setEmailKept(false);
     setForm(f => ({
       ...f,
       firstName: f.firstName || prefill?.firstName || '',
@@ -59,7 +63,7 @@ export default function ContactRequestModal({
   }, [open, onClose]);
 
   const timezone = useMemo(() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return ''; } }, []);
-  const set = (k: keyof typeof form, v: string | boolean) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: '' })); };
+  const set = (k: keyof typeof form, v: string | boolean) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: '' })); if (k === 'email') { setSuggestion(null); setEmailKept(false); } };
 
   function validate(): boolean {
     const e: Record<string, string> = {};
@@ -86,12 +90,13 @@ export default function ContactRequestModal({
           address, type: mode, timezone,
           firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone,
           preferredDate: mode === 'call' ? form.preferredDate : '', preferredWindow: mode === 'call' ? form.preferredWindow : '',
-          message: form.message, smsConsent: form.smsConsent, website: form.website,
+          message: form.message, smsConsent: form.smsConsent, website: form.website, emailConfirmed: emailKept,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) { setStatus('done'); return; }
       if (data.fields) setErrors(data.fields);
+      setSuggestion(data.suggestion ?? null);
       setServerError(data.error || 'Something went wrong. Please try again or email us.');
       setStatus('error');
     } catch {
@@ -161,6 +166,12 @@ export default function ContactRequestModal({
               <label className="block text-xs font-medium text-slate-600 mb-1">Email *</label>
               <input type="email" className={`${field} ${bad('email')}`} value={form.email} onChange={e => set('email', e.target.value)} autoComplete="email" />
               {err('email')}
+              {suggestion && (
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <button type="button" onClick={() => { setForm(f => ({ ...f, email: suggestion })); setSuggestion(null); setErrors(e => ({ ...e, email: '' })); }} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold">Use {suggestion}</button>
+                  <button type="button" onClick={() => { setEmailKept(true); setSuggestion(null); setErrors(e => ({ ...e, email: '' })); }} className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Keep what I typed</button>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Phone {mode === 'call' ? '*' : '(optional)'}</label>

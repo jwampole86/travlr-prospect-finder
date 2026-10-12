@@ -1,263 +1,107 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { classifyReply, findLeadByPhone, notifyAdmins, recordOptIn, recordOptOut, toE164, verifyTwilioSignature } from '@/lib/services/smsConsent';
 
 /**
  * POST /api/sms/inbound
- * Twilio inbound SMS webhook.
- * Handles STOP/HELP keywords and intent detection for engagement signals.
- * Also upserts sms_conversation_threads for real-time agent thread view.
- * Configure this URL in your Twilio Messaging Service webhook settings.
+ * Twilio inbound SMS webhook. Set this URL on the Messaging Service (or the number) in Twilio.
+ *
+ * YES  -> records SMS consent (only if Twilio's signature checks out) and hands the lead to a human.
+ * NO / STOP / anything that sounds like a refusal -> records the opt-out and suppresses the number.
+ * Opt-outs are honoured even when the signature cannot be verified; consent is never granted without it.
  */
 export async function POST(req: NextRequest) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const db = getSupabaseAdmin();
 
+  const raw = await req.text();
   let body: Record<string, string> = {};
-  const contentType = req.headers.get('content-type') || '';
-
-  if (contentType.includes('application/x-www-form-urlencoded')) {
-    const text = await req.text();
-    const params = new URLSearchParams(text);
-    params.forEach((v, k) => { body[k] = v; });
+  if ((req.headers.get('content-type') || '').includes('application/json')) {
+    try { body = JSON.parse(raw); } catch { body = {}; }
   } else {
-    body = await req.json().catch(() => ({}));
+    new URLSearchParams(raw).forEach((v, k) => { body[k] = v; });
   }
 
-  const fromNumber = body['From'] || body['from'] || '';
-  const messageBody = (body['Body'] || body['body'] || '').trim();
-  const messageSid = body['MessageSid'] || body['messageSid'] || '';
+  const from = body.From || body.from || '';
+  const text = (body.Body || body.body || '').trim();
+  const messageSid = body.MessageSid || body.messageSid || '';
+  if (!from || !text) return NextResponse.json({ error: 'Missing From or Body' }, { status: 400 });
 
-  if (!fromNumber || !messageBody) {
-    return NextResponse.json({ error: 'Missing From or Body' }, { status: 400 });
-  }
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin).replace(/\/$/, '');
+  const verified = verifyTwilioSignature(`${site}/api/sms/inbound`, body, req.headers.get('x-twilio-signature'));
+  const trusted = verified === true;
 
-  // Normalize phone for lookup
-  const normalizedPhone = fromNumber.replace(/\D/g, '');
+  const intent = classifyReply(text);
+  const lead = await findLeadByPhone(db, from);
+  const now = new Date().toISOString();
 
-  // Find lead by phone
-  const { data: lead } = await supabase
-    .from('leads')
-    .select('id, first_name, last_name, stage, sms_opt_in, email_opt_in')
-    .or(`phone.eq.${fromNumber},phone.eq.+${normalizedPhone},phone.eq.${normalizedPhone}`)
-    .limit(1)
-    .maybeSingle();
-
-  // Detect intent
-  const intent = detectIntent(messageBody);
-
-  // Log inbound message to outreach_history
-  await supabase.from('outreach_history').insert({
-    lead_id: lead?.id || null,
-    channel: 'sms',
-    status: 'inbound',
-    sent_at: new Date().toISOString(),
-    metadata: {
-      from: fromNumber,
-      body: messageBody,
-      message_sid: messageSid,
-      intent,
-      lead_found: !!lead,
-    },
+  await db.from('outreach_history').insert({
+    lead_id: lead?.id ?? null, channel: 'sms', status: 'replied', sent_at: now,
+    metadata: { direction: 'inbound', from, body: text.slice(0, 1000), message_sid: messageSid, intent, lead_found: !!lead, signature_verified: verified },
   });
 
-  // ── Upsert conversation thread ───────────────────────────────────────────
-  // Find the most recent active campaign for this lead/phone
-  let campaignId: string | null = null;
-  if (lead?.id) {
-    const { data: lastSend } = await supabase
-      .from('sms_campaign_sends')
-      .select('campaign_id')
-      .eq('lead_id', lead.id)
-      .not('campaign_id', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    campaignId = lastSend?.campaign_id ?? null;
-  }
-
-  // Find existing thread
-  const threadQuery = campaignId
-    ? supabase.from('sms_conversation_threads').select('id,unread_count').eq('campaign_id', campaignId).eq('phone', fromNumber).maybeSingle()
-    : supabase.from('sms_conversation_threads').select('id,unread_count').eq('phone', fromNumber).is('campaign_id', null).maybeSingle();
-
-  const { data: existingThread } = await threadQuery;
+  // Conversation thread for the agent inbox.
   let threadId: string | null = null;
-
-  if (existingThread) {
-    threadId = existingThread.id;
-    await supabase.from('sms_conversation_threads').update({
-      last_inbound_at: new Date().toISOString(),
-      last_message_preview: messageBody.slice(0, 100),
-      unread_count: (existingThread.unread_count ?? 0) + 1,
-      updated_at: new Date().toISOString(),
-    }).eq('id', threadId);
+  const { data: thread } = await db.from('sms_conversation_threads').select('id, unread_count').eq('phone', from).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (thread) {
+    threadId = thread.id;
+    await db.from('sms_conversation_threads').update({ last_inbound_at: now, last_message_preview: text.slice(0, 100), unread_count: (thread.unread_count ?? 0) + 1, updated_at: now }).eq('id', thread.id);
   } else {
-    const { data: newThread } = await supabase.from('sms_conversation_threads').insert({
-      campaign_id: campaignId,
-      lead_id: lead?.id ?? null,
-      phone: fromNumber,
-      contact_name: lead ? `${lead.first_name ?? ''} ${lead.last_name ?? ''}`.trim() || null : null,
-      conversation_status: 'pending',
-      last_inbound_at: new Date().toISOString(),
-      last_message_preview: messageBody.slice(0, 100),
-      unread_count: 1,
+    const { data: created } = await db.from('sms_conversation_threads').insert({
+      lead_id: lead?.id ?? null, phone: from, contact_name: lead?.contact_name ?? null, conversation_status: 'pending',
+      last_inbound_at: now, last_message_preview: text.slice(0, 100), unread_count: 1,
     }).select('id').single();
-    threadId = newThread?.id ?? null;
+    threadId = created?.id ?? null;
+  }
+  if (threadId) await db.from('sms_thread_messages').insert({ thread_id: threadId, direction: 'inbound', body: text, twilio_message_sid: messageSid || null, status: 'received' });
+
+  const log = (event_type: string, title: string, severity = 'info') => lead
+    ? db.from('admin_event_log').insert({ event_type, event_category: 'lead_change', lead_id: lead.id, title, description: `"${text.slice(0, 100)}" from ${from}`, severity, event_timestamp: now })
+    : Promise.resolve();
+
+  let reply = '';
+
+  if (intent === 'stop' || intent === 'no') {
+    await recordOptOut(db, { leadId: lead?.id ?? null, phone: from, message: text });
+    if (threadId) await db.from('sms_conversation_threads').update({ conversation_status: 'opted_out' }).eq('id', threadId);
+    await log('sms_opt_out', 'Lead opted out of SMS');
+    // Twilio sends its own confirmation for STOP keywords; "NO" is ours to answer.
+    if (intent === 'no') reply = 'You are opted out and will not receive more texts from TRAVLR Vacation Homes.';
+  } else if (intent === 'yes') {
+    if (lead && trusted) {
+      await recordOptIn(db, { leadId: lead.id, phone: from });
+      await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Replied YES to outreach text' }).eq('id', lead.id);
+      await db.from('cadence_enrollments').update({ status: 'escalated', escalated_at: now, escalation_reason: 'Replied YES to outreach text' }).eq('lead_id', lead.id).eq('status', 'active');
+      if (threadId) await db.from('sms_conversation_threads').update({ conversation_status: 'interested' }).eq('id', threadId);
+      await log('sms_opt_in', 'Lead replied YES: SMS consent recorded', 'warning');
+      await notifyAdmins(db, {
+        title: 'Homeowner replied YES',
+        message: `${lead.contact_name || 'A homeowner'} replied YES to the estimate text. Call them.`,
+        metadata: { lead_id: lead.id, reason: 'sms_reply_yes' },
+      });
+      reply = `Thanks! A TRAVLR specialist will reach out shortly. Your free estimate: ${site}/estimate. Reply STOP anytime to opt out.`;
+    } else if (lead) {
+      // Signature could not be verified (no Twilio webhook token): alert a human, but do not record consent.
+      await notifyAdmins(db, {
+        title: 'Homeowner replied YES (unverified)',
+        message: `${lead.contact_name || 'A homeowner'} replied YES to the estimate text. Confirm and call them. Set TWILIO_WEBHOOK_AUTH_TOKEN so replies are verified automatically.`,
+        metadata: { lead_id: lead.id, reason: 'sms_reply_yes_unverified' },
+      });
+    }
+  } else if (intent === 'help') {
+    await log('sms_help_request', 'Lead requested HELP via SMS');
+    reply = 'TRAVLR Vacation Homes: staytrvlr.com. Reply YES for a call about your free estimate, NO or STOP to opt out.';
+  } else if (lead && toE164(from)) {
+    await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['new', 'contacted']);
   }
 
-  // Insert message into thread
-  if (threadId) {
-    await supabase.from('sms_thread_messages').insert({
-      thread_id: threadId,
-      direction: 'inbound',
-      body: messageBody,
-      twilio_message_sid: messageSid || null,
-      status: 'received',
-    });
-  }
-
-  if (lead) {
-    // Handle STOP / opt-out
-    if (intent === 'stop') {
-      await supabase.from('leads').update({ sms_opt_in: false }).eq('id', lead.id);
-      await supabase.from('cadence_enrollments').update({ status: 'unsubscribed' }).eq('lead_id', lead.id).eq('status', 'active');
-      if (threadId) {
-        await supabase.from('sms_conversation_threads').update({ conversation_status: 'opted_out' }).eq('id', threadId);
-      }
-      await logAdminEvent(supabase, {
-        event_type: 'sms_opt_out',
-        lead_id: lead.id,
-        title: 'Lead opted out of SMS',
-        description: `Received STOP keyword from ${fromNumber}`,
-      });
-    }
-
-    // Handle HELP keyword
-    if (intent === 'help') {
-      await logAdminEvent(supabase, {
-        event_type: 'sms_help_request',
-        lead_id: lead.id,
-        title: 'Lead requested HELP via SMS',
-        description: `Received HELP keyword from ${fromNumber}`,
-      });
-    }
-
-    // Handle engagement / interested signal → escalate to human outreach
-    if (intent === 'interested') {
-      await supabase.from('leads').update({
-        stage: 'human_outreach',
-        escalated_at: new Date().toISOString(),
-        escalation_reason: 'Inbound SMS reply classified as interested',
-      }).eq('id', lead.id);
-
-      await supabase.from('cadence_enrollments').update({ status: 'escalated', escalated_at: new Date().toISOString(), escalation_reason: 'Inbound SMS interest signal' }).eq('lead_id', lead.id).eq('status', 'active');
-
-      // Update thread status to interested
-      if (threadId) {
-        await supabase.from('sms_conversation_threads').update({ conversation_status: 'interested' }).eq('id', threadId);
-      }
-
-      // Log analytics event
-      if (campaignId) {
-        await supabase.from('sms_analytics_events').insert({
-          campaign_id: campaignId,
-          lead_id: lead.id,
-          phone: fromNumber,
-          event_type: 'interested',
-          reply_body: messageBody.slice(0, 500),
-        });
-      }
-
-      await logAdminEvent(supabase, {
-        event_type: 'escalation',
-        lead_id: lead.id,
-        title: 'Lead escalated to human outreach',
-        description: `Inbound SMS reply classified as interested: "${messageBody.slice(0, 100)}"`,
-        severity: 'warning',
-        new_value: { stage: 'human_outreach', escalation_reason: 'Inbound SMS interest signal' },
-      });
-
-      // Fire escalation notification
-      try {
-        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/cadence/notify-escalation`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lead_id: lead.id,
-            escalation_reason: `Inbound SMS reply classified as interested: "${messageBody.slice(0, 80)}"`,
-            send_email: true,
-          }),
-        });
-      } catch {
-        await supabase.from('app_notifications').insert({
-          type: 'stage_change',
-          title: '🔥 Lead Ready to Call',
-          message: `${lead.first_name || 'A lead'} replied to your SMS and is interested. Stage moved to Human Outreach.`,
-          read: false,
-          metadata: { lead_id: lead.id, escalation_reason: 'sms_reply_interested', message_preview: messageBody.slice(0, 100) },
-        });
-      }
-    }
-
-    // Log reply analytics event for any reply
-    if (campaignId && intent !== 'stop') {
-      await supabase.from('sms_analytics_events').insert({
-        campaign_id: campaignId,
-        lead_id: lead.id,
-        phone: fromNumber,
-        event_type: 'replied',
-        reply_body: messageBody.slice(0, 500),
-      });
-    }
-  }
-
-  // Return TwiML empty response (Twilio handles STOP/HELP replies automatically)
-  return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-    headers: { 'Content-Type': 'text/xml' },
-  });
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return new NextResponse(`<?xml version="1.0" encoding="UTF-8"?><Response>${reply ? `<Message>${esc(reply)}</Message>` : ''}</Response>`, { headers: { 'Content-Type': 'text/xml' } });
 }
 
 export async function GET() {
   return NextResponse.json({
-    description: 'Twilio inbound SMS webhook — configure this URL in your Twilio Messaging Service',
+    description: 'Twilio inbound SMS webhook. Configure this URL in your Twilio Messaging Service.',
     url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/sms/inbound`,
-    intents: ['stop (opt-out)', 'help', 'interested (escalates to human_outreach)', 'other'],
-  });
-}
-
-// ─── Intent Detection ─────────────────────────────────────────────────────────
-
-function detectIntent(message: string): 'stop' | 'help' | 'interested' | 'other' {
-  const upper = message.toUpperCase().trim();
-
-  if (/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/.test(upper)) return 'stop';
-  if (/^HELP$/.test(upper)) return 'help';
-
-  const interestedPatterns = [
-    /\byes\b/i, /\binterested\b/i, /\bsure\b/i, /\btell me more\b/i,
-    /\bsounds good\b/i, /\bwant to know\b/i, /\bcall me\b/i,
-    /\bmore info\b/i, /\blearn more\b/i, /\bsign me up\b/i,
-    /\bwhat.s the estimate\b/i, /\bhow much\b/i,
-  ];
-  if (interestedPatterns.some(p => p.test(message))) return 'interested';
-
-  return 'other';
-}
-
-async function logAdminEvent(
-  supabase: any,
-  data: { event_type: string; lead_id: string; title: string; description?: string; severity?: string; new_value?: Record<string, unknown> }
-) {
-  await supabase.from('admin_event_log').insert({
-    event_type: data.event_type,
-    event_category: 'lead_change',
-    lead_id: data.lead_id,
-    title: data.title,
-    description: data.description || null,
-    severity: data.severity || 'info',
-    new_value: data.new_value || null,
-    event_timestamp: new Date().toISOString(),
+    intents: ['YES (records consent, escalates to a human)', 'NO / STOP and refusals (opt-out + number suppression)', 'HELP', 'other (escalated for a human to read)'],
   });
 }

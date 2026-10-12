@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MapPin, DollarSign, TrendingUp, Shield, ChevronRight, CheckCircle, Loader2, Phone, Home, Star, Building2, Calendar, AlertCircle } from 'lucide-react';
+import ReportChat from '@/app/estimate/components/ReportChat';
+import ReportActions from '@/app/estimate/components/ReportActions';
+import { EQUIPMENT, type EquipmentKey } from '@/lib/homeownerReportContent';
+import { MapPin, DollarSign, TrendingUp, Shield, ChevronRight, CheckCircle, Loader2, Phone, Home, Building2, Calendar, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
 import HomeownerReportView from '@/app/estimate/components/HomeownerReport';
@@ -204,6 +207,11 @@ function EstimateLandingContent() {
   const [loadingEstimate, setLoadingEstimate] = useState(false);
   const [estimateError, setEstimateError] = useState(false);
   const [emailed, setEmailed] = useState(false);
+  const [equipment, setEquipment] = useState<EquipmentKey[] | null>(null);
+  const [validating, setValidating] = useState(false);
+  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
+  const [emailKept, setEmailKept] = useState(false);
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [contactOpen, setContactOpen] = useState(false);
   const [contactMode, setContactMode] = useState<ContactMode>('call');
   const openContact = (mode: ContactMode) => { setContactMode(mode); setContactOpen(true); };
@@ -264,9 +272,57 @@ function EstimateLandingContent() {
     return Object.keys(errors).length === 0;
   }
 
+  async function checkContactOnServer(): Promise<boolean> {
+    try {
+      const res = await fetch('/api/estimate/validate-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: contact.email, phone: contact.phone, phoneRequired: true, keepEmail: emailKept }),
+      });
+      if (!res.ok) return true; // never block a homeowner because our checker is unavailable; the server re-checks on submit
+      const data = await res.json();
+      setEmailSuggestion(data.email?.suggestion ?? null);
+      if (!data.ok) {
+        setContactErrors(prev => ({ ...prev, email: data.errors?.email, phone: data.errors?.phone }));
+        return false;
+      }
+      if (data.phone?.formatted) setContact(c => ({ ...c, phone: data.phone.formatted }));
+      return true;
+    } catch {
+      return true;
+    }
+  }
+
   async function handleSubmitContact() {
-    if (!validateContact()) return;
-    setStep('questionnaire');
+    if (validating || !validateContact()) return;
+    setValidating(true);
+    const ok = await checkContactOnServer();
+    setValidating(false);
+    if (ok) setStep('questionnaire');
+  }
+
+  async function checkEmailOnBlur() {
+    if (!contact.email.includes('@')) return;
+    try {
+      const res = await fetch('/api/estimate/validate-contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: contact.email, keepEmail: emailKept }) });
+      if (!res.ok) return;
+      const data = await res.json();
+      setEmailSuggestion(data.email?.suggestion ?? null);
+      if (data.errors?.email) setContactErrors(prev => ({ ...prev, email: data.errors.email }));
+    } catch { /* checked again on continue */ }
+  }
+
+  async function resendReport() {
+    if (resendState === 'sending') return;
+    setResendState('sending');
+    try {
+      const res = await fetch('/api/estimate/resend-report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: selectedAddress || addressInput, email: contact.email, equipment: equipment ?? undefined }) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.emailed) { setEmailed(true); setResendState('sent'); }
+      else { setResendState('error'); toast.error(data.error || "We couldn't send the email just now. Your report is below, and a specialist will follow up."); }
+    } catch {
+      setResendState('error');
+    }
   }
 
   async function handleFinalSubmit() {
@@ -278,11 +334,18 @@ function EstimateLandingContent() {
         body: JSON.stringify({
           address: selectedAddress || addressInput,
           estimate,
-          contact,
-          qualification,
+          contact: { ...contact, emailConfirmed: emailKept },
+          qualification: { ...qualification, equipment: equipment ?? undefined },
         }),
       });
       const submitData = await submitRes.json().catch(() => ({}));
+      if (submitRes.status === 422 && submitData?.fields) {
+        setContactErrors(prev => ({ ...prev, email: submitData.fields.email, phone: submitData.fields.phone }));
+        setEmailSuggestion(submitData.suggestion ?? null);
+        toast.error(submitData.error || 'Please check your contact details');
+        setStep('contact');
+        return;
+      }
       if (!submitRes.ok || !submitData?.success) {
         toast.error(submitData?.error || 'Something went wrong. Please try again.');
         return;
@@ -313,8 +376,8 @@ function EstimateLandingContent() {
             <p className="text-[10px] text-muted-foreground">Free Instant Property Estimate</p>
           </div>
           <div className="ml-auto flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <Star size={11} className="text-amber-400 fill-amber-400" />
-            <span className="font-medium">4.9 · 2,400+ homeowners</span>
+            <Shield size={11} className="text-emerald-600" />
+            <span className="font-medium">Free, no obligation</span>
           </div>
         </div>
       </header>
@@ -465,6 +528,8 @@ function EstimateLandingContent() {
                     onChange={e => { setContact(c => ({ ...c, phone: e.target.value })); setContactErrors(er => ({ ...er, phone: undefined })); }}
                     placeholder="(555) 000-0000"
                     type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
                     className={`w-full pl-9 pr-3 py-2.5 rounded-lg border text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all ${contactErrors.phone ? 'border-red-400' : 'border-border'}`}
                   />
                 </div>
@@ -474,20 +539,31 @@ function EstimateLandingContent() {
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Email *</label>
                 <input
                   value={contact.email}
-                  onChange={e => { setContact(c => ({ ...c, email: e.target.value })); setContactErrors(er => ({ ...er, email: undefined })); }}
+                  onChange={e => { setContact(c => ({ ...c, email: e.target.value })); setContactErrors(er => ({ ...er, email: undefined })); setEmailSuggestion(null); setEmailKept(false); }}
+                  onBlur={checkEmailOnBlur}
                   placeholder="jane@example.com"
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   className={`w-full px-3 py-2.5 rounded-lg border text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all ${contactErrors.email ? 'border-red-400' : 'border-border'}`}
                 />
-                {contactErrors.email && <p className="text-[10px] text-red-500 mt-1">{contactErrors.email}</p>}
+                {contactErrors.email && <p className="text-[11px] text-red-500 mt-1">{contactErrors.email}</p>}
+                {emailSuggestion && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <button type="button" onClick={() => { setContact(c => ({ ...c, email: emailSuggestion })); setEmailSuggestion(null); setContactErrors(er => ({ ...er, email: undefined })); }}
+                      className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold">Use {emailSuggestion}</button>
+                    <button type="button" onClick={() => { setEmailKept(true); setEmailSuggestion(null); setContactErrors(er => ({ ...er, email: undefined })); }}
+                      className="px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted">Keep what I typed</button>
+                  </div>
+                )}
               </div>
 
               <button
                 onClick={handleSubmitContact}
-                className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                disabled={validating}
+                className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-70 transition-all flex items-center justify-center gap-2"
               >
-                Continue
-                <ChevronRight size={14} />
+                {validating ? <><Loader2 size={14} className="animate-spin" /> Checking your details…</> : <>Continue<ChevronRight size={14} /></>}
               </button>
               <p className="text-[10px] text-muted-foreground text-center">
                 By continuing, you agree to be contacted by TRAVLR Vacation Homes. We respect your privacy.
@@ -556,6 +632,34 @@ function EstimateLandingContent() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
+                  <Shield size={12} />What does the home already have?
+                </label>
+                <p className="text-[11px] text-muted-foreground mb-2">Optional. We use this to tailor your safety and smart-home checklist.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {EQUIPMENT.map(e => {
+                    const on = equipment?.includes(e.key) ?? false;
+                    return (
+                      <button
+                        key={e.key} type="button" aria-pressed={on}
+                        onClick={() => setEquipment(cur => { const list = cur ?? []; return list.includes(e.key) ? list.filter(k => k !== e.key) : [...list, e.key]; })}
+                        className={`py-2.5 px-3 rounded-lg border text-xs font-medium transition-all text-left ${on ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border text-muted-foreground hover:border-primary/40'}`}
+                      >
+                        {on ? '\u2713 ' : ''}{e.label.replace(' (keyless entry)', '').replace('Video doorbell or exterior camera', 'Video doorbell').replace('Security alarm or monitored system', 'Security alarm')}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button" aria-pressed={equipment !== null && equipment.length === 0}
+                    onClick={() => setEquipment([])}
+                    className={`py-2.5 px-3 rounded-lg border text-xs font-medium transition-all text-left ${equipment !== null && equipment.length === 0 ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border text-muted-foreground hover:border-primary/40'}`}
+                  >
+                    None of these yet
+                  </button>
+                </div>
+              </div>
+
               {/* SMS consent */}
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
@@ -589,24 +693,25 @@ function EstimateLandingContent() {
               </div>
               <h2 className="text-2xl font-bold text-foreground">Your report is ready, {contact.firstName}!</h2>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                {emailed ? <>We&apos;ve emailed a copy to {contact.email}. </> : <>Save or print your report below. </>}A TRAVLR specialist will reach out within 1 business day to refine these numbers with your home&apos;s details.
+                {emailed ? <>We&apos;ve emailed a copy to <strong>{contact.email}</strong>. </> : <>We couldn&apos;t send the email just now, but your full report is below. </>}A TRAVLR specialist will reach out within 1 business day to refine these numbers with your home&apos;s details.
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                <button onClick={() => openContact('call')} className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all">
-                  Schedule a call
-                </button>
-                <button onClick={() => window.print()} className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors">
-                  Download PDF
-                </button>
-                <a href={`/estimate/report?address=${encodeURIComponent(displayAddress)}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors">
-                  Open shareable link
-                </a>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                {resendState === 'sent' ? 'Sent again. It should arrive within a minute.' : emailed ? "Don't see it? Check your spam or promotions folder, or " : ''}
+                {resendState !== 'sent' && (
+                  <button onClick={resendReport} disabled={resendState === 'sending'} className="text-primary font-semibold hover:underline disabled:opacity-60">
+                    {resendState === 'sending' ? 'Sending…' : emailed ? 'send it again' : 'Try sending the email again'}
+                  </button>
+                )}
+              </p>
+              <div className="pt-2"><ReportActions address={displayAddress} equipment={equipment} onSchedule={() => openContact('call')} align="center" /></div>
             </div>
-            {estimate && <HomeownerReportView report={estimate.report} variant="full" onContact={openContact} onPrint={() => window.print()} />}
+            {estimate && <HomeownerReportView report={estimate.report} variant="full" equipment={equipment} onContact={openContact} onPrint={() => window.print()} />}
           </div>
         )}
       </main>
+      {estimate && (step === 'estimate' || step === 'success') && (
+        <ReportChat address={displayAddress} equipment={equipment} onTalkToPerson={() => openContact('question')} />
+      )}
       <ContactRequestModal open={contactOpen} onClose={() => setContactOpen(false)} address={displayAddress} initialMode={contactMode} prefill={contact} />
     </div>
   );

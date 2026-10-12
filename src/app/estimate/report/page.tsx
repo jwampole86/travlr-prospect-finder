@@ -2,7 +2,10 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2, Printer, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
+import ReportChat from '@/app/estimate/components/ReportChat';
+import ReportActions from '@/app/estimate/components/ReportActions';
+import { parseEquipment } from '@/lib/homeownerReportContent';
 import HomeownerReportView from '@/app/estimate/components/HomeownerReport';
 import ContactRequestModal, { type ContactMode } from '@/app/estimate/components/ContactRequestModal';
 import type { HomeownerEstimate } from '@/lib/homeownerEstimateTypes';
@@ -13,11 +16,19 @@ function ReportContent() {
   const params = useSearchParams();
   const address = params.get('address') ?? '';
   const contactParam = params.get('contact');
+  const confirmToken = params.get('c');
+  const equipment = parseEquipment(params.get('eq'));
   const [contactOpen, setContactOpen] = useState(false);
   const [contactMode, setContactMode] = useState<ContactMode>('call');
   const openContact = (mode: ContactMode) => { setContactMode(mode); setContactOpen(true); };
   const [estimate, setEstimate] = useState<HomeownerEstimate | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  // Opening the signed link from the email proves the homeowner received it.
+  useEffect(() => {
+    if (!confirmToken) return;
+    fetch('/api/estimate/confirm-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: confirmToken }) }).catch(() => {});
+  }, [confirmToken]);
 
   useEffect(() => {
     if (address.trim().length < 5) { setState('error'); return; }
@@ -47,16 +58,12 @@ function ReportContent() {
   return (
     <div className="min-h-screen bg-slate-100 print:bg-white py-6 sm:py-10 px-3 sm:px-6">
       <div className="max-w-4xl mx-auto">
-        <div className="print:hidden mb-4 flex flex-wrap justify-end gap-2">
-          <button onClick={() => openContact('call')} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 text-sm font-semibold hover:bg-slate-50 transition-colors">
-            Schedule a call
-          </button>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors">
-            <Printer size={15} /> Download PDF
-          </button>
+        <div className="mb-4">
+          <ReportActions address={address} equipment={equipment} onSchedule={() => openContact('call')} />
         </div>
-        <HomeownerReportView report={estimate.report} variant="full" onContact={openContact} onPrint={() => window.print()} />
+        <HomeownerReportView report={estimate.report} variant="full" equipment={equipment} onContact={openContact} onPrint={() => window.print()} />
       </div>
+      <ReportChat address={address} equipment={equipment} onTalkToPerson={() => openContact('question')} />
       <ContactRequestModal open={contactOpen} onClose={() => setContactOpen(false)} address={address} initialMode={contactMode} />
     </div>
   );

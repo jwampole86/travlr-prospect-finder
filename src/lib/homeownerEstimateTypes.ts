@@ -7,6 +7,19 @@ export interface RegulationRequirement {
   required: boolean | null;
 }
 
+export interface PermitDetails {
+  name: string | null;
+  costSummary: string | null;
+  costLow: number | null;
+  costHigh: number | null;
+  renewal: string | null;
+  processingTime: string | null;
+  applicationUrl: string | null;
+  steps: string[];
+  /** Safety equipment and posting requirements the city or fire code expects. */
+  safety: Array<{ item: string; detail: string }>;
+}
+
 export interface RegulationReport {
   found: boolean;
   jurisdiction: string;
@@ -24,6 +37,8 @@ export interface RegulationReport {
   /** Shown only when the city's own rules are not on file yet. */
   typicalChecklist: string[];
   note: string | null;
+  /** City-specific permit costs, steps and safety rules, when researched. Null means we show typical figures instead. */
+  permit: PermitDetails | null;
 }
 
 export interface EstimateScenario {
