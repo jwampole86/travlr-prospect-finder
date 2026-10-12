@@ -81,12 +81,12 @@ const usd = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 /** Ready-to-edit drafts for the team to paste into an email or text. The text draft is for review only; co-host prospects are not texted automatically. */
 export function offerDrafts(d: Pick<OfferData, 'title' | 'city' | 'current' | 'scenarios' | 'gap' | 'mode' | 'benchmark' | 'bedrooms'>, url: string) {
   const exp = d.scenarios.find(s => s.key === 'expected');
-  const earn = d.mode === 'own' && d.gap > 0 && exp ? `Based on public booking data, we think there is roughly ${usd(exp.gain)} a year of upside.`
+  const earn = d.mode === 'own' && d.gap > 0 && exp ? `We think there is roughly ${usd(exp.gain)} a year of upside.`
     : d.mode === 'benchmark' && d.benchmark ? `Comparable ${d.bedrooms ? `${d.bedrooms}-bedroom ` : ''}homes in ${d.city} typically earn about ${usd(d.benchmark.typical)} a year, and the top quarter about ${usd(d.benchmark.strong)}.`
     : 'We found a few ways to lift bookings and rates.';
   return {
     subject: `Ideas to lift bookings for "${d.title.slice(0, 60)}"`,
-    email: `Hi,\n\nI'm reaching out from TRAVLR Vacation Homes. We run our own luxury vacation homes and help owners who already host on Airbnb or Vrbo earn more, either as a co-host on your existing listing or with full management.\n\nWe took a look at your listing in ${d.city} using public booking data. ${earn} I put together a short, free page that shows what we noticed and what it could look like for you:\n\n${url}\n\nIf it's useful, reply and we'll do a free listing audit. If not, no problem. Just let me know and I won't follow up.\n\nBest,\nTRAVLR Vacation Homes`,
-    sms: `Hi, TRAVLR Vacation Homes here. We reviewed your ${d.city} listing and put together a short look at it: ${url}\nReply STOP to opt out`,
+    email: `Hi,\n\nI'm reaching out from TRAVLR Vacation Homes. We run our own luxury vacation homes and help owners who already host on Airbnb or Vrbo earn more, either as a co-host on your existing listing or with full management.\n\nWe took a look at your listing in ${d.city} using public booking data. ${earn} I put together a short, free page that shows what we noticed and what it could look like for you:\n\n${url}\n\nIf it's useful, reply and we'll do a free listing audit. If not, no problem. Just let me know and I won't follow up.\n\nBest,\nTRAVLR Vacation Homes${process.env.COMPANY_POSTAL_ADDRESS ? `\n${process.env.COMPANY_POSTAL_ADDRESS}` : ''}`,
+    sms: `TRAVLR Vacation Homes: we put together a short look at your ${d.city.slice(0, 24)} listing: ${url}\nReply STOP to opt out`,
   };
 }

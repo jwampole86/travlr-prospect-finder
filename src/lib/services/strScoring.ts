@@ -63,7 +63,7 @@ export async function scoreListings(db: SupabaseClient, opts: { markets?: string
     if (revGap >= 0.4 && pot > 0) reasons.push(`earned about ${Math.round((rev / pot) * 100)}% of its estimated revenue potential`);
     if (ratingPen >= 0.7) reasons.push(`rating ${rating?.toFixed(1)} across ${reviews} reviews`);
     if (thin > 0) reasons.push(reviews < 5 ? `only ${reviews} ${reviews === 1 ? 'review' : 'reviews'} despite being listed most of the year` : `thin review history (${reviews} reviews)`);
-    if (over) reasons.push(`nightly rate about ${Math.round((adr / st.adrMed - 1) * 100)}% above comparable homes while occupancy lags`);
+    if (over) reasons.push(adr / st.adrMed >= 2 ? `nightly rate about ${(adr / st.adrMed).toFixed(1)}x comparable homes while occupancy lags` : `nightly rate about ${Math.round((adr / st.adrMed - 1) * 100)}% above comparable homes while occupancy lags`);
     if (under) reasons.push(`rate about ${Math.round((1 - adr / st.adrMed) * 100)}% below comparable homes, which may be leaving money on the table`);
 
     const score = Math.round(100 * (0.4 * occGap + 0.3 * (avail >= 180 ? revGap : revGap * 0.4) + 0.15 * ratingPen + 0.1 * thin + 0.05 * pricing));
