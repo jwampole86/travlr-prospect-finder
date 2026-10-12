@@ -98,16 +98,15 @@ export default function CoHostView() {
   const [stage, setStage] = useState('all');
   const [view, setView] = useState<'matched' | 'all' | 'crm'>('all');
   const [open, setOpen] = useState<string | null>(null);
-  // Remembered between visits so a luxury-focused team lands on its niche every time.
+  // Filters always start cleared so every visit lands on All candidates.
   const [luxuryOnly, setLuxuryOnly] = useState(false);
-  useEffect(() => { try { setLuxuryOnly(localStorage.getItem('cohost_luxury_only') === '1'); } catch { /* storage unavailable */ } }, []);
-  const toggleLuxury = () => setLuxuryOnly(v => { const n = !v; try { localStorage.setItem('cohost_luxury_only', n ? '1' : '0'); } catch { /* storage unavailable */ } return n; });
+  const toggleLuxury = () => setLuxuryOnly(v => !v);
   const [eliteOnly, setEliteOnly] = useState(false);
   const [sort, setSort] = useState<SortKey>('best');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [contactOnly, setContactOnly] = useState(false);
-  useEffect(() => { try { setEliteOnly(localStorage.getItem('cohost_elite_only') === '1'); const s = localStorage.getItem('cohost_sort') as SortKey | null; if (s && SORTS.some(x => x[0] === s)) setSort(s); } catch { /* storage unavailable */ } }, []);
-  const toggleElite = () => setEliteOnly(v => { const n = !v; try { localStorage.setItem('cohost_elite_only', n ? '1' : '0'); } catch { /* storage unavailable */ } return n; });
+  useEffect(() => { try { localStorage.removeItem('cohost_luxury_only'); localStorage.removeItem('cohost_elite_only'); const s = localStorage.getItem('cohost_sort') as SortKey | null; if (s && SORTS.some(x => x[0] === s)) setSort(s); } catch { /* storage unavailable */ } }, []);
+  const toggleElite = () => setEliteOnly(v => !v);
   const changeSort = (s: SortKey) => { setSort(s); try { localStorage.setItem('cohost_sort', s); } catch { /* storage unavailable */ } };
   const [totals, setTotals] = useState<{ all: number; luxury: number; elite: number } | null>(null);
   const [refresh, setRefresh] = useState<RefreshInfo | null>(null);
@@ -195,7 +194,6 @@ export default function CoHostView() {
   function clearFilters() {
     setUsState('all'); setMarket('all'); setStage('all'); setNiches([]); setVerifiedOnly(false); setContactOnly(false);
     setLuxuryOnly(false); setEliteOnly(false);
-    try { localStorage.setItem('cohost_luxury_only', '0'); localStorage.setItem('cohost_elite_only', '0'); } catch { /* storage unavailable */ }
   }
   const eliteCount = useMemo(() => listings.filter(l => passes(l, 'elite') && l.is_elite).length, [listings, passes]);
   const verifiedCount = useMemo(() => listings.filter(l => passes(l, 'verified') && l.verification?.level === 'verified').length, [listings, passes]);
