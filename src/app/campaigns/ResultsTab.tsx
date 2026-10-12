@@ -5,6 +5,18 @@ import Link from 'next/link';
 import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Copy, DollarSign, Flame, Loader2, MessageSquare, MousePointerClick, Search, Send, ShieldOff, Sparkles, ArrowDown, ArrowUp, Eye, X, Check } from 'lucide-react';
 import { BatchInfo, Card, Chip, Insights, Notice, Overview, SectionTitle, Skeleton, cx, fmtDate, pct, post } from './shared';
 
+const ERROR_MEANING: Record<string, [string, string]> = {
+  '30003': ['phone off or unreachable', 'The handset was switched off, out of coverage or otherwise unreachable, so the carrier could not deliver the text.'],
+  '30004': ['blocked by carrier', 'The carrier or the recipient blocked the message.'],
+  '30005': ['number not in service', 'The number does not exist or is no longer active (disconnected or inactive line).'],
+  '30006': ['landline or carrier cannot receive texts', 'The number is a landline or the carrier cannot receive texts, so it will never be delivered.'],
+  '30007': ['filtered as spam', 'The carrier filtered the message as spam or a policy violation.'],
+  '30008': ['carrier gave no reason', 'The carrier rejected the message without saying why. Often temporary or a number that cannot receive texts.'],
+  '21211': ['invalid phone number', 'The number is not a valid phone number.'],
+  '21610': ['recipient opted out', 'The recipient replied STOP, so no more texts can be sent to this number.'],
+  '21614': ['not a mobile number', 'The number cannot receive texts because it is not a mobile line.'],
+};
+
 const BREAKDOWNS: Array<[string, string]> = [
   ['audience', 'Audience'], ['variant', 'Tone'], ['writtenBy', 'AI vs template'], ['segments', 'Length'], ['estimate', 'Estimate size'], ['state', 'State'],
   ['device', 'Device'], ['os', 'Phone OS'], ['sendHourUtc', 'Send hour (UTC)'], ['timeToClick', 'Time to click'], ['phone', 'Phone quality'], ['temperature', 'Outcome'],
@@ -175,7 +187,7 @@ export default function ResultsTab(props: {
                   <div className="flex justify-between"><span className="text-muted-foreground">Per submission</span><b>{data.cost.perSubmission != null ? `$${data.cost.perSubmission}` : '-'}</b></div></div></div>
               <div><SectionTitle title="Delivery" />
                 <div className="text-xs space-y-1.5">{Object.entries(data.statuses).map(([k, v]) => <div key={k} className="flex justify-between"><span className="text-muted-foreground capitalize">{k}</span><b>{v}</b></div>)}
-                  {Object.entries(data.deliveryErrors).map(([k, v]) => <div key={k} className="flex justify-between text-amber-600"><span>Error {k}</span><b>{v}</b></div>)}</div></div>
+                  {Object.entries(data.deliveryErrors).map(([k, v]) => <div key={k} title={ERROR_MEANING[k]?.[1]} className="flex justify-between gap-3 text-amber-600"><span>Error {k}{ERROR_MEANING[k] && <span className="text-muted-foreground"> · {ERROR_MEANING[k][0]}</span>}</span><b>{v}</b></div>)}</div></div>
             </Card>
           </div>
 
