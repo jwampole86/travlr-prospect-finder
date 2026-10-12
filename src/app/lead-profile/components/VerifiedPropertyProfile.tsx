@@ -121,6 +121,18 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
       const { data } = await supabase.from('leads').select('*').eq('id', leadId).single();
       if (data) {
         setLead(data);
+        // Blank estimates and days on market are filled from the revenue model and the listing date, for display only.
+        fetch(`/api/leads/fill?leadId=${encodeURIComponent(leadId)}`).then(r => (r.ok ? r.json() : null)).then(j => {
+          if (!j) return;
+          const f = j.fill;
+          setLead((p: Record<string, any> | null) => p ? {
+            ...p,
+            estimated_adr: p.estimated_adr || f?.adr || null, estimated_occupancy: p.estimated_occupancy || f?.occupancy || null,
+            estimated_gross_monthly: p.estimated_gross_monthly || f?.grossMonthly || null, estimated_net_monthly: p.estimated_net_monthly || f?.netMonthly || null,
+            estimated_market_rent: p.estimated_market_rent || f?.marketRent || null, days_on_market_listing: p.days_on_market_listing || j.daysOnMarket?.days || null,
+            _fillNote: f && (!data.estimated_gross_monthly || !data.estimated_net_monthly) ? `${f.basisLabel}${f.assumedBeds ? ', assuming a 3-bedroom home because the bedroom count is not on file' : ''}.` : null,
+          } : p);
+        }).catch(() => { /* the blanks simply stay blank */ });
         setOutreachStatus(data.outreach_status || 'NOT_CONTACTED');
         setContactEdits({
           contactName: data.contact_name || '',
@@ -599,6 +611,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
             <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-700 dark:text-amber-400">
               <p className="font-semibold mb-1">Revenue Transparency</p>
               <p>Values labeled <strong>TRAVLR Estimate</strong> are calculated by the TRAVLR revenue model, not sourced from a listing. Values labeled with a source (e.g., Manual Research, Zillow) are from that source.</p>
+              {lead._fillNote && <p className="mt-1">Blank values on this lead were filled from the model: {lead._fillNote} They are not saved to the lead.</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -688,7 +701,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
               <h3 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5"><Building2 size={12} />Listing Information</h3>
               <DataRow label="Listing Status" value={lead.listing_status || 'Unknown'} source={lead.listing_status_source} />
               <DataRow label="Current Asking Rent" value={lead.current_asking_rent ? formatCurrency(lead.current_asking_rent) + '/mo' : 'Not Found'} source={lead.rent_source} />
-              <DataRow label="Days on Market" value={lead.days_on_market_listing !== null ? `${lead.days_on_market_listing} days` : null} />
+              <DataRow label="Days on Market" value={lead.days_on_market_listing ? `${lead.days_on_market_listing} days` : null} />
               <DataRow label="Listing Date" value={lead.listing_date} />
               <DataRow label="Source" value={lead.source} />
               {lead.listing_source_url ? (

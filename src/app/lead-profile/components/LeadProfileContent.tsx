@@ -242,6 +242,26 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   const [lead, setLead] = useState<Lead | undefined>(undefined);
   const [leadLoading, setLeadLoading] = useState(true);
   const [leadNotFound, setLeadNotFound] = useState(false);
+  const [fillNote, setFillNote] = useState<string | null>(null);
+  const [domNote, setDomNote] = useState<string | null>(null);
+  const filledFor = useRef<string | null>(null);
+
+  // Blank estimates and days on market are filled from the revenue model and the listing date, for display only.
+  useEffect(() => {
+    if (!lead?.id || filledFor.current === lead.id) return;
+    filledFor.current = lead.id;
+    const base = lead;
+    fetch(`/api/leads/fill?leadId=${encodeURIComponent(base.id)}`, { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined })
+      .then(r => (r.ok ? r.json() : null))
+      .then((j: { fill: { adr: number; occupancy: number; grossMonthly: number; netMonthly: number; basisLabel: string; assumedBeds: boolean } | null; daysOnMarket: { days: number; basis: string } | null } | null) => {
+        if (!j) return;
+        const f = j.fill;
+        setLead(p => p ? { ...p, estimatedADR: p.estimatedADR || f?.adr || 0, estimatedOccupancy: p.estimatedOccupancy || f?.occupancy || 0, estimatedGrossMonthly: p.estimatedGrossMonthly || f?.grossMonthly || 0, estimatedNetMonthly: p.estimatedNetMonthly || f?.netMonthly || 0, daysOnMarket: p.daysOnMarket || j.daysOnMarket?.days || 0 } : p);
+        if (j.daysOnMarket && !base.daysOnMarket && j.daysOnMarket.basis === 'first_seen') setDomNote('days since we first saw this listing');
+        if (f && (!base.estimatedGrossMonthly || !base.estimatedNetMonthly)) setFillNote(`${f.basisLabel}${f.assumedBeds ? ', assuming a 3-bedroom home because the bedroom count is not on file' : ''}. Not saved to the lead.`);
+      })
+      .catch(() => { /* the blanks simply stay blank */ });
+  }, [lead, session?.access_token]);
 
   useEffect(() => {
     if (!leadId) {
@@ -1192,7 +1212,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   { label: 'Prospect Score', value: `${lead.prospectScore}`, sub: '/100', icon: <Star size={15} className="text-amber-500" />, color: 'text-amber-500' },
                   { label: 'Gross/Month', value: formatCurrency(grossMonthly), sub: 'estimated', icon: <TrendingUp size={15} className="text-green-500" />, color: 'text-green-600' },
                   { label: 'Net/Month', value: formatCurrency(netMonthly), sub: 'after costs', icon: <DollarSign size={15} className="text-primary" />, color: 'text-primary' },
-                  { label: 'Days on Market', value: `${lead.daysOnMarket}`, sub: 'days', icon: <Clock size={15} className="text-muted-foreground" />, color: 'text-foreground' },
+                  { label: 'Days on Market', value: lead.daysOnMarket > 0 ? `${lead.daysOnMarket}` : '—', sub: lead.daysOnMarket > 0 ? (domNote ?? 'days') : 'not a listing', icon: <Clock size={15} className="text-muted-foreground" />, color: 'text-foreground' },
                 ].map(kpi => (
                   <div key={kpi.label} className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-center gap-1.5 mb-2">
@@ -1203,6 +1223,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   </div>
                 ))}
               </div>
+              {fillNote && <p className="text-[11px] text-muted-foreground -mt-1">Gross and net per month are modeled estimates: {fillNote}</p>}
 
               {/* Prospect Score Bar */}
               <div className="bg-card border border-border rounded-xl p-5">
@@ -1408,7 +1429,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                     { label: 'Price', value: `${formatCurrency(lead.price)}${lead.priceType === 'rent' ? '/mo' : ''}` },
                     { label: 'Price Type', value: lead.priceType === 'rent' ? 'Rental' : 'For Sale' },
                     { label: 'Source', value: lead.source },
-                    { label: 'Days on Market', value: `${lead.daysOnMarket} days` },
+                    { label: 'Days on Market', value: lead.daysOnMarket > 0 ? `${lead.daysOnMarket} days` : '—' },
                     { label: 'Last Checked', value: lead.lastChecked },
                     { label: 'Created', value: lead.createdAt },
                   ].map(f => (
