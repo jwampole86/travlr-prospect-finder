@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Layers, X } from 'lucide-react';
+import { Layers, X, Check } from 'lucide-react';
 import { NICHES, NICHE_CATEGORIES, PRIORITY_CLUSTERS, clusterMembers, nicheName } from '@/lib/niches';
 
 export type NicheCounts = Record<number, { listings: number; elite: number }>;
@@ -23,8 +23,8 @@ export default function NicheFilter({ value, onChange, counts }: { value: number
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <button onClick={() => setOpen(o => !o)} aria-expanded={open} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-semibold ${value.length ? 'bg-violet-600 border-violet-600 text-white' : 'border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-100'}`}>
-          <Layers size={14} /> Niches{value.length ? ` (${value.length})` : ''}
+        <button onClick={() => setOpen(o => !o)} aria-expanded={open} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-semibold ${value.length ? 'bg-[#6d28d9] border-[#6d28d9] text-[#ffffff] ring-2 ring-[#c4b5fd] shadow-md' : 'border-border bg-card text-foreground hover:bg-muted'}`}>
+          {value.length ? <Check size={14} strokeWidth={3} /> : <Layers size={14} className="text-[#6d28d9]" />} Niches{value.length ? ` (${value.length})` : ''}
         </button>
         {value.slice(0, 6).map(id => (
           <span key={id} className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full bg-violet-100 text-violet-800 text-xs font-medium">
@@ -43,8 +43,8 @@ export default function NicheFilter({ value, onChange, counts }: { value: number
               {PRIORITY_CLUSTERS.map(c => {
                 const ids = clusterMembers(c.rank); const on = ids.every(i => selected.has(i));
                 return (
-                  <button key={c.rank} onClick={() => toggleMany(ids)} aria-pressed={on} title={c.opportunity} className={`px-2.5 py-1 rounded-lg border text-xs font-medium ${on ? 'bg-violet-600 border-violet-600 text-white' : 'border-border bg-background hover:bg-muted'}`}>
-                    <span className="mr-1 font-bold">{c.rank}.</span>{c.name} <span className="font-bold tabular-nums">{total(ids).toLocaleString()}</span>
+                  <button key={c.rank} onClick={() => toggleMany(ids)} aria-pressed={on} title={c.opportunity} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium ${on ? 'bg-[#6d28d9] border-[#6d28d9] text-[#ffffff] ring-2 ring-[#c4b5fd] font-semibold' : 'border-border bg-background hover:bg-muted'}`}>
+                    {on && <Check size={12} strokeWidth={3} />}<span className="mr-1 font-bold">{c.rank}.</span>{c.name} <span className="font-bold tabular-nums">{total(ids).toLocaleString()}</span>
                   </button>
                 );
               })}
@@ -70,8 +70,8 @@ export default function NicheFilter({ value, onChange, counts }: { value: number
               {catNiches.map(n => {
                 const c = counts[n.id]?.listings ?? 0; const on = selected.has(n.id);
                 return (
-                  <button key={n.id} onClick={() => toggle(n.id)} aria-pressed={on} title={c === 0 ? 'No listings in this area are tagged with this niche yet' : undefined} className={`px-2.5 py-1 rounded-full border text-xs ${on ? 'bg-violet-600 border-violet-600 text-white font-semibold' : c === 0 ? 'border-border bg-background text-muted-foreground' : 'border-border bg-background hover:bg-muted'}`}>
-                    {n.name} <span className="font-bold tabular-nums">{c.toLocaleString()}</span>
+                  <button key={n.id} onClick={() => toggle(n.id)} aria-pressed={on} title={c === 0 ? 'No listings in this area are tagged with this niche yet' : undefined} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs ${on ? 'bg-[#6d28d9] border-[#6d28d9] text-[#ffffff] ring-2 ring-[#c4b5fd] font-semibold' : c === 0 ? 'border-border bg-background text-muted-foreground' : 'border-border bg-background hover:bg-muted'}`}>
+                    {on && <Check size={12} strokeWidth={3} />}{n.name} <span className="font-bold tabular-nums">{c.toLocaleString()}</span>
                   </button>
                 );
               })}
