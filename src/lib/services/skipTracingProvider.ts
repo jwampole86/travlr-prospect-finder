@@ -30,6 +30,8 @@ function getRapidApiKeys(): string[] {
     .filter((k): k is string => typeof k === 'string' && k.trim() !== '' && !/your-rapidapi-key/i.test(k));
 }
 
+const reportedAt = (s?: string) => { const m = String(s ?? '').match(/([A-Za-z]{3}) (\d{4})/); return m ? Date.parse(`${m[1]} 1 ${m[2]}`) || 0 : 0; };
+
 function normalizePhoneE164(phone: string): string | null {
   const digits = phone.replace(/\D/g, '');
   if (digits.length === 10) return `+1${digits}`;
@@ -276,7 +278,10 @@ export async function resolveResidentsByAddress(
       const t = (p.phone_type || '').toLowerCase();
       const type: PhoneResult['phoneType'] = t.includes('wireless') ? 'MOBILE' : t.includes('landline') ? 'LANDLINE' : t.includes('voip') ? 'VOIP' : 'UNKNOWN';
       return [{ e164, raw: p.phone_number || '', type, isPrimary: /primary/i.test(p.phone_info || ''), lastReported: p.last_reported }];
-    }).slice(0, 5);
+    })
+      // The source lists numbers in no useful order, so keep the best ones: primary, then mobile, then most recently reported.
+      .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || Number(b.type === 'MOBILE') - Number(a.type === 'MOBILE') || reportedAt(b.lastReported) - reportedAt(a.lastReported))
+      .slice(0, 5);
 
     matches.push({
       personId: person['Person ID']!,

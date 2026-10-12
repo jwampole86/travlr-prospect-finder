@@ -79,7 +79,10 @@ export async function skipTraceListing(
       const d = await api(`/search/detailsbyID?${new URLSearchParams({ peo_id: p['Person ID'] })}`, counter, opts.reserve); if (!d) continue;
       const addrs = [...(d['Current Address Details List'] ?? []), ...(d['Previous Address Details'] ?? [])];
       if (!addrs.some((a: any) => streetKey(String(a.street_address ?? '')) === streetKey(target.street))) continue;
-      const phones = (d['All Phone Details'] ?? []).flatMap((ph: any) => { const e = normPhone(String(ph.phone_number ?? '')); return e ? [{ e164: e, type: String(ph.phone_type ?? '').toLowerCase().includes('wireless') ? 'mobile' : String(ph.phone_type ?? '').toLowerCase().includes('landline') ? 'landline' : 'other', lastReported: ph.last_reported ?? null }] : []; }).slice(0, 4);
+      // The source lists numbers oldest-mixed, so keep the best six: mobiles first, then the most recently reported.
+      const reported = (s: unknown) => { const m = String(s ?? '').match(/([A-Za-z]{3}) (\d{4})/); return m ? Date.parse(`${m[1]} 1 ${m[2]}`) || 0 : 0; };
+      const phones = (d['All Phone Details'] ?? []).flatMap((ph: any) => { const e = normPhone(String(ph.phone_number ?? '')); return e ? [{ e164: e, type: String(ph.phone_type ?? '').toLowerCase().includes('wireless') ? 'mobile' : String(ph.phone_type ?? '').toLowerCase().includes('landline') ? 'landline' : 'other', lastReported: ph.last_reported ?? null }] : []; })
+        .sort((x: any, y: any) => Number(y.type === 'mobile') - Number(x.type === 'mobile') || reported(y.lastReported) - reported(x.lastReported)).slice(0, 6);
       hit = { name: p.Name ?? name, age: p.Age ?? null, personId: p['Person ID'], addressConfirmed: true, confirmedBy: target.via, phones, emails: (d['Email Addresses'] ?? []).slice(0, 3) };
       break;
     }
