@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Handshake, Loader2, RefreshCw, Download, ShieldAlert, ExternalLink, Camera, MapPin, AlertTriangle, Gem, Crown, Link2, Copy, Check, Mail, Eye, MessageSquare, ShieldCheck, Clock } from 'lucide-react';
 import type { OwnerVerification, VerificationLevel } from '@/lib/services/ownerVerification';
+import NicheFilter, { type NicheCounts } from '@/components/niche/NicheFilter';
+import { nicheName, nichePriority } from '@/lib/niches';
 
 interface Owner { names: string[]; type: string | null; mailing: string | null; permitHolder: string | null; contactFound: boolean; skipTraced?: boolean; phones: string[]; emails: string[]; published?: { email: string | null; phone: string | null } | null }
 interface OfferInfo { code: string; views: number; lastViewedAt: string | null; requestedAt: string | null; optedOutAt: string | null; request: { name?: string; email?: string | null; phone?: string | null; service?: string; message?: string | null; at?: string } | null }
@@ -13,7 +15,7 @@ interface OfferPanel { loading: boolean; error?: string; url?: string; optedOut?
 interface Listing {
   property_id: string; market: string; title: string | null; airbnb_url: string | null; vrbo_url: string | null; booking_url: string | null; bedrooms: number | null; bathrooms: number | null;
   adr: number | null; occupancy_pct: number | null; revenue_ltm: number | null; revenue_potential_ltm: number | null; rating: number | null; reviews: number | null; host_listing_count: number | null;
-  is_luxury: boolean | null; is_elite?: boolean | null; first_seen_at?: string | null; verification?: OwnerVerification; under_score: number | null; under_reasons: string[] | null; segment: string; photo_score: number | null; photo_notes: { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean } | null;
+  is_luxury: boolean | null; is_elite?: boolean | null; first_seen_at?: string | null; niches?: number[] | null; primary_niche?: number | null; verification?: OwnerVerification; under_score: number | null; under_reasons: string[] | null; segment: string; photo_score: number | null; photo_notes: { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean; complete?: boolean; photosReviewed?: number; of?: number; unreachable?: number; reason?: string } | null;
   address_match_confidence: string | null; match_status: string | null; matched_address: string | null; matched_owner: Owner | null; pipeline_stage: string; service_model: string; reviewer_notes: string | null; offer?: OfferInfo | null; texts?: { sent: number; replied: boolean; lastIntent: string | null; lastAt: string } | null;
 }
 interface CrmLead { id: string; address: string | null; city: string | null; state: string | null; owner_name: string | null; program_reason: string | null; program_set_at: string | null; cohost_service: string | null; stage: string | null }
@@ -27,8 +29,8 @@ const MATCH_LABEL: Record<string, { text: string; cls: string }> = {
 const money = (n: number | null) => (n == null ? '-' : `$${Math.round(n).toLocaleString()}`);
 
 interface RefreshInfo { lastRun: { started_at: string; finished_at: string | null; status: string; trigger: string; api_calls: number; new_listings: number; new_matches: number; quota_remaining: number | null; note: string | null; markets: number } | null; markets: number; oldestRefresh: string | null; firstRunAt: string | null; intervalHours: number }
-type SortKey = 'best' | 'potential_desc' | 'potential_asc' | 'earned_desc' | 'newest';
-const SORTS: Array<[SortKey, string]> = [['best', 'Best match first'], ['potential_desc', 'Potential earnings: high to low'], ['potential_asc', 'Potential earnings: low to high'], ['earned_desc', 'Earned last 12 months: high to low'], ['newest', 'Newest listings']];
+type SortKey = 'best' | 'potential_desc' | 'potential_asc' | 'earned_desc' | 'newest' | 'niche_priority';
+const SORTS: Array<[SortKey, string]> = [['best', 'Best match first'], ['potential_desc', 'Potential earnings: high to low'], ['potential_asc', 'Potential earnings: low to high'], ['earned_desc', 'Earned last 12 months: high to low'], ['newest', 'Newest listings'], ['niche_priority', 'Niche priority (national ranking)']];
 const LEVEL_STYLE: Record<VerificationLevel, string> = {
   verified: 'bg-emerald-600 text-white', likely: 'bg-teal-100 text-teal-800', unconfirmed: 'bg-amber-100 text-amber-800', review: 'bg-amber-100 text-amber-800',
   conflict: 'bg-rose-600 text-white', no_match: 'bg-slate-100 text-slate-600', pending: 'bg-slate-100 text-slate-600',
@@ -104,6 +106,8 @@ export default function CoHostView() {
   const [verifying, setVerifying] = useState<string | null>(null);
   const [verifyErr, setVerifyErr] = useState<Record<string, string>>({});
   const [checksOpen, setChecksOpen] = useState<string | null>(null);
+  const [niches, setNiches] = useState<number[]>([]);
+  const [nicheCounts, setNicheCounts] = useState<NicheCounts>({});
   const [panels, setPanels] = useState<Record<string, OfferPanel>>({});
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -121,12 +125,17 @@ export default function CoHostView() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/cohost', { cache: 'no-store' }); const j = await res.json();
+      const res = await fetch(`/api/cohost${niches.length ? `?niche=${niches.join(',')}` : ''}`, { cache: 'no-store' }); const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Could not load');
       setListings(j.listings ?? []); setCrm(j.crm ?? []); setStages(j.stages ?? []); setModels(j.serviceModels ?? []); setTotals(j.totals ?? null); setRefresh(j.refresh ?? null); setError(null);
     } catch (e) { setError((e as Error).message); } finally { setLoading(false); }
-  }, []);
+  }, [niches]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/cohost/niches?state=${encodeURIComponent(usState)}&market=${encodeURIComponent(market)}`, { cache: 'no-store' }).then(r => r.json()).then(j => { if (live && j.counts) setNicheCounts(j.counts); }).catch(() => { /* counts are optional */ });
+    return () => { live = false; };
+  }, [usState, market]);
 
   async function refreshNow() {
     setRefreshing(true); setError(null);
@@ -156,7 +165,7 @@ export default function CoHostView() {
   const stateOf = (m: string) => m.split(',').pop()?.trim().toUpperCase() ?? '';
   const states = useMemo(() => ['all', ...[...new Set(listings.map(l => stateOf(l.market)).filter(Boolean))].sort()], [listings]);
   const markets = useMemo(() => ['all', ...[...new Set(listings.map(l => l.market).filter(m => usState === 'all' || stateOf(m) === usState))].sort()], [listings, usState]);
-  const base = useMemo(() => listings.filter(l => (usState === 'all' || stateOf(l.market) === usState) && (market === 'all' || l.market === market) && (stage === 'all' || l.pipeline_stage === stage) && (view === 'all' || (view === 'matched' && ['unique', 'ambiguous'].includes(l.match_status ?? '')))), [listings, usState, market, stage, view]);
+  const base = useMemo(() => listings.filter(l => (usState === 'all' || stateOf(l.market) === usState) && (market === 'all' || l.market === market) && (stage === 'all' || l.pipeline_stage === stage) && (!niches.length || (l.niches ?? []).some(n => niches.includes(n))) && (view === 'all' || (view === 'matched' && ['unique', 'ambiguous'].includes(l.match_status ?? '')))), [listings, usState, market, stage, view, niches]);
   const luxuryCount = useMemo(() => base.filter(l => l.is_luxury).length, [base]);
   const eliteCount = useMemo(() => base.filter(l => l.is_elite).length, [base]);
   const verifiedCount = useMemo(() => base.filter(l => l.verification?.level === 'verified').length, [base]);
@@ -166,6 +175,7 @@ export default function CoHostView() {
       best: (a, b) => Number(b.match_status === 'unique') - Number(a.match_status === 'unique') || (b.under_score ?? 0) - (a.under_score ?? 0),
       potential_desc: (a, b) => pot(b) - pot(a), potential_asc: (a, b) => (a.revenue_potential_ltm == null ? Infinity : a.revenue_potential_ltm) - (b.revenue_potential_ltm == null ? Infinity : b.revenue_potential_ltm),
       earned_desc: (a, b) => (b.revenue_ltm ?? -1) - (a.revenue_ltm ?? -1), newest: (a, b) => Date.parse(b.first_seen_at ?? '') - Date.parse(a.first_seen_at ?? ''),
+      niche_priority: (a, b) => nichePriority(a.niches) - nichePriority(b.niches) || pot(b) - pot(a),
     };
     return base.filter(l => (!luxuryOnly || l.is_luxury) && (!eliteOnly || l.is_elite) && (!verifiedOnly || l.verification?.level === 'verified')).sort(cmp[sort]);
   }, [base, luxuryOnly, eliteOnly, verifiedOnly, sort]);
@@ -216,6 +226,8 @@ export default function CoHostView() {
         <span className="text-xs text-muted-foreground">{view === 'crm' ? `${crm.length} leads` : `${shown.length} listings${eliteOnly ? ' (elite)' : luxuryOnly ? ' (luxury)' : ''}${totals && view === 'all' ? ` shown of ${totals.all.toLocaleString()} candidates nationwide (the strongest by each ranking)` : ''}`}</span>
       </div>
 
+      {view !== 'crm' && <NicheFilter value={niches} onChange={setNiches} counts={nicheCounts} />}
+
       {loading && <div className="py-16 flex justify-center text-muted-foreground"><Loader2 className="animate-spin" /></div>}
 
       {!loading && view === 'crm' && (
@@ -258,8 +270,17 @@ export default function CoHostView() {
                   </div>
                 </div>
 
+                {(l.niches?.length ?? 0) > 0 && (
+                  <p className="text-xs mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {l.primary_niche != null && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-violet-600 text-white">{nicheName(l.primary_niche)}</span>}
+                    {l.niches!.filter(n => n !== l.primary_niche).slice(0, 4).map(n => <button key={n} onClick={() => setNiches(v => (v.includes(n) ? v : [...v, n]))} title="Filter by this niche" className="px-2 py-0.5 rounded-full text-[11px] bg-violet-100 text-violet-800 hover:bg-violet-200">{nicheName(n)}</button>)}
+                    {l.niches!.length > 5 && <span className="text-[11px] text-muted-foreground">+{l.niches!.length - 5} more</span>}
+                  </p>
+                )}
                 {(l.under_reasons?.length ?? 0) > 0 && <p className="text-xs text-foreground mt-2.5"><span className="font-semibold">Why flagged:</span> {l.under_reasons!.join('; ')}.</p>}
-                {l.photo_score != null && <p className="text-xs text-foreground mt-1.5 flex items-start gap-1.5"><Camera size={13} className="mt-0.5 shrink-0 text-muted-foreground" /><span><span className="font-semibold">Photos {l.photo_score}/100</span>{l.photo_notes?.looksDated ? ', look dated' : ''}{l.photo_notes?.missingShots?.length ? `. Missing: ${l.photo_notes.missingShots.slice(0, 3).join(', ')}` : ''}{l.photo_notes?.fixes?.[0] ? `. First fix: ${l.photo_notes.fixes[0]}` : ''}</span></p>}
+                {l.photo_score != null && l.photo_notes?.complete && <p className="text-xs text-foreground mt-1.5 flex items-start gap-1.5"><Camera size={13} className="mt-0.5 shrink-0 text-muted-foreground" /><span><span className="font-semibold">Photos {l.photo_score}/100</span> <span className="text-muted-foreground">(all {l.photo_notes.photosReviewed} reviewed{l.photo_notes.unreachable ? `, ${l.photo_notes.unreachable} could not load` : ''})</span>{l.photo_notes?.looksDated ? ', look dated' : ''}{l.photo_notes?.missingShots?.length ? `. Missing: ${l.photo_notes.missingShots.slice(0, 3).join(', ')}` : ''}{l.photo_notes?.fixes?.[0] ? `. First fix: ${l.photo_notes.fixes[0]}` : ''}</span></p>}
+                {l.photo_score != null && !l.photo_notes?.complete && <p className="text-xs text-muted-foreground mt-1.5 flex items-start gap-1.5"><Camera size={13} className="mt-0.5 shrink-0" /><span>Photo score {l.photo_score}/100 came from a sample of the photos, so its &ldquo;missing&rdquo; notes are not reliable. A full review of every photo is queued.</span></p>}
+                {l.photo_score == null && l.photo_notes?.complete === false && <p className="text-xs text-muted-foreground mt-1.5 flex items-start gap-1.5"><Camera size={13} className="mt-0.5 shrink-0" /><span>Photos not scored: {l.photo_notes.reason ?? 'they could not all be loaded'}.</span></p>}
                 {l.matched_address && o && (
                   <div className="mt-2.5 rounded-lg bg-muted/50 px-3 py-2 text-xs">
                     <p className="flex items-center gap-1.5"><MapPin size={13} className="text-muted-foreground" /><span><span className="font-semibold">Probable home:</span> {l.matched_address.replace(/, US.*$/, '')}</span></p>

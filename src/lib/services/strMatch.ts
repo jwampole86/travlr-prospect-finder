@@ -44,7 +44,8 @@ export interface MatchSummary { checked: number; tally: Record<string, number>; 
  * Matches are probable, not certain, and are meant for human review.
  */
 export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promise<MatchSummary> {
-  if (!process.env.RENTCAST_API_KEY) throw new Error('RENTCAST_API_KEY is not set');
+  // Without a RentCast key, only registries that publish bedrooms can be matched; the rest are left for a run that has one.
+  const canLookUp = !!process.env.RENTCAST_API_KEY;
   const reg: Array<Record<string, any>> = [];
   // PostgREST returns at most 1,000 rows per request, so the registry has to be read in pages.
   for (let from = 0; ; from += 1000) {
@@ -78,7 +79,7 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
     let status = 'no_registry_nearby'; const candidates: Array<Record<string, any>> = [];
     if (near.length) {
       const needsParcels = near.some(r => r.bedrooms == null);
-      if (needsParcels && opts.maxLookups != null && lookups >= opts.maxLookups) continue;
+      if (needsParcels && (!canLookUp || (opts.maxLookups != null && lookups >= opts.maxLookups))) continue;
       // The property record is only needed for registries that do not publish bedrooms.
       const parcels = needsParcels ? (lookups++, await parcelsNear(here.lat, here.lng, radiusM / 1609.34 + 0.02)) : [];
       const byAddr = new Map(parcels.map(p => [normStreet(p.addressLine1 ?? p.formattedAddress ?? ''), p]));

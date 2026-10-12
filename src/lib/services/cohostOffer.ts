@@ -56,13 +56,15 @@ export async function getOfferData(db: Db, code: string): Promise<OfferData | nu
   const [city, state] = String(l.market ?? '').split(',').map(s => s.trim());
   const revenue = Math.round(num(l.revenue_ltm) ?? 0); const potential = Math.round(num(l.revenue_potential_ltm) ?? 0);
   const { gap, scenarios } = buildScenarios(revenue, potential);
-  const pn = (l.photo_notes ?? {}) as { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean };
+  const pn = (l.photo_notes ?? {}) as { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean; complete?: boolean };
+  // A review built on a sample of the photos can wrongly call a space missing, so owners only see findings from a review of every photo.
+  const full = pn.complete === true;
   return {
     code, title: String(l.title ?? 'Your listing').slice(0, 120), city: city ?? '', state: state ?? '', bedrooms: num(l.bedrooms), bathrooms: num(l.bathrooms), luxury: !!l.is_luxury, rating: num(l.rating), reviews: num(l.reviews),
     current: { revenue, adr: num(l.adr), occupancyPct: num(l.occupancy_pct), daysAvailable: num(l.days_available_ltm) },
     potential: Math.max(potential, revenue), gap, scenarios,
     findings: ((l.under_reasons ?? []) as string[]).slice(0, 4),
-    photo: { score: num(l.photo_score), hero: pn.hero ?? null, fixes: (pn.fixes ?? []).slice(0, 3), missingShots: (pn.missingShots ?? []).slice(0, 4), looksDated: !!pn.looksDated },
+    photo: { score: full ? num(l.photo_score) : null, hero: full ? pn.hero ?? null : null, fixes: full ? (pn.fixes ?? []).slice(0, 3) : [], missingShots: full ? (pn.missingShots ?? []).slice(0, 4) : [], looksDated: full && !!pn.looksDated },
     optedOut: !!link.opted_out_at, requested: !!link.requested_at,
   };
 }

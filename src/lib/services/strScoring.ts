@@ -1,5 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { classifyNiches } from '@/lib/niches';
 
 type Row = Record<string, any>;
 const clamp = (n: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, n));
@@ -26,7 +27,7 @@ export interface ScoreSummary { scored: number; segments: Record<string, number>
  */
 export async function scoreListings(db: SupabaseClient, opts: { markets?: string[]; write: boolean }): Promise<ScoreSummary> {
   const rows: Row[] = [];
-  const cols = 'property_id,market,bedrooms,adr,occupancy_pct,days_available_ltm,revenue_ltm,revenue_potential_ltm,rating,reviews,host_listing_count';
+  const cols = 'property_id,market,title,bedrooms,bathrooms,accommodates,adr,occupancy_pct,days_available_ltm,revenue_ltm,revenue_potential_ltm,rating,reviews,host_listing_count';
   const chunks = opts.markets ? Array.from({ length: Math.ceil(opts.markets.length / 40) }, (_, i) => opts.markets!.slice(i * 40, i * 40 + 40)) : [null];
   for (const chunk of chunks) {
     for (let from = 0; ; from += 1000) {
@@ -75,7 +76,9 @@ export async function scoreListings(db: SupabaseClient, opts: { markets?: string
     const segment = hostCount >= 5 ? 'professional_manager' : avail < 150 ? 'owner_blocked' : reviews <= 3 ? 'new_or_dormant' : score >= 45 ? 'candidate' : 'performing';
     const isLux = adr >= (lux.get(r.market) ?? 0);
     const isElite = isLux && adr > 0 && (adr >= ELITE_ADR || (adr >= ELITE_FLOOR_ADR && adr >= (top5.get(r.market) ?? Infinity)));
-    out.push({ property_id: r.property_id, market: r.market, under_score: score, under_reasons: reasons, segment, is_luxury: isLux, is_elite: isElite, scored_at: new Date().toISOString() });
+    const c = classifyNiches({ title: r.title, market: r.market, bedrooms: r.bedrooms, bathrooms: r.bathrooms, accommodates: r.accommodates, adr, is_luxury: isLux, is_elite: isElite });
+    const niche = { niches: c.niches, primary_niche: c.primary };
+    out.push({ property_id: r.property_id, market: r.market, under_score: score, under_reasons: reasons, segment, is_luxury: isLux, is_elite: isElite, ...niche, scored_at: new Date().toISOString() });
   }
 
   const count = (f: (r: Row) => string) => out.reduce<Record<string, number>>((a, r) => { const k = f(r); a[k] = (a[k] ?? 0) + 1; return a; }, {});

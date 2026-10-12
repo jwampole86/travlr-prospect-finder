@@ -16,21 +16,24 @@ export async function GET(req: NextRequest) {
 
   // Nationwide there are thousands of candidates, far more than fits in one response. Every matched listing and every listing someone has
   // moved through the pipeline is always included; unmatched ones are limited to the strongest by each ranking the page can sort by.
-  const COLS = 'property_id,market,title,airbnb_url,vrbo_url,booking_url,channels,bedrooms,bathrooms,adr,occupancy_pct,revenue_ltm,revenue_potential_ltm,rating,reviews,host_listing_count,is_luxury,is_elite,first_seen_at,under_score,under_reasons,segment,photo_score,photo_notes,address_match_confidence,match_status,match_candidates,matched_address,matched_owner,pipeline_stage,service_model,reviewer_notes,stage_updated_at';
+  const COLS = 'property_id,market,title,airbnb_url,vrbo_url,booking_url,channels,bedrooms,bathrooms,adr,occupancy_pct,revenue_ltm,revenue_potential_ltm,rating,reviews,host_listing_count,is_luxury,is_elite,first_seen_at,niches,primary_niche,under_score,under_reasons,segment,photo_score,photo_notes,address_match_confidence,match_status,match_candidates,matched_address,matched_owner,pipeline_stage,service_model,reviewer_notes,stage_updated_at';
   const listings: Array<Record<string, any>> = []; const seenIds = new Set<string>();
   const add = (rows: Array<Record<string, any>> | null) => { for (const r of rows ?? []) if (!seenIds.has(r.property_id)) { seenIds.add(r.property_id); listings.push(r); } };
   const SEG = ['candidate', 'new_or_dormant'];
+  // With niches selected, the unmatched sets below hold the strongest listings in those niches instead of the strongest overall.
+  const nicheIds = (new URL(req.url).searchParams.get('niche') ?? '').split(',').map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= 120).slice(0, 120);
+  const inNiches = <T extends { overlaps: (c: string, v: number[]) => T }>(q: T) => (nicheIds.length ? q.overlaps('niches', nicheIds) : q);
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db.from('str_listings').select(COLS).in('segment', SEG).or('match_status.in.(unique,ambiguous),pipeline_stage.neq.identified').order('property_id').range(from, from + 999);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     add(data); if ((data ?? []).length < 1000) break;
   }
   const sets = await Promise.all([
-    db.from('str_listings').select(COLS).in('segment', SEG).order('under_score', { ascending: false, nullsFirst: false }).limit(400),
-    db.from('str_listings').select(COLS).in('segment', SEG).eq('is_luxury', true).order('under_score', { ascending: false, nullsFirst: false }).limit(300),
-    db.from('str_listings').select(COLS).in('segment', SEG).eq('is_elite', true).order('under_score', { ascending: false, nullsFirst: false }).limit(300),
-    db.from('str_listings').select(COLS).in('segment', SEG).order('revenue_potential_ltm', { ascending: false, nullsFirst: false }).limit(400),
-    db.from('str_listings').select(COLS).in('segment', SEG).order('first_seen_at', { ascending: false }).limit(200),
+    inNiches(db.from('str_listings').select(COLS).in('segment', SEG)).order('under_score', { ascending: false, nullsFirst: false }).limit(400),
+    inNiches(db.from('str_listings').select(COLS).in('segment', SEG).eq('is_luxury', true)).order('under_score', { ascending: false, nullsFirst: false }).limit(300),
+    inNiches(db.from('str_listings').select(COLS).in('segment', SEG).eq('is_elite', true)).order('under_score', { ascending: false, nullsFirst: false }).limit(300),
+    inNiches(db.from('str_listings').select(COLS).in('segment', SEG)).order('revenue_potential_ltm', { ascending: false, nullsFirst: false }).limit(400),
+    inNiches(db.from('str_listings').select(COLS).in('segment', SEG)).order('first_seen_at', { ascending: false }).limit(200),
   ]);
   const failed = sets.find(s => s.error); if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
   sets.forEach(s => add(s.data));
