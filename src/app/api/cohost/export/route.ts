@@ -3,6 +3,7 @@ import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyOwner } from '@/lib/services/ownerVerification';
 import { offerUrl } from '@/lib/services/cohostOffer';
+import { contactablePersons, homesagePhones } from '@/lib/services/homesageSkipTrace';
 
 export const maxDuration = 60;
 
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
   const { data: sup } = await db.from('sms_suppressions').select('phone_e164').limit(50000);
   const suppressed = new Set((sup ?? []).map(s => s.phone_e164 as string));
 
-  const header = ['Owner name', 'Owner type', 'Mail street', 'Mail city', 'Mail state', 'Mail zip', 'Phone (owner)', 'Email (owner)', 'Phone (manager/emergency)', 'Email (manager/emergency)', 'Skip-trace phones', 'Skip-trace emails', 'Property address', 'Market', 'Bedrooms', 'Tier', 'Verification', 'Permit holder', 'Registered agent', 'Agent address', 'Business office', 'Airbnb listing', 'Offer page'];
+  const header = ['Owner name', 'Owner type', 'Mail street', 'Mail city', 'Mail state', 'Mail zip', 'Phone (owner)', 'Email (owner)', 'Phone (manager/emergency)', 'Email (manager/emergency)', 'Skip-trace phones', 'Skip-trace emails', 'Owner person (property record)', 'Do not contact', 'Property address', 'Market', 'Bedrooms', 'Tier', 'Verification', 'Permit holder', 'Registered agent', 'Agent address', 'Business office', 'Airbnb listing', 'Offer page'];
   const lines = [header.join(',')];
   for (const l of rows) {
     const o = l.matched_owner as Record<string, any>;
@@ -40,12 +41,14 @@ export async function GET(req: NextRequest) {
     if (v.level === 'conflict') continue;
     const found = (o.skipTrace?.results ?? []).map((r: any) => r.found).filter(Boolean);
     const phones = (p: unknown) => { const d = String(p ?? '').replace(/\D/g, '').slice(-10); return d.length === 10 && !suppressed.has(`+1${d}`) ? String(p) : ''; };
-    const traced = found.flatMap((f: any) => (f.phones ?? []).map((x: any) => x.e164)).filter((p: string) => !suppressed.has(p));
-    const email = (o.contact?.email ?? '') as string, ownerPhone = phones(o.contact?.phone), tracedEmails = found.flatMap((f: any) => f.emails ?? []);
-    const mail = o.mailing ? splitMailing(String(o.mailing)) : o.entity?.mailingAddress ? splitMailing(String(o.entity.mailingAddress)) : { street: '', city: '', state: '', zip: '' };
+    const traced = [...new Set([...homesagePhones(o).map(p => p.e164), ...found.flatMap((f: any) => (f.phones ?? []).map((x: any) => x.e164))])].filter((p: string) => !suppressed.has(p));
+    const people = (o.homesage?.persons ?? []) as Array<{ name: string; mailing: string | null; doNotContact: boolean; litigator: boolean; tcpaRisk: boolean; deceased: boolean }>;
+    const flagged = people.filter(p => p.doNotContact).map(p => `${p.name}: ${[p.litigator && 'litigator', p.tcpaRisk && 'TCPA risk', p.deceased && 'deceased'].filter(Boolean).join('/')}`).join('; ');
+    const email = (o.contact?.email ?? '') as string, ownerPhone = phones(o.contact?.phone), tracedEmails = [...new Set([...contactablePersons(o).flatMap(p => p.emails.map(e => e.email)), ...found.flatMap((f: any) => f.emails ?? [])])];
+    const mail = o.mailing ? splitMailing(String(o.mailing)) : people[0]?.mailing ? splitMailing(String(people[0].mailing)) : o.entity?.mailingAddress ? splitMailing(String(o.entity.mailingAddress)) : { street: '', city: '', state: '', zip: '' };
     if (!mail.street && !ownerPhone && !email && !traced.length && !tracedEmails.length) continue;
     const code = link.get(l.property_id)?.code as string | undefined;
-    lines.push([(o.names ?? []).join(' & '), o.type ?? '', mail.street, mail.city, mail.state, mail.zip, ownerPhone, email, phones(o.contact?.managerPhone), o.contact?.managerEmail ?? '', traced.slice(0, 3).join(' '), tracedEmails.slice(0, 3).join(' '), String(l.matched_address ?? '').replace(/, US.*$/, ''), l.market, l.bedrooms, l.is_elite ? 'ELITE' : l.is_luxury ? 'LUXURY' : '', v.label, o.permitHolder ?? '', o.entity?.agent ?? '', o.entity?.agentAddress ?? '', o.entity?.principalAddress ?? '', l.airbnb_url ?? '', code ? offerUrl(code) : ''].map(csvCell).join(','));
+    lines.push([(o.names ?? []).join(' & '), o.type ?? '', mail.street, mail.city, mail.state, mail.zip, ownerPhone, email, phones(o.contact?.managerPhone), o.contact?.managerEmail ?? '', traced.slice(0, 3).join(' '), tracedEmails.slice(0, 3).join(' '), people.map(p => p.name).join(' & '), flagged, String(l.matched_address ?? '').replace(/, US.*$/, ''), l.market, l.bedrooms, l.is_elite ? 'ELITE' : l.is_luxury ? 'LUXURY' : '', v.label, o.permitHolder ?? '', o.entity?.agent ?? '', o.entity?.agentAddress ?? '', o.entity?.principalAddress ?? '', l.airbnb_url ?? '', code ? offerUrl(code) : ''].map(csvCell).join(','));
   }
   return new NextResponse(lines.join('\n'), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="cohost-owners-${new Date().toISOString().slice(0, 10)}.csv"`, 'Cache-Control': 'no-store' } });
 }

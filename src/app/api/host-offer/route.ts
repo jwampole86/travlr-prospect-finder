@@ -51,8 +51,8 @@ export async function POST(req: NextRequest) {
     const { data: l } = await db.from('str_listings').select('pipeline_stage,matched_owner').eq('property_id', link.property_id).maybeSingle();
     if (l && !['agreed', 'onboarded'].includes(l.pipeline_stage)) await db.from('str_listings').update({ pipeline_stage: 'declined', stage_updated_at: new Date().toISOString() }).eq('property_id', link.property_id);
     // Any phone we hold for this owner is also blocked from text messages.
-    const o = (l?.matched_owner ?? {}) as { skipTrace?: { results?: Array<{ found?: { phones?: Array<{ e164?: string }> } }> }; contact?: { phone?: string } };
-    const phones = [...(o.skipTrace?.results ?? []).flatMap(r => (r.found?.phones ?? []).map(p => p.e164)), toE164(o.contact?.phone)].filter((p): p is string => !!p);
+    const o = (l?.matched_owner ?? {}) as { skipTrace?: { results?: Array<{ found?: { phones?: Array<{ e164?: string }> } }> }; homesage?: { persons?: Array<{ phones?: Array<{ e164?: string }> }> }; contact?: { phone?: string } };
+    const phones = [...(o.skipTrace?.results ?? []).flatMap(r => (r.found?.phones ?? []).map(p => p.e164)), ...(o.homesage?.persons ?? []).flatMap(p => (p.phones ?? []).map(x => x.e164)), toE164(o.contact?.phone)].filter((p): p is string => !!p);
     for (const p of new Set(phones)) await db.from('sms_suppressions').upsert({ phone_e164: p, reason: 'opt_out', last_message: 'co-host offer page opt-out' }, { onConflict: 'phone_e164' });
     return NextResponse.json({ ok: true });
   }

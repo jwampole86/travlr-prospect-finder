@@ -125,7 +125,7 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
       const m = r.status === 'unique' ? r.candidates[0] : null;
       // Skip-trace results belong to the person, so they stay only while the matched property is unchanged.
       const same = m && r.previous && r.previous.permit === m.permit && r.previous.jurisdiction === m.jurisdiction;
-      await db.from('str_listings').update({ match_status: r.status, match_candidates: r.candidates, matched_address: m?.address ?? null, matched_owner: m ? { names: m.ownerNames, type: m.ownerType, mailing: m.mailing, permitHolder: m.permitHolder, ownerOccupied: m.ownerOccupied, permit: m.permit, jurisdiction: m.jurisdiction, contact: m.contact ?? null, ...(same && r.previous.skipTrace ? { skipTrace: r.previous.skipTrace } : {}) } : null, matched_at: new Date().toISOString() }).eq('property_id', r.property_id);
+      await db.from('str_listings').update({ match_status: r.status, match_candidates: r.candidates, matched_address: m?.address ?? null, matched_owner: m ? { names: m.ownerNames, type: m.ownerType, mailing: m.mailing, permitHolder: m.permitHolder, ownerOccupied: m.ownerOccupied, permit: m.permit, jurisdiction: m.jurisdiction, contact: m.contact ?? null, ...(same && r.previous.skipTrace ? { skipTrace: r.previous.skipTrace } : {}), ...(same && r.previous.homesage ? { homesage: r.previous.homesage } : {}) } : null, matched_at: new Date().toISOString() }).eq('property_id', r.property_id);
     }
   }
   return { checked: results.length, tally, uniqueIds: results.filter(x => x.status === 'unique').map(x => x.property_id), unique };

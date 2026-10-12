@@ -3,6 +3,7 @@ import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyOwner } from '@/lib/services/ownerVerification';
 import { assessData } from '@/lib/services/cohostNumbers';
+import { contactablePersons, homesagePhones } from '@/lib/services/homesageSkipTrace';
 
 export const maxDuration = 60;
 
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
     const cands = (l.match_candidates as any[] | null) ?? [];
     const verification = verifyOwner({ ...(l as any), candidate: cands[0] ?? null, candidateCount: cands.length, sharedAddressCount: l.matched_address ? shared.get(l.matched_address) ?? 1 : 1 });
     const { match_candidates: _drop, ...rest } = l;
-    return { ...rest, verification, dataQuality: assessData(l), offer: offers.get(l.property_id) ?? null, texts: texts.get(l.property_id) ?? null, matched_owner: l.matched_owner ? { names: o.names ?? [], type: o.type ?? null, mailing: o.mailing ?? null, permitHolder: o.permitHolder ?? null, contactFound: found.length > 0, skipTraced: !!o.skipTrace, entity: o.entity ?? null, phones: found.flatMap((p: any) => p.phones.map((x: any) => x.e164)).slice(0, 3), emails: found.flatMap((p: any) => p.emails).slice(0, 3), published: o.contact ? { email: o.contact.email ?? null, phone: o.contact.phone ?? null, managerEmail: o.contact.managerEmail ?? null, managerPhone: o.contact.managerPhone ?? null } : null } : null };
+    return { ...rest, verification, dataQuality: assessData(l), offer: offers.get(l.property_id) ?? null, texts: texts.get(l.property_id) ?? null, matched_owner: l.matched_owner ? { names: o.names ?? [], type: o.type ?? null, mailing: o.mailing ?? null, permitHolder: o.permitHolder ?? null, contactFound: found.length > 0 || contactablePersons(o).length > 0, skipTraced: !!o.skipTrace, entity: o.entity ?? null, homesage: o.homesage ? { found: !!o.homesage.found, error: o.homesage.error ?? null, people: (o.homesage.persons ?? []).map((p: any) => ({ name: p.name, mailing: p.mailing, doNotContact: !!p.doNotContact, litigator: !!p.litigator, tcpaRisk: !!p.tcpaRisk, deceased: !!p.deceased, reachableMobiles: (p.phones ?? []).filter((x: any) => x.type === 'mobile' && x.reachable).length })) } : null, phones: [...new Set([...homesagePhones(o).map(p => p.e164), ...found.flatMap((p: any) => p.phones.map((x: any) => x.e164))])].slice(0, 3), emails: [...new Set([...contactablePersons(o).flatMap(p => p.emails.map(e => e.email)), ...found.flatMap((p: any) => p.emails)])].slice(0, 3), published: o.contact ? { email: o.contact.email ?? null, phone: o.contact.phone ?? null, managerEmail: o.contact.managerEmail ?? null, managerPhone: o.contact.managerPhone ?? null } : null } : null };
   });
 
   const { data: crm } = await db.from('leads').select('id,address,city,state,owner_name,contact_phone,program,cohost_service,existing_platforms,program_reason,program_set_at,stage').eq('program', 'co_host').order('program_set_at', { ascending: false }).limit(500);

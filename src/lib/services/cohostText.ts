@@ -3,6 +3,7 @@ import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { dispatchSMS, lookupPhoneNumber } from '@/lib/services/twilioService';
 import { countSegments, inSendWindow, toGsm, MAX_SEGMENTS } from '@/lib/services/estimateOutreachSms';
 import { isSuppressed, toE164 } from '@/lib/services/smsConsent';
+import { homesagePhones } from '@/lib/services/homesageSkipTrace';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
@@ -11,13 +12,15 @@ const DAILY_CAP = 40;
 const COOLDOWN_DAYS = 7;
 const NO_TEXT_STAGES = ['declined', 'not_a_fit'];
 
-export interface HostPhone { e164: string; source: 'skip_trace' | 'permit_office'; type: string | null; name: string | null }
+export interface HostPhone { e164: string; source: 'skip_trace' | 'permit_office' | 'homesage'; type: string | null; name: string | null }
 
-/** Every phone we hold for this prospect: skip-trace matches and any number the permit office itself publishes. */
+/** Every phone we hold for this prospect: owner-record and skip-trace matches, and any number the permit office itself publishes. Numbers of people flagged litigator, TCPA risk or deceased are left out. */
 export function phonesFor(owner: Row | null | undefined): HostPhone[] {
   const out = new Map<string, HostPhone>();
+  const blocked = new Set(((owner?.homesage?.persons ?? []) as Row[]).filter(p => p.doNotContact).flatMap(p => (p.phones ?? []).map((x: Row) => x.e164)));
+  for (const p of homesagePhones(owner)) { if (!out.has(p.e164)) out.set(p.e164, { e164: p.e164, source: 'homesage', type: p.type, name: p.person }); }
   for (const r of (owner?.skipTrace?.results ?? []) as Row[]) {
-    for (const p of (r.found?.phones ?? []) as Row[]) { const e = toE164(p.e164); if (e && !out.has(e)) out.set(e, { e164: e, source: 'skip_trace', type: p.type ?? null, name: r.found?.name ?? r.name ?? null }); }
+    for (const p of (r.found?.phones ?? []) as Row[]) { const e = toE164(p.e164); if (e && !blocked.has(e) && !out.has(e)) out.set(e, { e164: e, source: 'skip_trace', type: p.type ?? null, name: r.found?.name ?? r.name ?? null }); }
   }
   const pub = toE164(owner?.contact?.phone);
   if (pub && !out.has(pub)) out.set(pub, { e164: pub, source: 'permit_office', type: null, name: owner?.permitHolder ?? null });

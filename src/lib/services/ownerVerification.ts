@@ -79,6 +79,17 @@ export function verifyOwner(i: VerifyInput): OwnerVerification {
     if (!elig.eligible) add('skiptrace', 'Skip-trace cross-check', 'info', elig.reason);
     else add('skiptrace', 'Skip-trace cross-check', 'pending', 'Not run yet. It searches the owner by name and county mailing address and only accepts a person whose address history matches.');
   }
+  const hs = o?.homesage;
+  if (hs?.found) {
+    const mailKey = (s: unknown) => String(s ?? '').toUpperCase().replace(/[.,#]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 3).join(' ');
+    const people = (hs.persons ?? []) as Array<{ name: string; mailing: string | null; doNotContact: boolean; litigator: boolean; tcpaRisk: boolean; deceased: boolean }>;
+    const nameOk = people.some(p => anyName([p.name], [...names, holder].filter(Boolean)));
+    const mailOk = !!o?.mailing && people.some(p => p.mailing && mailKey(p.mailing) === mailKey(o.mailing));
+    const who = people.map(p => p.name).join(' & ');
+    if (nameOk || mailOk) { strong++; add('homesage', 'Property owner record', 'pass', `${who} on the property record${mailOk ? ', with the same mailing address as the county record' : ', matching the owner or permit holder'}.`); }
+    else add('homesage', 'Property owner record', 'warn', `The property record lists ${who}, who matches neither the permit holder nor the county owner. The home may have been sold or held by someone else, so check before contacting.`);
+    for (const p of people.filter(x => x.doNotContact)) add('homesage_flag', 'Do not contact', 'warn', `${p.name} is flagged: ${[p.litigator && 'known litigator', p.tcpaRisk && 'TCPA risk', p.deceased && 'deceased'].filter(Boolean).join(', ')}. Do not text or call.`);
+  }
   if (!st && (reg.phone || reg.email)) add('contact', 'Agency contact', 'info', `The agency publishes ${[reg.phone && 'a phone', reg.email && 'an email'].filter(Boolean).join(' and ')} for this permit.`);
 
   if ((i.sharedAddressCount ?? 1) > 1) add('unique', 'One listing per property', 'fail', `The same property was matched to ${i.sharedAddressCount} listings, so the match cannot be trusted for any of them.`);
