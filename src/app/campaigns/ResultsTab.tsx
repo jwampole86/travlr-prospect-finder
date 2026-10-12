@@ -2,13 +2,19 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, CheckCircle2, Clock, Copy, DollarSign, Flame, Loader2, MessageSquare, MousePointerClick, Search, Send, ShieldOff, Sparkles, ArrowDown, ArrowUp, Eye, X, Check } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Copy, DollarSign, Flame, Loader2, MessageSquare, MousePointerClick, Search, Send, ShieldOff, Sparkles, ArrowDown, ArrowUp, Eye, X, Check } from 'lucide-react';
 import { BatchInfo, Card, Chip, Insights, Notice, Overview, SectionTitle, Skeleton, cx, fmtDate, pct, post } from './shared';
 
 const BREAKDOWNS: Array<[string, string]> = [
   ['audience', 'Audience'], ['variant', 'Tone'], ['writtenBy', 'AI vs template'], ['segments', 'Length'], ['estimate', 'Estimate size'], ['state', 'State'],
   ['device', 'Device'], ['os', 'Phone OS'], ['sendHourUtc', 'Send hour (UTC)'], ['timeToClick', 'Time to click'], ['phone', 'Phone quality'], ['temperature', 'Outcome'],
 ];
+const LEAD_GROUPS: Array<{ key: string; label: string; hint: string }> = [
+  { key: 'hot', label: 'Hot', hint: 'Submitted the form, asked for a call or replied YES. Call these first.' },
+  { key: 'warm', label: 'Warm', hint: 'Opened the link, spent time on the estimate or replied.' },
+  { key: 'wrong_contact', label: 'Wrong contact', hint: 'Said it is the wrong person or number. Find the right contact.' },
+];
+const LEAD_PREVIEW = 8;
 const TEMP_STYLE: Record<string, string> = {
   wrong_contact: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300', hot: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300', warm: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
   cold: 'bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-300', unreachable: 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300', opted_out: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
@@ -89,7 +95,8 @@ export default function ResultsTab(props: {
   const [tab, setTab] = useState('audience');
   const [focus, setFocus] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'texts', dir: -1 });
-  const [leadFilter, setLeadFilter] = useState<'all' | 'hot' | 'warm'>('all');
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ hot: true });
+  const [showAll, setShowAll] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -105,7 +112,11 @@ export default function ResultsTab(props: {
     return r.sort((a, b) => (a[1][sort.key] - b[1][sort.key]) * sort.dir);
   }, [data, tab, sort]);
   const leading = useMemo(() => { const c = rows.filter(([, b]) => b.texts >= 15 && b.delivered > 0); return c.length > 1 ? c.reduce((m, x) => (x[1].submitPct + x[1].replyPct > m[1].submitPct + m[1].replyPct ? x : m))[0] : null; }, [rows]);
-  const leads = useMemo(() => (data?.hotLeads ?? []).filter(h => (leadFilter === 'all' || h.temperature === leadFilter) && (!query || `${h.address} ${h.owner ?? ''} ${h.phone ?? ''}`.toLowerCase().includes(query.toLowerCase()))), [data, leadFilter, query]);
+  const leadGroups = useMemo(() => {
+    const found = (data?.hotLeads ?? []).filter(h => !query || `${h.address} ${h.owner ?? ''} ${h.phone ?? ''}`.toLowerCase().includes(query.toLowerCase()));
+    return LEAD_GROUPS.map(g => ({ ...g, rows: found.filter(h => h.temperature === g.key) }));
+  }, [data, query]);
+  const groupOpen = (key: string, n: number) => (query ? n > 0 : !!openGroups[key]);
 
   const th = (k: SortKey, label: string) => (
     <th className="pr-3 text-right"><button onClick={() => setSort(s => ({ key: k, dir: s.key === k ? (s.dir === 1 ? -1 : 1) : -1 }))} className="inline-flex items-center gap-0.5 uppercase tracking-wide hover:text-foreground">{label}{sort.key === k && (sort.dir === 1 ? <ArrowUp size={11} /> : <ArrowDown size={11} />)}</button></th>
@@ -207,17 +218,31 @@ export default function ResultsTab(props: {
           <Card className="p-5">
             <SectionTitle icon={<Flame size={15} className="text-red-500" />} title="Leads to follow up"
               right={<div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex rounded-xl border border-border p-0.5 text-xs">{(['all', 'hot', 'warm'] as const).map(k => <button key={k} onClick={() => setLeadFilter(k)} className={cx('px-3 py-1 rounded-lg capitalize', leadFilter === k ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>{k}</button>)}</div>
+                <div className="inline-flex gap-1 text-xs"><button onClick={() => setOpenGroups(Object.fromEntries(LEAD_GROUPS.map(g => [g.key, true])))} className="px-2.5 py-1 rounded-lg border border-border hover:bg-muted">Expand all</button><button onClick={() => setOpenGroups({})} className="px-2.5 py-1 rounded-lg border border-border hover:bg-muted">Collapse all</button></div>
                 <div className="relative"><Search size={13} className="absolute left-2.5 top-2.5 text-muted-foreground" /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search" className="h-8 w-36 rounded-xl border border-border bg-background pl-7 pr-2 text-xs outline-none focus:ring-2 focus:ring-primary/40" /></div></div>} />
-            {data.hotLeads.length === 0 ? <p className="text-sm text-muted-foreground">No engaged leads yet. Homeowners who open the link, submit the form, ask for a call or reply will be listed here, strongest first.</p> : leads.length === 0 ? <p className="text-sm text-muted-foreground">Nothing matches that filter.</p> : (
-              <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground"><th className="py-2 pr-3">Lead</th><th className="pr-3">Status</th><th className="pr-3">Score</th><th className="pr-3">What they did</th><th>Phone</th></tr></thead>
-                <tbody>{leads.map(h => (
-                  <tr key={`${h.leadId}-${h.batch}`} className="border-t border-border align-top hover:bg-muted/40">
-                    <td className="py-2.5 pr-3"><Link href={`/lead-profile?id=${h.leadId}`} className="font-medium text-primary hover:underline">{h.address || h.leadId}</Link><div className="text-[11px] text-muted-foreground">{h.owner ?? 'Owner unknown'}{h.stage ? ` · ${h.stage}` : ''}</div></td>
-                    <td className="pr-3"><span className={cx('px-2 py-0.5 rounded-full text-[11px] font-semibold', TEMP_STYLE[h.temperature])}>{h.temperature}</span></td>
-                    <td className="pr-3 tabular-nums">{h.score}</td><td className="pr-3 text-xs text-muted-foreground max-w-md">{h.why}</td>
-                    <td className="text-xs whitespace-nowrap">{h.phone && <button onClick={() => copy(h.phone!)} title="Copy number" className="inline-flex items-center gap-1 hover:text-primary">{h.phone} {copied === h.phone ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="opacity-50" />}</button>}</td>
-                  </tr>))}</tbody></table></div>)}
+            {data.hotLeads.length === 0 ? <p className="text-sm text-muted-foreground">No engaged leads yet. Homeowners who open the link, submit the form, ask for a call or reply will be listed here, strongest first.</p> : leadGroups.every(g => g.rows.length === 0) ? <p className="text-sm text-muted-foreground">Nothing matches that search.</p> : (
+              <div className="space-y-2.5">{leadGroups.filter(g => g.rows.length > 0 || !query).map(g => {
+                const open = groupOpen(g.key, g.rows.length); const shownRows = showAll[g.key] || query ? g.rows : g.rows.slice(0, LEAD_PREVIEW);
+                return (
+                  <div key={g.key} className="rounded-xl border border-border overflow-hidden">
+                    <button onClick={() => setOpenGroups(o => ({ ...o, [g.key]: !o[g.key] }))} aria-expanded={open} className="w-full flex items-center gap-3 px-4 py-2.5 bg-muted/30 hover:bg-muted/50 text-left">
+                      <ChevronDown size={15} className={cx('shrink-0 text-muted-foreground transition-transform', !open && '-rotate-90')} />
+                      <span className={cx('px-2 py-0.5 rounded-full text-[11px] font-semibold', TEMP_STYLE[g.key])}>{g.label}</span>
+                      <span className="text-sm font-semibold tabular-nums">{g.rows.length}</span>
+                      <span className="text-xs text-muted-foreground truncate">{g.hint}</span>
+                    </button>
+                    {open && (g.rows.length === 0 ? <p className="px-4 py-3 text-sm text-muted-foreground">No leads here yet.</p> : (
+                      <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground"><th className="py-2 pl-4 pr-3">Lead</th><th className="pr-3">Score</th><th className="pr-3">What they did</th><th className="pr-4">Phone</th></tr></thead>
+                        <tbody>{shownRows.map(h => (
+                          <tr key={`${h.leadId}-${h.batch}`} className="border-t border-border align-top hover:bg-muted/40">
+                            <td className="py-2.5 pl-4 pr-3"><Link href={`/lead-profile?id=${h.leadId}`} className="font-medium text-primary hover:underline">{h.address || h.leadId}</Link><div className="text-[11px] text-muted-foreground">{h.owner ?? 'Owner unknown'}{h.stage ? ` · ${h.stage}` : ''}</div></td>
+                            <td className="pr-3 tabular-nums">{h.score}</td><td className="pr-3 text-xs text-muted-foreground max-w-md">{h.why}</td>
+                            <td className="pr-4 text-xs whitespace-nowrap">{h.phone && <button onClick={() => copy(h.phone!)} title="Copy number" className="inline-flex items-center gap-1 hover:text-primary">{h.phone} {copied === h.phone ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="opacity-50" />}</button>}</td>
+                          </tr>))}</tbody></table>
+                        {g.rows.length > LEAD_PREVIEW && !query && <button onClick={() => setShowAll(s => ({ ...s, [g.key]: !s[g.key] }))} className="w-full py-2 text-xs font-medium text-primary hover:bg-muted/40 border-t border-border">{showAll[g.key] ? 'Show fewer' : `Show all ${g.rows.length}`}</button>}
+                      </div>))}
+                  </div>);
+              })}</div>)}
           </Card>
 
           <Card className="p-5">

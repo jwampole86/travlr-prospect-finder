@@ -1,8 +1,9 @@
 import React from 'react';
 import type { LeadStage } from '@/data/mockLeads';
+import { normalizeLeadStage } from '@/lib/leadStage';
 
 interface StageBadgeProps {
-  stage: LeadStage;
+  stage: LeadStage | string;
   size?: 'sm' | 'md';
 }
 
@@ -16,7 +17,8 @@ const stageConfig: Record<LeadStage, { className: string }> = {
   'Not a Fit': { className: 'bg-[var(--stage-notfit-bg)] text-[var(--stage-notfit)] border border-[var(--stage-notfit)]/20' },
 };
 
-export default function StageBadge({ stage, size = 'md' }: StageBadgeProps) {
+export default function StageBadge({ stage: rawStage, size = 'md' }: StageBadgeProps) {
+  const stage = normalizeLeadStage(rawStage);
   const { className } = stageConfig[stage];
   const textSize = size === 'sm' ? 'text-[10px]' : 'text-[11px]';
   const padding = size === 'sm' ? 'px-1.5 py-0.5' : 'px-2 py-0.5';

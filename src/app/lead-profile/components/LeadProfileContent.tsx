@@ -7,6 +7,7 @@ import { mockLeads } from '@/data/mockLeads';
 import type { Lead } from '@/data/mockLeads';
 import { cityRegulations } from '@/data/regulations';
 import { createClient } from '@/lib/supabase/client';
+import { normalizeLeadStage } from '@/lib/leadStage';
 import StageBadge from '@/components/ui/StageBadge';
 import RegulationBadge from '@/components/ui/RegulationBadge';
 import ProspectScoreBar from '@/components/ui/ProspectScoreBar';
@@ -268,7 +269,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
         return {
           id: String(found.id), address: String(found.address || ''), city: String(found.city || ''), state: String(found.state || ''), zip: String(found.zip || ''),
           lat: Number(found.lat || 0), lng: Number(found.lng || 0), beds: Number(found.beds || 0), baths: Number(found.baths || 0), price: Number(found.price || 0),
-          priceType: (found.price_type || 'rent') as Lead['priceType'], source: (found.source || 'Direct') as Lead['source'], stage: (found.stage || 'New Lead') as Lead['stage'],
+          priceType: (found.price_type || 'rent') as Lead['priceType'], source: (found.source || 'Direct') as Lead['source'], stage: normalizeLeadStage(found.stage) as Lead['stage'],
           regulationStatus: (found.regulation_status || 'Unknown') as Lead['regulationStatus'], prospectScore: Number(found.prospect_score || 0), daysOnMarket: Number(found.days_on_market || 0),
           lastChecked: String(found.last_checked || ''), listingUrl: String(found.listing_url || ''), notes: String(found.notes || ''), contactName: found.contact_name ? String(found.contact_name) : undefined,
           contactPhone: found.contact_phone ? String(found.contact_phone) : undefined, tags: (found.tags || []) as string[], estimatedADR: Number(found.estimated_adr || 0),
