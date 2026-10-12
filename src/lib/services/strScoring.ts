@@ -7,9 +7,9 @@ const clamp = (n: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, n));
 const sizeBand = (b: number | null) => (!b || b <= 3 ? '3' : b === 4 ? '4' : b === 5 ? '5' : '6+');
 const median = (a: number[]) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : 0; };
 
-/** LUXURY is a nightly rate at or above the market median; ELITE is the ultra-luxury tier: $1,000+ a night, or $600+ and in the market's top 5%. */
-export const ELITE_ADR = 1000;
-export const ELITE_FLOOR_ADR = 600;
+/** LUXURY starts at $1,000 a night; ELITE, the ultra-luxury tier, starts at $4,995 a night and is also counted as luxury. */
+export const LUXURY_ADR = 1000;
+export const ELITE_ADR = 4995;
 
 function percentileRank(sorted: number[], v: number): number {
   if (sorted.length < 2) return 0.5;
@@ -41,11 +41,6 @@ export async function scoreListings(db: SupabaseClient, opts: { markets?: string
   for (const r of rows) { const k = `${r.market}|${sizeBand(r.bedrooms)}`; (groups.get(k) ?? groups.set(k, []).get(k)!).push(r); }
   const stats = new Map<string, { occ: number[]; adrMed: number }>();
   for (const [k, g] of groups) stats.set(k, { occ: g.map(r => Number(r.occupancy_pct ?? 0)).sort((a, b) => a - b), adrMed: median(g.map(r => Number(r.adr ?? 0)).filter(Boolean)) });
-  const marketAdr = new Map<string, number[]>();
-  for (const r of rows) if (r.adr) (marketAdr.get(r.market) ?? marketAdr.set(r.market, []).get(r.market)!).push(Number(r.adr));
-  const lux = new Map([...marketAdr].map(([m, a]) => [m, [...a].sort((x, y) => x - y)[Math.floor(a.length * 0.5)]]));
-  const top5 = new Map([...marketAdr].map(([m, a]) => [m, [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * 0.95))]]));
-
   const out: Row[] = [];
   for (const r of rows) {
     const st = stats.get(`${r.market}|${sizeBand(r.bedrooms)}`)!;
@@ -74,8 +69,8 @@ export async function scoreListings(db: SupabaseClient, opts: { markets?: string
     const hostCount = Number(r.host_listing_count ?? 1);
     // Very few reviews means the listing is probably new or dormant, so its last-12-month numbers say little about performance.
     const segment = hostCount >= 5 ? 'professional_manager' : avail < 150 ? 'owner_blocked' : reviews <= 3 ? 'new_or_dormant' : score >= 45 ? 'candidate' : 'performing';
-    const isLux = adr >= (lux.get(r.market) ?? 0);
-    const isElite = isLux && adr > 0 && (adr >= ELITE_ADR || (adr >= ELITE_FLOOR_ADR && adr >= (top5.get(r.market) ?? Infinity)));
+    const isLux = adr >= LUXURY_ADR;
+    const isElite = adr >= ELITE_ADR;
     const c = classifyNiches({ title: r.title, market: r.market, bedrooms: r.bedrooms, bathrooms: r.bathrooms, accommodates: r.accommodates, adr, is_luxury: isLux, is_elite: isElite });
     const niche = { niches: c.niches, primary_niche: c.primary };
     out.push({ property_id: r.property_id, market: r.market, under_score: score, under_reasons: reasons, segment, is_luxury: isLux, is_elite: isElite, ...niche, scored_at: new Date().toISOString() });
