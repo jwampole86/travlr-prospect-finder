@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { classifyReply, findLeadByPhone, notifyAdmins, recordOptIn, recordOptOut, toE164, verifyTwilioSignature } from '@/lib/services/smsConsent';
+import { classifyReply, findLeadByPhone, isWrongContact, notifyAdmins, recordOptIn, recordOptOut, toE164, verifyTwilioSignature } from '@/lib/services/smsConsent';
 import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
+import { sendReplyAlert } from '@/lib/services/replyAlerts';
 
 /**
  * POST /api/sms/inbound
@@ -100,10 +101,12 @@ export async function POST(req: NextRequest) {
 
   // Replies from a co-host prospect we texted one-to-one are tied back to their listing.
   const e164 = toE164(from);
+  let cohostMarket: string | null = null;
   const { data: sentTo } = e164 ? await db.from('cohost_messages').select('property_id').eq('phone_e164', e164).eq('direction', 'outbound').order('created_at', { ascending: false }).limit(1).maybeSingle() : { data: null };
   if (sentTo?.property_id && e164) {
     await db.from('cohost_messages').insert({ property_id: sentTo.property_id, direction: 'inbound', phone_e164: e164, body: text.slice(0, 1000), message_sid: messageSid || null, status: 'received', intent });
     const { data: l } = await db.from('str_listings').select('pipeline_stage,market').eq('property_id', sentTo.property_id).maybeSingle();
+    cohostMarket = l?.market ?? null;
     if (intent === 'stop' || intent === 'no') {
       await db.from('cohost_offer_links').update({ opted_out_at: now }).eq('property_id', sentTo.property_id);
       if (l && !['agreed', 'onboarded'].includes(l.pipeline_stage)) await db.from('str_listings').update({ pipeline_stage: 'declined', stage_updated_at: now }).eq('property_id', sentTo.property_id);
@@ -112,6 +115,14 @@ export async function POST(req: NextRequest) {
       await notifyAdmins(db, { title: 'Co-host prospect replied', message: `A co-host prospect${l?.market ? ` (${l.market})` : ''} replied: "${text.slice(0, 80)}"`, metadata: { property_id: sentTo.property_id, reason: 'cohost_sms_reply' } }).catch(() => {});
       if (!reply && intent === 'yes') reply = 'Thanks! A TRAVLR specialist will reach out shortly. Reply STOP anytime to opt out.';
     }
+  }
+
+  // A YES or a written reply needs a person, so email and text the team instead of waiting for someone to open the app. Skipped when the webhook signature is wrong.
+  if (verified !== false && (intent === 'yes' || (intent === 'other' && !isWrongContact(text)))) {
+    await sendReplyAlert({
+      kind: intent === 'yes' ? 'yes' : 'question', from, text, name: lead?.contact_name ?? null, place: cohostMarket,
+      url: sentTo?.property_id ? `${site}/cohost` : lead ? `${site}/lead-profile?id=${encodeURIComponent(lead.id)}` : `${site}/sms-delivery`,
+    });
   }
 
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
