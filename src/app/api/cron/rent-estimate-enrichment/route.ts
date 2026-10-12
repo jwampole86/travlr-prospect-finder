@@ -13,7 +13,7 @@ const AVM_MISS = 'LOW_AVM_MISS';
  * GET /api/cron/rent-estimate-enrichment
  * Replaces the market-average rent estimate on for-sale leads with RentCast's per-address rent AVM,
  * highest-scoring leads first. Each lookup is a metered RentCast request, so the number of requests per
- * calendar month is capped (REGULATION... style budget: RENTCAST_MONTHLY_BUDGET, default 40) and counted
+ * calendar month is capped (RENTCAST_MONTHLY_BUDGET, default 40) and counted
  * from this job's own run log. Stops immediately on a quota or auth error.
  *
  * Query: limit (1-50, default 10), dryRun=true (list the targets only).
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     .select('id,address,city,state,zip,beds,baths,property_type,prospect_score,price')
     .eq('price_type', 'sale')
     .or('is_synthetic.is.null,is_synthetic.eq.false')
-    .or('estimated_monthly_rent_ai_source.is.null,estimated_monthly_rent_ai_source.in.(ZORI_BED_ADJUSTED,RENTAL_COMPS_ZIP,RENTAL_COMPS_CITY)')
+    .or('estimated_monthly_rent_ai_source.is.null,estimated_monthly_rent_ai_source.in.("PRICE_MODEL","PRICE_MODEL+FLOOR",ZORI_BED_ADJUSTED,RENTAL_COMPS_ZIP,RENTAL_COMPS_CITY)')
     .not('estimated_monthly_rent_ai_confidence', 'eq', AVM_MISS)
     .not('address', 'is', null).neq('address', '').not('address', 'ilike', 'Address Not Disclosed%')
     .not('city', 'is', null).not('state', 'is', null)
