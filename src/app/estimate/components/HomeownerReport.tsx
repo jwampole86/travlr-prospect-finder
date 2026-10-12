@@ -9,6 +9,7 @@ import type { HomeownerReport, RegulationTone } from '@/lib/homeownerEstimateTyp
 import { CONTACT_EMAIL, CONTACT_PHONE, WEBSITE_URL, WEBSITE_LABEL, telHref } from '@/lib/homeownerContact';
 import type { EquipmentKey } from '@/lib/homeownerReportContent';
 import { PermitsSection, SafetySection, OwnerDashboardSection } from './ReportSections';
+import TrustCard from './TrustCard';
 
 // The report is a document: it keeps a fixed light palette so it reads the same on screen, in a saved PDF and in print.
 
@@ -330,6 +331,8 @@ export default function HomeownerReportView({
                 ))}
               </ol>
             </section>
+
+            <TrustCard />
 
             {/* ── CTA ─────────────────────────────────────────── */}
             <section className="break-inside-avoid rounded-2xl bg-gradient-to-br from-indigo-700 to-indigo-900 text-white px-6 sm:px-8 py-7">

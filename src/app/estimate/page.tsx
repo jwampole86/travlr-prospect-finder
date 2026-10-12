@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import TrustCard from '@/app/estimate/components/TrustCard';
 import ReportChat from '@/app/estimate/components/ReportChat';
 import ReportActions from '@/app/estimate/components/ReportActions';
 import { EQUIPMENT, type EquipmentKey } from '@/lib/homeownerReportContent';
@@ -711,15 +712,7 @@ function EstimateLandingContent() {
           </div>
         )}
 
-        <aside className="print:hidden rounded-xl border border-border bg-card px-4 py-3.5 text-center">
-          <p className="text-xs font-semibold text-foreground">Want to check us out first?</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-            See our homes, our story and how we work on our official website,{' '}
-            <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">{WEBSITE_LABEL}</a>.
-            Questions? Email <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary hover:underline">{CONTACT_EMAIL}</a>
-            {CONTACT_PHONE && <> or call <a href={telHref(CONTACT_PHONE)} className="font-semibold text-primary hover:underline">{CONTACT_PHONE}</a></>}.
-          </p>
-        </aside>
+        <TrustCard className="print:hidden" />
       </main>
       {estimate && (step === 'estimate' || step === 'success') && (
         <ReportChat address={displayAddress} equipment={equipment} onTalkToPerson={() => openContact('question')} />

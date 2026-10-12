@@ -6,6 +6,7 @@ import {
   type EquipmentKey,
 } from '@/lib/homeownerReportContent';
 import { CONTACT_EMAIL, CONTACT_PHONE, WEBSITE_URL, WEBSITE_LABEL } from '@/lib/homeownerContact';
+import { TRUST_ITEMS, TRUST_AFFILIATIONS } from '@/lib/homeownerTrust';
 
 // Never split words with hyphens: it reads badly in a client-facing document.
 Font.registerHyphenationCallback(word => [word]);
@@ -280,6 +281,12 @@ export function HomeownerReportPdf({ report, equipment }: { report: HomeownerRep
             </View>
           )}
           <Text style={{ marginTop: 8 }}>{t(SETUP_HELP)} Costs shown are typical retail ranges and vary by brand and installation.</Text>
+        </View>
+
+        <View wrap={false} style={[s.section, s.card, { backgroundColor: C.soft }]}>
+          <Text style={s.h3}>Why homeowners trust TRAVLR</Text>
+          {TRUST_ITEMS.map(i => <Link key={i.key} src={i.href} style={{ marginTop: 3, color: C.indigo }}>{`${i.title}: ${i.note.toLowerCase()}`}</Link>)}
+          <Text style={[s.small, { marginTop: 4 }]}>{t(`Affiliations shown on our website: ${TRUST_AFFILIATIONS}.`)}</Text>
         </View>
 
         <View wrap={false} style={[s.section, { backgroundColor: C.indigoDark, borderRadius: 10, padding: 18 }]}>
