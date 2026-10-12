@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: '/brand/travlr-icon.png', type: 'image/png', sizes: '512x512' }],
     shortcut: '/brand/travlr-icon.png',
-    apple: [{ url: '/brand/travlr-apple-touch.png', sizes: '180x180', type: 'image/png' }],
+    apple: [{ url: '/brand/travlr-badge-apple.png', sizes: '180x180', type: 'image/png' }],
   },
   openGraph: { type: 'website', siteName: 'TRAVLR Vacation Homes', title: TITLE, description: DESCRIPTION, images: [OG_IMAGE] },
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION, images: [OG_IMAGE.url] },

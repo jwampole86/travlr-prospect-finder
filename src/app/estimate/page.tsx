@@ -372,7 +372,7 @@ function EstimateLandingContent() {
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-40 print:hidden">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/travlr-icon.png" alt="TRAVLR" width={36} height={36} className="w-9 h-9 rounded-lg bg-[#FAF7F2] border border-[#E8DFD0] p-1 object-contain" />
+          <img src="/brand/travlr-badge.png" alt="TRAVLR" width={36} height={36} className="w-9 h-9 object-contain" />
           <div>
             <p className="text-sm font-bold text-foreground">TRAVLR Vacation Homes</p>
             <p className="text-[10px] text-muted-foreground">Free Instant Property Estimate</p>
