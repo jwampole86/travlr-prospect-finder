@@ -6,7 +6,7 @@ import {
   FileCheck2, BarChart3, Wallet, CheckCircle2, XCircle, Info, ExternalLink, Printer, Phone, ArrowRight, MapPin,
 } from 'lucide-react';
 import type { HomeownerReport, RegulationTone } from '@/lib/homeownerEstimateTypes';
-import { CONTACT_EMAIL, CONTACT_PHONE, telHref } from '@/lib/homeownerContact';
+import { CONTACT_EMAIL, CONTACT_PHONE, WEBSITE_URL, WEBSITE_LABEL, telHref } from '@/lib/homeownerContact';
 import type { EquipmentKey } from '@/lib/homeownerReportContent';
 import { PermitsSection, SafetySection, OwnerDashboardSection } from './ReportSections';
 
@@ -88,7 +88,7 @@ export default function HomeownerReportView({
             <span className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center"><Home size={18} /></span>
             <div>
               <p className="text-sm font-bold leading-none">TRAVLR Vacation Homes</p>
-              <p className="text-[11px] text-indigo-200/80 mt-1">Property Revenue Report</p>
+              <p className="text-[11px] text-indigo-200/80 mt-1">Property Revenue Report &middot; <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="underline decoration-indigo-300/60 underline-offset-2 hover:text-white">{WEBSITE_LABEL}</a></p>
             </div>
           </div>
           <p className="text-[11px] text-indigo-200/80 text-right">Prepared {dateLabel(report.generatedAt)}</p>
@@ -351,6 +351,7 @@ export default function HomeownerReportView({
                   )}
                   <div className="flex flex-col gap-1.5 text-indigo-100/90">
                     <span className="inline-flex items-center gap-2 font-semibold text-white">Contact TRAVLR</span>
+                    <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:underline"><ExternalLink size={14} /> {WEBSITE_LABEL} (our official website)</a>
                     <a href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center gap-2 hover:underline"><ArrowRight size={14} /> {CONTACT_EMAIL}</a>
                     {CONTACT_PHONE && <a href={telHref(CONTACT_PHONE)} className="inline-flex items-center gap-2 hover:underline"><Phone size={14} /> {CONTACT_PHONE}</a>}
                   </div>

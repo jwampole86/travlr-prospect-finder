@@ -5,7 +5,7 @@ import {
   buildEquipmentView, TYPICAL_PERMIT_COSTS, TYPICAL_PERMIT_STEPS, TYPICAL_PROCESSING, PERMIT_HELP, SETUP_HELP, OWNER_DASHBOARD,
   type EquipmentKey,
 } from '@/lib/homeownerReportContent';
-import { CONTACT_EMAIL, CONTACT_PHONE } from '@/lib/homeownerContact';
+import { CONTACT_EMAIL, CONTACT_PHONE, WEBSITE_URL, WEBSITE_LABEL } from '@/lib/homeownerContact';
 
 // Never split words with hyphens: it reads badly in a client-facing document.
 Font.registerHyphenationCallback(word => [word]);
@@ -92,7 +92,7 @@ export function HomeownerReportPdf({ report, equipment }: { report: HomeownerRep
 
         <View style={s.hero}>
           <View style={s.brandRow}>
-            <View><Text style={s.brand}>TRAVLR Vacation Homes</Text><Text style={s.heroSmall}>Property Revenue Report</Text></View>
+            <View><Text style={s.brand}>TRAVLR Vacation Homes</Text><Text style={s.heroSmall}>Property Revenue Report  |  <Link src={WEBSITE_URL} style={{ color: '#c7d2fe' }}>{WEBSITE_LABEL}</Link></Text></View>
             <Text style={s.heroSmall}>Prepared {dateLabel(report.generatedAt)}</Text>
           </View>
           <Text style={s.heroAddr}>{t(`${report.street}${place ? `, ${place}` : ''}${report.zip ? ` ${report.zip}` : ''}`)}</Text>
@@ -286,6 +286,7 @@ export function HomeownerReportPdf({ report, equipment }: { report: HomeownerRep
           <Text style={{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: '#fff' }}>Ready to see what your home can really earn?</Text>
           <Text style={{ marginTop: 4, color: '#e0e7ff' }}>A TRAVLR specialist will contact you within one business day to refine these numbers with your home's details. No obligation.</Text>
           <Text style={{ marginTop: 8, color: '#fff', fontFamily: 'Helvetica-Bold' }}>{CONTACT_EMAIL}{CONTACT_PHONE ? `   |   ${CONTACT_PHONE}` : ''}</Text>
+          <Link src={WEBSITE_URL} style={{ marginTop: 4, color: '#c7d2fe', fontSize: 9.5 }}>Visit our official website: {WEBSITE_LABEL}</Link>
         </View>
 
         <Text style={{ marginTop: 14, fontSize: 7.5, color: C.muted }}>

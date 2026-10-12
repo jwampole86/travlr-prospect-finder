@@ -30,6 +30,7 @@ export function buildHomeownerReportEmail(report: HomeownerReport, firstName: st
     '',
     `Schedule a call: ${reportUrl}${reportUrl.includes('?') ? '&' : '?'}contact=call`,
     'A TRAVLR specialist will contact you within one business day. You can reply to this email at any time.',
+    'Want to check us out first? Visit our official website: https://staytrvlr.com',
     '',
     'This is an estimate, not a guarantee of income.',
   ].join('\n');
@@ -69,9 +70,10 @@ export function buildHomeownerReportEmail(report: HomeownerReport, firstName: st
     <td style="border:1px solid #e2e8f0;border-radius:12px;"><a href="mailto:${contactEmail}?subject=${encodeURIComponent('Question about my estimate: ' + report.address)}" style="display:inline-block;padding:12px 22px;font-size:14px;font-weight:600;color:#334155;text-decoration:none;">Ask a question</a></td>
   </tr></table>
   <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#334155;">A TRAVLR specialist will contact you within one business day to refine these numbers with your home&rsquo;s details. You can also just reply to this email.</p>
+  <p style="margin:0 0 8px 0;font-size:13px;line-height:1.6;color:#64748b;">Want to check us out first? Visit our official website at <a href="https://staytrvlr.com" style="color:#4f46e5;font-weight:600;text-decoration:underline;">staytrvlr.com</a>.</p>
 </td></tr>
 <tr><td style="padding:16px 32px 28px 32px;border-top:1px solid #f1f5f9;font-size:11px;line-height:1.6;color:#94a3b8;">
-  This is an estimate for planning purposes, not a guarantee of income. Actual results vary with season, pricing, regulations and guest demand. Regulatory information summarizes public sources and is not legal advice.<br/>TRAVLR Vacation Homes &middot; staytrvlr.com
+  This is an estimate for planning purposes, not a guarantee of income. Actual results vary with season, pricing, regulations and guest demand. Regulatory information summarizes public sources and is not legal advice.<br/>TRAVLR Vacation Homes &middot; <a href="https://staytrvlr.com" style="color:#6366f1;text-decoration:underline;">staytrvlr.com</a>
 </td></tr>
 </table>
 </td></tr></table></body></html>`;

@@ -5,7 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import ReportChat from '@/app/estimate/components/ReportChat';
 import ReportActions from '@/app/estimate/components/ReportActions';
 import { EQUIPMENT, type EquipmentKey } from '@/lib/homeownerReportContent';
-import { MapPin, DollarSign, TrendingUp, Shield, ChevronRight, CheckCircle, Loader2, Phone, Home, Building2, Calendar, AlertCircle } from 'lucide-react';
+import { MapPin, DollarSign, TrendingUp, Shield, ChevronRight, CheckCircle, Loader2, Phone, Home, Building2, Calendar, AlertCircle, ExternalLink } from 'lucide-react';
+import { WEBSITE_URL, WEBSITE_LABEL, CONTACT_EMAIL, CONTACT_PHONE, telHref } from '@/lib/homeownerContact';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
 import HomeownerReportView from '@/app/estimate/components/HomeownerReport';
@@ -375,10 +376,11 @@ function EstimateLandingContent() {
             <p className="text-sm font-bold text-foreground">TRAVLR Vacation Homes</p>
             <p className="text-[10px] text-muted-foreground">Free Instant Property Estimate</p>
           </div>
-          <div className="ml-auto flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <Shield size={11} className="text-emerald-600" />
-            <span className="font-medium">Free, no obligation</span>
-          </div>
+          <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline" aria-label="Visit the official TRAVLR website (opens in a new tab)">
+            <Shield size={12} className="text-emerald-600" />
+            <span>{WEBSITE_LABEL}</span>
+            <ExternalLink size={10} />
+          </a>
         </div>
       </header>
 
@@ -708,6 +710,16 @@ function EstimateLandingContent() {
             {estimate && <HomeownerReportView report={estimate.report} variant="full" equipment={equipment} onContact={openContact} onPrint={() => window.print()} />}
           </div>
         )}
+
+        <aside className="print:hidden rounded-xl border border-border bg-card px-4 py-3.5 text-center">
+          <p className="text-xs font-semibold text-foreground">Want to check us out first?</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            See our homes, our story and how we work on our official website,{' '}
+            <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">{WEBSITE_LABEL}</a>.
+            Questions? Email <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary hover:underline">{CONTACT_EMAIL}</a>
+            {CONTACT_PHONE && <> or call <a href={telHref(CONTACT_PHONE)} className="font-semibold text-primary hover:underline">{CONTACT_PHONE}</a></>}.
+          </p>
+        </aside>
       </main>
       {estimate && (step === 'estimate' || step === 'success') && (
         <ReportChat address={displayAddress} equipment={equipment} onTalkToPerson={() => openContact('question')} />
