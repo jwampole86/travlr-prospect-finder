@@ -25,6 +25,11 @@ const nextConfig = {
   // Enable gzip/brotli compression
   compress: true,
 
+  // pdfkit loads its built-in font files with a dynamic require that file tracing cannot see, so Vercel omits them.
+  outputFileTracingIncludes: {
+    '/api/estimate/report-pdf': ['./node_modules/pdfkit/js/**/*', './node_modules/@react-pdf/**/*.js', './node_modules/fontkit/**/*'],
+  },
+
   // The original pricing page location was consolidated into the richer /plans experience.
   async redirects() {
     return [
