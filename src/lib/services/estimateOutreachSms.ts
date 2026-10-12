@@ -75,10 +75,10 @@ export function countSegments(text: string): number {
 }
 
 const kfmt = (n: number) => `$${Math.round(n / 1000)}K`;
-const COMPANY = /\b(llc|inc|corp|co|trust|lp|llp|ltd|holdings?|properties|property|realty|group|partners|invest\w*|management|mgmt|estate|&)\b/i;
+const COMPANY = /\b(llc|inc|corp|co|trust|lp|llp|pllc|ltd|holdings?|properties|property|realty|group|partners|invest\w*|management|mgmt|estate|living|homes?|rentals?|stays?|vacation|capital|ventures?|enterprises?|solutions|services|hospitality|lodging|bnb|association|&)\b/i;
 
 function firstNameOf(lead: OutreachLead): string | null {
-  if (lead.verified_owner !== true || !lead.owner_name || COMPANY.test(lead.owner_name)) return null;
+  if (lead.verified_owner !== true || !lead.owner_name || COMPANY.test(lead.owner_name) || lead.owner_name.includes(',')) return null;
   const first = lead.owner_name.trim().split(/[\s,]+/)[0] ?? '';
   return /^[A-Za-z][A-Za-z'-]{1,20}$/.test(first) ? first.charAt(0).toUpperCase() + first.slice(1).toLowerCase() : null;
 }
