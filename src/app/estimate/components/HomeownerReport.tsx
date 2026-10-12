@@ -87,7 +87,8 @@ export default function HomeownerReportView({
       <header className="relative bg-gradient-to-br from-slate-950 via-indigo-950 to-indigo-800 text-white px-6 sm:px-10 pt-8 pb-9">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <span className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center"><Home size={18} /></span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/travlr-icon.png" alt="TRAVLR" width={40} height={40} className="w-10 h-10 rounded-xl bg-[#FAF7F2] p-1.5 object-contain" />
             <div>
               <p className="text-sm font-bold leading-none">TRAVLR Vacation Homes</p>
               <p className="text-[11px] text-indigo-200/80 mt-1">Property Revenue Report &middot; <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="underline decoration-indigo-300/60 underline-offset-2 hover:text-white">{WEBSITE_LABEL}</a></p>
