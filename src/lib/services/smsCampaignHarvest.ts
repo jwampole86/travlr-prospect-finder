@@ -197,17 +197,19 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
 }
 
 /** Distinct campaign batch names that have texts logged. */
-export async function listBatches(db: Db): Promise<Array<{ batch: string; texts: number; firstSend: string; lastSend: string; audience: string | null }>> {
-  const map = new Map<string, { texts: number; first: number; last: number; audience: string | null }>();
+export async function listBatches(db: Db): Promise<Array<{ batch: string; texts: number; firstSend: string; lastSend: string; audience: string | null; pending: number; canceled: number }>> {
+  const map = new Map<string, { texts: number; first: number; last: number; audience: string | null; pending: number; canceled: number }>();
+  const nowMs = Date.now();
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db.from('outreach_history').select('sent_at, metadata').eq('channel', 'sms').eq('metadata->>kind', 'estimate_outreach').range(from, from + 999);
     if (error) throw error;
     for (const r of data ?? []) {
       const m = (r.metadata ?? {}) as Meta; if (!m.batch) continue;
-      const t = Date.parse(m.scheduled_for ?? r.sent_at); const e = map.get(m.batch) ?? { texts: 0, first: t, last: t, audience: m.audience ?? null };
+      const t = Date.parse(m.scheduled_for ?? r.sent_at); const e = map.get(m.batch) ?? { texts: 0, first: t, last: t, audience: m.audience ?? null, pending: 0, canceled: 0 };
       e.texts++; e.first = Math.min(e.first, t); e.last = Math.max(e.last, t); map.set(m.batch, e);
+      if (m.twilio_status === 'canceled') e.canceled++; else if (t > nowMs) e.pending++;
     }
     if ((data ?? []).length < 1000) break;
   }
-  return [...map.entries()].map(([batch, e]) => ({ batch, texts: e.texts, firstSend: new Date(e.first).toISOString(), lastSend: new Date(e.last).toISOString(), audience: e.audience })).sort((a, b) => a.firstSend.localeCompare(b.firstSend));
+  return [...map.entries()].map(([batch, e]) => ({ batch, texts: e.texts, firstSend: new Date(e.first).toISOString(), lastSend: new Date(e.last).toISOString(), audience: e.audience, pending: e.pending, canceled: e.canceled })).sort((a, b) => a.firstSend.localeCompare(b.firstSend));
 }
