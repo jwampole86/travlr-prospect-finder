@@ -24,6 +24,10 @@
     {
       "path": "/api/cron/cohost-refresh",
       "schedule": "0 */12 * * *"
+    },
+    {
+      "path": "/api/cron/cohost-skiptrace",
+      "schedule": "*/20 * * * *"
     }
   ]
 }

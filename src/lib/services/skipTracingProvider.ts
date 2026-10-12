@@ -228,7 +228,7 @@ export async function resolveResidentsByAddress(
   maxDetailLookups = 3
 ): Promise<ResidentLookupResult> {
   if (getRapidApiKeys().length === 0) return { status: 'ERROR', matches: [], apiCalls: 0, error: 'No RAPIDAPI_KEY_* configured' };
-  if (lastKnownRemaining === null) lastKnownRemaining = await readSkipTraceRemaining(getRapidApiKeys()[0]);
+  if (lastKnownRemaining === null || lastKnownRemaining < QUOTA_RESERVE) lastKnownRemaining = await readSkipTraceRemaining(getRapidApiKeys()[0]);
   if (lastKnownRemaining !== null && lastKnownRemaining < QUOTA_RESERVE) {
     return { status: 'RATE_LIMITED', matches: [], apiCalls: 0, error: `Skip Tracing quota reserve reached (${lastKnownRemaining} calls left)` };
   }

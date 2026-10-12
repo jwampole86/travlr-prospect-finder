@@ -3,7 +3,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { fetchListingsPage, toListingRow, airdnaKeys } from '@/lib/services/strPull';
 import { scoreListings } from '@/lib/services/strScoring';
 import { matchOwners } from '@/lib/services/strMatch';
-import { skipTraceEligibility, skipTraceListing } from '@/lib/services/strSkipTrace';
 import { enrichAssessorOwners } from '@/lib/services/strAssessor';
 import { lookupEntityOwners } from '@/lib/services/strEntity';
 
@@ -89,13 +88,7 @@ export async function runCohostRefresh(db: SupabaseClient, opts: { trigger: 'cro
       result.newMatches = match.uniqueIds.length;
       await enrichAssessorOwners(db, { limit: 15, write: true }).catch(() => null);
       await lookupEntityOwners(db, { limit: 15, write: true }).catch(() => null);
-      // Trace a few new unique matches per run; the rest are picked up by the on-demand check on each listing.
-      const { data: toTrace } = await db.from('str_listings').select('property_id,matched_owner').in('property_id', match.uniqueIds.slice(0, 40));
-      for (const r of toTrace ?? []) {
-        if (result.skipTraced >= 6 || Date.now() > deadline + 30_000) break;
-        if (!skipTraceEligibility(r.matched_owner).eligible || r.matched_owner?.skipTrace) continue;
-        await skipTraceListing(db, r as { property_id: string; matched_owner: Record<string, any> }); result.skipTraced++;
-      }
+      // Tracing the owners of new matches is left to the cohost-skiptrace job, which works ELITE first.
     }
     return await finish(stopNote ? 'quota_reserve' : 'ok', stopNote);
   } catch (e) {

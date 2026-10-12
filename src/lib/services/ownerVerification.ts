@@ -23,6 +23,11 @@ export function sameName(a: string, b: string): boolean {
   return overlap >= Math.min(2, x.size, y.size) && overlap / Math.min(x.size, y.size) >= 0.66;
 }
 const anyName = (names: string[], other: string[]) => names.some(n => other.some(o => sameName(n, o)));
+
+/** Words that mark a name as a business or trust rather than a person. A digit also does, since county records sometimes list a street address as the owner. */
+const ENTITY_WORDS = /\b(LLC|L L C|INC|CORP|CORPORATION|CO|COMPANY|LP|LLP|LTD|TRUST|TR|RET|REVOCABLE|LIVING|PROPERTIES|INVESTMENTS?|HOLDINGS|MANAGEMENT|REALTY|REAL ESTATE|CONSTRUCTION|ENTERPRISES?|PARTNERS|VENTURES|GROUP|COM|STORE|GALLERY|RESORT|CABINS?|LODGE|HOTEL|VACATION|RENTALS?|HOMES|STAYS)\b/i;
+export const isEntityName = (n: string) => ENTITY_WORDS.test(n) || /\d/.test(n);
+export const personalNames = (owner: Record<string, any> | null | undefined): string[] => ((owner?.names ?? []) as string[]).filter(n => !isEntityName(n));
 const digits = (p: string) => p.replace(/\D/g, '').slice(-10);
 
 export function verifyOwner(i: VerifyInput): OwnerVerification {
@@ -60,7 +65,7 @@ export function verifyOwner(i: VerifyInput): OwnerVerification {
     if (found.length) {
       const nameOk = found.some((f: any) => anyName([String(f.name)], names));
       if (nameOk) strong++;
-      add('skiptrace', 'Skip-trace cross-check', nameOk ? 'pass' : 'warn', `${found.map((f: any) => f.name).join(' & ')}: address history includes the county mailing address${nameOk ? '' : ', but the name differs from the owner of record'}.`);
+      add('skiptrace', 'Skip-trace cross-check', nameOk ? 'pass' : 'warn', `${found.map((f: any) => f.name).join(' & ')}: address history includes the ${st.via === 'property' ? 'property address' : 'county mailing address'}${nameOk ? '' : ', but the name differs from the owner of record'}.`);
       const phones = new Set(found.flatMap((f: any) => (f.phones ?? []).map((p: any) => digits(String(p.e164)))));
       const emails = new Set(found.flatMap((f: any) => (f.emails ?? []).map((e: string) => e.toLowerCase())));
       if (reg.phone || reg.email) {
@@ -70,7 +75,7 @@ export function verifyOwner(i: VerifyInput): OwnerVerification {
       }
     } else add('skiptrace', 'Skip-trace cross-check', 'warn', 'Searched by owner name and county mailing address, but no person whose history includes that address was found. They may have moved or use a different name.');
   } else {
-    const elig = ownerEligibility(o);
+    const elig = ownerEligibility(o, i);
     if (!elig.eligible) add('skiptrace', 'Skip-trace cross-check', 'info', elig.reason);
     else add('skiptrace', 'Skip-trace cross-check', 'pending', 'Not run yet. It searches the owner by name and county mailing address and only accepts a person whose address history matches.');
   }
@@ -79,17 +84,18 @@ export function verifyOwner(i: VerifyInput): OwnerVerification {
   if ((i.sharedAddressCount ?? 1) > 1) add('unique', 'One listing per property', 'fail', `The same property was matched to ${i.sharedAddressCount} listings, so the match cannot be trusted for any of them.`);
 
   const fails = checks.filter(x => x.status === 'fail').length;
-  const canTrace = !st && ownerEligibility(o).eligible;
+  const canTrace = !st && ownerEligibility(o, i).eligible;
   if (fails) return { level: 'conflict', label: 'Conflict', summary: 'The public records disagree with the listing. Do not contact until it is resolved.', strongSignals: strong, checks, nextStep: 'Check the failed items below by hand.' };
   if (strong >= 2) return { level: 'verified', label: 'Verified', summary: 'Independent sources agree on who owns this home.', strongSignals: strong, checks, nextStep: null };
   if (strong === 1) return { level: 'likely', label: 'Likely owner', summary: 'One independent source backs the registry match.', strongSignals: strong, checks, nextStep: canTrace ? 'Run the skip-trace cross-check for a second confirmation.' : null };
   return { level: 'unconfirmed', label: 'Registry match only', summary: 'Matched to a permit by size and location, with no second source yet.', strongSignals: 0, checks, nextStep: canTrace ? 'Run the skip-trace cross-check to confirm the owner.' : 'Confirm the owner on the county assessor site before contacting.' };
 }
 
-export function ownerEligibility(owner: Record<string, any> | null | undefined): { eligible: boolean; reason: string } {
+export function ownerEligibility(owner: Record<string, any> | null | undefined, ctx?: { matched_address?: string | null }): { eligible: boolean; reason: string; via?: 'mailing' | 'property' } {
   if (!owner?.names?.length) return { eligible: false, reason: 'No owner name on the record.' };
-  if (owner.type && owner.type !== 'Individual') return { eligible: false, reason: `The owner of record is a ${String(owner.type).toLowerCase()}, so there is no person to trace. Look up the entity's registered agent.` };
-  if (!owner.mailing) return { eligible: false, reason: 'No mailing address on the record to confirm a person against.' };
-  if (/^PO BOX/i.test(String(owner.mailing))) return { eligible: false, reason: 'The mailing address is a PO box, which cannot be confirmed against a person.' };
-  return { eligible: true, reason: '' };
+  // County records sometimes label a person an organization (and trusts name their trustee), so the names decide, not the label.
+  if (!personalNames(owner).length) return { eligible: false, reason: `The owner of record is a ${owner.type ? String(owner.type).toLowerCase() : 'business or trust'} with no named person, so there is no one to trace. Look up the entity's registered agent.` };
+  if (owner.mailing && !/^PO BOX/i.test(String(owner.mailing))) return { eligible: true, reason: '', via: 'mailing' };
+  if (ctx?.matched_address && /^\d/.test(ctx.matched_address.trim())) return { eligible: true, reason: '', via: 'property' };
+  return { eligible: false, reason: owner.mailing ? 'The mailing address is a PO box, which cannot be confirmed against a person.' : 'No mailing address on the record to confirm a person against.' };
 }

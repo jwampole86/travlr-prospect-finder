@@ -1,9 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-
-/** Words that mark a name as a business or trust rather than a person. A digit also does, since county records sometimes list a street address as the owner. */
-const ENTITY_WORDS = /\b(LLC|L L C|INC|CORP|CORPORATION|CO|COMPANY|LP|LLP|LTD|TRUST|TR|RET|REVOCABLE|LIVING|PROPERTIES|INVESTMENTS?|HOLDINGS|MANAGEMENT|REALTY|REAL ESTATE|CONSTRUCTION|ENTERPRISES?|PARTNERS|VENTURES|GROUP|COM)\b/i;
-export const isEntityName = (n: string) => ENTITY_WORDS.test(n) || /\d/.test(n);
+import { isEntityName } from '@/lib/services/ownerVerification';
 
 /** Where to look an entity up by hand. Most states' business registries refuse automated searches or have no public data feed. */
 const MANUAL: Record<string, { name: string; url: string }> = {

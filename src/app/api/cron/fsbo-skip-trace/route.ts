@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { runFsboSkipTrace, UNDISCLOSED_ADDRESS_PREFIX } from '@/lib/services/fsboSkipTraceService';
+import { skipTracePace } from '@/lib/services/skipTraceQuota';
 
 export const maxDuration = 300;
 
@@ -27,11 +28,21 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const limit = Number(searchParams.get('limit')) || 15;
   const leadId = searchParams.get('leadId') || undefined;
-  const enqueueBacklog = Math.min(500, Math.max(0, Number(searchParams.get('enqueueBacklog')) || 0));
-  const enqueueListings = Math.min(500, Math.max(0, Number(searchParams.get('enqueueListings')) || 0));
-  const enqueueLuxury = Math.min(500, Math.max(0, Number(searchParams.get('enqueueLuxury')) || 0));
-
   const db = getSupabaseAdmin();
+
+  // The monthly allowance is spread over the days until it resets, so a large queue cannot use it all up and block new leads. 600 calls are held for the co-host queue.
+  const paced = leadId ? 1 : await skipTracePace(process.env.RAPIDAPI_KEY_1, Math.min(50, limit), { held: 600 });
+  if (paced === 0) return NextResponse.json({ ok: true, paused: 'skip-trace allowance is at its reserve' });
+  // Unless told otherwise, keep a few runs of work queued: luxury homes first, then owner-listed and for-sale listings.
+  let feed = 0;
+  if (!leadId && searchParams.get('autoFeed') !== '0') {
+    const { count } = await db.from('leads').select('id', { count: 'exact', head: true }).eq('skip_trace_status', 'PENDING');
+    if ((count ?? 0) < paced * 3) feed = paced * 6;
+  }
+  const enqueueBacklog = Math.min(500, Math.max(0, Number(searchParams.get('enqueueBacklog')) || 0));
+  const enqueueListings = Math.min(500, Math.max(feed, Number(searchParams.get('enqueueListings')) || 0));
+  const enqueueLuxury = Math.min(500, Math.max(feed, Number(searchParams.get('enqueueLuxury')) || 0));
+
   let enqueued = 0;
   if (enqueueBacklog > 0) {
     const { data: backlog } = await db.from('leads').select('id')
@@ -92,6 +103,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const summary = await runFsboSkipTrace(db, { limit, leadId, deadlineMs: 240_000 });
-  return NextResponse.json({ ok: true, enqueued, enqueuedListings, enqueuedLuxury, ...summary });
+  const summary = await runFsboSkipTrace(db, { limit: leadId ? limit : paced, leadId, deadlineMs: 240_000 });
+  return NextResponse.json({ ok: true, paced, enqueued, enqueuedListings, enqueuedLuxury, ...summary });
 }
