@@ -14,12 +14,13 @@ export function bookedNightsOf(l: NightsInput): number {
   return Math.round(Math.min(fromOcc, fromRev));
 }
 
-export function assessData(l: NightsInput & { reviews?: number | null }): DataQuality {
+/** Luxury and elite homes need no minimum review count: a high rate with few reviews usually means weak positioning, which is the opportunity. They still need real booked nights. */
+export function assessData(l: NightsInput & { reviews?: number | null; is_luxury?: boolean | null; is_elite?: boolean | null }): DataQuality {
   const avail = Number(l.days_available_ltm ?? 0), reviews = Number(l.reviews ?? 0);
   const booked = bookedNightsOf(l); const reasons: string[] = [];
   if (booked < MIN_BOOKED_NIGHTS) reasons.push(`only ${booked} booked ${booked === 1 ? 'night' : 'nights'} in the last 12 months`);
   if (avail > 0 && avail < 60) reasons.push(`listed for only ${Math.round(avail)} days`);
-  if (reviews < 3) reasons.push(`${reviews} ${reviews === 1 ? 'review' : 'reviews'}`);
+  if (reviews < 3 && !l.is_luxury && !l.is_elite) reasons.push(`${reviews} ${reviews === 1 ? 'review' : 'reviews'}`);
   return { reliable: reasons.length === 0, bookedNights: booked, reasons };
 }
 

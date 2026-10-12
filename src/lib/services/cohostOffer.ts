@@ -54,7 +54,7 @@ export async function getOfferData(db: Db, code: string): Promise<OfferData | nu
   if (!/^[a-z0-9]{4,16}$/i.test(code)) return null;
   const { data: link } = await db.from('cohost_offer_links').select('code,property_id,requested_at,opted_out_at').eq('code', code).maybeSingle();
   if (!link) return null;
-  const { data: l } = await db.from('str_listings').select('title,market,bedrooms,bathrooms,adr,occupancy_pct,days_available_ltm,revenue_ltm,revenue_potential_ltm,rating,reviews,is_luxury,under_reasons,photo_score,photo_notes').eq('property_id', link.property_id).maybeSingle();
+  const { data: l } = await db.from('str_listings').select('title,market,bedrooms,bathrooms,adr,occupancy_pct,days_available_ltm,revenue_ltm,revenue_potential_ltm,rating,reviews,is_luxury,is_elite,under_reasons,photo_score,photo_notes').eq('property_id', link.property_id).maybeSingle();
   if (!l) return null;
   const [city, state] = String(l.market ?? '').split(',').map(s => s.trim());
   const revenue = Math.round(num(l.revenue_ltm) ?? 0); const potential = Math.round(num(l.revenue_potential_ltm) ?? 0);
