@@ -5,6 +5,10 @@
  *   npx tsx scripts/estimate-sms-campaign.ts --at=... --batch=... --go                                      (schedules with Twilio)
  *   npx tsx scripts/estimate-sms-campaign.ts --cancel=/tmp/campaign-<batch>.json                            (cancels every message still scheduled)
  *
+ * --audience=fully-verified (default) | luxury-phone (the dashboard's "Luxury + Phone Available" count).
+ * Anyone already texted by ANY campaign (same lead or same phone number) is skipped, so re-running later only adds leads that
+ * became eligible since, and nobody is texted twice.
+ *
  * Needs the usual .env values exported, plus SMS_FIRST_TOUCH_ENABLED=true. server-only is stubbed via NODE_PATH when run from tsx.
  */
 import fs from 'fs';
@@ -16,6 +20,7 @@ import { toE164 } from '@/lib/services/smsConsent';
 
 const arg = (name: string) => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
 const GO = process.argv.includes('--go');
+const AUDIENCE = arg('audience') || 'fully-verified';
 const SITE = 'https://prospect.staytrvlr.com';
 const MESSAGING_SERVICE = process.env.TWILIO_MESSAGING_SERVICE_SID || 'MG9c28a48828aae9a648e8d4bcc8c0cd41';
 
@@ -47,19 +52,45 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
   if (process.env.SMS_FIRST_TOUCH_ENABLED !== 'true') throw new Error('SMS_FIRST_TOUCH_ENABLED=true must be set');
   const db = getSupabaseAdmin();
 
-  // Audience: same filter as the lead-management "Fully Verified" view, real (non-synthetic) leads only.
-  const { data, error } = await db.from('leads').select(`${LEAD_COLUMNS},prospect_score`).eq('fully_verified', true).or('is_synthetic.is.null,is_synthetic.eq.false').limit(2000);
-  if (error) throw error;
-  const audience = (data ?? []) as Array<OutreachLead & { prospect_score: number | null }>;
+  type Aud = OutreachLead & { prospect_score: number | null };
+  let audience: Aud[] = [];
+  if (AUDIENCE === 'luxury-phone') {
+    // Same flags the dashboard counts for "Luxury + Phone Available" (dashboard_lead_facts), real leads only.
+    const { data: facts, error: fe } = await db.from('dashboard_lead_facts').select('lead_id').eq('luxury', true).eq('phone_available', true).limit(5000);
+    if (fe) throw fe;
+    const ids = (facts ?? []).map(f => f.lead_id as string);
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data, error } = await db.from('leads').select(`${LEAD_COLUMNS},prospect_score`).in('id', ids.slice(i, i + 100)).or('is_synthetic.is.null,is_synthetic.eq.false');
+      if (error) throw error;
+      audience.push(...((data ?? []) as Aud[]));
+    }
+  } else if (AUDIENCE === 'fully-verified') {
+    // Same filter as the lead-management "Fully Verified" view, real (non-synthetic) leads only.
+    const { data, error } = await db.from('leads').select(`${LEAD_COLUMNS},prospect_score`).eq('fully_verified', true).or('is_synthetic.is.null,is_synthetic.eq.false').limit(2000);
+    if (error) throw error;
+    audience = (data ?? []) as Aud[];
+  } else throw new Error(`Unknown --audience=${AUDIENCE}`);
+
+  // Everyone already texted by any campaign, by lead and by phone number.
+  const textedLeads = new Set<string>(); const textedPhones = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db.from('outreach_history').select('lead_id,metadata').eq('channel', 'sms').eq('metadata->>kind', 'estimate_outreach').range(from, from + 999);
+    if (error) throw error;
+    for (const r of data ?? []) { textedLeads.add(r.lead_id as string); const to = (r.metadata as { to?: string })?.to; if (to) textedPhones.add(to); }
+    if ((data ?? []).length < 1000) break;
+  }
+  const total = audience.length;
+  audience = audience.filter(l => !textedLeads.has(l.id) && !textedPhones.has(toE164(l.contact_phone) ?? '#'));
+  console.log(`audience "${AUDIENCE}": ${total} leads | already texted by an earlier campaign: ${total - audience.length} | new: ${audience.length}`);
 
   // One text per phone number: keep the highest-scoring lead for each.
-  const byPhone = new Map<string, OutreachLead & { prospect_score: number | null }>();
+  const byPhone = new Map<string, Aud>();
   for (const l of audience.sort((a, b) => (b.prospect_score ?? 0) - (a.prospect_score ?? 0))) {
     const key = toE164(l.contact_phone) ?? `bad:${l.id}`;
     if (!byPhone.has(key)) byPhone.set(key, l);
   }
   const leads = [...byPhone.values()];
-  console.log(`audience ${audience.length} leads -> ${leads.length} distinct phone numbers`);
+  console.log(`${audience.length} leads -> ${leads.length} distinct phone numbers`);
 
   const skipped: Record<string, number> = {}; const skip = (r: string) => { skipped[r] = (skipped[r] ?? 0) + 1; };
   const plan: Array<{ lead: OutreachLead; to: string; sendAt: Date; message: string; variant: string; by: string; segments: number; range: string }> = [];
@@ -103,7 +134,7 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
     manifest.push({ sid: r.sid, leadId: p.lead.id, to: p.to, sendAt: p.sendAt.toISOString() });
     await db.from('outreach_history').insert({
       lead_id: p.lead.id, channel: 'sms', status: 'sent', sent_at: p.sendAt.toISOString(),
-      metadata: { kind: 'estimate_outreach', batch, to: p.to, message, variant: p.variant, generated_by: p.by, range: p.range, segments: p.segments, state: p.lead.state,
+      metadata: { kind: 'estimate_outreach', batch, audience: AUDIENCE, to: p.to, message, variant: p.variant, generated_by: p.by, range: p.range, segments: p.segments, state: p.lead.state,
         message_sid: r.sid, twilio_status: 'scheduled', scheduled_for: p.sendAt.toISOString(), named: /^Hi [A-Z]/.test(message) && !message.startsWith('Hi there') },
     });
   });
