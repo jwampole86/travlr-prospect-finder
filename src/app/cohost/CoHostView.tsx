@@ -2,14 +2,16 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Handshake, Loader2, RefreshCw, Download, ShieldAlert, ExternalLink, Camera, MapPin, AlertTriangle } from 'lucide-react';
+import { Handshake, Loader2, RefreshCw, Download, ShieldAlert, ExternalLink, Camera, MapPin, AlertTriangle, Gem, Link2, Copy, Check, Mail, Eye } from 'lucide-react';
 
-interface Owner { names: string[]; type: string | null; mailing: string | null; permitHolder: string | null; contactFound: boolean; phones: string[]; emails: string[] }
+interface Owner { names: string[]; type: string | null; mailing: string | null; permitHolder: string | null; contactFound: boolean; phones: string[]; emails: string[]; published?: { email: string | null; phone: string | null } | null }
+interface OfferInfo { code: string; views: number; lastViewedAt: string | null; requestedAt: string | null; optedOutAt: string | null; request: { name?: string; email?: string | null; phone?: string | null; service?: string; message?: string | null; at?: string } | null }
+interface OfferPanel { loading: boolean; error?: string; url?: string; optedOut?: boolean; drafts?: { subject: string; email: string; sms: string } }
 interface Listing {
   property_id: string; market: string; title: string | null; airbnb_url: string | null; vrbo_url: string | null; booking_url: string | null; bedrooms: number | null; bathrooms: number | null;
   adr: number | null; occupancy_pct: number | null; revenue_ltm: number | null; revenue_potential_ltm: number | null; rating: number | null; reviews: number | null; host_listing_count: number | null;
   is_luxury: boolean | null; under_score: number | null; under_reasons: string[] | null; segment: string; photo_score: number | null; photo_notes: { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean } | null;
-  address_match_confidence: string | null; match_status: string | null; matched_address: string | null; matched_owner: Owner | null; pipeline_stage: string; service_model: string; reviewer_notes: string | null;
+  address_match_confidence: string | null; match_status: string | null; matched_address: string | null; matched_owner: Owner | null; pipeline_stage: string; service_model: string; reviewer_notes: string | null; offer?: OfferInfo | null;
 }
 interface CrmLead { id: string; address: string | null; city: string | null; state: string | null; owner_name: string | null; program_reason: string | null; program_set_at: string | null; cohost_service: string | null; stage: string | null }
 
@@ -32,6 +34,23 @@ export default function CoHostView() {
   const [stage, setStage] = useState('all');
   const [view, setView] = useState<'matched' | 'all' | 'crm'>('matched');
   const [open, setOpen] = useState<string | null>(null);
+  // Remembered between visits so a luxury-focused team lands on its niche every time.
+  const [luxuryOnly, setLuxuryOnly] = useState(false);
+  useEffect(() => { try { setLuxuryOnly(localStorage.getItem('cohost_luxury_only') === '1'); } catch { /* storage unavailable */ } }, []);
+  const toggleLuxury = () => setLuxuryOnly(v => { const n = !v; try { localStorage.setItem('cohost_luxury_only', n ? '1' : '0'); } catch { /* storage unavailable */ } return n; });
+  const [panels, setPanels] = useState<Record<string, OfferPanel>>({});
+  const [copied, setCopied] = useState<string | null>(null);
+
+  async function openOffer(propertyId: string) {
+    if (panels[propertyId] && !panels[propertyId].error) { setPanels(p => { const { [propertyId]: _gone, ...rest } = p; return rest; }); return; }
+    setPanels(p => ({ ...p, [propertyId]: { loading: true } }));
+    try {
+      const res = await fetch('/api/cohost/offer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ propertyId }) });
+      const j = await res.json(); if (!res.ok) throw new Error(j.error || 'Could not create the link');
+      setPanels(p => ({ ...p, [propertyId]: { loading: false, url: j.url, optedOut: j.optedOut, drafts: j.drafts } }));
+    } catch (e) { setPanels(p => ({ ...p, [propertyId]: { loading: false, error: (e as Error).message } })); }
+  }
+  async function copy(key: string, text: string) { try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 1500); } catch { /* clipboard unavailable */ } }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,8 +70,10 @@ export default function CoHostView() {
   }
 
   const markets = useMemo(() => ['all', ...[...new Set(listings.map(l => l.market))].sort()], [listings]);
-  const shown = useMemo(() => listings.filter(l => (market === 'all' || l.market === market) && (stage === 'all' || l.pipeline_stage === stage) && (view === 'all' || (view === 'matched' && ['unique', 'ambiguous'].includes(l.match_status ?? ''))))
-    .sort((a, b) => Number(b.match_status === 'unique') - Number(a.match_status === 'unique') || (b.under_score ?? 0) - (a.under_score ?? 0)), [listings, market, stage, view]);
+  const base = useMemo(() => listings.filter(l => (market === 'all' || l.market === market) && (stage === 'all' || l.pipeline_stage === stage) && (view === 'all' || (view === 'matched' && ['unique', 'ambiguous'].includes(l.match_status ?? '')))), [listings, market, stage, view]);
+  const luxuryCount = useMemo(() => base.filter(l => l.is_luxury).length, [base]);
+  const shown = useMemo(() => base.filter(l => !luxuryOnly || l.is_luxury)
+    .sort((a, b) => Number(b.match_status === 'unique') - Number(a.match_status === 'unique') || (b.under_score ?? 0) - (a.under_score ?? 0)), [base, luxuryOnly]);
   const counts = useMemo(() => stages.map(s => [s, listings.filter(l => l.pipeline_stage === s).length] as const), [stages, listings]);
 
   return (
@@ -69,7 +90,7 @@ export default function CoHostView() {
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm px-4 py-3 flex items-start gap-2.5">
         <ShieldAlert size={16} className="mt-0.5 shrink-0" />
-        <p><strong>Separate from the homeowner funnel.</strong> The text campaigns go only to homeowners we are converting to short-term rentals. Co-host owners are never texted by campaigns or sequences. Reach them by email, phone or mail after you have reviewed the match.</p>
+        <p><strong>Separate from the homeowner funnel.</strong> The text campaigns go only to homeowners we are converting to short-term rentals. Co-host owners are never texted by those campaigns or sequences. Review the match, then reach them with the offer page below by email, phone or mail.</p>
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3 flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
@@ -82,8 +103,9 @@ export default function CoHostView() {
         <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
           {([['matched', 'Matched to a home'], ['all', 'All candidates'], ['crm', 'Already in CRM']] as const).map(([k, label]) => <button key={k} onClick={() => setView(k)} className={`px-3 py-1.5 ${view === k ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted'}`}>{label}</button>)}
         </div>
+        {view !== 'crm' && <button onClick={toggleLuxury} aria-pressed={luxuryOnly} title={luxuryOnly ? 'Showing luxury listings only. Click to show all.' : 'Show luxury listings only'} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-bold tracking-wide transition-all ${luxuryOnly ? 'bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-500/30' : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}><Gem size={14} /> LUXURY <span className={`px-1.5 rounded-full text-[11px] ${luxuryOnly ? 'bg-white/25' : 'bg-amber-200/70'}`}>{luxuryCount}</span></button>}
         {view !== 'crm' && <select value={market} onChange={e => setMarket(e.target.value)} className="h-9 rounded-lg border border-border bg-card px-3 text-sm" aria-label="Market">{markets.map(m => <option key={m} value={m}>{m === 'all' ? 'All markets' : m}</option>)}</select>}
-        <span className="text-xs text-muted-foreground">{view === 'crm' ? `${crm.length} leads` : `${shown.length} listings`}</span>
+        <span className="text-xs text-muted-foreground">{view === 'crm' ? `${crm.length} leads` : `${shown.length} listings${luxuryOnly ? ' (luxury)' : ''}`}</span>
       </div>
 
       {loading && <div className="py-16 flex justify-center text-muted-foreground"><Loader2 className="animate-spin" /></div>}
@@ -111,6 +133,10 @@ export default function CoHostView() {
                       {url && <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary" aria-label="Open the listing"><ExternalLink size={14} /></a>}
                       {m && <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${m.cls}`}>{m.text}</span>}
                       {l.segment === 'new_or_dormant' && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700">New or dormant</span>}
+                      {l.is_luxury && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 inline-flex items-center gap-1"><Gem size={10} /> Luxury</span>}
+                      {l.offer?.requestedAt && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-600 text-white">Audit requested</span>}
+                      {l.offer?.optedOutAt && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700">Opted out</span>}
+                      {!!l.offer?.views && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-700 inline-flex items-center gap-1"><Eye size={10} /> Offer page viewed {l.offer.views}x</span>}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{l.market} &middot; {l.bedrooms} bd / {l.bathrooms} ba &middot; {money(l.adr)} per night &middot; {l.occupancy_pct != null ? `${Math.round(l.occupancy_pct)}% occupied` : ''} &middot; {money(l.revenue_ltm)} earned of {money(l.revenue_potential_ltm)} potential &middot; {l.rating ?? '-'} ({l.reviews ?? 0} reviews){l.host_listing_count ? ` · host runs ${l.host_listing_count}` : ''}</p>
                   </div>
@@ -131,6 +157,48 @@ export default function CoHostView() {
                   </div>
                 )}
                 <button onClick={() => setOpen(open === l.property_id ? null : l.property_id)} className="mt-2 text-xs text-primary hover:underline">{open === l.property_id ? 'Hide notes' : 'Notes'}</button>
+                <button onClick={() => openOffer(l.property_id)} className="mt-2 ml-4 text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"><Link2 size={12} /> {panels[l.property_id] && !panels[l.property_id].error ? 'Hide offer page' : 'Offer page and message drafts'}</button>
+                {l.offer?.request && (
+                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                    <p className="font-semibold">Audit request{l.offer.request.at ? ` on ${new Date(l.offer.request.at).toLocaleDateString()}` : ''}: {l.offer.request.name}</p>
+                    <p className="mt-0.5">{[l.offer.request.email, l.offer.request.phone].filter(Boolean).join(' · ') || 'No contact given'}{l.offer.request.service && l.offer.request.service !== 'not_sure' ? ` · wants ${MODEL_LABEL[l.offer.request.service] ?? l.offer.request.service}` : ''}</p>
+                    {l.offer.request.message && <p className="mt-0.5 text-emerald-800">&ldquo;{l.offer.request.message}&rdquo;</p>}
+                  </div>
+                )}
+                {panels[l.property_id] && (
+                  <div className="mt-2 rounded-xl border border-border bg-muted/40 p-3 space-y-3">
+                    {panels[l.property_id].loading && <p className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 size={13} className="animate-spin" /> Creating the link...</p>}
+                    {panels[l.property_id].error && <p className="text-xs text-red-600">{panels[l.property_id].error}</p>}
+                    {panels[l.property_id].url && panels[l.property_id].drafts && (() => {
+                      const p = panels[l.property_id]; const d = p.drafts!; const pub = l.matched_owner?.published?.email ?? l.matched_owner?.emails?.[0] ?? null;
+                      return (
+                        <>
+                          {p.optedOut && <p className="text-xs font-semibold text-rose-700">This owner opted out on the offer page. Do not contact them about this listing.</p>}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <code className="text-xs bg-background border border-border rounded px-2 py-1 break-all">{p.url}</code>
+                            <button onClick={() => copy(`${l.property_id}:url`, p.url!)} className="h-7 px-2 rounded border border-border bg-card text-xs inline-flex items-center gap-1 hover:bg-muted">{copied === `${l.property_id}:url` ? <Check size={12} /> : <Copy size={12} />} Copy link</button>
+                            <a href={p.url} target="_blank" rel="noopener noreferrer" className="h-7 px-2 rounded border border-border bg-card text-xs inline-flex items-center gap-1 hover:bg-muted"><ExternalLink size={12} /> Preview page</a>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Email draft</p>
+                            <p className="text-xs font-medium">Subject: {d.subject}</p>
+                            <pre className="mt-1 text-xs whitespace-pre-wrap font-sans bg-background border border-border rounded-lg p-2">{d.email}</pre>
+                            <div className="mt-1.5 flex flex-wrap gap-2">
+                              <button onClick={() => copy(`${l.property_id}:email`, `Subject: ${d.subject}\n\n${d.email}`)} className="h-7 px-2 rounded border border-border bg-card text-xs inline-flex items-center gap-1 hover:bg-muted">{copied === `${l.property_id}:email` ? <Check size={12} /> : <Copy size={12} />} Copy email</button>
+                              {pub && !p.optedOut && <a href={`mailto:${pub}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.email)}`} className="h-7 px-2 rounded border border-border bg-card text-xs inline-flex items-center gap-1 hover:bg-muted"><Mail size={12} /> Open in email app ({pub})</a>}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Text draft</p>
+                            <pre className="text-xs whitespace-pre-wrap font-sans bg-background border border-border rounded-lg p-2">{d.sms}</pre>
+                            <button onClick={() => copy(`${l.property_id}:sms`, d.sms)} className="mt-1.5 h-7 px-2 rounded border border-border bg-card text-xs inline-flex items-center gap-1 hover:bg-muted">{copied === `${l.property_id}:sms` ? <Check size={12} /> : <Copy size={12} />} Copy text</button>
+                            <p className="mt-1 text-[11px] text-muted-foreground">The app does not send texts to co-host owners. Use this draft only where you have a lawful basis to text that person, and honor any opt-out.</p>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
                 {open === l.property_id && <textarea defaultValue={l.reviewer_notes ?? ''} onBlur={e => e.target.value !== (l.reviewer_notes ?? '') && update(l.property_id, { notes: e.target.value })} placeholder="Review notes (saved when you click away)" rows={3} className="mt-2 w-full rounded-lg border border-border bg-background p-2 text-sm" />}
               </div>
             );

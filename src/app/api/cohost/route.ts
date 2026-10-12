@@ -19,10 +19,14 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     listings.push(...(data ?? [])); if ((data ?? []).length < 1000) break;
   }
+  const { data: linkRows } = await db.from('cohost_offer_links').select('code,property_id,view_count,last_viewed_at,requested_at,opted_out_at').limit(5000);
+  const { data: reqRows } = await db.from('cohost_offer_events').select('code,data,created_at').eq('event', 'request').order('created_at', { ascending: false }).limit(500);
+  const latestRequest = new Map<string, Record<string, any>>(); for (const r of reqRows ?? []) if (!latestRequest.has(r.code)) latestRequest.set(r.code, { ...(r.data as object), at: r.created_at });
+  const offers = new Map((linkRows ?? []).map(l => [l.property_id as string, { code: l.code as string, views: l.view_count as number, lastViewedAt: l.last_viewed_at as string | null, requestedAt: l.requested_at as string | null, optedOutAt: l.opted_out_at as string | null, request: latestRequest.get(l.code as string) ?? null }]));
   const clean = listings.map(l => {
     const o = l.matched_owner ?? {};
     const found = (o.skipTrace?.results ?? []).filter((r: any) => r.found).map((r: any) => r.found);
-    return { ...l, matched_owner: l.matched_owner ? { names: o.names ?? [], type: o.type ?? null, mailing: o.mailing ?? null, permitHolder: o.permitHolder ?? null, contactFound: found.length > 0, phones: found.flatMap((p: any) => p.phones.map((x: any) => x.e164)).slice(0, 3), emails: found.flatMap((p: any) => p.emails).slice(0, 3) } : null };
+    return { ...l, offer: offers.get(l.property_id) ?? null, matched_owner: l.matched_owner ? { names: o.names ?? [], type: o.type ?? null, mailing: o.mailing ?? null, permitHolder: o.permitHolder ?? null, contactFound: found.length > 0, phones: found.flatMap((p: any) => p.phones.map((x: any) => x.e164)).slice(0, 3), emails: found.flatMap((p: any) => p.emails).slice(0, 3), published: o.contact ? { email: o.contact.email ?? null, phone: o.contact.phone ?? null } : null } : null };
   });
 
   const { data: crm } = await db.from('leads').select('id,address,city,state,owner_name,contact_phone,program,cohost_service,existing_platforms,program_reason,program_set_at,stage').eq('program', 'co_host').order('program_set_at', { ascending: false }).limit(500);

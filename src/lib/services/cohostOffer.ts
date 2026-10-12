@@ -1,0 +1,81 @@
+import 'server-only';
+import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
+type Db = ReturnType<typeof getSupabaseAdmin>;
+const ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
+
+export const OFFER_SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com').replace(/\/$/, '');
+export const offerUrl = (code: string) => `${OFFER_SITE}/h/${code}`;
+
+export interface Scenario { key: 'conservative' | 'expected' | 'stretch'; label: string; share: number; annual: number; monthly: number; gain: number; gainPct: number | null }
+export interface OfferData {
+  code: string; title: string; city: string; state: string; bedrooms: number | null; bathrooms: number | null; luxury: boolean; rating: number | null; reviews: number | null;
+  current: { revenue: number; adr: number | null; occupancyPct: number | null; daysAvailable: number | null };
+  potential: number; gap: number; scenarios: Scenario[];
+  findings: string[]; photo: { score: number | null; hero: string | null; fixes: string[]; missingShots: string[]; looksDated: boolean };
+  optedOut: boolean; requested: boolean;
+}
+
+const num = (v: unknown) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
+const SCENARIOS: Array<[Scenario['key'], string, number]> = [['conservative', 'Conservative', 0.2], ['expected', 'Expected', 0.4], ['stretch', 'Stretch', 0.65]];
+
+/** Illustrative only: assumes we close a share of the gap between what the home earns now and what comparable demand supports. */
+export function buildScenarios(current: number, potential: number): { gap: number; scenarios: Scenario[] } {
+  const pot = Math.max(potential, current); const gap = pot - current;
+  return {
+    gap, scenarios: SCENARIOS.map(([key, label, share]) => {
+      const gain = Math.round((gap * share) / 100) * 100;
+      return { key, label, share, gain, annual: Math.round(current + gain), monthly: Math.round((current + gain) / 12), gainPct: current > 0 ? Math.round((gain / current) * 100) : null };
+    }),
+  };
+}
+
+/** Returns the existing short code for a prospect listing, or creates one. */
+export async function ensureOfferLink(db: Db, propertyId: string): Promise<string | null> {
+  const { data: existing } = await db.from('cohost_offer_links').select('code').eq('property_id', propertyId).maybeSingle();
+  if (existing?.code) return existing.code as string;
+  const { data: listing } = await db.from('str_listings').select('property_id').eq('property_id', propertyId).maybeSingle();
+  if (!listing) return null;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const code = Array.from({ length: 7 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
+    const { error } = await db.from('cohost_offer_links').insert({ code, property_id: propertyId });
+    if (!error) return code;
+    const { data: again } = await db.from('cohost_offer_links').select('code').eq('property_id', propertyId).maybeSingle();
+    if (again?.code) return again.code as string;
+  }
+  return null;
+}
+
+/** What the public page may show: the listing's own public data and our analysis of it. No owner name, no street address, no contact details. */
+export async function getOfferData(db: Db, code: string): Promise<OfferData | null> {
+  if (!/^[a-z0-9]{4,16}$/i.test(code)) return null;
+  const { data: link } = await db.from('cohost_offer_links').select('code,property_id,requested_at,opted_out_at').eq('code', code).maybeSingle();
+  if (!link) return null;
+  const { data: l } = await db.from('str_listings').select('title,market,bedrooms,bathrooms,adr,occupancy_pct,days_available_ltm,revenue_ltm,revenue_potential_ltm,rating,reviews,is_luxury,under_reasons,photo_score,photo_notes').eq('property_id', link.property_id).maybeSingle();
+  if (!l) return null;
+  const [city, state] = String(l.market ?? '').split(',').map(s => s.trim());
+  const revenue = Math.round(num(l.revenue_ltm) ?? 0); const potential = Math.round(num(l.revenue_potential_ltm) ?? 0);
+  const { gap, scenarios } = buildScenarios(revenue, potential);
+  const pn = (l.photo_notes ?? {}) as { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean };
+  return {
+    code, title: String(l.title ?? 'Your listing').slice(0, 120), city: city ?? '', state: state ?? '', bedrooms: num(l.bedrooms), bathrooms: num(l.bathrooms), luxury: !!l.is_luxury, rating: num(l.rating), reviews: num(l.reviews),
+    current: { revenue, adr: num(l.adr), occupancyPct: num(l.occupancy_pct), daysAvailable: num(l.days_available_ltm) },
+    potential: Math.max(potential, revenue), gap, scenarios,
+    findings: ((l.under_reasons ?? []) as string[]).slice(0, 4),
+    photo: { score: num(l.photo_score), hero: pn.hero ?? null, fixes: (pn.fixes ?? []).slice(0, 3), missingShots: (pn.missingShots ?? []).slice(0, 4), looksDated: !!pn.looksDated },
+    optedOut: !!link.opted_out_at, requested: !!link.requested_at,
+  };
+}
+
+const usd = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
+
+/** Ready-to-edit drafts for the team to paste into an email or text. The text draft is for review only; co-host prospects are not texted automatically. */
+export function offerDrafts(d: Pick<OfferData, 'title' | 'city' | 'current' | 'scenarios' | 'gap'>, url: string) {
+  const exp = d.scenarios.find(s => s.key === 'expected');
+  const earn = d.gap > 0 && exp ? `Based on public booking data, we think there is roughly ${usd(exp.gain)} a year of upside.` : 'We found a few ways to lift bookings and rates.';
+  return {
+    subject: `Ideas to lift bookings for "${d.title.slice(0, 60)}"`,
+    email: `Hi,\n\nI'm reaching out from TRAVLR Vacation Homes. We run our own luxury vacation homes and help owners who already host on Airbnb or Vrbo earn more, either as a co-host on your existing listing or with full management.\n\nWe took a look at your listing in ${d.city} using public booking data. ${earn} I put together a short, free page that shows what we noticed and what it could look like for you:\n\n${url}\n\nIf it's useful, reply and we'll do a free listing audit. If not, no problem. Just let me know and I won't follow up.\n\nBest,\nTRAVLR Vacation Homes`,
+    sms: `Hi, TRAVLR Vacation Homes here. We reviewed your ${d.city} listing and see room to earn more: ${url}\nReply STOP to opt out`,
+  };
+}
