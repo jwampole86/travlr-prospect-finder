@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Lead, LeadStage } from '@/data/mockLeads';
+import { leadPriceDisplay } from '@/lib/leadPrice';
 import { stageOrder } from '@/data/mockLeads';
 import { createClient } from '@/lib/supabase/client';
 import { recordNoteAdded } from '@/lib/services/activityService';
@@ -976,7 +977,7 @@ export default function LeadDetailPanel({ lead, onClose, onStageChange, onDelete
         {/* Quick stats bar */}
         <div className="grid grid-cols-4 divide-x divide-border border-b border-border bg-muted/30 shrink-0">
           {[
-            { label: 'Price/mo', value: formatCurrency(lead.price), icon: <DollarSign size={12} /> },
+            { label: lead.priceType === 'sale' && !lead.estimatedMonthlyRent ? 'Price' : 'Price/mo', value: leadPriceDisplay(lead).primary.replace('/mo', ''), icon: <DollarSign size={12} /> },
             { label: 'Beds/Ba', value: `${lead.beds}bd/${lead.baths}ba`, icon: <Home size={12} /> },
             { label: 'Score', value: `${lead.prospectScore}/100`, icon: <Star size={12} /> },
             { label: 'DOM', value: `${lead.daysOnMarket}d`, icon: <Clock size={12} /> },

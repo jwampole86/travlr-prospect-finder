@@ -227,7 +227,7 @@ export async function GET(req: NextRequest) {
       'last_checked', 'listing_url', 'notes',
       'contact_name', 'contact_phone',
       'tags', 'estimated_adr', 'estimated_occupancy',
-      'estimated_gross_monthly', 'estimated_net_monthly',
+      'estimated_gross_monthly', 'estimated_net_monthly', 'estimated_monthly_rent_ai',
       'photos', 'created_at', 'updated_at',
       'is_synthetic', 'contact_info_requested', 'contact_info_requested_at',
       'addr_validated', 'addr_mismatch',

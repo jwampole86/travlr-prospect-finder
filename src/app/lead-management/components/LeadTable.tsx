@@ -187,7 +187,9 @@ const columns: { key: keyof Lead | 'actions' | 'owner' | 'enrichment'; label: st
 const ROW_HEIGHT = 80;
 
 function getMonthlyDisplay(lead: Lead) {
-  if (lead.price > 0) return { value: lead.price, label: '/mo' };
+  if (lead.priceType === 'sale') {
+    if (lead.estimatedMonthlyRent && lead.estimatedMonthlyRent > 0) return { value: lead.estimatedMonthlyRent, label: 'est rent/mo' };
+  } else if (lead.price > 0) return { value: lead.price, label: '/mo' };
   if (lead.estimatedNetMonthly > 0) return { value: lead.estimatedNetMonthly, label: 'est net' };
   if (lead.estimatedGrossMonthly > 0) return { value: lead.estimatedGrossMonthly, label: 'est gross' };
   return { value: 0, label: 'unknown' };

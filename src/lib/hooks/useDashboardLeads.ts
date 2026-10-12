@@ -54,6 +54,8 @@ export interface DashboardLead {
   beds: number;
   baths: number;
   price: number;
+  price_type?: string | null;
+  estimated_monthly_rent_ai?: number | null;
   stage: string;
   regulation_status: string;
   prospect_score: number;

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Lead } from '@/data/mockLeads';
+import { leadPriceDisplay } from '@/lib/leadPrice';
 import RegulationBadge from '@/components/ui/RegulationBadge';
 import StageBadge from '@/components/ui/StageBadge';
 import ProspectScoreBar from '@/components/ui/ProspectScoreBar';
@@ -198,8 +199,11 @@ export default React.memo(function TopLeadsTable({ leads }: TopLeadsTableProps) 
                 </td>
                 <td className="px-4 py-3">
                   <span className="font-mono-data text-xs text-foreground">
-                    {formatCurrency(lead.price)}/mo
+                    {leadPriceDisplay(lead).primary}
                   </span>
+                  {leadPriceDisplay(lead).secondary && (
+                    <p className="text-[10px] text-muted-foreground">{leadPriceDisplay(lead).secondary}</p>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <StageBadge stage={lead.stage} size="sm" />

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import type { Lead } from '@/data/mockLeads';
+import { leadPriceDisplay } from '@/lib/leadPrice';
 import type { RegulationRule } from '@/data/regulations';
 import RegulationBadge from '@/components/ui/RegulationBadge';
 import StageBadge from '@/components/ui/StageBadge';
@@ -122,7 +123,7 @@ export default function MapDetailPanel({ lead, regulation, onClose, onOpenFullDe
               </div>
               <div className="p-2.5 rounded-lg bg-muted/40 border border-border">
                 <p className="text-[10px] text-muted-foreground mb-0.5">Price</p>
-                <p className="text-sm font-semibold font-mono-data text-foreground">{formatCurrency(lead.price)}/mo</p>
+                <p className="text-sm font-semibold font-mono-data text-foreground">{leadPriceDisplay(lead).primary}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-muted/40 border border-border">
                 <p className="text-[10px] text-muted-foreground mb-0.5">Days on Market</p>

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { Lead } from '@/data/mockLeads';
+import { leadPriceDisplay } from '@/lib/leadPrice';
 import RegulationBadge from '@/components/ui/RegulationBadge';
 import ProspectScoreBar from '@/components/ui/ProspectScoreBar';
 import StageBadge from '@/components/ui/StageBadge';
@@ -67,7 +68,7 @@ export default function MapSidebar({ leads, selectedId, onSelect, onClose }: Map
                   {lead.beds}bd/{lead.baths}ba
                 </span>
                 <span className="text-[11px] font-mono-data text-foreground">
-                  {formatCurrency(lead.price)}/mo
+                  {leadPriceDisplay(lead).primary}
                 </span>
               </div>
               <div className="flex items-center gap-2">

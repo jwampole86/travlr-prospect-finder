@@ -16,6 +16,8 @@ export interface Lead {
   baths: number;
   price: number;
   priceType: 'sale' | 'rent';
+  /** Market rent estimate per month; the monthly figure to show for for-sale listings. */
+  estimatedMonthlyRent?: number;
   source: LeadSource;
   stage: LeadStage;
   regulationStatus: RegulationStatus;

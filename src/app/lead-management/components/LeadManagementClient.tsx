@@ -429,6 +429,7 @@ export default function LeadManagementClient({
         baths: Number(d.baths || 0),
         price: Number(d.price || 0),
         priceType: (d.price_type as 'sale' | 'rent') || 'rent',
+        estimatedMonthlyRent: Number(d.estimated_monthly_rent_ai || 0) || undefined,
         source: String(d.source || ''),
         stage: String(d.stage || 'New Lead') as Lead['stage'],
         regulationStatus: String(d.regulation_status || 'Unknown') as Lead['regulationStatus'],

@@ -25,7 +25,7 @@ async function fetchInitialLeads(): Promise<{ leads: Lead[]; total: number }> {
     const { data, error, count } = await supabase
       .from('leads')
       .select(
-        'id,address,city,state,zip,lat,lng,beds,baths,price,price_type,source,stage,regulation_status,prospect_score,days_on_market,last_checked,listing_url,notes,contact_name,contact_phone,tags,estimated_adr,estimated_occupancy,estimated_gross_monthly,estimated_net_monthly,photos,created_at,updated_at,is_synthetic,contact_info_requested,contact_info_requested_at',
+        'id,address,city,state,zip,lat,lng,beds,baths,price,price_type,source,stage,regulation_status,prospect_score,days_on_market,last_checked,listing_url,notes,contact_name,contact_phone,tags,estimated_adr,estimated_occupancy,estimated_gross_monthly,estimated_net_monthly,estimated_monthly_rent_ai,photos,created_at,updated_at,is_synthetic,contact_info_requested,contact_info_requested_at',
         { count: 'exact' }
       )
       // Include leads where is_synthetic is NULL or false.
@@ -53,6 +53,7 @@ async function fetchInitialLeads(): Promise<{ leads: Lead[]; total: number }> {
       baths: Number(d.baths || 0),
       price: Number(d.price || 0),
       priceType: (d.price_type as 'sale' | 'rent') || 'rent',
+      estimatedMonthlyRent: Number(d.estimated_monthly_rent_ai || 0) || undefined,
       source: String(d.source || 'Other') as LeadSource,
       stage: String(d.stage || 'New Lead') as Lead['stage'],
       regulationStatus: String(d.regulation_status || 'Unknown') as Lead['regulationStatus'],

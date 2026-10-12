@@ -85,7 +85,7 @@ async function fetchLeadsForMap(): Promise<Lead[]> {
     // looping through every page of the full leads table.
     const { data, error } = await supabase
       .from('leads')
-      .select('id, address, city, state, zip, lat, lng, beds, baths, price, price_type, source, stage, regulation_status, prospect_score, days_on_market, last_checked, listing_url, contact_name, contact_phone, notes, tags, estimated_adr, estimated_occupancy, estimated_gross_monthly, estimated_net_monthly, photos, created_at, updated_at')
+      .select('id, address, city, state, zip, lat, lng, beds, baths, price, price_type, source, stage, regulation_status, prospect_score, days_on_market, last_checked, listing_url, contact_name, contact_phone, notes, tags, estimated_adr, estimated_occupancy, estimated_gross_monthly, estimated_net_monthly, estimated_monthly_rent_ai, photos, created_at, updated_at')
       .or('is_synthetic.is.null,is_synthetic.eq.false')
       .order('prospect_score', { ascending: false })
       .limit(MAP_PAGE_SIZE);
@@ -112,6 +112,7 @@ async function fetchLeadsForMap(): Promise<Lead[]> {
       baths: Number(d.baths || 0),
       price: Number(d.price || 0),
       priceType: (d.price_type === 'sale' ? 'sale' : 'rent') as Lead['priceType'],
+      estimatedMonthlyRent: Number(d.estimated_monthly_rent_ai || 0) || undefined,
       source: String(d.source || '') as Lead['source'],
       stage: String(d.stage || 'New Lead') as Lead['stage'],
       regulationStatus: String(d.regulation_status || 'Unknown') as Lead['regulationStatus'],
