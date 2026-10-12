@@ -2,10 +2,12 @@
  * Schedules the estimate outreach text for every "Fully Verified" lead, once per phone number.
  *
  *   npx tsx scripts/estimate-sms-campaign.ts --at=2026-10-12T15:00:00Z --batch=2026-10-12-verified          (dry run, schedules nothing)
- *   npx tsx scripts/estimate-sms-campaign.ts --at=... --batch=... --go                                      (schedules with Twilio)
+ *   npx tsx scripts/estimate-sms-campaign.ts --at=... --batch=... --test-to=+15551234567                   (texts 2 sample messages to YOUR phone now; schedules nothing)
+ *   npx tsx scripts/estimate-sms-campaign.ts --at=... --batch=... --go --tested                            (schedules with Twilio; --tested confirms you read the test texts)
  *   npx tsx scripts/estimate-sms-campaign.ts --cancel=/tmp/campaign-<batch>.json                            (cancels every message still scheduled)
  *
- * --audience=fully-verified (default) | luxury-phone (the dashboard's "Luxury + Phone Available" count).
+ * --audience=fully-verified (default) | luxury-phone (the dashboard's "Luxury + Phone Available" count, rentals left out).
+ * --states=CO,FL,AZ  only leads in these states (early results favored them, so send these first).
  * Anyone already texted by ANY campaign (same lead or same phone number) is skipped, so re-running later only adds leads that
  * became eligible since, and nobody is texted twice.
  *
@@ -14,12 +16,15 @@
 import fs from 'fs';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { draftOutreach, finalizeMessage, inSendWindow, LEAD_COLUMNS, type OutreachLead, type Blocker } from '@/lib/services/estimateOutreachSms';
-import { lookupPhoneNumber } from '@/lib/services/twilioService';
+import { lookupPhoneNumber, smsBlockReason, dispatchSMS } from '@/lib/services/twilioService';
 import { scheduleSMS, cancelScheduled } from '@/lib/services/twilioSchedule';
 import { toE164 } from '@/lib/services/smsConsent';
 
 const arg = (name: string) => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
 const GO = process.argv.includes('--go');
+const TESTED = process.argv.includes('--tested');
+const TEST_TO = toE164(arg('test-to'));
+const STATES = arg('states')?.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
 const AUDIENCE = arg('audience') || 'fully-verified';
 const SITE = 'https://prospect.staytrvlr.com';
 const MESSAGING_SERVICE = process.env.TWILIO_MESSAGING_SERVICE_SID || 'MG9c28a48828aae9a648e8d4bcc8c0cd41';
@@ -60,7 +65,7 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
     if (fe) throw fe;
     const ids = (facts ?? []).map(f => f.lead_id as string);
     for (let i = 0; i < ids.length; i += 100) {
-      const { data, error } = await db.from('leads').select(`${LEAD_COLUMNS},prospect_score`).in('id', ids.slice(i, i + 100)).or('is_synthetic.is.null,is_synthetic.eq.false');
+      const { data, error } = await db.from('leads').select(`${LEAD_COLUMNS},prospect_score`).in('id', ids.slice(i, i + 100)).or('is_synthetic.is.null,is_synthetic.eq.false').or('price_type.is.null,price_type.neq.rent');
       if (error) throw error;
       audience.push(...((data ?? []) as Aud[]));
     }
@@ -70,6 +75,7 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
     if (error) throw error;
     audience = (data ?? []) as Aud[];
   } else throw new Error(`Unknown --audience=${AUDIENCE}`);
+  if (STATES?.length) audience = audience.filter(l => STATES.includes(String(l.state ?? '').toUpperCase()));
 
   // Everyone already texted by any campaign, by lead and by phone number.
   const textedLeads = new Set<string>(); const textedPhones = new Set<string>();
@@ -107,8 +113,8 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
     const blockers = d.blockers as Blocker[];
     if (blockers.length || !d.to) return skip(blockers[0] ?? 'no_phone');
     const look = await lookupPhoneNumber(d.to);
-    if (look.twilioConfigured && look.valid === false) { prefiltered.push({ id: lead.id, reason: 'invalid' }); return skip('invalid_number'); }
-    if (look.twilioConfigured && look.lineType === 'landline') { prefiltered.push({ id: lead.id, reason: 'landline' }); return skip('landline'); }
+    const blocked = smsBlockReason(look);
+    if (blocked) { prefiltered.push({ id: lead.id, reason: blocked }); return skip(blocked === 'invalid' ? 'invalid_number' : 'landline'); }
     plan.push({ lead, to: d.to, sendAt, message: d.message, variant, by: d.generatedBy, segments: d.segments, range: d.range });
     // The real short link is only created when we actually schedule.
     (plan[plan.length - 1] as { draft?: unknown }).draft = d;
@@ -125,7 +131,17 @@ function sendTimeFor(state: string | null, base: Date): Date | null {
   console.log('\n--- 5 samples ---');
   plan.slice(0, 5).forEach(p => console.log(`\n[${p.lead.state}] ${p.variant}/${p.by}/${p.segments}seg send ${p.sendAt.toISOString()}\n${p.message}`));
 
-  if (!GO) { console.log('\nDRY RUN: nothing scheduled. Re-run with --go to schedule.'); return; }
+  if (TEST_TO) {
+    // Exactly the copy that would go out, one per wording, texted to the tester now. Nothing is logged against a lead or scheduled.
+    for (const variant of ['friendly', 'direct']) {
+      const p = plan.find(x => x.variant === variant); if (!p) continue;
+      const r = await dispatchSMS({ to: TEST_TO, body: `[TEST ${variant}] ${p.message}`, leadId: 'campaign-test' });
+      console.log(r.success ? `test text (${variant}) sent` : `test text (${variant}) FAILED: ${r.error}`);
+    }
+    console.log('\nTest texts sent. Read them on your phone, then re-run with --go --tested.'); return;
+  }
+  if (!GO) { console.log('\nDRY RUN: nothing scheduled. Re-run with --test-to=<your phone> first, then --go --tested.'); return; }
+  if (!TESTED) throw new Error('Send the test texts to yourself first (--test-to=<your phone>), read them, then re-run with --go --tested.');
 
   // Keep the pre-send phone screening: it is the first measure of how accurate the phone numbers are, and the CRM should know which leads to call instead of text.
   if (prefiltered.length) {

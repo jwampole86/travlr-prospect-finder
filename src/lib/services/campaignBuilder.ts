@@ -1,7 +1,7 @@
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { draftOutreach, finalizeMessage, inSendWindow, LEAD_COLUMNS, type OutreachLead } from '@/lib/services/estimateOutreachSms';
-import { lookupPhoneNumber } from '@/lib/services/twilioService';
+import { lookupPhoneNumber, smsBlockReason } from '@/lib/services/twilioService';
 import { scheduleSMS, cancelScheduled } from '@/lib/services/twilioSchedule';
 import { toE164 } from '@/lib/services/smsConsent';
 
@@ -13,6 +13,8 @@ const MESSAGING_SERVICE = process.env.TWILIO_MESSAGING_SERVICE_SID || 'MG9c28a48
 const MIN_LEAD_MINUTES = 30; // at plan time; Twilio itself needs 15 minutes
 const MAX_TEXTS = 500;
 export const CHUNK_SIZE = 8;
+/** Early results (2026-10-12) favored these states, so campaigns take their leads first, then the rest by score. */
+const PRIORITY_STATES = ['CO', 'FL', 'AZ'];
 
 /** Who can be texted. The database function campaign_audience applies the shared rules (real leads, never co-host, never opted out, never texted). */
 export const AUDIENCES = [
@@ -48,7 +50,9 @@ export async function audienceCandidates(db: Db, audience: string): Promise<Cand
 }
 
 const filterCandidates = (c: Candidate[], p: Pick<CampaignParams, 'states' | 'minScore'>) =>
-  c.filter(x => (!p.states.length || (x.state && p.states.includes(x.state.toUpperCase()))) && x.score >= p.minScore);
+  c.filter(x => (!p.states.length || (x.state && p.states.includes(x.state.toUpperCase()))) && x.score >= p.minScore)
+    .map((x, i) => ({ x, i, rank: PRIORITY_STATES.indexOf((x.state ?? '').toUpperCase()) }))
+    .sort((a, b) => (a.rank < 0 ? 99 : a.rank) - (b.rank < 0 ? 99 : b.rank) || a.i - b.i).map(r => r.x);
 
 /** Size, average score and top states of every audience, for the picker and for the AI helper. */
 export async function audienceSummaries(db: Db) {
@@ -187,8 +191,9 @@ export async function scheduleChunk(db: Db, p: CampaignParams, ids: string[], bu
     const d = await draftOutreach(db, lead, { site: SITE, tone: toneFor(p, lead.id), now: sendAt });
     if (d.blockers.length || !d.to) return skip(d.blockers[0] ?? 'no_phone');
     const look = await lookupPhoneNumber(d.to);
-    if (look.twilioConfigured && (look.valid === false || look.lineType === 'landline')) {
-      const reason = look.valid === false ? 'invalid' : 'landline';
+    const blocked = smsBlockReason(look);
+    if (blocked) {
+      const reason = blocked;
       if (reason === 'invalid') invalid++; else landline++;
       const { data: row } = await db.from('leads').select('tags').eq('id', lead.id).maybeSingle();
       const tags = [...new Set([...((row?.tags as string[] | null) ?? []).filter(t => !t.startsWith('sms:phone:')), `sms:phone:${reason}`])];

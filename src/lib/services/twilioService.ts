@@ -211,6 +211,17 @@ export async function dispatchSMS(payload: SMSDispatchPayload): Promise<SMSDispa
 }
 
 /**
+ * Why a campaign must not text this number, or null when it may. Landlines and fixed VoIP lines cannot receive texts (every fixed-VoIP
+ * text in the 2026-10-12 campaigns failed with 30006); mobile and non-fixed VoIP numbers delivered.
+ */
+export function smsBlockReason(look: PhoneLookupResult): 'invalid' | 'landline' | null {
+  if (!look.twilioConfigured) return null;
+  if (look.valid === false) return 'invalid';
+  if (look.lineType === 'landline' || look.lineType === 'fixedVoip') return 'landline';
+  return null;
+}
+
+/**
  * Fetch delivery status for a previously sent message.
  * Returns null in placeholder mode.
  */

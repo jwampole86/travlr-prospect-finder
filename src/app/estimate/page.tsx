@@ -7,8 +7,8 @@ import WhyTravlrCard from '@/app/estimate/components/WhyTravlrCard';
 import ReportChat from '@/app/estimate/components/ReportChat';
 import { trackEstimateEvent, getTrackingContext } from '@/lib/estimateTracking';
 import ReportActions from '@/app/estimate/components/ReportActions';
-import { EQUIPMENT, type EquipmentKey } from '@/lib/homeownerReportContent';
-import { MapPin, DollarSign, TrendingUp, Shield, ChevronRight, CheckCircle, Loader2, Phone, Home, Building2, Calendar, AlertCircle, ExternalLink } from 'lucide-react';
+import { type EquipmentKey } from '@/lib/homeownerReportContent';
+import { MapPin, DollarSign, TrendingUp, Shield, ChevronRight, CheckCircle, Loader2, Phone, AlertCircle, ExternalLink } from 'lucide-react';
 import { WEBSITE_URL, WEBSITE_LABEL, CONTACT_EMAIL, CONTACT_PHONE, telHref } from '@/lib/homeownerContact';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
@@ -44,7 +44,7 @@ interface QualificationForm {
   smsConsent: boolean;
 }
 
-type Step = 'address' | 'estimate' | 'contact' | 'questionnaire' | 'success';
+type Step = 'address' | 'estimate' | 'contact' | 'success';
 
 // ─── Address Autocomplete ─────────────────────────────────────────────────────
 
@@ -173,9 +173,9 @@ function EstimateCard({ label, value, sub, highlight }: { label: string; value: 
 // ─── Progress Steps ───────────────────────────────────────────────────────────
 
 function ProgressBar({ step }: { step: Step }) {
-  const steps: Step[] = ['address', 'estimate', 'contact', 'questionnaire', 'success'];
+  const steps: Step[] = ['address', 'estimate', 'contact', 'success'];
   const currentIdx = steps.indexOf(step);
-  const labels = ['Address', 'Estimate', 'Contact', 'Details', 'Done'];
+  const labels = ['Address', 'Estimate', 'Contact', 'Done'];
 
   return (
     <div className="flex items-center gap-1 mb-6">
@@ -190,7 +190,7 @@ function ProgressBar({ step }: { step: Step }) {
             </div>
             <span className={`text-[9px] font-medium ${i <= currentIdx ? 'text-primary' : 'text-muted-foreground'}`}>{labels[i]}</span>
           </div>
-          {i < 3 && (
+          {i < 2 && (
             <div className={`flex-1 h-0.5 mb-4 transition-colors ${i < currentIdx ? 'bg-primary' : 'bg-border'}`} />
           )}
         </React.Fragment>
@@ -211,7 +211,7 @@ function EstimateLandingContent() {
   const [loadingEstimate, setLoadingEstimate] = useState(false);
   const [estimateError, setEstimateError] = useState(false);
   const [emailed, setEmailed] = useState(false);
-  const [equipment, setEquipment] = useState<EquipmentKey[] | null>(null);
+  const [equipment] = useState<EquipmentKey[] | null>(null);
   const [validating, setValidating] = useState(false);
   const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
   const [emailKept, setEmailKept] = useState(false);
@@ -276,7 +276,6 @@ function EstimateLandingContent() {
   useEffect(() => { if (estimate) trackEstimateEvent('estimate_shown', { net: Math.round(estimate.annualNet) }); }, [estimate]);
   useEffect(() => {
     if (step === 'contact') trackEstimateEvent('contact_started');
-    else if (step === 'questionnaire') trackEstimateEvent('questionnaire_started');
     else if (step === 'success') trackEstimateEvent('submitted');
   }, [step]);
 
@@ -309,7 +308,6 @@ function EstimateLandingContent() {
   function validateContact(): boolean {
     const errors: Partial<ContactForm> = {};
     if (!contact.firstName.trim()) errors.firstName = 'Required';
-    if (!contact.lastName.trim()) errors.lastName = 'Required';
     if (!contact.phone.trim() || contact.phone.replace(/\D/g, '').length < 10) errors.phone = 'Valid phone required';
     if (!contact.email.trim() || !contact.email.includes('@')) errors.email = 'Valid email required';
     setContactErrors(errors);
@@ -342,7 +340,7 @@ function EstimateLandingContent() {
     setValidating(true);
     const ok = await checkContactOnServer();
     setValidating(false);
-    if (ok) setStep('questionnaire');
+    if (ok) await handleFinalSubmit();
   }
 
   async function checkEmailOnBlur() {
@@ -371,6 +369,10 @@ function EstimateLandingContent() {
 
   async function handleFinalSubmit() {
     setSubmitting(true);
+    // One name field: the first word is the first name, the rest the last name.
+    const [firstName, ...rest] = contact.firstName.trim().split(/\s+/);
+    const named = { ...contact, firstName, lastName: rest.join(' ') };
+    setContact(named);
     try {
       const submitRes = await fetch('/api/estimate/submit-lead', {
         method: 'POST',
@@ -378,7 +380,7 @@ function EstimateLandingContent() {
         body: JSON.stringify({
           address: selectedAddress || addressInput,
           estimate,
-          contact: { ...contact, emailConfirmed: emailKept },
+          contact: { ...named, emailConfirmed: emailKept },
           qualification: { ...qualification, equipment: equipment ?? undefined },
         }),
       });
@@ -501,6 +503,13 @@ function EstimateLandingContent() {
               </div>
             ) : estimate ? (
               <>
+                <button
+                  onClick={() => setStep('contact')}
+                  className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                >
+                  Email me the full report — free
+                  <ChevronRight size={14} />
+                </button>
                 <HomeownerReportView report={estimate.report} variant="preview" />
                 <div className="rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground leading-relaxed">
                   Your full report adds the monthly cost breakdown, a five-year comparison with a traditional lease, the permits and taxes required for your address, and a step-by-step plan to go live.
@@ -541,27 +550,16 @@ function EstimateLandingContent() {
             </div>
 
             <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">First Name *</label>
-                  <input
-                    value={contact.firstName}
-                    onChange={e => { setContact(c => ({ ...c, firstName: e.target.value })); setContactErrors(er => ({ ...er, firstName: undefined })); }}
-                    placeholder="Jane"
-                    className={`w-full px-3 py-2.5 rounded-lg border text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all ${contactErrors.firstName ? 'border-red-400' : 'border-border'}`}
-                  />
-                  {contactErrors.firstName && <p className="text-[10px] text-red-500 mt-1">{contactErrors.firstName}</p>}
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Last Name *</label>
-                  <input
-                    value={contact.lastName}
-                    onChange={e => { setContact(c => ({ ...c, lastName: e.target.value })); setContactErrors(er => ({ ...er, lastName: undefined })); }}
-                    placeholder="Smith"
-                    className={`w-full px-3 py-2.5 rounded-lg border text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all ${contactErrors.lastName ? 'border-red-400' : 'border-border'}`}
-                  />
-                  {contactErrors.lastName && <p className="text-[10px] text-red-500 mt-1">{contactErrors.lastName}</p>}
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Name *</label>
+                <input
+                  value={contact.firstName}
+                  onChange={e => { setContact(c => ({ ...c, firstName: e.target.value })); setContactErrors(er => ({ ...er, firstName: undefined })); }}
+                  placeholder="Jane Smith"
+                  autoComplete="name"
+                  className={`w-full px-3 py-2.5 rounded-lg border text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all ${contactErrors.firstName ? 'border-red-400' : 'border-border'}`}
+                />
+                {contactErrors.firstName && <p className="text-[10px] text-red-500 mt-1">{contactErrors.firstName}</p>}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Phone *</label>
@@ -602,109 +600,6 @@ function EstimateLandingContent() {
                 )}
               </div>
 
-              <button
-                onClick={handleSubmitContact}
-                disabled={validating}
-                className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-70 transition-all flex items-center justify-center gap-2"
-              >
-                {validating ? <><Loader2 size={14} className="animate-spin" /> Checking your details…</> : <>Continue<ChevronRight size={14} /></>}
-              </button>
-              <p className="text-[10px] text-muted-foreground text-center">
-                By continuing, you agree to be contacted by TRAVLR Vacation Homes. We respect your privacy.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* ── Step: Questionnaire ── */}
-        {step === 'questionnaire' && (
-          <div className="space-y-5">
-            <div>
-              <h2 className="text-xl font-bold text-foreground">A few quick questions</h2>
-              <p className="text-sm text-muted-foreground mt-1">Help us personalize your estimate and match you with the right specialist.</p>
-            </div>
-
-            <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <Building2 size={12} />Property Type
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Single-Family Home', 'Condo / Townhome', 'Cabin / Chalet', 'Multi-Unit'].map(opt => (
-                    <button
-                      key={opt}
-                      onClick={() => setQualification(q => ({ ...q, propertyType: opt }))}
-                      className={`py-2.5 px-3 rounded-lg border text-xs font-medium transition-all text-left ${qualification.propertyType === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border text-muted-foreground hover:border-primary/40'}`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <Home size={12} />Current Rental Status
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Owner-occupied', 'Long-term rental', 'Vacant', 'Already STR'].map(opt => (
-                    <button
-                      key={opt}
-                      onClick={() => setQualification(q => ({ ...q, rentalStatus: opt }))}
-                      className={`py-2.5 px-3 rounded-lg border text-xs font-medium transition-all text-left ${qualification.rentalStatus === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border text-muted-foreground hover:border-primary/40'}`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <Calendar size={12} />Timeline Interest
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['ASAP', 'Within 3 months', '3–6 months', 'Just exploring'].map(opt => (
-                    <button
-                      key={opt}
-                      onClick={() => setQualification(q => ({ ...q, timelineInterest: opt }))}
-                      className={`py-2.5 px-3 rounded-lg border text-xs font-medium transition-all text-left ${qualification.timelineInterest === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border text-muted-foreground hover:border-primary/40'}`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
-                  <Shield size={12} />What does the home already have?
-                </label>
-                <p className="text-[11px] text-muted-foreground mb-2">Optional. We use this to tailor your safety and smart-home checklist.</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {EQUIPMENT.map(e => {
-                    const on = equipment?.includes(e.key) ?? false;
-                    return (
-                      <button
-                        key={e.key} type="button" aria-pressed={on}
-                        onClick={() => setEquipment(cur => { const list = cur ?? []; return list.includes(e.key) ? list.filter(k => k !== e.key) : [...list, e.key]; })}
-                        className={`py-2.5 px-3 rounded-lg border text-xs font-medium transition-all text-left ${on ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border text-muted-foreground hover:border-primary/40'}`}
-                      >
-                        {on ? '\u2713 ' : ''}{e.label.replace(' (keyless entry)', '').replace('Video doorbell or exterior camera', 'Video doorbell').replace('Security alarm or monitored system', 'Security alarm')}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button" aria-pressed={equipment !== null && equipment.length === 0}
-                    onClick={() => setEquipment([])}
-                    className={`py-2.5 px-3 rounded-lg border text-xs font-medium transition-all text-left ${equipment !== null && equipment.length === 0 ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-border text-muted-foreground hover:border-primary/40'}`}
-                  >
-                    None of these yet
-                  </button>
-                </div>
-              </div>
-
-              {/* SMS consent */}
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -713,17 +608,20 @@ function EstimateLandingContent() {
                   className="mt-0.5 w-4 h-4 rounded border-border text-primary focus:ring-primary/30"
                 />
                 <span className="text-[11px] text-muted-foreground leading-relaxed">
-                  I agree to receive SMS updates from TRAVLR Vacation Homes. Message & data rates may apply. Reply STOP to opt out.
+                  Optional: text me updates. Message & data rates may apply. Reply STOP to opt out.
                 </span>
               </label>
 
               <button
-                onClick={handleFinalSubmit}
-                disabled={submitting}
-                className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                onClick={handleSubmitContact}
+                disabled={validating || submitting}
+                className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-70 transition-all flex items-center justify-center gap-2"
               >
-                {submitting ? <><Loader2 size={14} className="animate-spin" />Submitting…</> : <>Submit & Get My Report <ChevronRight size={14} /></>}
+                {validating || submitting ? <><Loader2 size={14} className="animate-spin" /> {submitting ? 'Sending your report…' : 'Checking your details…'}</> : <>Send my full report<ChevronRight size={14} /></>}
               </button>
+              <p className="text-[10px] text-muted-foreground text-center">
+                By continuing, you agree to be contacted by TRAVLR Vacation Homes. We respect your privacy.
+              </p>
             </div>
           </div>
         )}
