@@ -54,6 +54,8 @@ export interface OutreachDraft {
   firstName: string | null;
   range: string;
   to: string | null;
+  /** Full estimate link. The message carries a same-length placeholder short link until finalizeMessage() runs. */
+  longUrl: string;
   blockers: Blocker[];
   /** False means this is a draft for review only. */
   canSend: boolean;
@@ -96,15 +98,19 @@ export function inSendWindow(state: string | null, now = new Date()): boolean {
   return h !== null && h >= 9 && h < 20;
 }
 
-function estimateUrl(lead: OutreachLead, site: string): string {
+function longEstimateUrl(lead: OutreachLead, site: string): string {
   const addr = [lead.address, lead.city, lead.state].filter(Boolean).join(', ');
   // "+" for spaces and literal commas keep the link about 15 characters shorter than full percent-encoding.
   return `${site.replace(/\/$/, '')}/estimate?address=${encodeURIComponent(addr).replace(/%20/g, '+').replace(/%2C/g, ',')}`;
 }
 
+const SHORT_CODE_LEN = 7;
+const SHORT_PLACEHOLDER = 'x'.repeat(SHORT_CODE_LEN);
+const shortUrl = (site: string, code: string) => `${site.replace(/\/$/, '')}/e/${code}`;
+
 function footer(url: string): string {
-  // Each link sits alone on its own line with the https:// prefix so every phone makes it tappable.
-  return `Free estimate: ${url}\n${SITE_URL}\nReply YES for info, NO to opt out`;
+  // Own lines keep the two links visually separate; the bare domain is still linkified by phones.
+  return `Free estimate: ${url}\nVisit ${SITE_URL.replace('https://', '')}\nReply YES for info, NO to opt out`;
 }
 
 // ─── Copy ────────────────────────────────────────────────────────────────────
@@ -203,7 +209,7 @@ export async function draftOutreach(db: Db, lead: OutreachLead, opts: { site: st
   let generatedBy: OutreachDraft['generatedBy'] = 'template';
   if (range) {
     if (opts.useAi !== false) {
-      const segs = (h: string) => countSegments(toGsm(`${h}\n${footer(estimateUrl(lead, opts.site))}`));
+      const segs = (h: string) => countSegments(toGsm(`${h}\n${footer(shortUrl(opts.site, SHORT_PLACEHOLDER))}`));
       for (let attempt = 0; attempt < 4 && !hook; attempt++) {
         try {
           // The model overshoots length limits, so each retry asks for a tighter budget.
@@ -216,11 +222,26 @@ export async function draftOutreach(db: Db, lead: OutreachLead, opts: { site: st
     if (!hook) hook = templateHook(facts, seed);
   }
 
-  const message = range ? toGsm(`${hook}\n${footer(estimateUrl(lead, opts.site))}`) : '';
+  const message = range ? toGsm(`${hook}\n${footer(shortUrl(opts.site, SHORT_PLACEHOLDER))}`) : '';
   const segments = message ? countSegments(message) : 0;
   if (segments > MAX_SEGMENTS) blockers.push('too_long');
   return {
     leadId: lead.id, message, segments, chars: message.length, generatedBy, platform, firstName, range, to, blockers,
+    longUrl: longEstimateUrl(lead, opts.site),
     canSend: blockers.length === 0,
   };
+}
+
+/** Creates (or reuses) the short link for this lead and returns the message with the real link in place of the placeholder. */
+export async function finalizeMessage(db: Db, draft: OutreachDraft, site: string): Promise<string> {
+  const { data: existing } = await db.from('link_clicks').select('token').eq('lead_id', draft.leadId)
+    .eq('sequence_name', 'estimate_outreach').eq('original_url', draft.longUrl).limit(1).maybeSingle();
+  let code = existing?.token as string | undefined;
+  for (let attempt = 0; !code && attempt < 5; attempt++) {
+    const candidate = Array.from({ length: SHORT_CODE_LEN }, () => 'abcdefghijkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 32)]).join('');
+    const { error } = await db.from('link_clicks').insert({ token: candidate, lead_id: draft.leadId, sequence_name: 'estimate_outreach', original_url: draft.longUrl });
+    if (!error) code = candidate;
+  }
+  // If a short link cannot be stored, fall back to the full link so the text still works.
+  return code ? draft.message.replace(shortUrl(site, SHORT_PLACEHOLDER), shortUrl(site, code)) : draft.message.replace(shortUrl(site, SHORT_PLACEHOLDER), draft.longUrl);
 }

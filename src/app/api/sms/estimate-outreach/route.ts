@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { dispatchSMS, getTwilioConfigStatus, lookupPhoneNumber } from '@/lib/services/twilioService';
-import { draftOutreach, LEAD_COLUMNS, type OutreachLead } from '@/lib/services/estimateOutreachSms';
+import { draftOutreach, finalizeMessage, LEAD_COLUMNS, type OutreachLead } from '@/lib/services/estimateOutreachSms';
 
 export const maxDuration = 300;
 
@@ -67,11 +67,12 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const sent = await dispatchSMS({ to: d.to, body: d.message, leadId: d.leadId });
+    const message = await finalizeMessage(db, d, site);
+    const sent = await dispatchSMS({ to: d.to, body: message, leadId: d.leadId });
     const ok = sent.success;
     await db.from('outreach_history').insert({
       lead_id: d.leadId, channel: 'sms', agent_id: auth.actor.user.id, status: ok ? 'sent' : 'failed', sent_at: new Date().toISOString(),
-      metadata: { kind: 'estimate_outreach', batch, to: d.to, message: d.message, generated_by: d.generatedBy, platform: d.platform, range: d.range, message_sid: sent.messageSid ?? null, error: sent.error ?? null },
+      metadata: { kind: 'estimate_outreach', batch, to: d.to, message, generated_by: d.generatedBy, platform: d.platform, range: d.range, message_sid: sent.messageSid ?? null, error: sent.error ?? null },
     });
     results.push({ leadId: d.leadId, status: ok ? 'sent' : 'failed', reason: sent.error, messageSid: sent.messageSid });
     await new Promise(r => setTimeout(r, GAP_MS));
