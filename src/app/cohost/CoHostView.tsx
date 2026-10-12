@@ -181,18 +181,25 @@ export default function CoHostView() {
   const stateOf = (m: string) => m.split(',').pop()?.trim().toUpperCase() ?? '';
   const states = useMemo(() => ['all', ...[...new Set(listings.map(l => stateOf(l.market)).filter(Boolean))].sort()], [listings]);
   const markets = useMemo(() => ['all', ...[...new Set(listings.map(l => l.market).filter(m => usState === 'all' || stateOf(m) === usState))].sort()], [listings, usState]);
-  const base = useMemo(() => listings.filter(l => (usState === 'all' || stateOf(l.market) === usState) && (market === 'all' || l.market === market) && (stage === 'all' || l.pipeline_stage === stage) && (!niches.length || (l.niches ?? []).some(n => niches.includes(n))) && (view === 'all' || (view === 'matched' && ['unique', 'ambiguous'].includes(l.match_status ?? '')))), [listings, usState, market, stage, view, niches]);
-  const luxuryCount = useMemo(() => base.filter(l => l.is_luxury).length, [base]);
-  const matchedTotal = useMemo(() => listings.filter(l => ['unique', 'ambiguous'].includes(l.match_status ?? '')).length, [listings]);
+  type Facet = 'stage' | 'view' | 'luxury' | 'elite' | 'verified' | 'contact';
+  const isMatched = (l: Listing) => ['unique', 'ambiguous'].includes(l.match_status ?? '');
+  // A listing passes every active filter except the one named, so each bubble shows what clicking it would give.
+  const passes = useCallback((l: Listing, skip?: Facet) => (usState === 'all' || stateOf(l.market) === usState) && (market === 'all' || l.market === market) && (!niches.length || (l.niches ?? []).some(n => niches.includes(n)))
+    && (skip === 'stage' || stage === 'all' || l.pipeline_stage === stage) && (skip === 'view' || view === 'all' || (view === 'matched' && isMatched(l)))
+    && (skip === 'luxury' || !luxuryOnly || !!l.is_luxury) && (skip === 'elite' || !eliteOnly || !!l.is_elite)
+    && (skip === 'verified' || !verifiedOnly || l.verification?.level === 'verified') && (skip === 'contact' || !contactOnly || hasContact(l)),
+  [usState, market, niches, stage, view, luxuryOnly, eliteOnly, verifiedOnly, contactOnly]);
+  const luxuryCount = useMemo(() => listings.filter(l => passes(l, 'luxury') && l.is_luxury).length, [listings, passes]);
+  const matchedTotal = useMemo(() => listings.filter(l => passes(l, 'view') && isMatched(l)).length, [listings, passes]);
   const activeFilters = [usState !== 'all' && `State ${usState}`, market !== 'all' && market, stage !== 'all' && `Stage ${STAGE_LABEL[stage] ?? stage}`, niches.length > 0 && `${niches.length} niche${niches.length === 1 ? '' : 's'}`, luxuryOnly && 'LUXURY', eliteOnly && 'ELITE', verifiedOnly && 'Verified owner', contactOnly && 'Has contact'].filter(Boolean) as string[];
   function clearFilters() {
     setUsState('all'); setMarket('all'); setStage('all'); setNiches([]); setVerifiedOnly(false); setContactOnly(false);
     setLuxuryOnly(false); setEliteOnly(false);
     try { localStorage.setItem('cohost_luxury_only', '0'); localStorage.setItem('cohost_elite_only', '0'); } catch { /* storage unavailable */ }
   }
-  const eliteCount = useMemo(() => base.filter(l => l.is_elite).length, [base]);
-  const verifiedCount = useMemo(() => base.filter(l => l.verification?.level === 'verified').length, [base]);
-  const contactCount = useMemo(() => base.filter(hasContact).length, [base]);
+  const eliteCount = useMemo(() => listings.filter(l => passes(l, 'elite') && l.is_elite).length, [listings, passes]);
+  const verifiedCount = useMemo(() => listings.filter(l => passes(l, 'verified') && l.verification?.level === 'verified').length, [listings, passes]);
+  const contactCount = useMemo(() => listings.filter(l => passes(l, 'contact') && hasContact(l)).length, [listings, passes]);
   const shown = useMemo(() => {
     const pot = (l: Listing) => (l.dataQuality?.reliable === false ? -1 : l.revenue_potential_ltm ?? -1);
     const cmp: Record<SortKey, (a: Listing, b: Listing) => number> = {
@@ -201,9 +208,9 @@ export default function CoHostView() {
       earned_desc: (a, b) => (b.dataQuality?.reliable === false ? -1 : b.revenue_ltm ?? -1) - (a.dataQuality?.reliable === false ? -1 : a.revenue_ltm ?? -1), newest: (a, b) => Date.parse(b.first_seen_at ?? '') - Date.parse(a.first_seen_at ?? ''),
       niche_priority: (a, b) => nichePriority(a.niches) - nichePriority(b.niches) || pot(b) - pot(a),
     };
-    return base.filter(l => (!luxuryOnly || l.is_luxury) && (!eliteOnly || l.is_elite) && (!verifiedOnly || l.verification?.level === 'verified') && (!contactOnly || hasContact(l))).sort(cmp[sort]);
-  }, [base, luxuryOnly, eliteOnly, verifiedOnly, contactOnly, sort]);
-  const counts = useMemo(() => stages.map(s => [s, listings.filter(l => l.pipeline_stage === s).length] as const), [stages, listings]);
+    return listings.filter(l => passes(l)).sort(cmp[sort]);
+  }, [listings, passes, sort]);
+  const counts = useMemo(() => stages.map(s => [s, listings.filter(l => passes(l, 'stage') && l.pipeline_stage === s).length] as const), [stages, listings, passes]);
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
