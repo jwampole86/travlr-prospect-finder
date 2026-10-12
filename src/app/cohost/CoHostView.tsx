@@ -8,7 +8,7 @@ import NicheFilter, { type NicheCounts } from '@/components/niche/NicheFilter';
 import SelectBox from '@/components/ui/SelectBox';
 import { nicheName, nichePriority } from '@/lib/niches';
 
-interface Owner { names: string[]; type: string | null; mailing: string | null; permitHolder: string | null; contactFound: boolean; skipTraced?: boolean; phones: string[]; emails: string[]; published?: { email: string | null; phone: string | null } | null }
+interface Owner { names: string[]; type: string | null; mailing: string | null; permitHolder: string | null; contactFound: boolean; skipTraced?: boolean; phones: string[]; emails: string[]; published?: { email: string | null; phone: string | null; managerEmail?: string | null; managerPhone?: string | null } | null }
 interface OfferInfo { code: string; views: number; lastViewedAt: string | null; requestedAt: string | null; optedOutAt: string | null; request: { name?: string; email?: string | null; phone?: string | null; service?: string; message?: string | null; at?: string } | null }
 interface HostPhone { e164: string; source: 'skip_trace' | 'permit_office'; type: string | null; name: string | null }
 interface ThreadMsg { direction: 'outbound' | 'inbound'; phone_e164: string; body: string; status: string | null; intent: string | null; created_at: string }
@@ -41,6 +41,7 @@ const CHECK_MARK: Record<string, string> = { pass: '\u2713', warn: '!', fail: '\
 const ago = (iso: string) => { const h = (Date.now() - Date.parse(iso)) / 3_600_000; return h < 1 ? 'under an hour ago' : h < 48 ? `${Math.round(h)} hours ago` : `${Math.round(h / 24)} days ago`; };
 
 const fmtPhone = (e: string) => e.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+const hasContact = (l: Listing) => { const o = l.matched_owner; return !!o && (o.phones.length > 0 || o.emails.length > 0 || !!o.published?.phone || !!o.published?.email); };
 
 function TextComposer({ propertyId, sms, phones, thread, blocked, onSent }: { propertyId: string; sms: string; phones: HostPhone[]; thread: ThreadMsg[]; blocked: boolean; onSent: (t: ThreadMsg[]) => void }) {
   const [to, setTo] = useState(phones[0]?.e164 ?? '');
@@ -98,6 +99,7 @@ export default function CoHostView() {
   const [eliteOnly, setEliteOnly] = useState(false);
   const [sort, setSort] = useState<SortKey>('best');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [contactOnly, setContactOnly] = useState(false);
   useEffect(() => { try { setEliteOnly(localStorage.getItem('cohost_elite_only') === '1'); const s = localStorage.getItem('cohost_sort') as SortKey | null; if (s && SORTS.some(x => x[0] === s)) setSort(s); } catch { /* storage unavailable */ } }, []);
   const toggleElite = () => setEliteOnly(v => { const n = !v; try { localStorage.setItem('cohost_elite_only', n ? '1' : '0'); } catch { /* storage unavailable */ } return n; });
   const changeSort = (s: SortKey) => { setSort(s); try { localStorage.setItem('cohost_sort', s); } catch { /* storage unavailable */ } };
@@ -169,14 +171,15 @@ export default function CoHostView() {
   const base = useMemo(() => listings.filter(l => (usState === 'all' || stateOf(l.market) === usState) && (market === 'all' || l.market === market) && (stage === 'all' || l.pipeline_stage === stage) && (!niches.length || (l.niches ?? []).some(n => niches.includes(n))) && (view === 'all' || (view === 'matched' && ['unique', 'ambiguous'].includes(l.match_status ?? '')))), [listings, usState, market, stage, view, niches]);
   const luxuryCount = useMemo(() => base.filter(l => l.is_luxury).length, [base]);
   const matchedTotal = useMemo(() => listings.filter(l => ['unique', 'ambiguous'].includes(l.match_status ?? '')).length, [listings]);
-  const activeFilters = [usState !== 'all' && `State ${usState}`, market !== 'all' && market, stage !== 'all' && `Stage ${STAGE_LABEL[stage] ?? stage}`, niches.length > 0 && `${niches.length} niche${niches.length === 1 ? '' : 's'}`, luxuryOnly && 'LUXURY', eliteOnly && 'ELITE', verifiedOnly && 'Verified owner'].filter(Boolean) as string[];
+  const activeFilters = [usState !== 'all' && `State ${usState}`, market !== 'all' && market, stage !== 'all' && `Stage ${STAGE_LABEL[stage] ?? stage}`, niches.length > 0 && `${niches.length} niche${niches.length === 1 ? '' : 's'}`, luxuryOnly && 'LUXURY', eliteOnly && 'ELITE', verifiedOnly && 'Verified owner', contactOnly && 'Has contact'].filter(Boolean) as string[];
   function clearFilters() {
-    setUsState('all'); setMarket('all'); setStage('all'); setNiches([]); setVerifiedOnly(false);
+    setUsState('all'); setMarket('all'); setStage('all'); setNiches([]); setVerifiedOnly(false); setContactOnly(false);
     setLuxuryOnly(false); setEliteOnly(false);
     try { localStorage.setItem('cohost_luxury_only', '0'); localStorage.setItem('cohost_elite_only', '0'); } catch { /* storage unavailable */ }
   }
   const eliteCount = useMemo(() => base.filter(l => l.is_elite).length, [base]);
   const verifiedCount = useMemo(() => base.filter(l => l.verification?.level === 'verified').length, [base]);
+  const contactCount = useMemo(() => base.filter(hasContact).length, [base]);
   const shown = useMemo(() => {
     const pot = (l: Listing) => (l.dataQuality?.reliable === false ? -1 : l.revenue_potential_ltm ?? -1);
     const cmp: Record<SortKey, (a: Listing, b: Listing) => number> = {
@@ -185,8 +188,8 @@ export default function CoHostView() {
       earned_desc: (a, b) => (b.dataQuality?.reliable === false ? -1 : b.revenue_ltm ?? -1) - (a.dataQuality?.reliable === false ? -1 : a.revenue_ltm ?? -1), newest: (a, b) => Date.parse(b.first_seen_at ?? '') - Date.parse(a.first_seen_at ?? ''),
       niche_priority: (a, b) => nichePriority(a.niches) - nichePriority(b.niches) || pot(b) - pot(a),
     };
-    return base.filter(l => (!luxuryOnly || l.is_luxury) && (!eliteOnly || l.is_elite) && (!verifiedOnly || l.verification?.level === 'verified')).sort(cmp[sort]);
-  }, [base, luxuryOnly, eliteOnly, verifiedOnly, sort]);
+    return base.filter(l => (!luxuryOnly || l.is_luxury) && (!eliteOnly || l.is_elite) && (!verifiedOnly || l.verification?.level === 'verified') && (!contactOnly || hasContact(l))).sort(cmp[sort]);
+  }, [base, luxuryOnly, eliteOnly, verifiedOnly, contactOnly, sort]);
   const counts = useMemo(() => stages.map(s => [s, listings.filter(l => l.pipeline_stage === s).length] as const), [stages, listings]);
 
   return (
@@ -228,6 +231,7 @@ export default function CoHostView() {
         {view !== 'crm' && <button onClick={toggleLuxury} aria-pressed={luxuryOnly} title={luxuryOnly ? 'Showing luxury listings only. Click to show all.' : 'Show luxury listings only: $1,000 a night and up (ELITE, $4,995 and up, is included)'} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-bold tracking-wide transition-all ${luxuryOnly ? 'bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-500/30' : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}><Gem size={14} /> LUXURY <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${luxuryOnly ? 'bg-[#ffffff] text-[#92400e]' : 'bg-[#b45309] text-white'}`}>{luxuryCount}</span></button>}
         {view !== 'crm' && <button onClick={toggleElite} aria-pressed={eliteOnly} title={eliteOnly ? 'Showing ELITE listings only. Click to show all.' : 'Show ultra-luxury listings only: $4,995 a night and up'} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-bold tracking-wide transition-all ${eliteOnly ? 'bg-slate-900 border-slate-900 text-amber-300 shadow-md shadow-slate-900/30' : 'border-slate-400 bg-slate-100 text-slate-800 hover:bg-slate-200'}`}><Crown size={14} /> ELITE <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${eliteOnly ? 'bg-[#fcd34d] text-[#0f172a]' : 'bg-[#334155] text-white'}`}>{eliteCount}</span></button>}
         {view !== 'crm' && <button onClick={() => setVerifiedOnly(v => !v)} aria-pressed={verifiedOnly} title="Show only owners confirmed by two independent sources" className={`h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border text-sm font-semibold ${verifiedOnly ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'}`}><ShieldCheck size={14} /> Verified owner <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${verifiedOnly ? 'bg-[#ffffff] text-[#065f46]' : 'bg-[#047857] text-white'}`}>{verifiedCount}</span></button>}
+        {view !== 'crm' && <button onClick={() => setContactOnly(v => !v)} aria-pressed={contactOnly} title="Show only listings with an owner phone or email we can use" className={`h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border text-sm font-semibold ${contactOnly ? 'bg-sky-600 border-sky-600 text-white' : 'border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100'}`}><Mail size={14} /> Has contact <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${contactOnly ? 'bg-[#ffffff] text-[#075985]' : 'bg-[#0369a1] text-white'}`}>{contactCount}</span></button>}
         {view !== 'crm' && <SelectBox value={usState} onChange={e => { setUsState(e.target.value); setMarket('all'); }} aria-label="State">{states.map(s => <option key={s} value={s}>{s === 'all' ? 'All states' : s}</option>)}</SelectBox>}
         {view !== 'crm' && <SelectBox value={market} onChange={e => setMarket(e.target.value)} aria-label="Market">{markets.map(m => <option key={m} value={m}>{m === 'all' ? 'All markets' : m}</option>)}</SelectBox>}
         {view !== 'crm' && <SelectBox value={sort} onChange={e => changeSort(e.target.value as SortKey)} aria-label="Sort">{SORTS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}</SelectBox>}
@@ -302,6 +306,8 @@ export default function CoHostView() {
                     <p className="flex items-center gap-1.5"><MapPin size={13} className="text-muted-foreground" /><span><span className="font-semibold">Probable home:</span> {l.matched_address.replace(/, US.*$/, '')}</span></p>
                     <p className="mt-1">Owner of record: <span className="font-medium">{o.names.join(' & ') || 'not on record'}</span>{o.type ? ` (${o.type.toLowerCase()})` : ''}{o.mailing ? `, mail goes to ${o.mailing}` : ''}</p>
                     {o.contactFound && <p className="mt-1">Contact found and matched to that mailing address: {[...o.phones, ...o.emails].join(', ')}</p>}
+                    {(o.published?.phone || o.published?.email) && <p className="mt-1">Published on the permit: {[o.published.phone, o.published.email].filter(Boolean).join(', ')}</p>}
+                    {(o.published?.managerPhone || o.published?.managerEmail) && <p className="mt-1 text-muted-foreground">Manager or emergency contact on the permit (not necessarily the owner): {[o.published.managerPhone, o.published.managerEmail].filter(Boolean).join(', ')}</p>}
                     {l.verification && (() => {
                       const v = l.verification; const canRun = v.checks.some(c => c.id === 'skiptrace' && c.status === 'pending') && l.match_status === 'unique';
                       return (

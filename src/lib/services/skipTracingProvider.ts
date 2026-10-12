@@ -21,6 +21,7 @@
  */
 
 import type { OwnerEnrichmentProvider, OwnerCandidate, OwnerSearchInput, PhoneResult, PhoneSearchInput } from './ownerEnrichmentService';
+import { SKIPTRACE_RESERVE, readSkipTraceRemaining, recordSkipTraceRemaining } from './skipTraceQuota';
 
 const SKIP_TRACING_HOST = 'skip-tracing-working-api.p.rapidapi.com';
 
@@ -44,7 +45,7 @@ interface SkipTraceFetchResult {
 }
 
 // Leave headroom for owner-listed leads and manual lookups once the monthly allowance runs low.
-const QUOTA_RESERVE = 150;
+const QUOTA_RESERVE = SKIPTRACE_RESERVE;
 let lastKnownRemaining: number | null = null;
 
 async function skipTraceFetch(path: string): Promise<SkipTraceFetchResult> {
@@ -72,7 +73,11 @@ async function skipTraceFetch(path: string): Promise<SkipTraceFetchResult> {
       }
 
       const remainingHeader = res.headers.get('x-ratelimit-requests-remaining');
-      if (remainingHeader !== null && Number.isFinite(Number(remainingHeader))) lastKnownRemaining = Number(remainingHeader);
+      if (remainingHeader !== null && Number.isFinite(Number(remainingHeader))) {
+        lastKnownRemaining = Number(remainingHeader);
+        const resetHeader = Number(res.headers.get('x-ratelimit-requests-reset'));
+        void recordSkipTraceRemaining(key, lastKnownRemaining, Number.isFinite(resetHeader) && resetHeader > 0 ? resetHeader : null);
+      }
 
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -223,6 +228,7 @@ export async function resolveResidentsByAddress(
   maxDetailLookups = 3
 ): Promise<ResidentLookupResult> {
   if (getRapidApiKeys().length === 0) return { status: 'ERROR', matches: [], apiCalls: 0, error: 'No RAPIDAPI_KEY_* configured' };
+  if (lastKnownRemaining === null) lastKnownRemaining = await readSkipTraceRemaining(getRapidApiKeys()[0]);
   if (lastKnownRemaining !== null && lastKnownRemaining < QUOTA_RESERVE) {
     return { status: 'RATE_LIMITED', matches: [], apiCalls: 0, error: `Skip Tracing quota reserve reached (${lastKnownRemaining} calls left)` };
   }
