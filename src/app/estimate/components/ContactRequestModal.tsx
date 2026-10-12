@@ -145,7 +145,7 @@ export default function ContactRequestModal({
             <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-100" role="tablist">
               {([['call', 'Schedule a call', <Phone key="p" size={14} />], ['question', 'Ask a question', <MessageSquare key="m" size={14} />]] as const).map(([m, label, icon]) => (
                 <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => { setMode(m); setErrors({}); setServerError(''); }}
-                  className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition ${mode === m ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                  className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition ${mode === m ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}>
                   {icon}{label}
                 </button>
               ))}

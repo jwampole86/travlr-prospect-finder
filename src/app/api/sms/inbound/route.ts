@@ -94,6 +94,22 @@ export async function POST(req: NextRequest) {
     await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['new', 'contacted']);
   }
 
+  // Replies from a co-host prospect we texted one-to-one are tied back to their listing.
+  const e164 = toE164(from);
+  const { data: sentTo } = e164 ? await db.from('cohost_messages').select('property_id').eq('phone_e164', e164).eq('direction', 'outbound').order('created_at', { ascending: false }).limit(1).maybeSingle() : { data: null };
+  if (sentTo?.property_id && e164) {
+    await db.from('cohost_messages').insert({ property_id: sentTo.property_id, direction: 'inbound', phone_e164: e164, body: text.slice(0, 1000), message_sid: messageSid || null, status: 'received', intent });
+    const { data: l } = await db.from('str_listings').select('pipeline_stage,market').eq('property_id', sentTo.property_id).maybeSingle();
+    if (intent === 'stop' || intent === 'no') {
+      await db.from('cohost_offer_links').update({ opted_out_at: now }).eq('property_id', sentTo.property_id);
+      if (l && !['agreed', 'onboarded'].includes(l.pipeline_stage)) await db.from('str_listings').update({ pipeline_stage: 'declined', stage_updated_at: now }).eq('property_id', sentTo.property_id);
+    } else {
+      if (l && ['identified', 'reviewed', 'contacted'].includes(l.pipeline_stage)) await db.from('str_listings').update({ pipeline_stage: 'replied', stage_updated_at: now }).eq('property_id', sentTo.property_id);
+      await notifyAdmins(db, { title: 'Co-host prospect replied', message: `A co-host prospect${l?.market ? ` (${l.market})` : ''} replied: "${text.slice(0, 80)}"`, metadata: { property_id: sentTo.property_id, reason: 'cohost_sms_reply' } }).catch(() => {});
+      if (!reply && intent === 'yes') reply = 'Thanks! A TRAVLR specialist will reach out shortly. Reply STOP anytime to opt out.';
+    }
+  }
+
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return new NextResponse(`<?xml version="1.0" encoding="UTF-8"?><Response>${reply ? `<Message>${esc(reply)}</Message>` : ''}</Response>`, { headers: { 'Content-Type': 'text/xml' } });
 }

@@ -1,0 +1,83 @@
+/* Co-host offer page theme. Every text and background pair is defined here so the app's global .dark rules cannot produce light text on a light surface. */
+.ho {
+  --ho-page: #f8fafc; --ho-surface: #ffffff; --ho-surface-2: #f1f5f9; --ho-border: #e2e8f0; --ho-border-strong: #cbd5e1;
+  --ho-tx: #0f172a; --ho-tx-2: #334155; --ho-mu: #475569;
+  --ho-ac: #4338ca; --ho-soft: #eef2ff; --ho-soft-tx: #4338ca;
+  --ho-good: #047857; --ho-good-soft: #ecfdf5; --ho-warn: #92400e; --ho-warn-soft: #fffbeb; --ho-bad: #be123c;
+  --ho-btn: #4f46e5; --ho-btn-hover: #4338ca; --ho-bar-now: #94a3b8;
+  --ho-hero-from: #eef2ff; --ho-hero-to: #f8fafc; --ho-header: rgba(255, 255, 255, 0.86);
+  color-scheme: light;
+  background: var(--ho-page); color: var(--ho-tx);
+}
+@media (prefers-color-scheme: dark) {
+  .ho:not([data-theme='light']) {
+    --ho-page: #0b1120; --ho-surface: #111a2e; --ho-surface-2: #1a2540; --ho-border: #26324f; --ho-border-strong: #3b4a6e;
+    --ho-tx: #f1f5f9; --ho-tx-2: #cbd5e1; --ho-mu: #9fb0c6;
+    --ho-ac: #a5b4fc; --ho-soft: #1e2a52; --ho-soft-tx: #c7d2fe;
+    --ho-good: #6ee7b7; --ho-good-soft: #0f2a24; --ho-warn: #fcd34d; --ho-warn-soft: #2b2410; --ho-bad: #fda4af;
+    --ho-btn: #4f46e5; --ho-btn-hover: #6366f1; --ho-bar-now: #64748b;
+    --ho-hero-from: #141d3a; --ho-hero-to: #0b1120; --ho-header: rgba(11, 17, 32, 0.86);
+    color-scheme: dark;
+  }
+}
+.ho[data-theme='dark'] {
+  --ho-page: #0b1120; --ho-surface: #111a2e; --ho-surface-2: #1a2540; --ho-border: #26324f; --ho-border-strong: #3b4a6e;
+  --ho-tx: #f1f5f9; --ho-tx-2: #cbd5e1; --ho-mu: #9fb0c6;
+  --ho-ac: #a5b4fc; --ho-soft: #1e2a52; --ho-soft-tx: #c7d2fe;
+  --ho-good: #6ee7b7; --ho-good-soft: #0f2a24; --ho-warn: #fcd34d; --ho-warn-soft: #2b2410; --ho-bad: #fda4af;
+  --ho-btn: #4f46e5; --ho-btn-hover: #6366f1; --ho-bar-now: #64748b;
+  --ho-hero-from: #141d3a; --ho-hero-to: #0b1120; --ho-header: rgba(11, 17, 32, 0.86);
+  color-scheme: dark;
+}
+
+.ho .ho-page { background: var(--ho-page); }
+.ho .ho-surface { background: var(--ho-surface); }
+.ho .ho-surface-2 { background: var(--ho-surface-2); }
+.ho .ho-soft { background: var(--ho-soft); color: var(--ho-soft-tx); }
+.ho .ho-header { background: var(--ho-header); backdrop-filter: blur(8px); border-color: var(--ho-border); }
+.ho .ho-hero { background: linear-gradient(to bottom, var(--ho-hero-from), var(--ho-page) 80%); }
+.ho .ho-bd { border-color: var(--ho-border); }
+.ho .ho-bd-strong { border-color: var(--ho-border-strong); }
+.ho .ho-card { background: var(--ho-surface); border: 1px solid var(--ho-border); color: var(--ho-tx); }
+.ho .ho-divide > * + * { border-top: 1px solid var(--ho-border); }
+
+.ho .ho-tx { color: var(--ho-tx); }
+.ho .ho-tx-2 { color: var(--ho-tx-2); }
+.ho .ho-mu { color: var(--ho-mu); }
+.ho .ho-ac { color: var(--ho-ac); }
+.ho .ho-good-tx { color: var(--ho-good); }
+.ho .ho-bad-tx { color: var(--ho-bad); }
+
+.ho .ho-pill-ac { background: var(--ho-soft); color: var(--ho-soft-tx); }
+.ho .ho-pill-good { background: var(--ho-good-soft); color: var(--ho-good); }
+.ho .ho-pill-warn { background: var(--ho-warn-soft); color: var(--ho-warn); border: 1px solid var(--ho-border); }
+.ho .ho-pill { background: var(--ho-surface); color: var(--ho-tx-2); border: 1px solid var(--ho-border); }
+.ho .ho-banner-good { background: var(--ho-good-soft); color: var(--ho-good); border: 1px solid var(--ho-border); }
+
+.ho .ho-btn { background: var(--ho-btn); color: #ffffff; }
+.ho .ho-btn:hover:not(:disabled) { background: var(--ho-btn-hover); }
+.ho .ho-btn-outline { background: var(--ho-surface); color: var(--ho-tx); border: 1px solid var(--ho-border-strong); }
+.ho .ho-btn-outline:hover { background: var(--ho-surface-2); }
+.ho .ho-link { color: var(--ho-ac); }
+.ho .ho-muted-link { color: var(--ho-mu); text-decoration: underline; }
+.ho .ho-muted-link:hover { color: var(--ho-tx); }
+
+.ho .ho-input { background: var(--ho-surface); color: var(--ho-tx); border: 1px solid var(--ho-border-strong); }
+.ho .ho-input::placeholder { color: var(--ho-mu); }
+.ho .ho-input:focus { outline: 2px solid var(--ho-ac); outline-offset: 1px; }
+.ho select.ho-input option { background: var(--ho-surface); color: var(--ho-tx); }
+
+.ho .ho-tabs { background: var(--ho-surface-2); }
+.ho .ho-tab { color: var(--ho-mu); }
+.ho .ho-tab:hover { color: var(--ho-tx); }
+.ho .ho-tab-on { background: var(--ho-surface); color: var(--ho-ac); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25); }
+
+.ho .ho-track { background: var(--ho-surface-2); }
+.ho .ho-bar-now { background: var(--ho-bar-now); }
+.ho .ho-bar-with { background: linear-gradient(to right, #6366f1, #8b5cf6); }
+.ho .ho-tile { background: var(--ho-surface-2); color: var(--ho-tx); }
+.ho .ho-tile-good { background: var(--ho-good-soft); color: var(--ho-good); }
+.ho .ho-grad { background: linear-gradient(to bottom right, #4f46e5, #6d28d9); color: #ffffff; }
+.ho .ho-grad .ho-on-grad-mu { color: #e0e7ff; }
+.ho .ho-cta-ring { background: linear-gradient(to bottom right, #4f46e5, #6d28d9); }
+.ho .ho-logo { background: #4f46e5; color: #ffffff; }

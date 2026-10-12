@@ -2,16 +2,18 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Handshake, Loader2, RefreshCw, Download, ShieldAlert, ExternalLink, Camera, MapPin, AlertTriangle, Gem, Link2, Copy, Check, Mail, Eye } from 'lucide-react';
+import { Handshake, Loader2, RefreshCw, Download, ShieldAlert, ExternalLink, Camera, MapPin, AlertTriangle, Gem, Link2, Copy, Check, Mail, Eye, MessageSquare } from 'lucide-react';
 
 interface Owner { names: string[]; type: string | null; mailing: string | null; permitHolder: string | null; contactFound: boolean; phones: string[]; emails: string[]; published?: { email: string | null; phone: string | null } | null }
 interface OfferInfo { code: string; views: number; lastViewedAt: string | null; requestedAt: string | null; optedOutAt: string | null; request: { name?: string; email?: string | null; phone?: string | null; service?: string; message?: string | null; at?: string } | null }
-interface OfferPanel { loading: boolean; error?: string; url?: string; optedOut?: boolean; drafts?: { subject: string; email: string; sms: string } }
+interface HostPhone { e164: string; source: 'skip_trace' | 'permit_office'; type: string | null; name: string | null }
+interface ThreadMsg { direction: 'outbound' | 'inbound'; phone_e164: string; body: string; status: string | null; intent: string | null; created_at: string }
+interface OfferPanel { loading: boolean; error?: string; url?: string; optedOut?: boolean; drafts?: { subject: string; email: string; sms: string }; phones?: HostPhone[]; thread?: ThreadMsg[] }
 interface Listing {
   property_id: string; market: string; title: string | null; airbnb_url: string | null; vrbo_url: string | null; booking_url: string | null; bedrooms: number | null; bathrooms: number | null;
   adr: number | null; occupancy_pct: number | null; revenue_ltm: number | null; revenue_potential_ltm: number | null; rating: number | null; reviews: number | null; host_listing_count: number | null;
   is_luxury: boolean | null; under_score: number | null; under_reasons: string[] | null; segment: string; photo_score: number | null; photo_notes: { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean } | null;
-  address_match_confidence: string | null; match_status: string | null; matched_address: string | null; matched_owner: Owner | null; pipeline_stage: string; service_model: string; reviewer_notes: string | null; offer?: OfferInfo | null;
+  address_match_confidence: string | null; match_status: string | null; matched_address: string | null; matched_owner: Owner | null; pipeline_stage: string; service_model: string; reviewer_notes: string | null; offer?: OfferInfo | null; texts?: { sent: number; replied: boolean; lastIntent: string | null; lastAt: string } | null;
 }
 interface CrmLead { id: string; address: string | null; city: string | null; state: string | null; owner_name: string | null; program_reason: string | null; program_set_at: string | null; cohost_service: string | null; stage: string | null }
 
@@ -22,6 +24,45 @@ const MATCH_LABEL: Record<string, { text: string; cls: string }> = {
   none_match: { text: 'No match', cls: 'bg-slate-100 text-slate-600' }, no_registry_nearby: { text: 'No license list here', cls: 'bg-slate-100 text-slate-600' }, too_many: { text: 'Too many possible', cls: 'bg-slate-100 text-slate-600' },
 };
 const money = (n: number | null) => (n == null ? '-' : `$${Math.round(n).toLocaleString()}`);
+
+const fmtPhone = (e: string) => e.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+
+function TextComposer({ propertyId, sms, phones, thread, blocked, onSent }: { propertyId: string; sms: string; phones: HostPhone[]; thread: ThreadMsg[]; blocked: boolean; onSent: (t: ThreadMsg[]) => void }) {
+  const [to, setTo] = useState(phones[0]?.e164 ?? '');
+  const [body, setBody] = useState(sms);
+  const [confirmed, setConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function send() {
+    setBusy(true); setErr(null);
+    try {
+      const res = await fetch('/api/cohost/text', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ propertyId, to, body, confirmed }) });
+      const j = await res.json(); if (!res.ok) throw new Error(j.error || 'Could not send');
+      setConfirmed(false); onSent(j.thread ?? []);
+    } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Text this owner</p>
+      {thread.length > 0 && (
+        <ul className="mb-2 space-y-1.5 max-h-48 overflow-y-auto">{thread.map((m, i) => (
+          <li key={i} className={`text-xs rounded-lg px-2.5 py-1.5 max-w-[85%] whitespace-pre-wrap ${m.direction === 'outbound' ? 'bg-blue-600 text-white ml-auto' : 'bg-card border border-border text-foreground'}`}>{m.body}<span className="block text-[10px] opacity-70 mt-0.5">{m.direction === 'outbound' ? 'Sent' : 'Reply'} {fmtPhone(m.phone_e164)} &middot; {new Date(m.created_at).toLocaleString()}</span></li>))}</ul>
+      )}
+      {blocked ? <p className="text-xs font-semibold text-rose-700">Texting is off for this prospect (opted out, declined or not a fit).</p> : (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {phones.length > 0 && <select value={phones.some(p => p.e164 === to) ? to : ''} onChange={e => setTo(e.target.value)} className="h-8 rounded-lg border border-border bg-background px-2 text-xs" aria-label="Phone number">{!phones.some(p => p.e164 === to) && <option value="">Choose a number</option>}{phones.map(p => <option key={p.e164} value={p.e164}>{fmtPhone(p.e164)} &middot; {p.source === 'permit_office' ? 'published by the permit office' : `skip trace${p.type ? ` (${p.type})` : ''}`}</option>)}</select>}
+            <input value={phones.some(p => p.e164 === to) ? '' : to} onChange={e => setTo(e.target.value)} placeholder={phones.length ? 'Or type a number' : 'Phone number'} className="h-8 w-44 rounded-lg border border-border bg-background px-2 text-xs" aria-label="Other phone number" />
+          </div>
+          <textarea value={body} onChange={e => setBody(e.target.value)} rows={4} maxLength={600} className="w-full rounded-lg border border-border bg-background p-2 text-xs" aria-label="Text message" />
+          <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="mt-0.5" /><span>I confirmed this number belongs to the owner of this listing. I understand a text goes out immediately, only between 9am and 8pm their time, and that STOP replies are honored automatically.</span></label>
+          {err && <p className="text-xs text-red-600">{err}</p>}
+          <button onClick={send} disabled={busy || !confirmed || !to} className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50 inline-flex items-center gap-1.5">{busy ? <Loader2 size={13} className="animate-spin" /> : <MessageSquare size={13} />} Send text</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CoHostView() {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -47,7 +88,7 @@ export default function CoHostView() {
     try {
       const res = await fetch('/api/cohost/offer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ propertyId }) });
       const j = await res.json(); if (!res.ok) throw new Error(j.error || 'Could not create the link');
-      setPanels(p => ({ ...p, [propertyId]: { loading: false, url: j.url, optedOut: j.optedOut, drafts: j.drafts } }));
+      setPanels(p => ({ ...p, [propertyId]: { loading: false, url: j.url, optedOut: j.optedOut, drafts: j.drafts, phones: j.phones ?? [], thread: j.thread ?? [] } }));
     } catch (e) { setPanels(p => ({ ...p, [propertyId]: { loading: false, error: (e as Error).message } })); }
   }
   async function copy(key: string, text: string) { try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 1500); } catch { /* clipboard unavailable */ } }
@@ -90,7 +131,7 @@ export default function CoHostView() {
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm px-4 py-3 flex items-start gap-2.5">
         <ShieldAlert size={16} className="mt-0.5 shrink-0" />
-        <p><strong>Separate from the homeowner funnel.</strong> The text campaigns go only to homeowners we are converting to short-term rentals. Co-host owners are never texted by those campaigns or sequences. Review the match, then reach them with the offer page below by email, phone or mail.</p>
+        <p><strong>Separate from the homeowner funnel.</strong> The text campaigns go only to homeowners we are converting to short-term rentals. Co-host owners are never included in those campaigns or sequences. Review the match, then reach them one at a time with the offer page: by email, phone, mail or a text you send from the card.</p>
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3 flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
@@ -135,6 +176,7 @@ export default function CoHostView() {
                       {l.segment === 'new_or_dormant' && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700">New or dormant</span>}
                       {l.is_luxury && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 inline-flex items-center gap-1"><Gem size={10} /> Luxury</span>}
                       {l.offer?.requestedAt && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-600 text-white">Audit requested</span>}
+                      {!!l.texts?.sent && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-violet-100 text-violet-700">Texted {l.texts.sent}x{l.texts.replied ? ', replied' : ''}</span>}
                       {l.offer?.optedOutAt && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700">Opted out</span>}
                       {!!l.offer?.views && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-700 inline-flex items-center gap-1"><Eye size={10} /> Offer page viewed {l.offer.views}x</span>}
                     </div>
@@ -188,12 +230,8 @@ export default function CoHostView() {
                               {pub && !p.optedOut && <a href={`mailto:${pub}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.email)}`} className="h-7 px-2 rounded border border-border bg-card text-xs inline-flex items-center gap-1 hover:bg-muted"><Mail size={12} /> Open in email app ({pub})</a>}
                             </div>
                           </div>
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Text draft</p>
-                            <pre className="text-xs whitespace-pre-wrap font-sans bg-background border border-border rounded-lg p-2">{d.sms}</pre>
-                            <button onClick={() => copy(`${l.property_id}:sms`, d.sms)} className="mt-1.5 h-7 px-2 rounded border border-border bg-card text-xs inline-flex items-center gap-1 hover:bg-muted">{copied === `${l.property_id}:sms` ? <Check size={12} /> : <Copy size={12} />} Copy text</button>
-                            <p className="mt-1 text-[11px] text-muted-foreground">The app does not send texts to co-host owners. Use this draft only where you have a lawful basis to text that person, and honor any opt-out.</p>
-                          </div>
+                          <TextComposer propertyId={l.property_id} sms={d.sms} phones={p.phones ?? []} thread={p.thread ?? []} blocked={!!p.optedOut || ['declined', 'not_a_fit'].includes(l.pipeline_stage)}
+                            onSent={thread => { setPanels(x => ({ ...x, [l.property_id]: { ...x[l.property_id], thread } })); load(); }} />
                         </>
                       );
                     })()}

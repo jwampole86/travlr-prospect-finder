@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { ensureOfferLink, getOfferData, offerDrafts, offerUrl } from '@/lib/services/cohostOffer';
+import { phonesFor, threadFor } from '@/lib/services/cohostText';
 
 export const maxDuration = 30;
 
@@ -17,5 +18,6 @@ export async function POST(req: NextRequest) {
   const data = await getOfferData(db, code);
   if (!data) return NextResponse.json({ error: 'Could not build the page' }, { status: 500 });
   const url = offerUrl(code);
-  return NextResponse.json({ code, url, optedOut: data.optedOut, drafts: offerDrafts(data, url) });
+  const { data: l } = await db.from('str_listings').select('matched_owner').eq('property_id', body.propertyId).maybeSingle();
+  return NextResponse.json({ code, url, optedOut: data.optedOut, drafts: offerDrafts(data, url), phones: phonesFor(l?.matched_owner), thread: await threadFor(db, body.propertyId) });
 }

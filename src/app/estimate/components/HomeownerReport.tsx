@@ -125,15 +125,15 @@ export default function HomeownerReportView({
               return (
                 <div key={s.key} className={`rounded-2xl p-5 border ${featured ? 'border-indigo-300 bg-indigo-50/60 ring-1 ring-indigo-200' : 'border-slate-200 bg-white'}`}>
                   <div className="flex items-center justify-between">
-                    <p className={`text-xs font-bold uppercase tracking-wider ${featured ? 'text-indigo-700' : 'text-slate-500'}`}>{s.label}</p>
+                    <p className={`text-xs font-bold uppercase tracking-wider ${featured ? 'text-indigo-700' : 'text-slate-600'}`}>{s.label}</p>
                     {featured && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-600 text-white">Most likely</span>}
                   </div>
                   <p className="mt-3 text-3xl font-extrabold tracking-tight">{usd(s.annualNet)}</p>
-                  <p className="text-xs text-slate-500">net per year</p>
+                  <p className="text-xs text-slate-600">net per year</p>
                   <dl className="mt-4 space-y-1.5 text-sm">
-                    <div className="flex justify-between"><dt className="text-slate-500">Net per month</dt><dd className="font-semibold">{usd(s.netMonthly)}</dd></div>
-                    <div className="flex justify-between"><dt className="text-slate-500">Nightly rate</dt><dd className="font-semibold">{usd(s.adr)}</dd></div>
-                    <div className="flex justify-between"><dt className="text-slate-500">Occupancy</dt><dd className="font-semibold">{s.occupancy}%</dd></div>
+                    <div className="flex justify-between"><dt className="text-slate-600">Net per month</dt><dd className="font-semibold">{usd(s.netMonthly)}</dd></div>
+                    <div className="flex justify-between"><dt className="text-slate-600">Nightly rate</dt><dd className="font-semibold">{usd(s.adr)}</dd></div>
+                    <div className="flex justify-between"><dt className="text-slate-600">Occupancy</dt><dd className="font-semibold">{s.occupancy}%</dd></div>
                   </dl>
                 </div>
               );

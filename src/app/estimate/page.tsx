@@ -448,7 +448,7 @@ function EstimateLandingContent() {
                 onSelect={(addr) => setSelectedAddress(addr)}
               />
               {addressInput && !selectedAddress && (
-                <p className="text-[11px] text-amber-600 flex items-center gap-1.5">
+                <p className="text-[11px] text-amber-800 flex items-center gap-1.5">
                   <AlertCircle size={11} />
                   Select an address from the dropdown for the most accurate estimate
                 </p>
