@@ -37,6 +37,8 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error('[estimate/report-pdf]', err);
-    return NextResponse.json({ error: 'We could not generate the PDF. Please try again.' }, { status: 500 });
+    // Stack traces go only to callers holding the cron secret.
+    const operator = !!process.env.CRON_SECRET && req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+    return NextResponse.json({ error: 'We could not generate the PDF. Please try again.', ...(operator ? { detail: String((err as Error)?.stack ?? err).slice(0, 1800) } : {}) }, { status: 500 });
   }
 }
