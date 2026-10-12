@@ -102,7 +102,7 @@ export default function WelcomePage() {
           <div>
             <p className="text-xs font-bold tracking-[0.18em] text-primary uppercase mb-3">Proof in the product</p>
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground">More than a concept deck.</h2>
-            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">The page now shows real operating proof without inventing customer names or logos before those permissions exist.</p>
+            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">VAYO runs on a live calling, messaging, AI and data stack, and every workflow below is built into the product you will use.</p>
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             {FIELD_PROOF.map((proof) => (
