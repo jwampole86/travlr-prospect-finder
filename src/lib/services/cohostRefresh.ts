@@ -5,6 +5,7 @@ import { scoreListings } from '@/lib/services/strScoring';
 import { matchOwners } from '@/lib/services/strMatch';
 import { skipTraceEligibility, skipTraceListing } from '@/lib/services/strSkipTrace';
 import { enrichAssessorOwners } from '@/lib/services/strAssessor';
+import { lookupEntityOwners } from '@/lib/services/strEntity';
 
 const num = (v: string | undefined, d: number) => (v && Number.isFinite(Number(v)) ? Number(v) : d);
 export const EXCLUDED_STATES = ['CA'];
@@ -87,6 +88,7 @@ export async function runCohostRefresh(db: SupabaseClient, opts: { trigger: 'cro
       const match = await matchOwners(db, { markets: touched, onlyUnmatched: true, write: true, maxLookups: 120 });
       result.newMatches = match.uniqueIds.length;
       await enrichAssessorOwners(db, { limit: 15, write: true }).catch(() => null);
+      await lookupEntityOwners(db, { limit: 15, write: true }).catch(() => null);
       // Trace a few new unique matches per run; the rest are picked up by the on-demand check on each listing.
       const { data: toTrace } = await db.from('str_listings').select('property_id,matched_owner').in('property_id', match.uniqueIds.slice(0, 40));
       for (const r of toTrace ?? []) {
