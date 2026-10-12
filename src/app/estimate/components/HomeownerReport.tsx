@@ -349,7 +349,7 @@ export default function HomeownerReportView({
                       </button>
                     </>
                   )}
-                  <div className={`${onContact ? 'hidden print:flex' : 'flex'} flex-col gap-1.5 text-indigo-100/90`}>
+                  <div className="flex flex-col gap-1.5 text-indigo-100/90">
                     <span className="inline-flex items-center gap-2 font-semibold text-white">Contact TRAVLR</span>
                     <a href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center gap-2 hover:underline"><ArrowRight size={14} /> {CONTACT_EMAIL}</a>
                     {CONTACT_PHONE && <a href={telHref(CONTACT_PHONE)} className="inline-flex items-center gap-2 hover:underline"><Phone size={14} /> {CONTACT_PHONE}</a>}
