@@ -103,7 +103,8 @@ function estimateUrl(lead: OutreachLead, site: string): string {
 }
 
 function footer(url: string): string {
-  return `Free estimate: ${url}\n${SITE_URL.replace('https://', '')} | Reply YES for info, NO to opt out`;
+  // Each link sits alone on its own line with the https:// prefix so every phone makes it tappable.
+  return `Free estimate: ${url}\n${SITE_URL}\nReply YES for info, NO to opt out`;
 }
 
 // ─── Copy ────────────────────────────────────────────────────────────────────
