@@ -64,7 +64,7 @@ export interface OutreachDraft {
 /** Carriers bill UCS-2 messages at 70 chars/segment, so keep everything GSM-7. */
 export function toGsm(text: string): string {
   return text
-    .replace(/[\u2018\u2019\u201a]/g, "'").replace(/[\u201c\u201d\u201e]/g, '"').replace(/[\u2013\u2014]/g, '-').replace(/\u2026/g, '...')
+    .replace(/[\u2018\u2019\u201a]/g, "'").replace(/[\u201c\u201d\u201e]/g, '"').replace(/\s*\u2014\s*/g, ' - ').replace(/\u2013/g, '-').replace(/\u2026/g, '...')
     .replace(/\u00a0/g, ' ').replace(/[^\x0a\x20-\x7e]/g, '').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').trim();
 }
 
