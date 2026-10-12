@@ -44,7 +44,7 @@ export default function NicheFilter({ value, onChange, counts }: { value: number
                 const ids = clusterMembers(c.rank); const on = ids.every(i => selected.has(i));
                 return (
                   <button key={c.rank} onClick={() => toggleMany(ids)} aria-pressed={on} title={c.opportunity} className={`px-2.5 py-1 rounded-lg border text-xs font-medium ${on ? 'bg-violet-600 border-violet-600 text-white' : 'border-border bg-background hover:bg-muted'}`}>
-                    <span className="opacity-70 mr-1">{c.rank}.</span>{c.name} <span className="opacity-70">{total(ids).toLocaleString()}</span>
+                    <span className="mr-1 font-bold">{c.rank}.</span>{c.name} <span className="font-bold tabular-nums">{total(ids).toLocaleString()}</span>
                   </button>
                 );
               })}
@@ -56,7 +56,7 @@ export default function NicheFilter({ value, onChange, counts }: { value: number
             <div className="flex flex-wrap gap-1.5">
               {NICHE_CATEGORIES.map(c => {
                 const ids = NICHES.filter(n => n.category === c.id).map(n => n.id);
-                return <button key={c.id} onClick={() => setCategory(c.id)} aria-pressed={category === c.id} className={`px-2.5 py-1 rounded-lg border text-xs font-medium ${category === c.id ? 'bg-foreground text-background border-foreground' : 'border-border bg-background hover:bg-muted'}`}>{c.name} <span className="opacity-70">{total(ids).toLocaleString()}</span></button>;
+                return <button key={c.id} onClick={() => setCategory(c.id)} aria-pressed={category === c.id} className={`px-2.5 py-1 rounded-lg border text-xs font-medium ${category === c.id ? 'bg-foreground text-background border-foreground' : 'border-border bg-background hover:bg-muted'}`}>{c.name} <span className="font-bold tabular-nums">{total(ids).toLocaleString()}</span></button>;
               })}
             </div>
           </div>
@@ -70,8 +70,8 @@ export default function NicheFilter({ value, onChange, counts }: { value: number
               {catNiches.map(n => {
                 const c = counts[n.id]?.listings ?? 0; const on = selected.has(n.id);
                 return (
-                  <button key={n.id} onClick={() => toggle(n.id)} aria-pressed={on} title={c === 0 ? 'No listings in this area are tagged with this niche yet' : undefined} className={`px-2.5 py-1 rounded-full border text-xs ${on ? 'bg-violet-600 border-violet-600 text-white font-semibold' : c === 0 ? 'border-border bg-background text-muted-foreground opacity-70' : 'border-border bg-background hover:bg-muted'}`}>
-                    {n.name} <span className="opacity-70">{c.toLocaleString()}</span>
+                  <button key={n.id} onClick={() => toggle(n.id)} aria-pressed={on} title={c === 0 ? 'No listings in this area are tagged with this niche yet' : undefined} className={`px-2.5 py-1 rounded-full border text-xs ${on ? 'bg-violet-600 border-violet-600 text-white font-semibold' : c === 0 ? 'border-border bg-background text-muted-foreground' : 'border-border bg-background hover:bg-muted'}`}>
+                    {n.name} <span className="font-bold tabular-nums">{c.toLocaleString()}</span>
                   </button>
                 );
               })}
