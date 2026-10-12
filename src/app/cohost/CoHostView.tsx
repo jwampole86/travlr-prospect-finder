@@ -168,6 +168,13 @@ export default function CoHostView() {
   const markets = useMemo(() => ['all', ...[...new Set(listings.map(l => l.market).filter(m => usState === 'all' || stateOf(m) === usState))].sort()], [listings, usState]);
   const base = useMemo(() => listings.filter(l => (usState === 'all' || stateOf(l.market) === usState) && (market === 'all' || l.market === market) && (stage === 'all' || l.pipeline_stage === stage) && (!niches.length || (l.niches ?? []).some(n => niches.includes(n))) && (view === 'all' || (view === 'matched' && ['unique', 'ambiguous'].includes(l.match_status ?? '')))), [listings, usState, market, stage, view, niches]);
   const luxuryCount = useMemo(() => base.filter(l => l.is_luxury).length, [base]);
+  const matchedTotal = useMemo(() => listings.filter(l => ['unique', 'ambiguous'].includes(l.match_status ?? '')).length, [listings]);
+  const activeFilters = [usState !== 'all' && `State ${usState}`, market !== 'all' && market, stage !== 'all' && `Stage ${STAGE_LABEL[stage] ?? stage}`, niches.length > 0 && `${niches.length} niche${niches.length === 1 ? '' : 's'}`, luxuryOnly && 'LUXURY', eliteOnly && 'ELITE', verifiedOnly && 'Verified owner'].filter(Boolean) as string[];
+  function clearFilters() {
+    setUsState('all'); setMarket('all'); setStage('all'); setNiches([]); setVerifiedOnly(false);
+    setLuxuryOnly(false); setEliteOnly(false);
+    try { localStorage.setItem('cohost_luxury_only', '0'); localStorage.setItem('cohost_elite_only', '0'); } catch { /* storage unavailable */ }
+  }
   const eliteCount = useMemo(() => base.filter(l => l.is_elite).length, [base]);
   const verifiedCount = useMemo(() => base.filter(l => l.verification?.level === 'verified').length, [base]);
   const shown = useMemo(() => {
@@ -216,7 +223,7 @@ export default function CoHostView() {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
-          {([['all', 'All candidates'], ['matched', 'Matched to a home'], ['crm', 'Already in CRM']] as const).map(([k, label]) => <button key={k} onClick={() => setView(k)} className={`px-3 py-1.5 ${view === k ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted'}`}>{label}</button>)}
+          {([['all', 'All candidates'], ['matched', `Matched to a home${matchedTotal ? ` (${matchedTotal})` : ''}`], ['crm', 'Already in CRM']] as const).map(([k, label]) => <button key={k} onClick={() => setView(k)} className={`px-3 py-1.5 ${view === k ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted'}`}>{label}</button>)}
         </div>
         {view !== 'crm' && <button onClick={toggleLuxury} aria-pressed={luxuryOnly} title={luxuryOnly ? 'Showing luxury listings only. Click to show all.' : 'Show luxury listings only: $1,000 a night and up (ELITE, $4,995 and up, is included)'} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-bold tracking-wide transition-all ${luxuryOnly ? 'bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-500/30' : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}><Gem size={14} /> LUXURY <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${luxuryOnly ? 'bg-[#ffffff] text-[#92400e]' : 'bg-[#b45309] text-white'}`}>{luxuryCount}</span></button>}
         {view !== 'crm' && <button onClick={toggleElite} aria-pressed={eliteOnly} title={eliteOnly ? 'Showing ELITE listings only. Click to show all.' : 'Show ultra-luxury listings only: $4,995 a night and up'} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-bold tracking-wide transition-all ${eliteOnly ? 'bg-slate-900 border-slate-900 text-amber-300 shadow-md shadow-slate-900/30' : 'border-slate-400 bg-slate-100 text-slate-800 hover:bg-slate-200'}`}><Crown size={14} /> ELITE <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${eliteOnly ? 'bg-[#fcd34d] text-[#0f172a]' : 'bg-[#334155] text-white'}`}>{eliteCount}</span></button>}
@@ -242,7 +249,13 @@ export default function CoHostView() {
 
       {!loading && view !== 'crm' && (
         <div className="space-y-3">
-          {shown.length === 0 && <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">No listings match these filters.</div>}
+          {shown.length === 0 && (
+            <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground space-y-3">
+              <p>No listings match these filters.</p>
+              {activeFilters.length > 0 && <p>Active filters: <span className="font-semibold text-foreground">{activeFilters.join(' · ')}</span></p>}
+              {activeFilters.length > 0 && <button onClick={clearFilters} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold">Clear filters</button>}
+            </div>
+          )}
           {shown.slice(0, 150).map(l => {
             const m = MATCH_LABEL[l.match_status ?? ''] ?? null; const o = l.matched_owner; const url = l.airbnb_url ?? l.vrbo_url ?? l.booking_url;
             return (

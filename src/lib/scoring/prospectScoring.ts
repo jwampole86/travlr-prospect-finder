@@ -44,6 +44,8 @@ export interface ProspectScoringInput {
   isApartmentCommunity?: boolean | null;
   /** Resident of record or listing contact; unverified, so worth less than verifiedOwner. */
   contactName?: string | null;
+  /** How far the homeowner got in a text campaign; a person who replied or asked for a call is a lead worth calling whatever the property scores. */
+  campaignEngagement?: 'replied' | 'hot' | 'warm' | null;
 }
 
 /** Bump when the formula changes so stored scores can be recomputed. */
@@ -230,7 +232,7 @@ function scoreEngagement(input: ProspectScoringInput): ProspectScoreFactor {
   score += Math.min(12, callsAnswered * 6);
   score += Math.min(8, emailOpens * 2);
 
-  if (['Interested', 'Proposal Sent', 'Under Contract', 'interested', 'proposal_sent'].includes(stage)) score += 18;
+  if (['Interested', 'Proposal Sent', 'Under Contract', 'interested', 'proposal_sent', 'human_outreach'].includes(stage)) score += 18;
   if (stage === 'New Lead') score += 5;
 
   const days = input.daysOnMarket;
@@ -290,6 +292,10 @@ export function calculateProspectScore(
   if (!hasContactSignal) score = Math.min(score, 78);
   if (!hasRegulatorySignal && !hasEngagementSignal) score = Math.min(score, 82);
 
+  // Engagement outranks the property's own attractiveness: someone who replied or asked for a call should sit at the top of the call list.
+  const engagementFloor = input.campaignEngagement === 'replied' || input.campaignEngagement === 'hot' ? 80 : input.campaignEngagement === 'warm' ? 60 : 0;
+  if (engagementFloor && blockers.length === 0) score = Math.max(score, engagementFloor);
+
   if (blockers.length > 0) score = Math.min(score, input.doNotContact ? 10 : 35);
 
   const band: ProspectScoreResult['band'] = blockers.length > 0
@@ -316,13 +322,19 @@ export function getProspectScoreBandLabel(score: number): string {
 export const SCORING_LEAD_COLUMNS =
   'estimated_net_monthly,estimated_gross_monthly,estimated_adr,price,price_type,beds,baths,property_type,regulation_status,' +
   'verified_owner,verified_number,verified_address,has_phone,contact_phone,contact_name,stage,days_on_market,luxury,' +
-  'is_fsbo,is_furnished,is_apartment_community,estimated_monthly_rent_ai';
+  'is_fsbo,is_furnished,is_apartment_community,estimated_monthly_rent_ai,tags,outreach_responded_at,escalated_at';
 
 /** Maps a leads table row to model input, so no route hand-builds its own field list. */
 export function leadRowToScoringInput(row: Record<string, unknown>): ProspectScoringInput {
   const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
   const flag = (v: unknown) => (typeof v === 'boolean' ? v : null);
+  const tags = Array.isArray(row.tags) ? (row.tags as unknown[]).map(String) : [];
+  const negative = tags.some(t => ['sms:status:opted_out', 'sms:status:declined', 'sms:status:wrong_contact', 'sms:status:unreachable'].includes(t));
+  const replied = !negative && Boolean(row.outreach_responded_at || row.escalated_at);
+  const temp = negative ? null : tags.includes('sms:status:hot') ? 'hot' : tags.includes('sms:status:warm') ? 'warm' : null;
+  const campaignEngagement: ProspectScoringInput['campaignEngagement'] = replied ? 'replied' : temp;
   return {
+    smsReplies: replied ? 1 : 0, callbackRequests: temp === 'hot' ? 1 : 0, emailClicks: temp ? 1 : 0, campaignEngagement,
     estimatedNetMonthly: Number(row.estimated_net_monthly || 0),
     estimatedGrossMonthly: Number(row.estimated_gross_monthly || 0),
     estimatedADR: Number(row.estimated_adr || 0),

@@ -1,6 +1,7 @@
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { classifyReply, isWrongContact } from '@/lib/services/smsConsent';
+import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Meta = Record<string, any>;
@@ -189,7 +190,12 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
     if (ue) throw ue;
   }
   let crmUpdated = 0;
-  if (opts.writeCrm !== false) await pool(crm, 6, async c => { const { error: ce } = await db.from('leads').update(c.patch).eq('id', c.id); if (!ce) crmUpdated++; });
+  if (opts.writeCrm !== false) {
+    await pool(crm, 6, async c => { const { error: ce } = await db.from('leads').update(c.patch).eq('id', c.id); if (!ce) crmUpdated++; });
+    // The prospect score counts engagement, so leads that just turned hot or warm are rescored now.
+    const engaged = out.filter(o => o.temperature === 'hot' || o.temperature === 'warm').map(o => String(o.lead_id));
+    if (engaged.length) await rescoreLeadsByIds(db, engaged).catch(() => 0);
+  }
 
   const counts: Record<string, number> = {};
   for (const o of out) counts[String(o.temperature)] = (counts[String(o.temperature)] ?? 0) + 1;

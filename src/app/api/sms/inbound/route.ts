@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { classifyReply, findLeadByPhone, notifyAdmins, recordOptIn, recordOptOut, toE164, verifyTwilioSignature } from '@/lib/services/smsConsent';
+import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
 
 /**
  * POST /api/sms/inbound
@@ -93,6 +94,9 @@ export async function POST(req: NextRequest) {
   } else if (lead && toE164(from)) {
     await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['new', 'contacted']);
   }
+
+  // The prospect score includes replies, so refresh it now instead of leaving the profile on the pre-reply number.
+  if (lead && intent !== 'stop' && intent !== 'no') await rescoreLeadsByIds(db, [lead.id]).catch(() => 0);
 
   // Replies from a co-host prospect we texted one-to-one are tied back to their listing.
   const e164 = toE164(from);
