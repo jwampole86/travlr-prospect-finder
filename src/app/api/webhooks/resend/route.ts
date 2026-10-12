@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifySvixSignature } from '@/lib/estimateTokens';
+import { applyResendEvent } from '@/lib/services/cohostEmail';
 
 /**
  * POST /api/webhooks/resend
@@ -26,6 +27,8 @@ export async function POST(req: NextRequest) {
   if (!messageId) return NextResponse.json({ ok: true, ignored: 'no email id' });
 
   const db = getSupabaseAdmin();
+  // Co-host campaign emails are tracked apart from homeowner emails.
+  if (await applyResendEvent(db, messageId, type, event.created_at ?? new Date().toISOString(), event.data?.bounce, event.data?.reason)) return NextResponse.json({ ok: true, cohost: true });
   const { data: row } = await db.from('outreach_history').select('id, lead_id, status, recipient_email, metadata').eq('resend_message_id', messageId).limit(1).maybeSingle();
   if (!row) return NextResponse.json({ ok: true, ignored: 'unknown message' });
 

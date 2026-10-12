@@ -1,19 +1,21 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { BarChart3, Download, Loader2, Megaphone, RefreshCw, Rocket, Scale, Sparkles } from 'lucide-react';
+import { BarChart3, Download, Loader2, Mail, Megaphone, RefreshCw, Rocket, Scale, Sparkles } from 'lucide-react';
 import { AssistantResult, BatchInfo, BuilderForm, CampaignOption, Card, Insights, Overview, cx, fmtDate, post } from './shared';
 import ResultsTab from './ResultsTab';
 import HelperTab from './HelperTab';
 import BuilderTab, { defaultForm } from './BuilderTab';
 import EstimateCheckTab from './EstimateCheckTab';
+import CoHostEmailTab from './CoHostEmailTab';
 
-type TabId = 'results' | 'helper' | 'new' | 'check';
+type TabId = 'results' | 'helper' | 'new' | 'check' | 'cohost';
 const TABS: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: 'results', label: 'Results', icon: <BarChart3 size={15} /> },
   { id: 'helper', label: 'AI Campaign Helper', icon: <Sparkles size={15} /> },
   { id: 'new', label: 'New campaign', icon: <Rocket size={15} /> },
   { id: 'check', label: 'Estimate check', icon: <Scale size={15} /> },
+  { id: 'cohost', label: 'Co-Host email', icon: <Mail size={15} /> },
 ];
 
 export default function CampaignsView() {
@@ -98,6 +100,7 @@ export default function CampaignsView() {
       {tab === 'results' && <ResultsTab batches={batches} selected={selected} setSelected={setSelected} data={data} insights={insights} loading={loading} error={error} busy={busy}
         onInsights={makeInsights} onReload={() => load(selected, true)} onAskHelper={askHelper} onNew={() => setTab('new')} />}
       {tab === 'check' && <EstimateCheckTab batch={selected} />}
+      {tab === 'cohost' && <CoHostEmailTab />}
       {tab === 'helper' && <HelperTab goal={goal} setGoal={setGoal} result={assistant} setResult={setAssistant} onUse={applyOption} />}
       {/* Stays mounted once opened so a campaign that is being scheduled keeps running if you switch tabs. */}
       {builderOpened && <div className={tab === 'new' ? '' : 'hidden'}><BuilderTab form={form} setForm={setForm} banner={banner} onClearBanner={() => setBanner(null)} onViewResults={viewResults} /></div>}
