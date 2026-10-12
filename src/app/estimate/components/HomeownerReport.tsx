@@ -2,10 +2,11 @@
 
 import React from 'react';
 import {
-  Shield, ShieldCheck, ShieldAlert, Home, Sparkles, CalendarCheck, SprayCan, Camera, Headphones,
+  Shield, ShieldCheck, ShieldAlert, Home, MessageSquare, Sparkles, CalendarCheck, SprayCan, Camera, Headphones,
   FileCheck2, BarChart3, Wallet, CheckCircle2, XCircle, Info, ExternalLink, Printer, Phone, ArrowRight, MapPin,
 } from 'lucide-react';
 import type { HomeownerReport, RegulationTone } from '@/lib/homeownerEstimateTypes';
+import { CONTACT_EMAIL, CONTACT_PHONE, telHref } from '@/lib/homeownerContact';
 
 // The report is a document: it keeps a fixed light palette so it reads the same on screen, in a saved PDF and in print.
 
@@ -62,8 +63,8 @@ const STEPS = [
 ];
 
 export default function HomeownerReportView({
-  report, variant = 'full', onPrint,
-}: { report: HomeownerReport; variant?: 'preview' | 'full'; onPrint?: () => void }) {
+  report, variant = 'full', onPrint, onContact,
+}: { report: HomeownerReport; variant?: 'preview' | 'full'; onPrint?: () => void; onContact?: (mode: 'call' | 'question') => void }) {
   const [cons, exp, opt] = report.scenarios;
   const reg = report.regulation;
   const tone = TONE[reg.tone];
@@ -330,9 +331,22 @@ export default function HomeownerReportView({
                   <p className="text-lg font-bold">Ready to see what your home can really earn?</p>
                   <p className="mt-1 text-sm text-indigo-100/90 max-w-lg">A TRAVLR specialist will contact you within one business day to refine these numbers with your home&rsquo;s details. No obligation.</p>
                 </div>
-                <div className="flex flex-col gap-2 shrink-0 text-sm">
-                  <span className="inline-flex items-center gap-2 font-semibold"><Phone size={15} /> Reply to your report email</span>
-                  <span className="inline-flex items-center gap-2 text-indigo-100/90"><ArrowRight size={15} /> staytrvlr.com</span>
+                <div className="flex flex-col gap-2.5 shrink-0 text-sm">
+                  {onContact && (
+                    <>
+                      <button onClick={() => onContact('call')} className="print:hidden inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-indigo-800 font-bold hover:bg-indigo-50 transition">
+                        <CalendarCheck size={16} /> Schedule a call
+                      </button>
+                      <button onClick={() => onContact('question')} className="print:hidden inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-white/40 text-white font-semibold hover:bg-white/10 transition">
+                        <MessageSquare size={16} /> Ask a question
+                      </button>
+                    </>
+                  )}
+                  <div className={`${onContact ? 'hidden print:flex' : 'flex'} flex-col gap-1.5 text-indigo-100/90`}>
+                    <span className="inline-flex items-center gap-2 font-semibold text-white">Contact TRAVLR</span>
+                    <a href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center gap-2 hover:underline"><ArrowRight size={14} /> {CONTACT_EMAIL}</a>
+                    {CONTACT_PHONE && <a href={telHref(CONTACT_PHONE)} className="inline-flex items-center gap-2 hover:underline"><Phone size={14} /> {CONTACT_PHONE}</a>}
+                  </div>
                 </div>
               </div>
             </section>
@@ -348,6 +362,18 @@ export default function HomeownerReportView({
           )}
         </footer>
       </div>
+      {onContact && variant === 'full' && (
+        <div className="print:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md">
+          <div className="flex items-center gap-2 p-2 rounded-2xl bg-slate-900/95 backdrop-blur shadow-2xl border border-white/10">
+            <button onClick={() => onContact('call')} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition">
+              <CalendarCheck size={16} /> Schedule a call
+            </button>
+            <button onClick={() => onContact('question')} aria-label="Ask a question" className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition">
+              <MessageSquare size={16} /> <span className="hidden sm:inline">Ask a question</span>
+            </button>
+          </div>
+        </div>
+      )}
     </article>
     </>
   );

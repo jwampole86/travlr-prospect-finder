@@ -6,6 +6,7 @@ import { MapPin, DollarSign, TrendingUp, Shield, ChevronRight, CheckCircle, Load
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
 import HomeownerReportView from '@/app/estimate/components/HomeownerReport';
+import ContactRequestModal, { type ContactMode } from '@/app/estimate/components/ContactRequestModal';
 import type { HomeownerEstimate } from '@/lib/homeownerEstimateTypes';
 import { useForceLightTheme } from '@/lib/hooks/useForceLightTheme';
 
@@ -203,6 +204,9 @@ function EstimateLandingContent() {
   const [loadingEstimate, setLoadingEstimate] = useState(false);
   const [estimateError, setEstimateError] = useState(false);
   const [emailed, setEmailed] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [contactMode, setContactMode] = useState<ContactMode>('call');
+  const openContact = (mode: ContactMode) => { setContactMode(mode); setContactOpen(true); };
   const [contact, setContact] = useState<ContactForm>({ firstName: '', lastName: '', phone: '', email: '' });
   const [qualification, setQualification] = useState<QualificationForm>({
     propertyType: '',
@@ -279,7 +283,11 @@ function EstimateLandingContent() {
         }),
       });
       const submitData = await submitRes.json().catch(() => ({}));
-      setEmailed(submitData?.emailed === true);
+      if (!submitRes.ok || !submitData?.success) {
+        toast.error(submitData?.error || 'Something went wrong. Please try again.');
+        return;
+      }
+      setEmailed(submitData.emailed === true);
       setStep('success');
     } catch {
       toast.error('Something went wrong. Please try again.');
@@ -397,6 +405,9 @@ function EstimateLandingContent() {
                 >
                   Get My Full Report — It's Free
                   <ChevronRight size={14} />
+                </button>
+                <button onClick={() => openContact('question')} className="w-full text-sm font-semibold text-primary hover:underline text-center py-1">
+                  Have a question first? Talk to a specialist
                 </button>
                 <button onClick={() => { setStep('address'); setSelectedAddress(''); }} className="w-full text-xs text-muted-foreground hover:text-foreground text-center py-1 transition-colors">
                   ← Try a different address
@@ -581,7 +592,10 @@ function EstimateLandingContent() {
                 {emailed ? <>We&apos;ve emailed a copy to {contact.email}. </> : <>Save or print your report below. </>}A TRAVLR specialist will reach out within 1 business day to refine these numbers with your home&apos;s details.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                <button onClick={() => window.print()} className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all">
+                <button onClick={() => openContact('call')} className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all">
+                  Schedule a call
+                </button>
+                <button onClick={() => window.print()} className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors">
                   Download PDF
                 </button>
                 <a href={`/estimate/report?address=${encodeURIComponent(displayAddress)}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors">
@@ -589,10 +603,11 @@ function EstimateLandingContent() {
                 </a>
               </div>
             </div>
-            {estimate && <HomeownerReportView report={estimate.report} variant="full" />}
+            {estimate && <HomeownerReportView report={estimate.report} variant="full" onContact={openContact} onPrint={() => window.print()} />}
           </div>
         )}
       </main>
+      <ContactRequestModal open={contactOpen} onClose={() => setContactOpen(false)} address={displayAddress} initialMode={contactMode} prefill={contact} />
     </div>
   );
 }

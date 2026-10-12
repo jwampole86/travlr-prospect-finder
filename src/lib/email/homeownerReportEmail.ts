@@ -1,4 +1,5 @@
 import type { HomeownerReport } from '@/lib/homeownerEstimateTypes';
+import { CONTACT_EMAIL } from '@/lib/homeownerContact';
 
 const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const usd = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
@@ -10,6 +11,8 @@ export function buildHomeownerReportEmail(report: HomeownerReport, firstName: st
   const place = esc([report.city, report.state].filter(Boolean).join(', '));
   const street = esc(report.street || report.address);
   const url = esc(reportUrl);
+  const callUrl = esc(`${reportUrl}${reportUrl.includes('?') ? '&' : '?'}contact=call`);
+  const contactEmail = esc(CONTACT_EMAIL);
   const reqs = reg.requirements.filter(r => r.required === true).slice(0, 4);
   const toneColor = reg.tone === 'good' ? '#047857' : reg.tone === 'bad' ? '#be123c' : reg.tone === 'caution' ? '#b45309' : '#475569';
 
@@ -25,6 +28,7 @@ export function buildHomeownerReportEmail(report: HomeownerReport, firstName: st
     '',
     `View your full report (with costs, a five-year comparison and the permits required for your area): ${reportUrl}`,
     '',
+    `Schedule a call: ${reportUrl}${reportUrl.includes('?') ? '&' : '?'}contact=call`,
     'A TRAVLR specialist will contact you within one business day. You can reply to this email at any time.',
     '',
     'This is an estimate, not a guarantee of income.',
@@ -58,7 +62,12 @@ export function buildHomeownerReportEmail(report: HomeownerReport, firstName: st
     <div style="font-size:16px;font-weight:700;color:${toneColor};margin-top:6px;">${esc(reg.headline)}</div>
     ${reqs.length ? `<ul style="margin:10px 0 0 0;padding-left:18px;font-size:14px;line-height:1.6;color:#334155;">${reqs.map(r => `<li><strong>${esc(r.label)}:</strong> ${esc(r.value)}</li>`).join('')}</ul>` : `<p style="margin:8px 0 0 0;font-size:14px;line-height:1.6;color:#334155;">Your specialist will confirm the exact permit and tax steps for your address.</p>`}
   </div>
-  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 28px auto;"><tr><td style="background:#4f46e5;border-radius:12px;"><a href="${url}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">View my full report</a></td></tr></table>
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 14px auto;"><tr><td style="background:#4f46e5;border-radius:12px;"><a href="${url}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">View my full report</a></td></tr></table>
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 28px auto;"><tr>
+    <td style="border:1px solid #c7d2fe;border-radius:12px;"><a href="${callUrl}" style="display:inline-block;padding:12px 22px;font-size:14px;font-weight:700;color:#4f46e5;text-decoration:none;">Schedule a call</a></td>
+    <td width="10"></td>
+    <td style="border:1px solid #e2e8f0;border-radius:12px;"><a href="mailto:${contactEmail}?subject=${encodeURIComponent('Question about my estimate: ' + report.address)}" style="display:inline-block;padding:12px 22px;font-size:14px;font-weight:600;color:#334155;text-decoration:none;">Ask a question</a></td>
+  </tr></table>
   <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#334155;">A TRAVLR specialist will contact you within one business day to refine these numbers with your home&rsquo;s details. You can also just reply to this email.</p>
 </td></tr>
 <tr><td style="padding:16px 32px 28px 32px;border-top:1px solid #f1f5f9;font-size:11px;line-height:1.6;color:#94a3b8;">
