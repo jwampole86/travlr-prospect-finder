@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyOwner } from '@/lib/services/ownerVerification';
+import { assessData } from '@/lib/services/cohostNumbers';
 
 export const maxDuration = 60;
 
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
 
   // Nationwide there are thousands of candidates, far more than fits in one response. Every matched listing and every listing someone has
   // moved through the pipeline is always included; unmatched ones are limited to the strongest by each ranking the page can sort by.
-  const COLS = 'property_id,market,title,airbnb_url,vrbo_url,booking_url,channels,bedrooms,bathrooms,adr,occupancy_pct,revenue_ltm,revenue_potential_ltm,rating,reviews,host_listing_count,is_luxury,is_elite,first_seen_at,niches,primary_niche,under_score,under_reasons,segment,photo_score,photo_notes,address_match_confidence,match_status,match_candidates,matched_address,matched_owner,pipeline_stage,service_model,reviewer_notes,stage_updated_at';
+  const COLS = 'property_id,market,title,airbnb_url,vrbo_url,booking_url,channels,bedrooms,bathrooms,adr,occupancy_pct,days_available_ltm,revenue_ltm,revenue_potential_ltm,rating,reviews,host_listing_count,is_luxury,is_elite,first_seen_at,niches,primary_niche,under_score,under_reasons,segment,photo_score,photo_notes,address_match_confidence,match_status,match_candidates,matched_address,matched_owner,pipeline_stage,service_model,reviewer_notes,stage_updated_at';
   const listings: Array<Record<string, any>> = []; const seenIds = new Set<string>();
   const add = (rows: Array<Record<string, any>> | null) => { for (const r of rows ?? []) if (!seenIds.has(r.property_id)) { seenIds.add(r.property_id); listings.push(r); } };
   const SEG = ['candidate', 'new_or_dormant'];
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
     const cands = (l.match_candidates as any[] | null) ?? [];
     const verification = verifyOwner({ ...(l as any), candidate: cands[0] ?? null, candidateCount: cands.length, sharedAddressCount: l.matched_address ? shared.get(l.matched_address) ?? 1 : 1 });
     const { match_candidates: _drop, ...rest } = l;
-    return { ...rest, verification, offer: offers.get(l.property_id) ?? null, texts: texts.get(l.property_id) ?? null, matched_owner: l.matched_owner ? { names: o.names ?? [], type: o.type ?? null, mailing: o.mailing ?? null, permitHolder: o.permitHolder ?? null, contactFound: found.length > 0, skipTraced: !!o.skipTrace, phones: found.flatMap((p: any) => p.phones.map((x: any) => x.e164)).slice(0, 3), emails: found.flatMap((p: any) => p.emails).slice(0, 3), published: o.contact ? { email: o.contact.email ?? null, phone: o.contact.phone ?? null } : null } : null };
+    return { ...rest, verification, dataQuality: assessData(l), offer: offers.get(l.property_id) ?? null, texts: texts.get(l.property_id) ?? null, matched_owner: l.matched_owner ? { names: o.names ?? [], type: o.type ?? null, mailing: o.mailing ?? null, permitHolder: o.permitHolder ?? null, contactFound: found.length > 0, skipTraced: !!o.skipTrace, phones: found.flatMap((p: any) => p.phones.map((x: any) => x.e164)).slice(0, 3), emails: found.flatMap((p: any) => p.emails).slice(0, 3), published: o.contact ? { email: o.contact.email ?? null, phone: o.contact.phone ?? null } : null } : null };
   });
 
   const { data: crm } = await db.from('leads').select('id,address,city,state,owner_name,contact_phone,program,cohost_service,existing_platforms,program_reason,program_set_at,stage').eq('program', 'co_host').order('program_set_at', { ascending: false }).limit(500);

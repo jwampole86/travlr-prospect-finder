@@ -132,15 +132,26 @@ export default function OfferClient({ data }: { data: OfferData }) {
         {/* Earnings */}
         <section id="earnings" className="scroll-mt-20">
           <h2 className="ho-tx text-2xl font-bold tracking-tight">Your earnings picture</h2>
-          <p className="ho-mu mt-1 text-sm max-w-2xl">Estimated from public booking activity over the last 12 months, compared with what comparable demand in {data.city || 'your market'} supports.</p>
+          <p className="ho-mu mt-1 text-sm max-w-2xl">{data.mode === 'own' ? `Estimated from public booking activity over the last 12 months, compared with what comparable demand in ${data.city || 'your market'} supports.` : data.mode === 'benchmark' ? `There is not enough recent booking history on this listing to estimate its earnings, so here is what comparable homes in ${data.city || 'your market'} earn.` : 'There is not enough recent booking history on this listing to estimate its earnings. The free audit starts from your real numbers.'}</p>
 
-          <div className="mt-5 grid sm:grid-cols-3 gap-3">
+          {data.mode === 'own' ? (<div className="mt-5 grid sm:grid-cols-3 gap-3">
             <div className="ho-card rounded-2xl p-5"><p className="ho-mu text-xs font-semibold uppercase tracking-wide">Estimated earned</p><p className="mt-1.5 text-3xl font-extrabold tabular-nums">{usd(data.current.revenue)}</p><p className="ho-mu text-xs mt-1">last 12 months{data.current.occupancyPct != null ? `, ${Math.round(data.current.occupancyPct)}% booked` : ''}</p></div>
             <div className="ho-card rounded-2xl p-5"><p className="ho-mu text-xs font-semibold uppercase tracking-wide">Estimated potential</p><p className="mt-1.5 text-3xl font-extrabold tabular-nums">{usd(data.potential)}</p><p className="ho-mu text-xs mt-1">what demand supports{data.current.adr ? `, at about ${usd(data.current.adr)} a night` : ''}</p></div>
             <div className="ho-grad rounded-2xl p-5"><p className="ho-on-grad-mu text-xs font-semibold uppercase tracking-wide">Possible upside</p><p className="mt-1.5 text-3xl font-extrabold tabular-nums">{hasGap ? usd(data.gap) : 'Targeted'}</p><p className="ho-on-grad-mu text-xs mt-1">{hasGap ? 'per year between earned and potential' : 'gains come from rating, photos and pricing'}</p></div>
-          </div>
+          </div>) : data.mode === 'benchmark' && data.benchmark ? (
+            <>
+              <div className="mt-5 grid sm:grid-cols-3 gap-3">
+                <div className="ho-card rounded-2xl p-5"><p className="ho-mu text-xs font-semibold uppercase tracking-wide">Typical comparable home</p><p className="mt-1.5 text-3xl font-extrabold tabular-nums">{usd(data.benchmark.typical)}</p><p className="ho-mu text-xs mt-1">per year, median of {data.benchmark.sample} similar homes{data.benchmark.occupancyPct != null ? `, about ${data.benchmark.occupancyPct}% booked` : ''}</p></div>
+                <div className="ho-card rounded-2xl p-5"><p className="ho-mu text-xs font-semibold uppercase tracking-wide">Top-quarter homes</p><p className="mt-1.5 text-3xl font-extrabold tabular-nums">{usd(data.benchmark.strong)}</p><p className="ho-mu text-xs mt-1">per year{data.benchmark.adr ? `, at about ${usd(data.benchmark.adr)} a night for a typical home` : ''}</p></div>
+                <div className="ho-grad rounded-2xl p-5"><p className="ho-on-grad-mu text-xs font-semibold uppercase tracking-wide">Where we aim</p><p className="mt-1.5 text-3xl font-extrabold tabular-nums">Top quarter</p><p className="ho-on-grad-mu text-xs mt-1">pricing, photos and guest experience that match the best homes nearby</p></div>
+              </div>
+              <p className="ho-mu mt-3 text-[11px] leading-relaxed">Based on homes of similar size in {data.city || 'your market'} with a full year of public booking data. It is a market picture, not a prediction for your home. The free audit uses your real numbers.</p>
+            </>
+          ) : (
+            <div className="ho-card mt-5 rounded-2xl p-5"><p className="font-semibold">Let us look at your real numbers together</p><p className="ho-mu mt-1.5 text-sm">Public data is too thin to put a figure on this home without guessing. In the free audit we use your actual bookings and rates to show where the upside is.</p></div>
+          )}
 
-          {hasGap && (
+          {data.mode === 'own' && hasGap && (
             <div className="ho-card mt-4 rounded-2xl p-5 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="font-semibold flex items-center gap-2"><TrendingUp size={17} className="ho-ac" /> What partnering could look like</p>

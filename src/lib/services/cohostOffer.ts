@@ -1,5 +1,6 @@
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { assessData, marketBenchmark, type Benchmark } from '@/lib/services/cohostNumbers';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 const ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -12,6 +13,8 @@ export interface OfferData {
   code: string; title: string; city: string; state: string; bedrooms: number | null; bathrooms: number | null; luxury: boolean; rating: number | null; reviews: number | null;
   current: { revenue: number; adr: number | null; occupancyPct: number | null; daysAvailable: number | null };
   potential: number; gap: number; scenarios: Scenario[];
+  /** own: the listing's figures are backed by enough bookings to quote. benchmark: too little history, so comparable homes are shown instead. none: neither is available. */
+  mode: 'own' | 'benchmark' | 'none'; benchmark: Benchmark | null;
   findings: string[]; photo: { score: number | null; hero: string | null; fixes: string[]; missingShots: string[]; looksDated: boolean };
   optedOut: boolean; requested: boolean;
 }
@@ -56,14 +59,18 @@ export async function getOfferData(db: Db, code: string): Promise<OfferData | nu
   const [city, state] = String(l.market ?? '').split(',').map(s => s.trim());
   const revenue = Math.round(num(l.revenue_ltm) ?? 0); const potential = Math.round(num(l.revenue_potential_ltm) ?? 0);
   const { gap, scenarios } = buildScenarios(revenue, potential);
+  const quality = assessData(l);
+  const benchmark = quality.reliable ? null : await marketBenchmark(db, String(l.market ?? ''), num(l.bedrooms));
+  const mode: OfferData['mode'] = quality.reliable ? 'own' : benchmark ? 'benchmark' : 'none';
   const pn = (l.photo_notes ?? {}) as { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean; complete?: boolean };
   // A review built on a sample of the photos can wrongly call a space missing, so owners only see findings from a review of every photo.
   const full = pn.complete === true;
   return {
     code, title: String(l.title ?? 'Your listing').slice(0, 120), city: city ?? '', state: state ?? '', bedrooms: num(l.bedrooms), bathrooms: num(l.bathrooms), luxury: !!l.is_luxury, rating: num(l.rating), reviews: num(l.reviews),
     current: { revenue, adr: num(l.adr), occupancyPct: num(l.occupancy_pct), daysAvailable: num(l.days_available_ltm) },
-    potential: Math.max(potential, revenue), gap, scenarios,
-    findings: ((l.under_reasons ?? []) as string[]).slice(0, 4),
+    potential: Math.max(potential, revenue), gap, scenarios, mode, benchmark,
+    // Findings built on thin booking numbers (occupancy rank, share of potential) would not hold up, so only review and rating notes are kept for those listings.
+    findings: ((l.under_reasons ?? []) as string[]).filter(f => quality.reliable || /review|rating/i.test(f)).slice(0, 4),
     photo: { score: full ? num(l.photo_score) : null, hero: full ? pn.hero ?? null : null, fixes: full ? (pn.fixes ?? []).slice(0, 3) : [], missingShots: full ? (pn.missingShots ?? []).slice(0, 4) : [], looksDated: full && !!pn.looksDated },
     optedOut: !!link.opted_out_at, requested: !!link.requested_at,
   };
@@ -72,12 +79,14 @@ export async function getOfferData(db: Db, code: string): Promise<OfferData | nu
 const usd = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 
 /** Ready-to-edit drafts for the team to paste into an email or text. The text draft is for review only; co-host prospects are not texted automatically. */
-export function offerDrafts(d: Pick<OfferData, 'title' | 'city' | 'current' | 'scenarios' | 'gap'>, url: string) {
+export function offerDrafts(d: Pick<OfferData, 'title' | 'city' | 'current' | 'scenarios' | 'gap' | 'mode' | 'benchmark' | 'bedrooms'>, url: string) {
   const exp = d.scenarios.find(s => s.key === 'expected');
-  const earn = d.gap > 0 && exp ? `Based on public booking data, we think there is roughly ${usd(exp.gain)} a year of upside.` : 'We found a few ways to lift bookings and rates.';
+  const earn = d.mode === 'own' && d.gap > 0 && exp ? `Based on public booking data, we think there is roughly ${usd(exp.gain)} a year of upside.`
+    : d.mode === 'benchmark' && d.benchmark ? `Comparable ${d.bedrooms ? `${d.bedrooms}-bedroom ` : ''}homes in ${d.city} typically earn about ${usd(d.benchmark.typical)} a year, and the top quarter about ${usd(d.benchmark.strong)}.`
+    : 'We found a few ways to lift bookings and rates.';
   return {
     subject: `Ideas to lift bookings for "${d.title.slice(0, 60)}"`,
     email: `Hi,\n\nI'm reaching out from TRAVLR Vacation Homes. We run our own luxury vacation homes and help owners who already host on Airbnb or Vrbo earn more, either as a co-host on your existing listing or with full management.\n\nWe took a look at your listing in ${d.city} using public booking data. ${earn} I put together a short, free page that shows what we noticed and what it could look like for you:\n\n${url}\n\nIf it's useful, reply and we'll do a free listing audit. If not, no problem. Just let me know and I won't follow up.\n\nBest,\nTRAVLR Vacation Homes`,
-    sms: `Hi, TRAVLR Vacation Homes here. We reviewed your ${d.city} listing and see room to earn more: ${url}\nReply STOP to opt out`,
+    sms: `Hi, TRAVLR Vacation Homes here. We reviewed your ${d.city} listing and put together a short look at it: ${url}\nReply STOP to opt out`,
   };
 }

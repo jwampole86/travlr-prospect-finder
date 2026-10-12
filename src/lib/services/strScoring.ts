@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { classifyNiches } from '@/lib/niches';
+import { MIN_BOOKED_NIGHTS, bookedNightsOf } from '@/lib/services/cohostNumbers';
 
 type Row = Record<string, any>;
 const clamp = (n: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, n));
@@ -69,8 +70,10 @@ export async function scoreListings(db: SupabaseClient, opts: { markets?: string
     const hostCount = Number(r.host_listing_count ?? 1);
     // Very few reviews means the listing is probably new or dormant, so its last-12-month numbers say little about performance.
     const segment = hostCount >= 5 ? 'professional_manager' : avail < 150 ? 'owner_blocked' : reviews <= 3 ? 'new_or_dormant' : score >= 45 ? 'candidate' : 'performing';
-    const isLux = adr >= LUXURY_ADR;
-    const isElite = adr >= ELITE_ADR;
+    // A rate averaged over a handful of stays is not a nightly rate the home can be said to command.
+    const rateIsReal = bookedNightsOf({ occupancy_pct: occ, days_available_ltm: avail, adr, revenue_ltm: rev }) >= MIN_BOOKED_NIGHTS;
+    const isLux = adr >= LUXURY_ADR && rateIsReal;
+    const isElite = adr >= ELITE_ADR && rateIsReal;
     const c = classifyNiches({ title: r.title, market: r.market, bedrooms: r.bedrooms, bathrooms: r.bathrooms, accommodates: r.accommodates, adr, is_luxury: isLux, is_elite: isElite });
     const niche = { niches: c.niches, primary_niche: c.primary };
     out.push({ property_id: r.property_id, market: r.market, under_score: score, under_reasons: reasons, segment, is_luxury: isLux, is_elite: isElite, ...niche, scored_at: new Date().toISOString() });

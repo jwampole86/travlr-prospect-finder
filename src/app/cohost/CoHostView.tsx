@@ -16,7 +16,7 @@ interface OfferPanel { loading: boolean; error?: string; url?: string; optedOut?
 interface Listing {
   property_id: string; market: string; title: string | null; airbnb_url: string | null; vrbo_url: string | null; booking_url: string | null; bedrooms: number | null; bathrooms: number | null;
   adr: number | null; occupancy_pct: number | null; revenue_ltm: number | null; revenue_potential_ltm: number | null; rating: number | null; reviews: number | null; host_listing_count: number | null;
-  is_luxury: boolean | null; is_elite?: boolean | null; first_seen_at?: string | null; niches?: number[] | null; primary_niche?: number | null; verification?: OwnerVerification; under_score: number | null; under_reasons: string[] | null; segment: string; photo_score: number | null; photo_notes: { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean; complete?: boolean; photosReviewed?: number; of?: number; unreachable?: number; reason?: string } | null;
+  is_luxury: boolean | null; is_elite?: boolean | null; first_seen_at?: string | null; dataQuality?: { reliable: boolean; bookedNights: number; reasons: string[] }; niches?: number[] | null; primary_niche?: number | null; verification?: OwnerVerification; under_score: number | null; under_reasons: string[] | null; segment: string; photo_score: number | null; photo_notes: { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean; complete?: boolean; photosReviewed?: number; of?: number; unreachable?: number; reason?: string } | null;
   address_match_confidence: string | null; match_status: string | null; matched_address: string | null; matched_owner: Owner | null; pipeline_stage: string; service_model: string; reviewer_notes: string | null; offer?: OfferInfo | null; texts?: { sent: number; replied: boolean; lastIntent: string | null; lastAt: string } | null;
 }
 interface CrmLead { id: string; address: string | null; city: string | null; state: string | null; owner_name: string | null; program_reason: string | null; program_set_at: string | null; cohost_service: string | null; stage: string | null }
@@ -171,11 +171,11 @@ export default function CoHostView() {
   const eliteCount = useMemo(() => base.filter(l => l.is_elite).length, [base]);
   const verifiedCount = useMemo(() => base.filter(l => l.verification?.level === 'verified').length, [base]);
   const shown = useMemo(() => {
-    const pot = (l: Listing) => l.revenue_potential_ltm ?? -1;
+    const pot = (l: Listing) => (l.dataQuality?.reliable === false ? -1 : l.revenue_potential_ltm ?? -1);
     const cmp: Record<SortKey, (a: Listing, b: Listing) => number> = {
       best: (a, b) => Number(b.match_status === 'unique') - Number(a.match_status === 'unique') || (b.under_score ?? 0) - (a.under_score ?? 0),
-      potential_desc: (a, b) => pot(b) - pot(a), potential_asc: (a, b) => (a.revenue_potential_ltm == null ? Infinity : a.revenue_potential_ltm) - (b.revenue_potential_ltm == null ? Infinity : b.revenue_potential_ltm),
-      earned_desc: (a, b) => (b.revenue_ltm ?? -1) - (a.revenue_ltm ?? -1), newest: (a, b) => Date.parse(b.first_seen_at ?? '') - Date.parse(a.first_seen_at ?? ''),
+      potential_desc: (a, b) => pot(b) - pot(a), potential_asc: (a, b) => (pot(a) < 0 ? Infinity : pot(a)) - (pot(b) < 0 ? Infinity : pot(b)),
+      earned_desc: (a, b) => (b.dataQuality?.reliable === false ? -1 : b.revenue_ltm ?? -1) - (a.dataQuality?.reliable === false ? -1 : a.revenue_ltm ?? -1), newest: (a, b) => Date.parse(b.first_seen_at ?? '') - Date.parse(a.first_seen_at ?? ''),
       niche_priority: (a, b) => nichePriority(a.niches) - nichePriority(b.niches) || pot(b) - pot(a),
     };
     return base.filter(l => (!luxuryOnly || l.is_luxury) && (!eliteOnly || l.is_elite) && (!verifiedOnly || l.verification?.level === 'verified')).sort(cmp[sort]);
@@ -263,7 +263,9 @@ export default function CoHostView() {
                       {l.offer?.optedOutAt && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700">Opted out</span>}
                       {!!l.offer?.views && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-700 inline-flex items-center gap-1"><Eye size={10} /> Offer page viewed {l.offer.views}x</span>}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{l.market} &middot; {l.bedrooms} bd / {l.bathrooms} ba &middot; {money(l.adr)} per night &middot; {l.occupancy_pct != null ? `${Math.round(l.occupancy_pct)}% occupied` : ''} &middot; {money(l.revenue_ltm)} earned of <span className="font-semibold text-foreground">{money(l.revenue_potential_ltm)} potential</span> &middot; {l.rating ?? '-'} ({l.reviews ?? 0} reviews){l.host_listing_count ? ` · host runs ${l.host_listing_count}` : ''}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{l.market} &middot; {l.bedrooms} bd / {l.bathrooms} ba &middot; {l.dataQuality?.reliable === false
+                      ? <span className="font-semibold text-amber-600 dark:text-amber-400">Not enough booking history to quote earnings ({l.dataQuality.reasons.join(', ')})</span>
+                      : <>{money(l.adr)} per night &middot; {l.occupancy_pct != null ? `${Math.round(l.occupancy_pct)}% occupied` : ''} &middot; {money(l.revenue_ltm)} earned of <span className="font-semibold text-foreground">{money(l.revenue_potential_ltm)} potential</span></>} &middot; {l.rating ?? '-'} ({l.reviews ?? 0} reviews){l.host_listing_count ? ` · host runs ${l.host_listing_count}` : ''}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <SelectBox dense value={l.pipeline_stage} onChange={e => update(l.property_id, { stage: e.target.value })} aria-label="Stage">{stages.map(s => <option key={s} value={s}>{STAGE_LABEL[s] ?? s}</option>)}</SelectBox>
