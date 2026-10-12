@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/regulation-research?limit=6&concurrency=3",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/sms-campaign-harvest",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

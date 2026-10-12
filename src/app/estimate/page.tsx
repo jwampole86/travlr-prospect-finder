@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import TrustCard from '@/app/estimate/components/TrustCard';
 import WhyTravlrCard from '@/app/estimate/components/WhyTravlrCard';
 import ReportChat from '@/app/estimate/components/ReportChat';
+import { trackEstimateEvent, getTrackingContext } from '@/lib/estimateTracking';
 import ReportActions from '@/app/estimate/components/ReportActions';
 import { EQUIPMENT, type EquipmentKey } from '@/lib/homeownerReportContent';
 import { MapPin, DollarSign, TrendingUp, Shield, ChevronRight, CheckCircle, Loader2, Phone, Home, Building2, Calendar, AlertCircle, ExternalLink } from 'lucide-react';
@@ -217,7 +218,7 @@ function EstimateLandingContent() {
   const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [contactOpen, setContactOpen] = useState(false);
   const [contactMode, setContactMode] = useState<ContactMode>('call');
-  const openContact = (mode: ContactMode) => { setContactMode(mode); setContactOpen(true); };
+  const openContact = (mode: ContactMode) => { setContactMode(mode); setContactOpen(true); trackEstimateEvent(mode === 'call' ? 'call_requested' : 'question_requested'); };
   const [contact, setContact] = useState<ContactForm>({ firstName: '', lastName: '', phone: '', email: '' });
   const [qualification, setQualification] = useState<QualificationForm>({
     propertyType: '',
@@ -238,6 +239,46 @@ function EstimateLandingContent() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Journey tracking for visitors who arrived from a text link (?c=code). Does nothing for anyone else.
+  useEffect(() => {
+    if (!getTrackingContext()) return;
+    trackEstimateEvent('page_view', { w: window.innerWidth, h: window.innerHeight, lang: navigator.language?.slice(0, 12) ?? '' });
+    let maxScroll = 0; let visibleMs = 0; let since = document.visibilityState === 'visible' ? Date.now() : 0;
+    const onScroll = () => { const el = document.documentElement; const pct = Math.round(((window.scrollY + window.innerHeight) / Math.max(el.scrollHeight, 1)) * 100); if (pct > maxScroll) maxScroll = pct; };
+    const flush = () => {
+      if (since) { visibleMs += Date.now() - since; since = 0; }
+      trackEstimateEvent('time_on_page', { seconds: Math.round(visibleMs / 1000) });
+      trackEstimateEvent('scroll_depth', { pct: Math.min(100, maxScroll) });
+    };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flush(); else since = Date.now(); };
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!a) return;
+      const href = a.getAttribute('href') ?? '';
+      if (href.startsWith('tel:')) trackEstimateEvent('phone_clicked');
+      else if (href.startsWith('mailto:')) trackEstimateEvent('email_clicked');
+      else if (a.href.startsWith(WEBSITE_URL)) trackEstimateEvent('website_clicked');
+      else if (/airbnb\.com|vrbo\.com|wsj\.com|palmspringslife\.com/.test(a.hostname)) trackEstimateEvent('credential_clicked', { site: a.hostname.replace(/^www\./, '') });
+    };
+    const onPrint = () => trackEstimateEvent('report_printed');
+    window.addEventListener('scroll', onScroll, { passive: true });
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('click', onClick);
+    window.addEventListener('beforeprint', onPrint);
+    return () => {
+      window.removeEventListener('scroll', onScroll); document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush); document.removeEventListener('click', onClick); window.removeEventListener('beforeprint', onPrint);
+    };
+  }, []);
+
+  useEffect(() => { if (estimate) trackEstimateEvent('estimate_shown', { net: Math.round(estimate.annualNet) }); }, [estimate]);
+  useEffect(() => {
+    if (step === 'contact') trackEstimateEvent('contact_started');
+    else if (step === 'questionnaire') trackEstimateEvent('questionnaire_started');
+    else if (step === 'success') trackEstimateEvent('submitted');
+  }, [step]);
 
   async function handleGenerateEstimate(addr?: string) {
     const address = addr ?? selectedAddress ?? addressInput;

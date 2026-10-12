@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, Printer, Link2, Check, Loader2, CalendarCheck, Share2 } from 'lucide-react';
 import type { EquipmentKey } from '@/lib/homeownerReportContent';
+import { trackEstimateEvent } from '@/lib/estimateTracking';
 
 type Flash = { kind: 'ok' | 'error'; text: string } | null;
 
@@ -45,6 +46,7 @@ export default function ReportActions({ address, equipment, onSchedule, align = 
 
   async function download() {
     if (downloading) return;
+    trackEstimateEvent('report_downloaded');
     setDownloading(true);
     const params = new URLSearchParams({ address });
     if (equipment) params.set('eq', equipment.join(','));
@@ -70,6 +72,7 @@ export default function ReportActions({ address, equipment, onSchedule, align = 
   }
 
   async function share() {
+    trackEstimateEvent('link_copied');
     const url = buildShareUrl(address, equipment);
     if (canShare) {
       try { await navigator.share({ title: 'My TRAVLR revenue report', url }); return; } catch (e) { if ((e as Error)?.name === 'AbortError') return; }

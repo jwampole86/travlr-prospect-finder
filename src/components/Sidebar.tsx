@@ -114,6 +114,7 @@ const adminNavGroups: NavGroup[] = [
       { key: 'nav-escalated-leads', label: 'Escalated Leads', href: '/escalated-leads', icon: Flame, badge: null },
       { key: 'nav-followup-sequences', label: 'Follow-Up Sequences', href: '/follow-up-sequences', icon: GitBranch, badge: null },
       { key: 'nav-sms-delivery', label: 'SMS Delivery', href: '/sms-delivery', icon: Send, badge: null },
+      { key: 'nav-campaigns', label: 'Campaigns', href: '/campaigns', icon: Megaphone, badge: 'New' },
       { key: 'nav-sms-campaign-analytics', label: 'SMS Campaign Analytics', href: '/sms-campaign-analytics', icon: BarChart2, badge: 'New' },
       { key: 'nav-sms-inbound-threads', label: 'Inbound Threads', href: '/sms-inbound-threads', icon: MessageCircle, badge: 'New' },
       { key: 'nav-bulk-outreach', label: 'Bulk Outreach Composer', href: '/bulk-outreach', icon: Megaphone, badge: null },

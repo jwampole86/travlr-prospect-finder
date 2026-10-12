@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MessageCircle, X, Send, Loader2, CalendarCheck } from 'lucide-react';
 import type { EquipmentKey } from '@/lib/homeownerReportContent';
+import { trackEstimateEvent } from '@/lib/estimateTracking';
 
 interface Msg { role: 'user' | 'assistant'; content: string }
 
@@ -46,6 +47,7 @@ export default function ReportChat({ address, equipment, onTalkToPerson }: {
   async function send(text: string) {
     const content = text.trim().slice(0, 500);
     if (!content || sending) return;
+    trackEstimateEvent('chat_question', { text: content });
     const next: Msg[] = [...messages, { role: 'user', content }];
     setMessages(next); setInput(''); setSending(true);
     try {
@@ -69,7 +71,7 @@ export default function ReportChat({ address, equipment, onTalkToPerson }: {
     <div className="print:hidden">
       {!open && (
         <button
-          onClick={() => setOpen(true)} aria-label="Ask a question about your report"
+          onClick={() => { setOpen(true); trackEstimateEvent('chat_opened'); }} aria-label="Ask a question about your report"
           title="Chat with our assistant" className="fixed z-40 right-4 bottom-[1.1rem] sm:right-6 sm:bottom-6 inline-flex items-center justify-center gap-2 w-14 h-14 lg:w-auto lg:h-12 lg:pl-4 lg:pr-5 rounded-full bg-white text-indigo-700 border-2 border-indigo-600 text-sm font-semibold shadow-xl hover:bg-indigo-50 transition-colors"
         >
           <MessageCircle size={22} className="lg:w-[18px] lg:h-[18px]" /> <span className="hidden lg:inline">Chat with our assistant</span>
