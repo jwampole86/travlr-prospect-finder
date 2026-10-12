@@ -7,6 +7,7 @@
  *
  * All sends are logged to outreach_history regardless of Twilio status.
  */
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export interface TwilioConfig {
   accountSid: string;
@@ -22,6 +23,8 @@ export interface SMSDispatchPayload {
   sequenceStepId?: string;
   agentId?: string;
   metadata?: Record<string, unknown>;
+  /** Only a person sending a one-to-one message may set this. Campaigns, bulk sends and automated sequences never do. */
+  allowCoHost?: boolean;
 }
 
 export interface SMSDispatchResult {
@@ -122,6 +125,15 @@ export function isTwilioConfigured(): boolean {
  * Falls back to placeholder mode when credentials are not configured.
  */
 export async function dispatchSMS(payload: SMSDispatchPayload): Promise<SMSDispatchResult> {
+  // Owners who already run a listing on Airbnb, Vrbo, Vacasa and similar are a separate program (co-host) and are never texted
+  // by campaigns or sequences. Ids that are not leads (internal agent alerts) have no row and pass through.
+  if (!payload.allowCoHost) {
+    const { data, error } = await getSupabaseAdmin().from('leads').select('program').eq('id', payload.leadId).maybeSingle();
+    if (error || data?.program === 'co_host') {
+      return { success: false, status: 'failed', twilioConfigured: isTwilioConfigured(), error: error ? 'Blocked: could not verify the lead program.' : 'Blocked: this lead is in the co-host program, which is not texted by campaigns or sequences.' };
+    }
+  }
+
   const configured = isTwilioConfigured();
 
   if (!configured) {

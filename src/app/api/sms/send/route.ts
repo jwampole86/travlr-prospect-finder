@@ -143,6 +143,8 @@ export async function POST(req: NextRequest) {
       sequenceStepId,
       agentId,
       metadata: { bulkBatch },
+      // A person writing one message to one lead may reach a co-host prospect, for example to answer them. Bulk sends never may.
+      allowCoHost: !bulkBatch,
     });
 
     const deliveryStatus = result.status === 'placeholder' ? 'queued' : result.success ? 'sent' : 'failed';

@@ -123,6 +123,7 @@ const ADMIN_ONLY_ROUTES = [
   '/renewal-alerts',
   '/escalated-leads',
   '/campaigns',
+  '/cohost',
   '/follow-up-sequences',
   '/outreach-tracking',
   '/score-simulator',

@@ -32,17 +32,18 @@ const STATE_TZ: Record<string, string> = {
   WY: 'America/Denver',
 };
 
-export const LEAD_COLUMNS = 'id,address,city,state,zip,owner_name,contact_name,contact_phone,verified_owner,verified_number,source,sms_opt_in,sms_opted_out_at';
+export const LEAD_COLUMNS = 'id,address,city,state,zip,owner_name,contact_name,contact_phone,verified_owner,verified_number,source,sms_opt_in,sms_opted_out_at,program';
 
 export interface OutreachLead {
   id: string; address: string | null; city: string | null; state: string | null; zip: string | null;
   owner_name: string | null; contact_name: string | null; contact_phone: string | null;
   verified_owner: boolean | null; verified_number: boolean | null; source: string | null; sms_opt_in: boolean | null;
   sms_opted_out_at: string | null;
+  program?: string | null;
 }
 
 export type Blocker =
-  | 'no_phone' | 'invalid_phone' | 'no_sms_consent' | 'opted_out' | 'do_not_contact' | 'no_address' | 'quiet_hours' | 'contacted_recently' | 'no_estimate' | 'too_long';
+  | 'no_phone' | 'invalid_phone' | 'no_sms_consent' | 'opted_out' | 'do_not_contact' | 'no_address' | 'quiet_hours' | 'contacted_recently' | 'no_estimate' | 'too_long' | 'co_host_program';
 
 export interface OutreachDraft {
   leadId: string;
@@ -174,6 +175,8 @@ ${f.platform ? `- Say you came across their listing on ${f.platform}.` : '- Say 
 export async function draftOutreach(db: Db, lead: OutreachLead, opts: { site: string; tone?: 'friendly' | 'direct'; useAi?: boolean; now?: Date }): Promise<OutreachDraft> {
   const now = opts.now ?? new Date();
   const blockers: Blocker[] = [];
+  // The text campaigns are only for homeowners we are converting to short-term rentals, never for existing hosts we would co-host.
+  if (lead.program === 'co_host') blockers.push('co_host_program');
   const to = toE164(lead.contact_phone);
   if (!lead.contact_phone?.trim()) blockers.push('no_phone'); else if (!to) blockers.push('invalid_phone');
   // Consent: a YES reply sets sms_opt_in. Texting a number that has never opted in is a business/legal decision, so it stays
