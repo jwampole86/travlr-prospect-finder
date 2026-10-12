@@ -4,7 +4,7 @@ import { isEntityName } from '@/lib/services/ownerVerification';
 import { toE164 } from '@/lib/services/smsConsent';
 
 const ENDPOINT = 'https://developers.homesage.ai/api/properties/skip-tracing/property-owner-information/';
-/** Lookups per calendar month across the whole app; each costs 4 Homesage credits. */
+/** Lookups per billing cycle across the whole app; each costs 4 Homesage credits. */
 const MONTHLY_LOOKUPS = Number(process.env.HOMESAGE_MONTHLY_LOOKUPS ?? 60);
 
 export interface HomesagePhone { e164: string; type: 'mobile' | 'landline' | 'other'; reachable: boolean; onDncList: boolean; lastReported: string | null; score: number | null }
@@ -113,9 +113,14 @@ export async function runHomesageLookups(db: SupabaseClient, opts: { max: number
   return res;
 }
 
-/** Lookups made this calendar month, for owners and for candidate homes; a lookup that failed to parse the address was not charged. */
+/** Lookups made in the current billing cycle, for owners and for candidate homes; a lookup that failed to parse the address was not charged. */
 async function usedThisMonth(db: SupabaseClient): Promise<number> {
-  const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
+  // Credits renew on the billing day (the 12th), so lookups are counted from the most recent one.
+  const cycleStart = new Date(); cycleStart.setUTCHours(0, 0, 0, 0);
+  const cycleDay = Number(process.env.HOMESAGE_CYCLE_DAY ?? 12);
+  if (cycleStart.getUTCDate() < cycleDay) cycleStart.setUTCMonth(cycleStart.getUTCMonth() - 1);
+  cycleStart.setUTCDate(cycleDay);
+  const monthStart = cycleStart;
   const inMonth = (r: HomesageRecord | undefined) => !!r && !r.error?.startsWith('no ZIP') && Date.parse(r.at) >= monthStart.getTime();
   const { data: owners } = await db.from('str_listings').select('matched_owner').not('matched_owner->homesage', 'is', null).limit(5000);
   const { data: amb } = await db.from('str_listings').select('match_candidates').eq('match_status', 'ambiguous').or('is_elite.eq.true,is_luxury.eq.true').limit(500);
