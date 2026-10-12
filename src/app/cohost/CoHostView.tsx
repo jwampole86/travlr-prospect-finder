@@ -13,11 +13,15 @@ interface OfferInfo { code: string; views: number; lastViewedAt: string | null; 
 interface HostPhone { e164: string; source: 'skip_trace' | 'permit_office'; type: string | null; name: string | null }
 interface ThreadMsg { direction: 'outbound' | 'inbound'; phone_e164: string; body: string; status: string | null; intent: string | null; created_at: string }
 interface OfferPanel { loading: boolean; error?: string; url?: string; optedOut?: boolean; drafts?: { subject: string; email: string; sms: string }; phones?: HostPhone[]; thread?: ThreadMsg[] }
+interface Candidate {
+  address: string; owners: string[]; ownerType: string | null; mailing: string | null; sqft: number | null; distanceM: number | null; loose: boolean; parcelOnly: boolean; permit: string | null; lookedUp: boolean;
+  people: Array<{ name: string; mailing: string | null; doNotContact: boolean; litigator: boolean; tcpaRisk: boolean; deceased: boolean; phones: Array<{ number: string; type: string; reachable: boolean }>; emails: string[] }>;
+}
 interface Listing {
   property_id: string; market: string; title: string | null; airbnb_url: string | null; vrbo_url: string | null; booking_url: string | null; bedrooms: number | null; bathrooms: number | null;
   adr: number | null; occupancy_pct: number | null; revenue_ltm: number | null; revenue_potential_ltm: number | null; rating: number | null; reviews: number | null; host_listing_count: number | null;
   is_luxury: boolean | null; is_elite?: boolean | null; first_seen_at?: string | null; dataQuality?: { reliable: boolean; bookedNights: number; reasons: string[] }; niches?: number[] | null; primary_niche?: number | null; verification?: OwnerVerification; under_score: number | null; under_reasons: string[] | null; segment: string; photo_score: number | null; photo_notes: { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean; complete?: boolean; photosReviewed?: number; of?: number; unreachable?: number; reason?: string } | null;
-  address_match_confidence: string | null; match_status: string | null; matched_address: string | null; matched_owner: Owner | null; pipeline_stage: string; service_model: string; reviewer_notes: string | null; offer?: OfferInfo | null; texts?: { sent: number; replied: boolean; lastIntent: string | null; lastAt: string } | null;
+  address_match_confidence: string | null; match_status: string | null; matched_address: string | null; matched_owner: Owner | null; candidates?: Candidate[]; pipeline_stage: string; service_model: string; reviewer_notes: string | null; offer?: OfferInfo | null; texts?: { sent: number; replied: boolean; lastIntent: string | null; lastAt: string } | null;
 }
 interface CrmLead { id: string; address: string | null; city: string | null; state: string | null; owner_name: string | null; program_reason: string | null; program_set_at: string | null; cohost_service: string | null; stage: string | null }
 
@@ -150,6 +154,13 @@ export default function CoHostView() {
       if (j.status === 'skipped') setError(j.note || 'A refresh is already running.');
       await load();
     } catch (e) { setError((e as Error).message); } finally { setRefreshing(false); }
+  }
+  async function confirmHome(propertyId: string, index: number) {
+    setVerifyErr(v => { const { [propertyId]: _x, ...rest } = v; return rest; });
+    const res = await fetch('/api/cohost/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ propertyId, index }) });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) { setVerifyErr(v => ({ ...v, [propertyId]: j.error || 'Could not confirm that home' })); return; }
+    await load();
   }
   async function crossCheck(propertyId: string) {
     setVerifying(propertyId); setVerifyErr(v => { const { [propertyId]: _x, ...rest } = v; return rest; });
@@ -304,6 +315,24 @@ export default function CoHostView() {
                 {l.photo_score != null && l.photo_notes?.complete && <p className="text-xs text-foreground mt-1.5 flex items-start gap-1.5"><Camera size={13} className="mt-0.5 shrink-0 text-muted-foreground" /><span><span className="font-semibold">Photos {l.photo_score}/100</span> <span className="text-muted-foreground">(all {l.photo_notes.photosReviewed} reviewed{l.photo_notes.unreachable ? `, ${l.photo_notes.unreachable} could not load` : ''})</span>{l.photo_notes?.looksDated ? ', look dated' : ''}{l.photo_notes?.missingShots?.length ? `. Missing: ${l.photo_notes.missingShots.slice(0, 3).join(', ')}` : ''}{l.photo_notes?.fixes?.[0] ? `. First fix: ${l.photo_notes.fixes[0]}` : ''}</span></p>}
                 {l.photo_score != null && !l.photo_notes?.complete && <p className="text-xs text-muted-foreground mt-1.5 flex items-start gap-1.5"><Camera size={13} className="mt-0.5 shrink-0" /><span>Photo score {l.photo_score}/100 came from a sample of the photos, so its &ldquo;missing&rdquo; notes are not reliable. A full review of every photo is queued.</span></p>}
                 {l.photo_score == null && l.photo_notes?.complete === false && <p className="text-xs text-muted-foreground mt-1.5 flex items-start gap-1.5"><Camera size={13} className="mt-0.5 shrink-0" /><span>Photos not scored: {l.photo_notes.reason ?? 'they could not all be loaded'}.</span></p>}
+                {l.match_status === 'ambiguous' && (l.candidates?.length ?? 0) > 0 && (
+                  <div className="mt-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-[#78350f]">
+                    <p className="font-semibold">Which home is this? Confirm one before contacting anyone.</p>
+                    {l.candidates!.map((c, i) => (
+                      <div key={c.address} className="mt-2 rounded-md bg-white/70 px-2.5 py-2">
+                        <p><span className="font-semibold">{c.address.replace(/, US.*$/, '')}</span>{c.sqft ? `, ${c.sqft.toLocaleString()} sq ft` : ''}{c.distanceM != null ? `, ${c.distanceM} m from the listing pin` : ''}{c.loose ? ' (size is within one bedroom or bath)' : ''}</p>
+                        <p>County owner: {c.owners.length ? c.owners.join(' & ') : 'not on record'}{c.ownerType ? ` (${c.ownerType.toLowerCase()})` : ''}{c.mailing ? `, mail goes to ${c.mailing}` : ''}</p>
+                        {c.people.map(p => (
+                          <p key={p.name} className={p.doNotContact ? 'font-semibold text-[#b91c1c]' : ''}>
+                            {p.doNotContact ? `Do not text or call ${p.name}: ${[p.litigator && 'known litigator', p.tcpaRisk && 'TCPA risk', p.deceased && 'deceased'].filter(Boolean).join(', ')}` : `Owner on the property record: ${p.name} (unconfirmed). ${[...p.phones.map(x => `${fmtPhone(x.number)}${x.reachable && x.type === 'mobile' ? ' reachable mobile' : x.type === 'mobile' ? ' mobile' : ''}`), ...p.emails].join(', ')}`}
+                          </p>
+                        ))}
+                        <button onClick={() => confirmHome(l.property_id, i)} className="mt-1.5 h-7 px-3 rounded-md bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700">This is the home</button>
+                      </div>
+                    ))}
+                    {verifyErr[l.property_id] && <p className="mt-1.5 font-semibold text-[#b91c1c]">{verifyErr[l.property_id]}</p>}
+                  </div>
+                )}
                 {l.matched_address && o && (
                   <div className="mt-2.5 rounded-lg bg-muted/50 px-3 py-2 text-xs">
                     <p className="flex items-center gap-1.5"><MapPin size={13} className="text-muted-foreground" /><span><span className="font-semibold">Probable home:</span> {l.matched_address.replace(/, US.*$/, '')}</span></p>

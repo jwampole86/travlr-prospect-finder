@@ -10,7 +10,7 @@ export function meters(a: { lat: number; lng: number }, b: { lat: number; lng: n
   return 2 * 6_371_000 * Math.asin(Math.sqrt(h));
 }
 
-interface Parcel { formattedAddress?: string; addressLine1?: string; bedrooms?: number; bathrooms?: number; squareFootage?: number; ownerOccupied?: boolean; owner?: { names?: string[]; type?: string; mailingAddress?: { formattedAddress?: string } } }
+interface Parcel { formattedAddress?: string; addressLine1?: string; latitude?: number; longitude?: number; bedrooms?: number; bathrooms?: number; squareFootage?: number; ownerOccupied?: boolean; owner?: { names?: string[]; type?: string; mailingAddress?: { formattedAddress?: string } } }
 
 async function parcelsNear(lat: number, lng: number, radiusMiles: number): Promise<Parcel[]> {
   const key = process.env.RENTCAST_API_KEY!;
@@ -33,6 +33,8 @@ export interface MatchOptions {
   onlyUnmatched?: boolean;
   /** Only ELITE listings. */
   eliteOnly?: boolean;
+  /** Only LUXURY listings (ELITE included). */
+  luxuryOnly?: boolean;
   write: boolean;
   /** Stops RentCast property lookups once this many were made; remaining listings are left for the next run. */
   maxLookups?: number;
@@ -63,10 +65,11 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
   const chunks = opts.markets && !except.length ? Array.from({ length: Math.ceil(opts.markets.length / 40) }, (_, i) => opts.markets!.slice(i * 40, i * 40 + 40)) : [null];
   for (const chunk of chunks) {
     for (let from = 0; ; from += 1000) {
-      let q = db.from('str_listings').select('property_id,market,title,bedrooms,bathrooms,lat,lng,address_match_confidence,host_listing_count,is_luxury,is_elite,under_score,matched_owner,match_status').or('segment.eq.candidate,and(segment.eq.new_or_dormant,is_luxury.eq.true)').order('property_id');
+      let q = db.from('str_listings').select('property_id,market,title,bedrooms,bathrooms,lat,lng,address_match_confidence,host_listing_count,is_luxury,is_elite,revenue_potential_ltm,under_score,matched_owner,match_status').or('segment.eq.candidate,and(segment.eq.new_or_dormant,is_luxury.eq.true)').order('property_id');
       if (chunk) q = q.in('market', chunk);
       if (opts.onlyUnmatched) q = q.is('match_status', null);
       if (opts.eliteOnly) q = q.eq('is_elite', true);
+      if (opts.luxuryOnly) q = q.eq('is_luxury', true);
       const { data, error } = await q.range(from, from + 999); if (error) throw error;
       cands.push(...(data ?? []).filter(c => !except.length || !except.includes(String(c.market).split(',').pop()!.trim().toUpperCase())));
       if ((data ?? []).length < 1000) break;
@@ -75,7 +78,7 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
 
   const results: Array<Record<string, any>> = []; let lookups = 0;
   // The lookup budget goes to the most valuable homes first.
-  cands.sort((a, b) => Number(!!b.is_elite) - Number(!!a.is_elite) || Number(!!b.is_luxury) - Number(!!a.is_luxury));
+  cands.sort((a, b) => Number(!!b.is_elite) - Number(!!a.is_elite) || Number(!!b.is_luxury) - Number(!!a.is_luxury) || Number(b.revenue_potential_ltm ?? 0) - Number(a.revenue_potential_ltm ?? 0));
   for (const c of cands) {
     if (c.lat == null || c.lng == null) continue;
     const here = { lat: Number(c.lat), lng: Number(c.lng) };
@@ -113,6 +116,17 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
         const loose = build(true);
         if (loose.length >= 1 && loose.length <= 3) { candidates.push(...loose); status = 'ambiguous'; }
       }
+    }
+    // No permit list covers this area. For an ELITE home, or a LUXURY one with big potential, the county parcels with the same bedrooms and bathrooms are offered as candidates when there are few enough to choose from.
+    else if ((c.is_elite || (c.is_luxury && Number(c.revenue_potential_ltm ?? 0) >= 150_000)) && canLookUp && (opts.maxLookups == null || lookups < opts.maxLookups)) {
+      lookups++;
+      const parcels = await parcelsNear(here.lat, here.lng, radiusM / 1609.34 + 0.02).catch(() => [] as Parcel[]);
+      const b = Number(c.bathrooms ?? 0);
+      const found = parcels.filter(p => p.bedrooms === c.bedrooms && Math.abs((p.bathrooms ?? 0) - b) <= 0.5 && p.formattedAddress)
+        .map(p => ({ address: p.formattedAddress!, jurisdiction: 'county_parcel', permit: null, permitHolder: null, distanceM: p.latitude != null && p.longitude != null ? Math.round(meters(here, { lat: p.latitude, lng: p.longitude })) : null, beds: p.bedrooms, baths: p.bathrooms, sqft: p.squareFootage ?? null, parcelOnly: true,
+          ownerNames: p.owner?.names ?? [], ownerType: p.owner?.type ?? null, mailing: p.owner?.mailingAddress?.formattedAddress ?? null, ownerOccupied: p.ownerOccupied ?? null, contact: null }))
+        .sort((x, y) => (x.distanceM ?? 1e9) - (y.distanceM ?? 1e9));
+      if (found.length >= 1 && found.length <= 3) { candidates.push(...found); status = 'ambiguous'; }
     }
     results.push({ property_id: c.property_id, market: c.market, title: c.title, status, candidates, previous: c.matched_owner ?? null });
     opts.onProgress?.(status === 'unique' ? 'U' : status === 'ambiguous' ? 'a' : status === 'no_registry_nearby' ? '.' : 'x');

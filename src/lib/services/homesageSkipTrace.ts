@@ -92,9 +92,7 @@ export async function homesageQueue(db: SupabaseClient): Promise<HomesageQueueIt
 export async function runHomesageLookups(db: SupabaseClient, opts: { max: number }): Promise<{ queued: number; looked: number; found: number; flagged: number; stopped?: string }> {
   const res = { queued: 0, looked: 0, found: 0, flagged: 0, stopped: undefined as string | undefined };
   if (!process.env.HOMESAGE_API_KEY) { res.stopped = 'no key'; return res; }
-  const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
-  const { data: all } = await db.from('str_listings').select('matched_owner').not('matched_owner->homesage', 'is', null).limit(5000);
-  const used = (all ?? []).filter(r => !(r.matched_owner as any).homesage.error?.startsWith('no ZIP') && Date.parse((r.matched_owner as any).homesage.at) >= monthStart.getTime()).length;
+  const used = await usedThisMonth(db);
   const queue = await homesageQueue(db); res.queued = queue.length;
   let budget = Math.min(opts.max, Math.max(0, MONTHLY_LOOKUPS - used));
   if (budget === 0 && queue.length) res.stopped = 'monthly cap';
@@ -111,6 +109,44 @@ export async function runHomesageLookups(db: SupabaseClient, opts: { max: number
       res.flagged++;
       if (p.phones.length) await db.from('sms_suppressions').upsert(p.phones.map(x => ({ phone_e164: x.e164, reason: 'do_not_contact', last_message: `Homesage flag: ${p.litigator ? 'litigator ' : ''}${p.tcpaRisk ? 'TCPA risk ' : ''}${p.deceased ? 'deceased' : ''}`.trim() })), { onConflict: 'phone_e164' });
     }
+  }
+  return res;
+}
+
+/** Lookups made this calendar month, for owners and for candidate homes; a lookup that failed to parse the address was not charged. */
+async function usedThisMonth(db: SupabaseClient): Promise<number> {
+  const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
+  const inMonth = (r: HomesageRecord | undefined) => !!r && !r.error?.startsWith('no ZIP') && Date.parse(r.at) >= monthStart.getTime();
+  const { data: owners } = await db.from('str_listings').select('matched_owner').not('matched_owner->homesage', 'is', null).limit(5000);
+  const { data: amb } = await db.from('str_listings').select('match_candidates').eq('match_status', 'ambiguous').or('is_elite.eq.true,is_luxury.eq.true').limit(500);
+  return (owners ?? []).filter(r => inMonth((r.matched_owner as any).homesage)).length
+    + (amb ?? []).reduce((n, r) => n + ((r.match_candidates as any[] | null) ?? []).filter(c => inMonth(c.homesage)).length, 0);
+}
+
+/**
+ * ELITE homes that could be one of up to three candidate homes get each candidate's owner looked up, biggest potential first, so a person can
+ * pick the right home and already have the owner's contacts. Nothing here is treated as the owner until someone confirms the home.
+ */
+export async function runHomesageCandidateLookups(db: SupabaseClient, opts: { max: number }): Promise<{ looked: number; found: number; stopped?: string }> {
+  const res = { looked: 0, found: 0, stopped: undefined as string | undefined };
+  if (!process.env.HOMESAGE_API_KEY) { res.stopped = 'no key'; return res; }
+  let budget = Math.min(opts.max, Math.max(0, MONTHLY_LOOKUPS - await usedThisMonth(db)));
+  if (budget === 0) { res.stopped = 'monthly cap'; return res; }
+  const { data: rows } = await db.from('str_listings').select('property_id,match_candidates,revenue_potential_ltm,is_elite').eq('match_status', 'ambiguous').or('is_elite.eq.true,is_luxury.eq.true').order('revenue_potential_ltm', { ascending: false, nullsFirst: false }).limit(300);
+  const data = (rows ?? []).sort((a, b) => Number(!!b.is_elite) - Number(!!a.is_elite));
+  for (const l of data) {
+    const cands = [...((l.match_candidates as any[] | null) ?? [])]; if (cands.length > 3) continue;
+    let changed = false;
+    for (const c of cands) {
+      if (budget <= 0 || c.homesage || !c.address) continue;
+      const { record, stop } = await homesageOwnerLookup(String(c.address).replace(/,?\s*US$/i, ''));
+      if (stop) { res.stopped = record.error ?? 'stopped'; budget = 0; break; }
+      if (record.error === 'No response') continue;
+      budget--; res.looked++; if (record.found) res.found++; c.homesage = record; changed = true;
+      for (const p of record.persons.filter(x => x.doNotContact)) if (p.phones.length) await db.from('sms_suppressions').upsert(p.phones.map(x => ({ phone_e164: x.e164, reason: 'do_not_contact', last_message: 'Homesage flag' })), { onConflict: 'phone_e164' });
+    }
+    if (changed) await db.from('str_listings').update({ match_candidates: cands }).eq('property_id', l.property_id);
+    if (budget <= 0) break;
   }
   return res;
 }

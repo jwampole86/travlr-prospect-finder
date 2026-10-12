@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { runCohostSkipTrace } from '@/lib/services/cohostSkipTraceQueue';
-import { runHomesageLookups } from '@/lib/services/homesageSkipTrace';
+import { runHomesageCandidateLookups, runHomesageLookups } from '@/lib/services/homesageSkipTrace';
 
 export const maxDuration = 300;
 
@@ -19,5 +19,6 @@ export async function GET(request: NextRequest) {
   const db = getSupabaseAdmin();
   const skipTrace = await runCohostSkipTrace(db, { max, deadlineMs: 200_000 });
   const homesage = hsMax > 0 ? await runHomesageLookups(db, { max: hsMax }) : null;
-  return NextResponse.json({ ok: true, ...skipTrace, homesage });
+  const candidates = hsMax > 0 ? await runHomesageCandidateLookups(db, { max: hsMax }) : null;
+  return NextResponse.json({ ok: true, ...skipTrace, homesage, candidates });
 }

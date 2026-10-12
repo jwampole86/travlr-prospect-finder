@@ -13,11 +13,13 @@ import { matchOwners } from '@/lib/services/strMatch';
 const arg = (n: string) => process.argv.find(a => a.startsWith(`--${n}=`))?.split('=').slice(1).join('=');
 const GO = process.argv.includes('--go');
 const ELITE = process.argv.includes('--elite');
+const LUXURY = process.argv.includes('--luxury');
+const maxLookups = Number(arg('max-lookups')) || undefined;
 const exceptStates = (arg('all-except') ?? '').split(',').map(s => s.trim()).filter(Boolean);
 const markets = (arg('markets') ?? 'Breckenridge, CO|Aspen, CO').split('|').map(s => s.trim());
 
 (async () => {
-  const r = await matchOwners(getSupabaseAdmin(), { markets, exceptStates, write: GO, eliteOnly: ELITE, onProgress: s => process.stdout.write(s) });
+  const r = await matchOwners(getSupabaseAdmin(), { markets, exceptStates, write: GO, eliteOnly: ELITE, luxuryOnly: LUXURY, maxLookups, onProgress: s => process.stdout.write(s) });
   console.log('\ncandidates checked:', r.checked, r.tally);
   for (const u of r.unique.slice(0, 8)) console.log(`UNIQUE ${u.market.split(',')[0]} | ${u.title?.slice(0, 40)} -> ${u.address} (${u.jurisdiction} ${u.permit}) ${u.distanceM}m | owner of record: ${u.owner || 'n/a'} | permit holder: ${u.holder || 'n/a'}`);
   console.log(GO ? 'saved' : '\nDRY RUN: nothing written. Re-run with --go.');
