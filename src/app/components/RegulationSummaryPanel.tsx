@@ -25,6 +25,7 @@ interface Market {
   status: string | null;
   review_status: string | null;
   confidence: string | null;
+  source_type: string | null;
   last_verified_at: string | null;
   agent_summary: string | null;
   summary: string | null;
@@ -439,6 +440,9 @@ function CityRow({ market: m }: { market: Market }) {
                   {freshness === 'UNKNOWN' ? 'Unverified' : freshness === 'STALE' ? 'Stale' : 'Review due'}
                 </span>
               )}
+              {m.source_type === 'AI_RESEARCHED' && (
+                <span className="text-[9px] px-1 py-0.5 rounded bg-info/10 text-info border border-info/20" title="Researched by AI from official and platform sources; not yet human-verified">AI</span>
+              )}
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${CANONICAL_STATUS_COLORS[status]}`}>
                 {CANONICAL_STATUS_LABELS[status]}
               </span>
@@ -482,6 +486,7 @@ function CityRow({ market: m }: { market: Market }) {
               Verified {formatRegDate(m.last_verified_at)}
             </span>
             {m.confidence && <span>Confidence: {m.confidence.toLowerCase()}</span>}
+            {m.source_type === 'AI_RESEARCHED' && <span className="text-info">AI-researched, pending human review</span>}
             {m.source_url && (
               <a
                 href={m.source_url}

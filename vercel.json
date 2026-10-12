@@ -12,6 +12,10 @@
     {
       "path": "/api/cron/fsbo-skip-trace",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/regulation-research?limit=6&concurrency=3",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
