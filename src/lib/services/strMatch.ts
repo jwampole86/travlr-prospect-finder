@@ -31,6 +31,8 @@ export interface MatchOptions {
   exceptStates?: string[];
   /** Skip listings that already have a match result, so a scheduled run only looks at new ones. */
   onlyUnmatched?: boolean;
+  /** Only ELITE listings. */
+  eliteOnly?: boolean;
   write: boolean;
   /** Stops RentCast property lookups once this many were made; remaining listings are left for the next run. */
   maxLookups?: number;
@@ -61,9 +63,10 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
   const chunks = opts.markets && !except.length ? Array.from({ length: Math.ceil(opts.markets.length / 40) }, (_, i) => opts.markets!.slice(i * 40, i * 40 + 40)) : [null];
   for (const chunk of chunks) {
     for (let from = 0; ; from += 1000) {
-      let q = db.from('str_listings').select('property_id,market,title,bedrooms,bathrooms,lat,lng,address_match_confidence,host_listing_count,is_luxury,under_score,matched_owner,match_status').eq('segment', 'candidate').order('property_id');
+      let q = db.from('str_listings').select('property_id,market,title,bedrooms,bathrooms,lat,lng,address_match_confidence,host_listing_count,is_luxury,is_elite,under_score,matched_owner,match_status').or('segment.eq.candidate,and(segment.eq.new_or_dormant,is_luxury.eq.true)').order('property_id');
       if (chunk) q = q.in('market', chunk);
       if (opts.onlyUnmatched) q = q.is('match_status', null);
+      if (opts.eliteOnly) q = q.eq('is_elite', true);
       const { data, error } = await q.range(from, from + 999); if (error) throw error;
       cands.push(...(data ?? []).filter(c => !except.length || !except.includes(String(c.market).split(',').pop()!.trim().toUpperCase())));
       if ((data ?? []).length < 1000) break;
@@ -71,6 +74,8 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
   }
 
   const results: Array<Record<string, any>> = []; let lookups = 0;
+  // The lookup budget goes to the most valuable homes first.
+  cands.sort((a, b) => Number(!!b.is_elite) - Number(!!a.is_elite) || Number(!!b.is_luxury) - Number(!!a.is_luxury));
   for (const c of cands) {
     if (c.lat == null || c.lng == null) continue;
     const here = { lat: Number(c.lat), lng: Number(c.lng) };
@@ -84,20 +89,30 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
       const parcels = needsParcels ? (lookups++, await parcelsNear(here.lat, here.lng, radiusM / 1609.34 + 0.02)) : [];
       const byAddr = new Map(parcels.map(p => [normStreet(p.addressLine1 ?? p.formattedAddress ?? ''), p]));
       const b = Number(c.bathrooms ?? 0);
-      for (const r of near) {
-        if (r.bedrooms != null) {
-          if (r.bedrooms !== c.bedrooms) continue;
-          candidates.push({ address: r.address, jurisdiction: r.jurisdiction, permit: r.permit_id, permitHolder: r.holder_name, distanceM: Math.round(meters(here, r)), beds: r.bedrooms, baths: null, sqft: null,
-            ownerNames: r.holder_name ? [r.holder_name] : [], ownerType: null, mailing: r.contact?.ownerMailing ?? null, ownerOccupied: null, contact: r.contact ?? null });
-          continue;
+      // Listing and county records often count rooms differently, so a loose pass (one bedroom or bath off) is offered for ELITE homes, always for a person to confirm.
+      const build = (loose: boolean) => {
+        const out: Array<Record<string, any>> = [];
+        const bedsOk = (x: number | null) => (loose ? x != null && Math.abs(x - Number(c.bedrooms)) <= 1 : x === c.bedrooms);
+        for (const r of near) {
+          if (r.bedrooms != null) {
+            if (!bedsOk(r.bedrooms)) continue;
+            out.push({ address: r.address, jurisdiction: r.jurisdiction, permit: r.permit_id, permitHolder: r.holder_name, distanceM: Math.round(meters(here, r)), beds: r.bedrooms, baths: null, sqft: null, loose,
+              ownerNames: r.holder_name ? [r.holder_name] : [], ownerType: null, mailing: r.contact?.ownerMailing ?? null, ownerOccupied: null, contact: r.contact ?? null });
+            continue;
+          }
+          const p = byAddr.get(r.address_norm); if (!p) continue;
+          if (!bedsOk(p.bedrooms ?? null) || Math.abs((p.bathrooms ?? 0) - b) > (loose ? 1 : 0.5)) continue;
+          out.push({ address: r.address, jurisdiction: r.jurisdiction, permit: r.permit_id, permitHolder: r.holder_name, distanceM: Math.round(meters(here, r)), beds: p.bedrooms, baths: p.bathrooms, sqft: p.squareFootage ?? null, loose,
+            ownerNames: p.owner?.names ?? [], ownerType: p.owner?.type ?? null, mailing: p.owner?.mailingAddress?.formattedAddress ?? null, ownerOccupied: p.ownerOccupied ?? null, contact: r.contact ?? null });
         }
-        const p = byAddr.get(r.address_norm); if (!p) continue;
-        if (p.bedrooms !== c.bedrooms || Math.abs((p.bathrooms ?? 0) - b) > 0.5) continue;
-        candidates.push({ address: r.address, jurisdiction: r.jurisdiction, permit: r.permit_id, permitHolder: r.holder_name, distanceM: Math.round(meters(here, r)), beds: p.bedrooms, baths: p.bathrooms, sqft: p.squareFootage ?? null,
-          ownerNames: p.owner?.names ?? [], ownerType: p.owner?.type ?? null, mailing: p.owner?.mailingAddress?.formattedAddress ?? null, ownerOccupied: p.ownerOccupied ?? null, contact: r.contact ?? null });
-      }
-      candidates.sort((x, y) => x.distanceM - y.distanceM);
+        return out.sort((x, y) => x.distanceM - y.distanceM);
+      };
+      candidates.push(...build(false));
       status = candidates.length === 1 ? 'unique' : candidates.length >= 2 && candidates.length <= 3 ? 'ambiguous' : candidates.length > 3 ? 'too_many' : 'none_match';
+      if (status === 'none_match' && c.is_elite) {
+        const loose = build(true);
+        if (loose.length >= 1 && loose.length <= 3) { candidates.push(...loose); status = 'ambiguous'; }
+      }
     }
     results.push({ property_id: c.property_id, market: c.market, title: c.title, status, candidates, previous: c.matched_owner ?? null });
     opts.onProgress?.(status === 'unique' ? 'U' : status === 'ambiguous' ? 'a' : status === 'no_registry_nearby' ? '.' : 'x');
