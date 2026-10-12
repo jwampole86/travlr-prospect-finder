@@ -2,9 +2,10 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Handshake, Loader2, RefreshCw, Download, ShieldAlert, ExternalLink, Camera, MapPin, AlertTriangle, Gem, Link2, Copy, Check, Mail, Eye, MessageSquare } from 'lucide-react';
+import { Handshake, Loader2, RefreshCw, Download, ShieldAlert, ExternalLink, Camera, MapPin, AlertTriangle, Gem, Crown, Link2, Copy, Check, Mail, Eye, MessageSquare, ShieldCheck, Clock } from 'lucide-react';
+import type { OwnerVerification, VerificationLevel } from '@/lib/services/ownerVerification';
 
-interface Owner { names: string[]; type: string | null; mailing: string | null; permitHolder: string | null; contactFound: boolean; phones: string[]; emails: string[]; published?: { email: string | null; phone: string | null } | null }
+interface Owner { names: string[]; type: string | null; mailing: string | null; permitHolder: string | null; contactFound: boolean; skipTraced?: boolean; phones: string[]; emails: string[]; published?: { email: string | null; phone: string | null } | null }
 interface OfferInfo { code: string; views: number; lastViewedAt: string | null; requestedAt: string | null; optedOutAt: string | null; request: { name?: string; email?: string | null; phone?: string | null; service?: string; message?: string | null; at?: string } | null }
 interface HostPhone { e164: string; source: 'skip_trace' | 'permit_office'; type: string | null; name: string | null }
 interface ThreadMsg { direction: 'outbound' | 'inbound'; phone_e164: string; body: string; status: string | null; intent: string | null; created_at: string }
@@ -12,7 +13,7 @@ interface OfferPanel { loading: boolean; error?: string; url?: string; optedOut?
 interface Listing {
   property_id: string; market: string; title: string | null; airbnb_url: string | null; vrbo_url: string | null; booking_url: string | null; bedrooms: number | null; bathrooms: number | null;
   adr: number | null; occupancy_pct: number | null; revenue_ltm: number | null; revenue_potential_ltm: number | null; rating: number | null; reviews: number | null; host_listing_count: number | null;
-  is_luxury: boolean | null; under_score: number | null; under_reasons: string[] | null; segment: string; photo_score: number | null; photo_notes: { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean } | null;
+  is_luxury: boolean | null; is_elite?: boolean | null; first_seen_at?: string | null; verification?: OwnerVerification; under_score: number | null; under_reasons: string[] | null; segment: string; photo_score: number | null; photo_notes: { hero?: string; fixes?: string[]; missingShots?: string[]; looksDated?: boolean } | null;
   address_match_confidence: string | null; match_status: string | null; matched_address: string | null; matched_owner: Owner | null; pipeline_stage: string; service_model: string; reviewer_notes: string | null; offer?: OfferInfo | null; texts?: { sent: number; replied: boolean; lastIntent: string | null; lastAt: string } | null;
 }
 interface CrmLead { id: string; address: string | null; city: string | null; state: string | null; owner_name: string | null; program_reason: string | null; program_set_at: string | null; cohost_service: string | null; stage: string | null }
@@ -24,6 +25,17 @@ const MATCH_LABEL: Record<string, { text: string; cls: string }> = {
   none_match: { text: 'No match', cls: 'bg-slate-100 text-slate-600' }, no_registry_nearby: { text: 'No license list here', cls: 'bg-slate-100 text-slate-600' }, too_many: { text: 'Too many possible', cls: 'bg-slate-100 text-slate-600' },
 };
 const money = (n: number | null) => (n == null ? '-' : `$${Math.round(n).toLocaleString()}`);
+
+interface RefreshInfo { lastRun: { started_at: string; finished_at: string | null; status: string; trigger: string; api_calls: number; new_listings: number; new_matches: number; quota_remaining: number | null; note: string | null; markets: number } | null; markets: number; oldestRefresh: string | null; firstRunAt: string | null; intervalHours: number }
+type SortKey = 'best' | 'potential_desc' | 'potential_asc' | 'earned_desc' | 'newest';
+const SORTS: Array<[SortKey, string]> = [['best', 'Best match first'], ['potential_desc', 'Potential earnings: high to low'], ['potential_asc', 'Potential earnings: low to high'], ['earned_desc', 'Earned last 12 months: high to low'], ['newest', 'Newest listings']];
+const LEVEL_STYLE: Record<VerificationLevel, string> = {
+  verified: 'bg-emerald-600 text-white', likely: 'bg-teal-100 text-teal-800', unconfirmed: 'bg-amber-100 text-amber-800', review: 'bg-amber-100 text-amber-800',
+  conflict: 'bg-rose-600 text-white', no_match: 'bg-slate-100 text-slate-600', pending: 'bg-slate-100 text-slate-600',
+};
+const CHECK_STYLE: Record<string, string> = { pass: 'text-emerald-700', warn: 'text-amber-700', fail: 'text-rose-700', info: 'text-muted-foreground', pending: 'text-muted-foreground' };
+const CHECK_MARK: Record<string, string> = { pass: '\u2713', warn: '!', fail: '\u2717', info: 'i', pending: '\u2026' };
+const ago = (iso: string) => { const h = (Date.now() - Date.parse(iso)) / 3_600_000; return h < 1 ? 'under an hour ago' : h < 48 ? `${Math.round(h)} hours ago` : `${Math.round(h / 24)} days ago`; };
 
 const fmtPhone = (e: string) => e.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
 
@@ -72,6 +84,7 @@ export default function CoHostView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState('all');
+  const [usState, setUsState] = useState('all');
   const [stage, setStage] = useState('all');
   const [view, setView] = useState<'matched' | 'all' | 'crm'>('matched');
   const [open, setOpen] = useState<string | null>(null);
@@ -79,6 +92,18 @@ export default function CoHostView() {
   const [luxuryOnly, setLuxuryOnly] = useState(false);
   useEffect(() => { try { setLuxuryOnly(localStorage.getItem('cohost_luxury_only') === '1'); } catch { /* storage unavailable */ } }, []);
   const toggleLuxury = () => setLuxuryOnly(v => { const n = !v; try { localStorage.setItem('cohost_luxury_only', n ? '1' : '0'); } catch { /* storage unavailable */ } return n; });
+  const [eliteOnly, setEliteOnly] = useState(false);
+  const [sort, setSort] = useState<SortKey>('best');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  useEffect(() => { try { setEliteOnly(localStorage.getItem('cohost_elite_only') === '1'); const s = localStorage.getItem('cohost_sort') as SortKey | null; if (s && SORTS.some(x => x[0] === s)) setSort(s); } catch { /* storage unavailable */ } }, []);
+  const toggleElite = () => setEliteOnly(v => { const n = !v; try { localStorage.setItem('cohost_elite_only', n ? '1' : '0'); } catch { /* storage unavailable */ } return n; });
+  const changeSort = (s: SortKey) => { setSort(s); try { localStorage.setItem('cohost_sort', s); } catch { /* storage unavailable */ } };
+  const [totals, setTotals] = useState<{ all: number; luxury: number; elite: number } | null>(null);
+  const [refresh, setRefresh] = useState<RefreshInfo | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [verifying, setVerifying] = useState<string | null>(null);
+  const [verifyErr, setVerifyErr] = useState<Record<string, string>>({});
+  const [checksOpen, setChecksOpen] = useState<string | null>(null);
   const [panels, setPanels] = useState<Record<string, OfferPanel>>({});
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -98,10 +123,28 @@ export default function CoHostView() {
     try {
       const res = await fetch('/api/cohost', { cache: 'no-store' }); const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Could not load');
-      setListings(j.listings ?? []); setCrm(j.crm ?? []); setStages(j.stages ?? []); setModels(j.serviceModels ?? []); setError(null);
+      setListings(j.listings ?? []); setCrm(j.crm ?? []); setStages(j.stages ?? []); setModels(j.serviceModels ?? []); setTotals(j.totals ?? null); setRefresh(j.refresh ?? null); setError(null);
     } catch (e) { setError((e as Error).message); } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  async function refreshNow() {
+    setRefreshing(true); setError(null);
+    try {
+      const res = await fetch('/api/cohost/refresh', { method: 'POST' }); const j = await res.json();
+      if (!res.ok) throw new Error(j.error || j.note || 'The refresh failed');
+      if (j.status === 'skipped') setError(j.note || 'A refresh is already running.');
+      await load();
+    } catch (e) { setError((e as Error).message); } finally { setRefreshing(false); }
+  }
+  async function crossCheck(propertyId: string) {
+    setVerifying(propertyId); setVerifyErr(v => { const { [propertyId]: _x, ...rest } = v; return rest; });
+    try {
+      const res = await fetch('/api/cohost/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ propertyId }) });
+      const j = await res.json(); if (!res.ok) throw new Error(j.error || 'The cross-check failed');
+      setListings(ls => ls.map(l => (l.property_id === propertyId ? { ...l, verification: j.verification } : l))); setChecksOpen(propertyId);
+    } catch (e) { setVerifyErr(v => ({ ...v, [propertyId]: (e as Error).message })); } finally { setVerifying(null); }
+  }
 
   async function update(propertyId: string, patch: { stage?: string; serviceModel?: string; notes?: string }) {
     const before = listings;
@@ -110,11 +153,22 @@ export default function CoHostView() {
     if (!res.ok) { setListings(before); setError('Could not save that change.'); }
   }
 
-  const markets = useMemo(() => ['all', ...[...new Set(listings.map(l => l.market))].sort()], [listings]);
-  const base = useMemo(() => listings.filter(l => (market === 'all' || l.market === market) && (stage === 'all' || l.pipeline_stage === stage) && (view === 'all' || (view === 'matched' && ['unique', 'ambiguous'].includes(l.match_status ?? '')))), [listings, market, stage, view]);
+  const stateOf = (m: string) => m.split(',').pop()?.trim().toUpperCase() ?? '';
+  const states = useMemo(() => ['all', ...[...new Set(listings.map(l => stateOf(l.market)).filter(Boolean))].sort()], [listings]);
+  const markets = useMemo(() => ['all', ...[...new Set(listings.map(l => l.market).filter(m => usState === 'all' || stateOf(m) === usState))].sort()], [listings, usState]);
+  const base = useMemo(() => listings.filter(l => (usState === 'all' || stateOf(l.market) === usState) && (market === 'all' || l.market === market) && (stage === 'all' || l.pipeline_stage === stage) && (view === 'all' || (view === 'matched' && ['unique', 'ambiguous'].includes(l.match_status ?? '')))), [listings, usState, market, stage, view]);
   const luxuryCount = useMemo(() => base.filter(l => l.is_luxury).length, [base]);
-  const shown = useMemo(() => base.filter(l => !luxuryOnly || l.is_luxury)
-    .sort((a, b) => Number(b.match_status === 'unique') - Number(a.match_status === 'unique') || (b.under_score ?? 0) - (a.under_score ?? 0)), [base, luxuryOnly]);
+  const eliteCount = useMemo(() => base.filter(l => l.is_elite).length, [base]);
+  const verifiedCount = useMemo(() => base.filter(l => l.verification?.level === 'verified').length, [base]);
+  const shown = useMemo(() => {
+    const pot = (l: Listing) => l.revenue_potential_ltm ?? -1;
+    const cmp: Record<SortKey, (a: Listing, b: Listing) => number> = {
+      best: (a, b) => Number(b.match_status === 'unique') - Number(a.match_status === 'unique') || (b.under_score ?? 0) - (a.under_score ?? 0),
+      potential_desc: (a, b) => pot(b) - pot(a), potential_asc: (a, b) => (a.revenue_potential_ltm == null ? Infinity : a.revenue_potential_ltm) - (b.revenue_potential_ltm == null ? Infinity : b.revenue_potential_ltm),
+      earned_desc: (a, b) => (b.revenue_ltm ?? -1) - (a.revenue_ltm ?? -1), newest: (a, b) => Date.parse(b.first_seen_at ?? '') - Date.parse(a.first_seen_at ?? ''),
+    };
+    return base.filter(l => (!luxuryOnly || l.is_luxury) && (!eliteOnly || l.is_elite) && (!verifiedOnly || l.verification?.level === 'verified')).sort(cmp[sort]);
+  }, [base, luxuryOnly, eliteOnly, verifiedOnly, sort]);
   const counts = useMemo(() => stages.map(s => [s, listings.filter(l => l.pipeline_stage === s).length] as const), [stages, listings]);
 
   return (
@@ -125,9 +179,18 @@ export default function CoHostView() {
           <p className="text-sm text-muted-foreground mt-0.5">Owners who already run a listing on Airbnb, Vrbo, Vacasa or similar. We offer Co-Host only, or Co-Host and Manager.</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={load} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border border-border bg-card text-sm hover:bg-muted"><RefreshCw size={14} /> Refresh</button>
+          <button onClick={refreshNow} disabled={refreshing} title="Pull fresh listings now for the markets that are furthest behind" className="h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border border-border bg-card text-sm hover:bg-muted disabled:opacity-60">{refreshing ? <Loader2 size={14} className="animate-spin" /> : <Clock size={14} />} {refreshing ? 'Finding new listings...' : 'Find new listings now'}</button>
+          <button onClick={load} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border border-border bg-card text-sm hover:bg-muted"><RefreshCw size={14} /> Reload</button>
         </div>
       </div>
+
+      {refresh && (
+        <p className="text-xs text-muted-foreground -mt-2">
+          Listings refresh automatically every {refresh.intervalHours} hours across {refresh.markets} markets in every state except California, a few markets at a time so the data allowance lasts the month.
+          {refresh.lastRun ? ` Last run ${ago(refresh.lastRun.started_at)}: ${refresh.lastRun.new_listings} new listings, ${refresh.lastRun.new_matches} new owner matches${refresh.lastRun.status !== 'ok' ? ` (${refresh.lastRun.note ?? refresh.lastRun.status})` : ''}.` : ' No automatic run has happened yet.'}
+          {refresh.oldestRefresh ? ` The longest-waiting market was last refreshed ${ago(refresh.oldestRefresh)}.` : ''}
+        </p>
+      )}
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm px-4 py-3 flex items-start gap-2.5">
         <ShieldAlert size={16} className="mt-0.5 shrink-0" />
@@ -145,8 +208,12 @@ export default function CoHostView() {
           {([['matched', 'Matched to a home'], ['all', 'All candidates'], ['crm', 'Already in CRM']] as const).map(([k, label]) => <button key={k} onClick={() => setView(k)} className={`px-3 py-1.5 ${view === k ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted'}`}>{label}</button>)}
         </div>
         {view !== 'crm' && <button onClick={toggleLuxury} aria-pressed={luxuryOnly} title={luxuryOnly ? 'Showing luxury listings only. Click to show all.' : 'Show luxury listings only'} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-bold tracking-wide transition-all ${luxuryOnly ? 'bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-500/30' : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}><Gem size={14} /> LUXURY <span className={`px-1.5 rounded-full text-[11px] ${luxuryOnly ? 'bg-white/25' : 'bg-amber-200/70'}`}>{luxuryCount}</span></button>}
+        {view !== 'crm' && <button onClick={toggleElite} aria-pressed={eliteOnly} title={eliteOnly ? 'Showing ELITE listings only. Click to show all.' : 'Show ultra-luxury listings only: $1,000+ a night, or $600+ and in the top 5% of the market'} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-bold tracking-wide transition-all ${eliteOnly ? 'bg-slate-900 border-slate-900 text-amber-300 shadow-md shadow-slate-900/30' : 'border-slate-400 bg-slate-100 text-slate-800 hover:bg-slate-200'}`}><Crown size={14} /> ELITE <span className={`px-1.5 rounded-full text-[11px] ${eliteOnly ? 'bg-white/20' : 'bg-slate-300/70'}`}>{eliteCount}</span></button>}
+        {view !== 'crm' && <button onClick={() => setVerifiedOnly(v => !v)} aria-pressed={verifiedOnly} title="Show only owners confirmed by two independent sources" className={`h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border text-sm font-semibold ${verifiedOnly ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'}`}><ShieldCheck size={14} /> Verified owner <span className={`px-1.5 rounded-full text-[11px] ${verifiedOnly ? 'bg-white/25' : 'bg-emerald-200/70'}`}>{verifiedCount}</span></button>}
+        {view !== 'crm' && <select value={usState} onChange={e => { setUsState(e.target.value); setMarket('all'); }} className="h-9 rounded-lg border border-border bg-card px-3 text-sm" aria-label="State">{states.map(s => <option key={s} value={s}>{s === 'all' ? 'All states' : s}</option>)}</select>}
         {view !== 'crm' && <select value={market} onChange={e => setMarket(e.target.value)} className="h-9 rounded-lg border border-border bg-card px-3 text-sm" aria-label="Market">{markets.map(m => <option key={m} value={m}>{m === 'all' ? 'All markets' : m}</option>)}</select>}
-        <span className="text-xs text-muted-foreground">{view === 'crm' ? `${crm.length} leads` : `${shown.length} listings${luxuryOnly ? ' (luxury)' : ''}`}</span>
+        {view !== 'crm' && <select value={sort} onChange={e => changeSort(e.target.value as SortKey)} className="h-9 rounded-lg border border-border bg-card px-3 text-sm" aria-label="Sort">{SORTS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}</select>}
+        <span className="text-xs text-muted-foreground">{view === 'crm' ? `${crm.length} leads` : `${shown.length} listings${eliteOnly ? ' (elite)' : luxuryOnly ? ' (luxury)' : ''}${totals && view === 'all' ? ` shown of ${totals.all.toLocaleString()} candidates nationwide (the strongest by each ranking)` : ''}`}</span>
       </div>
 
       {loading && <div className="py-16 flex justify-center text-muted-foreground"><Loader2 className="animate-spin" /></div>}
@@ -175,12 +242,15 @@ export default function CoHostView() {
                       {m && <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${m.cls}`}>{m.text}</span>}
                       {l.segment === 'new_or_dormant' && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700">New or dormant</span>}
                       {l.is_luxury && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 inline-flex items-center gap-1"><Gem size={10} /> Luxury</span>}
+                      {l.is_elite && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-900 text-amber-300 inline-flex items-center gap-1"><Crown size={10} /> Elite</span>}
+                      {refresh?.firstRunAt && l.first_seen_at && l.first_seen_at >= refresh.firstRunAt && Date.now() - Date.parse(l.first_seen_at) < 7 * 86_400_000 && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-600 text-white">New {ago(l.first_seen_at)}</span>}
+                      {l.verification && ['verified', 'likely', 'conflict'].includes(l.verification.level) && <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 ${LEVEL_STYLE[l.verification.level]}`}><ShieldCheck size={10} /> {l.verification.label}</span>}
                       {l.offer?.requestedAt && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-600 text-white">Audit requested</span>}
                       {!!l.texts?.sent && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-violet-100 text-violet-700">Texted {l.texts.sent}x{l.texts.replied ? ', replied' : ''}</span>}
                       {l.offer?.optedOutAt && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700">Opted out</span>}
                       {!!l.offer?.views && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-700 inline-flex items-center gap-1"><Eye size={10} /> Offer page viewed {l.offer.views}x</span>}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{l.market} &middot; {l.bedrooms} bd / {l.bathrooms} ba &middot; {money(l.adr)} per night &middot; {l.occupancy_pct != null ? `${Math.round(l.occupancy_pct)}% occupied` : ''} &middot; {money(l.revenue_ltm)} earned of {money(l.revenue_potential_ltm)} potential &middot; {l.rating ?? '-'} ({l.reviews ?? 0} reviews){l.host_listing_count ? ` · host runs ${l.host_listing_count}` : ''}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{l.market} &middot; {l.bedrooms} bd / {l.bathrooms} ba &middot; {money(l.adr)} per night &middot; {l.occupancy_pct != null ? `${Math.round(l.occupancy_pct)}% occupied` : ''} &middot; {money(l.revenue_ltm)} earned of <span className="font-semibold text-foreground">{money(l.revenue_potential_ltm)} potential</span> &middot; {l.rating ?? '-'} ({l.reviews ?? 0} reviews){l.host_listing_count ? ` · host runs ${l.host_listing_count}` : ''}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <select value={l.pipeline_stage} onChange={e => update(l.property_id, { stage: e.target.value })} className="h-8 rounded-lg border border-border bg-background px-2 text-xs" aria-label="Stage">{stages.map(s => <option key={s} value={s}>{STAGE_LABEL[s] ?? s}</option>)}</select>
@@ -195,6 +265,24 @@ export default function CoHostView() {
                     <p className="flex items-center gap-1.5"><MapPin size={13} className="text-muted-foreground" /><span><span className="font-semibold">Probable home:</span> {l.matched_address.replace(/, US.*$/, '')}</span></p>
                     <p className="mt-1">Owner of record: <span className="font-medium">{o.names.join(' & ') || 'not on record'}</span>{o.type ? ` (${o.type.toLowerCase()})` : ''}{o.mailing ? `, mail goes to ${o.mailing}` : ''}</p>
                     {o.contactFound && <p className="mt-1">Contact found and matched to that mailing address: {[...o.phones, ...o.emails].join(', ')}</p>}
+                    {l.verification && (() => {
+                      const v = l.verification; const canRun = v.checks.some(c => c.id === 'skiptrace' && c.status === 'pending') && l.match_status === 'unique';
+                      return (
+                        <div className="mt-2 rounded-lg border border-border bg-background px-2.5 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 ${LEVEL_STYLE[v.level]}`}><ShieldCheck size={10} /> {v.label}</span>
+                            <span className="text-muted-foreground">{v.summary}</span>
+                            <button onClick={() => setChecksOpen(checksOpen === l.property_id ? null : l.property_id)} className="text-primary hover:underline">{checksOpen === l.property_id ? 'Hide checks' : `Show ${v.checks.length} checks`}</button>
+                            {canRun && <button onClick={() => crossCheck(l.property_id)} disabled={verifying === l.property_id} className="h-7 px-2 rounded border border-border bg-card font-semibold inline-flex items-center gap-1 hover:bg-muted disabled:opacity-60">{verifying === l.property_id ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Run skip-trace cross-check</button>}
+                          </div>
+                          {verifyErr[l.property_id] && <p className="mt-1 text-red-600">{verifyErr[l.property_id]}</p>}
+                          {checksOpen === l.property_id && (
+                            <ul className="mt-1.5 space-y-1">{v.checks.map(c => <li key={c.id} className="flex gap-2"><span className={`w-4 shrink-0 text-center font-bold ${CHECK_STYLE[c.status]}`} aria-label={c.status}>{CHECK_MARK[c.status]}</span><span><span className="font-medium">{c.label}.</span> <span className="text-muted-foreground">{c.detail}</span></span></li>)}</ul>
+                          )}
+                          {v.nextStep && <p className="mt-1 text-muted-foreground">Next: {v.nextStep}</p>}
+                        </div>
+                      );
+                    })()}
                     <p className="mt-1 text-muted-foreground">This match comes from location, license records and bedroom count. Confirm it before contacting anyone.</p>
                   </div>
                 )}
@@ -241,7 +329,7 @@ export default function CoHostView() {
               </div>
             );
           })}
-          {shown.length > 150 && <p className="text-xs text-muted-foreground">Showing the first 150. Narrow by market or stage to see the rest.</p>}
+          {shown.length > 150 && <p className="text-xs text-muted-foreground">Showing the first 150 of {shown.length}. Narrow by state, market or stage to see the rest.</p>}
         </div>
       )}
     </div>
