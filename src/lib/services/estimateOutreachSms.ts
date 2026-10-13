@@ -95,9 +95,11 @@ function localHour(state: string | null, now: Date): number | null {
   return Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: tz }).format(now)) % 24;
 }
 
+/** 9am-8pm in the owner's time zone, and never before 9am Mountain whatever the owner's zone. */
 export function inSendWindow(state: string | null, now = new Date()): boolean {
   const h = localHour(state, now);
-  return h !== null && h >= 9 && h < 20;
+  const mountain = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Denver' }).format(now)) % 24;
+  return h !== null && h >= 9 && h < 20 && mountain >= 9;
 }
 
 export function longEstimateUrl(lead: OutreachLead, site: string): string {
