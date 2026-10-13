@@ -17,12 +17,23 @@ export async function estimateFill(lead: { address?: string | null; city?: strin
   return { adr: exp.adr, occupancy: exp.occupancy, grossMonthly: exp.grossMonthly, netMonthly: exp.netMonthly, marketRent: report.longTermRent, basis: report.basis, basisLabel: report.basisLabel, assumedBeds: report.property.assumedBeds, source: report.basisLabel.startsWith('Built from AirDNA') ? 'airdna' : 'model' };
 }
 
-/** Days on market as recorded, else counted from the listing date, else (for a lead that came from a listing) from when we first saw it. Null when the lead was never a listing. */
-export function daysOnMarketOf(l: { days_on_market?: number | null; days_on_market_listing?: number | null; listing_date?: string | null; listing_url?: string | null; first_seen_at?: string | null; created_at?: string | null }): { days: number; basis: 'recorded' | 'listing_date' | 'first_seen' } | null {
-  if (Number(l.days_on_market) > 0) return { days: Number(l.days_on_market), basis: 'recorded' };
-  if (Number(l.days_on_market_listing) > 0) return { days: Number(l.days_on_market_listing), basis: 'recorded' };
-  const since = (iso?: string | null) => { const t = iso ? Date.parse(iso) : NaN; return Number.isFinite(t) && t <= Date.now() ? Math.floor((Date.now() - t) / 86_400_000) : null; };
-  const fromListing = since(l.listing_date); if (fromListing != null) return { days: fromListing, basis: 'listing_date' };
+/** Live days on market, with a one-line basis. A recorded count is a snapshot from the day the listing was last checked, so the days since are added. Null when no date is on file. */
+export function daysOnMarketOf(l: { days_on_market?: number | null; days_on_market_listing?: number | null; listing_date?: string | null; listing_url?: string | null; first_seen_at?: string | null; created_at?: string | null; last_checked?: string | null }): { days: number; basis: 'listing_date' | 'recorded' | 'first_seen'; note: string } | null {
+  const dayMs = 86_400_000;
+  const ts = (iso?: string | null) => { const t = iso ? Date.parse(iso) : NaN; return Number.isFinite(t) && t <= Date.now() ? t : null; };
+  const since = (iso?: string | null) => { const t = ts(iso); return t == null ? null : Math.floor((Date.now() - t) / dayMs); };
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  const listed = since(l.listing_date);
+  if (listed != null) return { days: listed, basis: 'listing_date', note: `counted from the listing date, ${fmt(l.listing_date!)}` };
+
+  const recorded = Number(l.days_on_market) > 0 ? Number(l.days_on_market) : Number(l.days_on_market_listing) > 0 ? Number(l.days_on_market_listing) : 0;
+  if (recorded > 0) {
+    const age = since(l.last_checked);
+    if (age != null && age > 0) return { days: recorded + age, basis: 'recorded', note: `${recorded} days when last checked ${fmt(l.last_checked!)}, plus the days since` };
+    return { days: recorded, basis: 'recorded', note: 'as recorded on the listing' };
+  }
+
   const seen = l.listing_url ? since(l.first_seen_at ?? l.created_at) : null;
-  return seen != null ? { days: seen, basis: 'first_seen' } : null;
+  return seen != null ? { days: seen, basis: 'first_seen', note: 'counted from when we first saw this listing; its own listing date is not on file' } : null;
 }

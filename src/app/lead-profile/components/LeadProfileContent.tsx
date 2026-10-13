@@ -280,12 +280,12 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
     const base = lead;
     fetch(`/api/leads/fill?leadId=${encodeURIComponent(base.id)}`, { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined })
       .then(r => (r.ok ? r.json() : null))
-      .then((j: { fill: { adr: number; occupancy: number; grossMonthly: number; netMonthly: number; basisLabel: string; assumedBeds: boolean; source: 'airdna' | 'model' } | null; daysOnMarket: { days: number; basis: string } | null } | null) => {
+      .then((j: { fill: { adr: number; occupancy: number; grossMonthly: number; netMonthly: number; basisLabel: string; assumedBeds: boolean; source: 'airdna' | 'model' } | null; daysOnMarket: { days: number; basis: string; note: string } | null } | null) => {
         if (!j) return;
         const f = j.fill;
         // The stored estimates come from an older bedroom model that ran high against AirDNA, so the profile shows the same AirDNA-backed figures the homeowner page uses.
-        setLead(p => p ? { ...p, estimatedADR: f?.adr || p.estimatedADR || 0, estimatedOccupancy: f?.occupancy || p.estimatedOccupancy || 0, estimatedGrossMonthly: f?.grossMonthly || p.estimatedGrossMonthly || 0, estimatedNetMonthly: f?.netMonthly || p.estimatedNetMonthly || 0, daysOnMarket: p.daysOnMarket || j.daysOnMarket?.days || 0 } : p);
-        if (j.daysOnMarket && !base.daysOnMarket && j.daysOnMarket.basis === 'first_seen') setDomNote('days since we first saw this listing');
+        setLead(p => p ? { ...p, estimatedADR: f?.adr || p.estimatedADR || 0, estimatedOccupancy: f?.occupancy || p.estimatedOccupancy || 0, estimatedGrossMonthly: f?.grossMonthly || p.estimatedGrossMonthly || 0, estimatedNetMonthly: f?.netMonthly || p.estimatedNetMonthly || 0, daysOnMarket: j.daysOnMarket?.days ?? p.daysOnMarket ?? 0 } : p);
+        if (j.daysOnMarket) setDomNote(j.daysOnMarket.note);
         if (f) setFillNote(f.source === 'airdna' ? `AirDNA's estimate for this address (nightly rate and occupancy), after our standard cost shares${f.assumedBeds ? '; bedrooms are assumed to be 3 because the count is not on file' : ''}. Not saved to the lead.` : `${f.basisLabel}, calibrated to AirDNA${f.assumedBeds ? ', assuming a 3-bedroom home because the bedroom count is not on file' : ''}. It is not specific to this home. Not saved to the lead.`);
       })
       .catch(() => { /* the blanks simply stay blank */ });
@@ -1268,7 +1268,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   { label: 'Prospect Score', value: `${lead.prospectScore}`, sub: '/100', icon: <Star size={15} className="text-amber-500" />, color: 'text-amber-500' },
                   { label: 'Gross/Month', value: formatCurrency(grossMonthly), sub: 'estimated', icon: <TrendingUp size={15} className="text-green-500" />, color: 'text-green-600' },
                   { label: 'Net/Month', value: formatCurrency(netMonthly), sub: 'after costs', icon: <DollarSign size={15} className="text-primary" />, color: 'text-primary' },
-                  { label: 'Days on Market', value: lead.daysOnMarket > 0 ? `${lead.daysOnMarket}` : '—', sub: lead.daysOnMarket > 0 ? (domNote ?? 'days') : 'not a listing', icon: <Clock size={15} className="text-muted-foreground" />, color: 'text-foreground' },
+                  { label: 'Days on Market', value: lead.daysOnMarket > 0 ? `${lead.daysOnMarket}` : '—', sub: lead.daysOnMarket > 0 ? 'days' : 'no listing date on file', icon: <Clock size={15} className="text-muted-foreground" />, color: 'text-foreground' },
                 ].map(kpi => (
                   <div key={kpi.label} className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-center gap-1.5 mb-2">
@@ -1502,7 +1502,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   { label: 'Amenities', value: Array.isArray(extra.amenities) ? extra.amenities.join(', ') : extra.amenities },
                   { label: 'Features', value: [extra.has_pool && 'Pool', extra.has_parking && 'Parking', extra.is_waterfront && 'Waterfront', extra.is_furnished && 'Furnished', extra.is_fsbo && 'For sale by owner', extra.is_apartment_community && 'Apartment community', extra.luxury && 'Luxury'].filter(Boolean).join(', ') },
                   { label: 'Source', value: lead.source },
-                  { label: 'Days on market', value: lead.daysOnMarket > 0 ? `${lead.daysOnMarket} days` : null },
+                  { label: 'Days on market', value: lead.daysOnMarket > 0 ? `${lead.daysOnMarket} days${domNote ? ` (${domNote})` : ''}` : 'Not on file — no listing date or listing record' },
                   { label: 'Last checked', value: lead.lastChecked },
                   { label: 'Created', value: lead.createdAt },
                 ]} />
