@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Lead } from '@/data/mockLeads';
@@ -100,6 +100,21 @@ export default React.memo(function TopLeadsTable({ leads }: TopLeadsTableProps) 
     return { topLeads: top, hasDuplicateAnomaly: anomaly };
   }, [leads]);
 
+  // Leads with no saved net per month get the same model estimate the lead profile shows (-1 means none could be built).
+  const [fill, setFill] = useState<Record<string, number>>({});
+  const requested = useRef(new Set<string>());
+  useEffect(() => {
+    for (const l of topLeads) {
+      if (l.estimatedNetMonthly > 0 || requested.current.has(l.id)) continue;
+      requested.current.add(l.id);
+      fetch(`/api/leads/fill?leadId=${encodeURIComponent(l.id)}`, { cache: 'no-store' }).then(r => (r.ok ? r.json() : null))
+        .then(j => { const n = Number(j?.fill?.netMonthly); setFill(f => ({ ...f, [l.id]: n > 0 ? Math.round(n) : -1 })); })
+        .catch(() => setFill(f => ({ ...f, [l.id]: -1 })));
+    }
+  }, [topLeads]);
+  const netText = (l: Lead) => (l.estimatedNetMonthly > 0 ? formatCurrency(l.estimatedNetMonthly) : fill[l.id] > 0 ? `~${formatCurrency(fill[l.id])}` : fill[l.id] === -1 ? '\u2014' : '\u2026');
+  const netTitle = (l: Lead) => (l.estimatedNetMonthly > 0 ? undefined : fill[l.id] > 0 ? 'Model estimate: this lead has no saved booking data yet' : fill[l.id] === -1 ? 'No estimate available for this address yet' : 'Calculating an estimate');
+
   return (
     <div className="bg-card rounded-xl border border-border">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -153,7 +168,7 @@ export default React.memo(function TopLeadsTable({ leads }: TopLeadsTableProps) 
               <StageBadge stage={lead.stage} size="sm" />
               <RegulationBadge status={lead.regulationStatus} size="sm" />
               <span className="text-[10px] text-muted-foreground">{lead.beds}bd/{lead.baths}ba</span>
-              <span className="text-[10px] font-semibold text-success ml-auto">{formatCurrency(lead.estimatedNetMonthly)}/mo</span>
+              <span title={netTitle(lead)} className="text-[10px] font-semibold text-success ml-auto">{netText(lead)}{lead.estimatedNetMonthly > 0 || fill[lead.id] > 0 ? '/mo' : ''}</span>
             </div>
           </div>
         ))}
@@ -215,8 +230,8 @@ export default React.memo(function TopLeadsTable({ leads }: TopLeadsTableProps) 
                   <ProspectScoreBar score={lead.prospectScore} />
                 </td>
                 <td className="px-4 py-3">
-                  <span className="font-mono-data text-xs font-semibold text-success">
-                    {formatCurrency(lead.estimatedNetMonthly)}
+                  <span title={netTitle(lead)} className="font-mono-data text-xs font-semibold text-success">
+                    {netText(lead)}
                   </span>
                 </td>
               </tr>
