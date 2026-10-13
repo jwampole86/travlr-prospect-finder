@@ -29,12 +29,17 @@ export function verifyUnsubscribe(id: string, token: string): boolean {
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-/** Plain letter layout: the body with its links made clickable, then the unsubscribe line and our postal address. */
+/** Plain letter layout: paragraphs with real bullet lists, links made clickable, then the unsubscribe line and our postal address. */
 export function buildHtml(body: string, unsub: string): string {
-  const withLinks = esc(body).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#1d4ed8;">$1</a>').replace(/\n/g, '<br>');
+  const link = (s: string) => esc(s).replace(/\((\d{3})\) (\d{3}-\d{4})/g, '($1)&nbsp;$2').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#1d4ed8;">$1</a>');
+  const blocks = body.split(/\n{2,}/).map(b => {
+    const lines = b.split('\n');
+    if (lines.every(l => /^- /.test(l))) return `<ul style="margin:0 0 12px;padding-left:22px;">${lines.map(l => `<li style="margin:0 0 5px;">${link(l.slice(2))}</li>`).join('')}</ul>`;
+    return `<p style="margin:0 0 12px;">${lines.map(link).join('<br>')}</p>`;
+  }).join('');
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a;line-height:1.7;font-size:15px;">
-<div>${withLinks}</div>
+<body style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a;line-height:1.6;font-size:15px;">
+<div>${blocks}</div>
 <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0;">
 <p style="font-size:11px;color:#6b7280;line-height:1.5;">TRAVLR Vacation Homes, ${esc(POSTAL)}.<br>You are receiving this one-time introduction because your home is listed as a vacation rental. If you would rather not hear from us, <a href="${unsub}" style="color:#6b7280;">unsubscribe here</a> and we will not contact you again.</p>
 </body></html>`;
