@@ -274,6 +274,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   const [domNote, setDomNote] = useState<string | null>(null);
   const [marketRent, setMarketRent] = useState(0);
   const [records, setRecords] = useState<{ ownership: Record<string, any>; comparables: Array<Record<string, any>> } | null>(null);
+  const ownerMatch = records?.ownership?.match ? { name: String(records.ownership.match.name), percent: Number(records.ownership.match.percent) } : null;
   const recordsFor = useRef<string | null>(null);
   const linkFor = useRef<string | null>(null);
   const [linkLooking, setLinkLooking] = useState(false);
@@ -1043,7 +1044,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       return;
     }
     // Block outreach on unverified properties
-    if (!outreachCleared(lead)) {
+    if (!outreachCleared(lead, ownerMatch)) {
       toast.error('Cannot send email — this property is not a strong data match (75+) and has not passed verification.');
       return;
     }
@@ -1112,13 +1113,13 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                 <CheckCircle size={10} />
                 VERIFIED
               </span>
-            ) : outreachCleared(lead) ? (
+            ) : outreachCleared(lead, ownerMatch) ? (
               <span
-                title={`Strong match on the data on file (${assessLead(lead).score}/100). The licensed property-record check has not been run.`}
+                title={`Strong match on the data on file (${assessLead(lead, ownerMatch).score}/100). The licensed property-record check has not been run.`}
                 className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-full bg-green-500/15 text-green-600 border border-green-500/30"
               >
                 <CheckCircle size={10} />
-                DATA MATCH {assessLead(lead).score}
+                DATA MATCH {assessLead(lead, ownerMatch).score}
               </span>
             ) : (
               <span
@@ -1131,7 +1132,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
             )}
             <button
               onClick={() => {
-                if (!outreachCleared(lead)) {
+                if (!outreachCleared(lead, ownerMatch)) {
                   toast.error('Cannot send SMS — this property is not a strong data match (75+) and has not passed verification.');
                   return;
                 }
@@ -1579,7 +1580,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
               <Section title="Property Verification" icon={<Shield size={15} />} defaultOpen={true}>
                 {(() => {
                   const isVerified = lead.verificationStatus === 'VERIFIED' && (lead.verificationScore ?? 0) >= 75;
-                  const da = assessLeadData(lead, directListingUrl);
+                  const da = assessLeadData(lead, directListingUrl, ownerMatch);
                   const score = da.score;
                   const scoreColor = score >= 75 ? 'text-green-600' : score >= 50 ? 'text-amber-600' : 'text-red-500';
                   const scoreBarColor = score >= 75 ? 'bg-green-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-500';
@@ -1611,7 +1612,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                         {da.checks.map(c => (
                           <div key={c.label} className="flex items-start gap-2">
-                            {c.pass ? <CheckCircle size={13} className="text-green-600 shrink-0 mt-0.5" /> : <XCircle size={13} className="text-muted-foreground/50 shrink-0 mt-0.5" />}
+                            {c.pass ? <CheckCircle size={13} className="text-green-600 shrink-0 mt-0.5" /> : c.confirm ? <AlertCircle size={13} className="text-amber-600 shrink-0 mt-0.5" /> : <XCircle size={13} className="text-muted-foreground/50 shrink-0 mt-0.5" />}
                             <div className="min-w-0">
                               <p className="text-xs font-medium text-foreground">{c.label}</p>
                               <p className="text-[10px] text-muted-foreground truncate" title={c.detail}>{c.detail}</p>
@@ -1649,7 +1650,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                       )}
 
                       {/* Outreach block warning */}
-                      {!outreachCleared(lead) && (
+                      {!outreachCleared(lead, ownerMatch) && (
                         <div className="flex items-start gap-2 p-2.5 bg-red-500/8 border border-red-500/20 rounded-lg">
                           <XCircle size={13} className="text-red-500 shrink-0 mt-0.5" />
                           <p className="text-[11px] text-red-600">
