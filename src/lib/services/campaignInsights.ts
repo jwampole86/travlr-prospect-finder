@@ -46,6 +46,10 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
   const funnel = { texts: 0, sent: 0, delivered: 0, clicked: 0, viewed: 0, contactStarted: 0, submitted: 0, replied: 0, optedIn: 0, optedOut: 0 };
   let cost = 0; let costRows = 0; let chatQuestions = 0; let botClicks = 0;
   const now = Date.now();
+  // Activity by calendar day in the team's time zone, so a text sent at 9am Mountain counts on that day.
+  const day = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' }) : null);
+  const dailyMap = new Map<string, { date: string; sent: number; delivered: number; clicked: number; replied: number }>();
+  const bump = (iso: string | null | undefined, k: 'sent' | 'delivered' | 'clicked' | 'replied') => { const d = day(iso); if (!d) return; const e = dailyMap.get(d) ?? { date: d, sent: 0, delivered: 0, clicked: 0, replied: 0 }; e[k]++; dailyMap.set(d, e); };
 
   for (const r of rows) {
     const delivered = ['delivered', 'read'].includes(r.twilio_status);
@@ -55,6 +59,10 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
     };
     const keys = segmentKeys(r);
     for (const b of [total, ...Object.entries(keys).map(([g, k]) => (groups[g][k] ??= empty()))]) { b.texts++; for (const k of Object.keys(f) as Array<keyof typeof f>) b[k] += f[k]; }
+    if (wasSent(r.twilio_status)) bump(r.delivered_at ?? r.scheduled_for, 'sent');
+    if (delivered) bump(r.delivered_at ?? r.scheduled_for, 'delivered');
+    if (r.human_clicks > 0) bump(r.first_click_at, 'clicked');
+    bump(r.reply_at, 'replied');
     statuses[r.twilio_status ?? 'scheduled'] = (statuses[r.twilio_status ?? 'scheduled'] ?? 0) + 1;
     if (r.twilio_error_code) errors[r.twilio_error_code] = (errors[r.twilio_error_code] ?? 0) + 1;
     if (r.reply_intent) intents[r.reply_intent] = (intents[r.reply_intent] ?? 0) + 1;
@@ -106,7 +114,7 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
   const lastUpdated = rows.map(r => Date.parse(r.updated_at)).sort((a, b) => b - a)[0];
   return {
     batches, empty: false as const, updatedAt: new Date(lastUpdated).toISOString(), final: rows.every(r => r.final),
-    totals: t, funnel, statuses, deliveryErrors: errors, replyIntents: intents, by, hotLeads, replies, chatQuestions: chat,
+    daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date)), totals: t, funnel, statuses, deliveryErrors: errors, replyIntents: intents, by, hotLeads, replies, chatQuestions: chat,
     cost: { totalUsd: Math.round(cost * 100) / 100, pricedTexts: costRows, perClick: t.clicked ? Math.round((cost / t.clicked) * 100) / 100 : null, perSubmission: t.submitted ? Math.round((cost / t.submitted) * 100) / 100 : null, perHotLead: t.hot ? Math.round((cost / t.hot) * 100) / 100 : null },
     botClicksFiltered: botClicks, chatQuestionCount: chatQuestions, skipTrace,
   };

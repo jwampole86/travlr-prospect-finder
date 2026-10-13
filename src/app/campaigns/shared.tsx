@@ -8,6 +8,7 @@ export interface Hot { leadId: string; batch: string; temperature: string; score
 export interface Overview {
   empty?: boolean; updatedAt?: string; final?: boolean; totals: Bucket;
   funnel: { texts: number; sent: number; delivered: number; clicked: number; viewed: number; contactStarted: number; submitted: number; replied: number; optedIn: number; optedOut: number };
+  daily?: Array<{ date: string; sent: number; delivered: number; clicked: number; replied: number }>;
   statuses: Record<string, number>; deliveryErrors: Record<string, number>; replyIntents: Record<string, number>;
   by: Record<string, Record<string, Bucket>>; hotLeads: Hot[]; replies: Array<{ leadId: string; batch: string; at: string; intent: string; text: string }>; chatQuestions: string[];
   skipTrace: Array<{ audience: string; texts: number; sent: number; delivered: number; deliveredPct: number; unreachable: number; wrongPerson: number; engaged: number; engagedPct: number; likelyReachedPct: number; screenedLeads: number | null; prefilterLandline: number | null; prefilterInvalid: number | null; landlinePct: number | null }>;
