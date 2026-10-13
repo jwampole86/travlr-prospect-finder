@@ -93,7 +93,7 @@ const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
         const variant = ((t.old[0]?.metadata as { variant?: string })?.variant === 'direct' ? 'direct' : 'friendly') as 'friendly' | 'direct';
         const sendAt = sendTimeFor(lead.state, base);
         if (!sendAt) throw new Error('no_send_window');
-        const d = await draftOutreach(db, lead, { site: SITE, tone: variant, now: sendAt });
+        const d = await draftOutreach(db, lead, { site: SITE, tone: variant, now: sendAt, ignoreInFlight: true });
         if (d.blockers.length || !d.to) throw new Error(`blocked: ${d.blockers.join(',')}`);
         const message = await finalizeMessage(db, d, SITE);
         const r = await scheduleSMS({ to: d.to, body: message, sendAt, messagingServiceSid: MESSAGING_SERVICE, statusCallback: `${SITE}/api/sms/delivery` });

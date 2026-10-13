@@ -33,3 +33,17 @@ export function assessLeadData(l: Facts, realListingUrl: string | null): DataAss
   const level = score >= 75 ? 'strong' : score >= 50 ? 'partial' : 'weak';
   return { checks, score, level, label: level === 'strong' ? 'Strong data match' : level === 'partial' ? 'Partial data match' : 'Weak data match' };
 }
+
+const REAL_URL = /^https?:\/\/[^/]+\/.+/;
+
+/** The lead's own data assessment, using any stored listing link. */
+export function assessLead(l: Facts): DataAssessment {
+  const x = l.extra ?? {};
+  const url = [l.listingUrl, x.listing_source_url, x.sync_source_url].find(u => typeof u === 'string' && REAL_URL.test(u)) ?? null;
+  return assessLeadData(l, url);
+}
+
+/** Outreach is cleared by the formal provider check, or by a strong match on the data on file. */
+export function outreachCleared(l: Facts & { verificationStatus?: string; verificationScore?: number }): boolean {
+  return (l.verificationStatus === 'VERIFIED' && (l.verificationScore ?? 0) >= 75) || assessLead(l).level === 'strong';
+}

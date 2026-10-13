@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { buildHomeownerReport } from '@/lib/homeownerEstimate';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { toE164, isSuppressed } from '@/lib/services/smsConsent';
+import { duplicateTextReason } from '@/lib/services/smsDuplicateGuard';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 
@@ -43,7 +44,7 @@ export interface OutreachLead {
 }
 
 export type Blocker =
-  | 'no_phone' | 'invalid_phone' | 'no_sms_consent' | 'opted_out' | 'do_not_contact' | 'no_address' | 'quiet_hours' | 'contacted_recently' | 'no_estimate' | 'too_long' | 'co_host_program';
+  | 'no_phone' | 'invalid_phone' | 'no_sms_consent' | 'opted_out' | 'do_not_contact' | 'no_address' | 'quiet_hours' | 'contacted_recently' | 'text_in_flight' | 'no_estimate' | 'too_long' | 'co_host_program';
 
 export interface OutreachDraft {
   leadId: string;
@@ -172,7 +173,7 @@ ${f.platform ? `- Say you came across their listing on ${f.platform}.` : '- Say 
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
-export async function draftOutreach(db: Db, lead: OutreachLead, opts: { site: string; tone?: 'friendly' | 'direct'; useAi?: boolean; now?: Date }): Promise<OutreachDraft> {
+export async function draftOutreach(db: Db, lead: OutreachLead, opts: { site: string; tone?: 'friendly' | 'direct'; useAi?: boolean; now?: Date; /** Rescheduling scripts redraft texts that are already queued. */ ignoreInFlight?: boolean }): Promise<OutreachDraft> {
   const now = opts.now ?? new Date();
   const blockers: Blocker[] = [];
   // The text campaigns are only for homeowners we are converting to short-term rentals, never for existing hosts we would co-host.
@@ -194,6 +195,7 @@ export async function draftOutreach(db: Db, lead: OutreachLead, opts: { site: st
   ]);
   if (enrichment?.do_not_contact === true) blockers.push('do_not_contact');
   if ((recent ?? []).length) blockers.push('contacted_recently');
+  else if (!opts.ignoreInFlight && await duplicateTextReason(db, lead.id, 24)) blockers.push('text_in_flight');
 
   const addr = [lead.address, lead.city, lead.state, lead.zip].filter(Boolean).join(', ');
   let range = '';

@@ -42,7 +42,7 @@ type L = OutreachLead & { verified_address: string | null };
       if (Number.isNaN(sendAt.getTime())) { problems.push(`${lead.id} no send time`); continue; }
       const variant = m.variant === 'direct' ? 'direct' : 'friendly';
       // The old row is this lead's own earlier text; ignore it for the "contacted recently" guard.
-      const draft = await draftOutreach(db, lead, { site: SITE, tone: variant, now: sendAt });
+      const draft = await draftOutreach(db, lead, { site: SITE, tone: variant, now: sendAt, ignoreInFlight: true });
       const blockers = draft.blockers.filter(b => b !== 'contacted_recently');
       if (blockers.length || !draft.to || !draft.range) { problems.push(`${lead.id} ${blockers.join(',') || 'no range'}`); continue; }
       if (draft.range === m.range) { same++; continue; }
@@ -62,7 +62,7 @@ type L = OutreachLead & { verified_address: string | null };
       const c = changes[k++]; const sid = (c.row.metadata as { message_sid?: string }).message_sid;
       try {
         // Schedule the new text first; only cancel the old one once the new one exists, so a lead is never left without a text.
-        const d = await draftOutreach(db, c.lead, { site: SITE, tone: c.variant, now: c.sendAt });
+        const d = await draftOutreach(db, c.lead, { site: SITE, tone: c.variant, now: c.sendAt, ignoreInFlight: true });
         const draft = { ...d, blockers: d.blockers.filter(b => b !== 'contacted_recently') };
         if (draft.blockers.length || !draft.to) throw new Error(`blocked: ${draft.blockers.join(',')}`);
         const message = await finalizeMessage(db, draft, SITE);

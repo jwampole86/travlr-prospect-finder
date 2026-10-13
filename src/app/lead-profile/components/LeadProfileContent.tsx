@@ -21,7 +21,7 @@ import LeadTaskBoard from './LeadTaskBoard';
 import { useAuth } from '@/contexts/AuthContext';
 import { activityService } from '@/lib/services/activityService';
 import { outreachDisplay } from '@/lib/services/smsSendState';
-import { assessLeadData } from '@/lib/leadVerification';
+import { assessLead, assessLeadData, outreachCleared } from '@/lib/leadVerification';
 import PipelineStatusBadge, { PIPELINE_STATUS_CONFIG, PIPELINE_STATUS_ORDER, type PipelineStatus } from '@/components/ui/PipelineStatusBadge';
 import ConfidenceBandBadge, { getConfidenceBand, CONFIDENCE_BAND_CONFIG } from '@/components/ui/ConfidenceBandBadge';
 import Icon from '@/components/ui/AppIcon';
@@ -1043,9 +1043,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       return;
     }
     // Block outreach on unverified properties
-    const isVerified = lead.verificationStatus === 'VERIFIED' && (lead.verificationScore ?? 0) >= 75;
-    if (!isVerified) {
-      toast.error('Cannot send email — this property has not passed verification. Only VERIFIED properties (score ≥ 75) may receive outreach.');
+    if (!outreachCleared(lead)) {
+      toast.error('Cannot send email — this property is not a strong data match (75+) and has not passed verification.');
       return;
     }
     setSendingEmail(true);
@@ -1113,6 +1112,14 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                 <CheckCircle size={10} />
                 VERIFIED
               </span>
+            ) : outreachCleared(lead) ? (
+              <span
+                title={`Strong match on the data on file (${assessLead(lead).score}/100). The licensed property-record check has not been run.`}
+                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-full bg-green-500/15 text-green-600 border border-green-500/30"
+              >
+                <CheckCircle size={10} />
+                DATA MATCH {assessLead(lead).score}
+              </span>
             ) : (
               <span
                 title={`Unverified property — Status: ${lead.verificationStatus || 'CANDIDATE'} | Score: ${lead.verificationScore ?? 0}/100${lead.verificationNotes ? ' | ' + lead.verificationNotes : ''}`}
@@ -1124,9 +1131,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
             )}
             <button
               onClick={() => {
-                const isVerified = lead.verificationStatus === 'VERIFIED' && (lead.verificationScore ?? 0) >= 75;
-                if (!isVerified) {
-                  toast.error('Cannot send SMS — this property has not passed verification. Only VERIFIED properties (score ≥ 75) may receive outreach.');
+                if (!outreachCleared(lead)) {
+                  toast.error('Cannot send SMS — this property is not a strong data match (75+) and has not passed verification.');
                   return;
                 }
                 setShowSMSModal(true);
@@ -1643,11 +1649,11 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                       )}
 
                       {/* Outreach block warning */}
-                      {!isVerified && (
+                      {!outreachCleared(lead) && (
                         <div className="flex items-start gap-2 p-2.5 bg-red-500/8 border border-red-500/20 rounded-lg">
                           <XCircle size={13} className="text-red-500 shrink-0 mt-0.5" />
                           <p className="text-[11px] text-red-600">
-                            Outreach blocked — property must be VERIFIED with score ≥ 75 before SMS, email, or automated messaging can be sent.
+                            Outreach blocked — the property needs a data match score of 75 or more, or the formal verification, before SMS or email can be sent.
                           </p>
                         </div>
                       )}
@@ -2014,6 +2020,18 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                         </p>
                       </div>
                     </div>
+                    {records?.ownership?.match && (
+                      <div className="p-3 bg-muted/30 border border-border rounded-lg">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Potential owner match</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {records.ownership.match.name}
+                          <span className={`ml-2 text-xs font-bold ${records.ownership.match.percent >= 85 ? 'text-green-600' : records.ownership.match.percent >= 65 ? 'text-amber-600' : 'text-red-500'}`}>{records.ownership.match.percent}% confidence</span>
+                        </p>
+                        <ul className="mt-1.5 space-y-0.5">
+                          {(records.ownership.match.reasons as string[]).map(r => <li key={r} className="text-[11px] text-muted-foreground">• {r}</li>)}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2069,6 +2087,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   const dt = (v: unknown) => (v ? new Date(String(v)).toLocaleDateString() : null);
                   const rows: DetailRow[] = o ? [
                     { label: 'Owner', value: o.ownerName ? `${o.ownerName}${o.verified ? ' (verified)' : ''}` : null },
+                    { label: 'Match confidence', value: o.match ? `${o.match.percent}%` : null },
                     { label: 'Source', value: o.ownerSource },
                     { label: 'Verified', value: o.verified ? [o.verifiedMethod, dt(o.verifiedAt)].filter(Boolean).join(' · ') || 'Yes' : null },
                     { label: 'Ownership', value: o.ownershipStatus },

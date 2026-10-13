@@ -37,7 +37,27 @@ export async function GET(req: NextRequest) {
   const registry = (registryRes.data ?? []).filter(r => (lat && lng && n(r.lat) && n(r.lng)) ? miles(lat, lng, Number(r.lat), Number(r.lng)) < 0.3 : city && String(r.jurisdiction ?? '').toLowerCase().includes(city))
     .map(r => ({ holder: r.holder_name, permitId: r.permit_id, license: r.license_type, active: r.active, jurisdiction: r.jurisdiction, url: r.source_url }));
 
-  const st = l.skip_trace_result as { primary?: { name?: string }; matchType?: string; confidence?: string; alternates?: Array<{ name?: string }> } | null;
+  const st = l.skip_trace_result as { primary?: { name?: string }; matchType?: string; confidence?: string; phoneMatchesListing?: boolean; alternates?: Array<{ name?: string }> } | null;
+  const last = (nm?: string | null) => String(nm ?? '').toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter(Boolean).pop() ?? '';
+  const verified = !!(l.verified_owner || l.ownership_record_verified);
+  const primaryName = l.owner_name || st?.primary?.name || master?.owner_name || registry[0]?.holder || null;
+  let ownerMatch: { name: string; percent: number; reasons: string[] } | null = null;
+  if (primaryName) {
+    const reasons: string[] = [];
+    let pct = verified ? 90 : st?.primary?.name ? ({ HIGH: 82, MEDIUM: 68, LOW: 50 } as Record<string, number>)[String(st.confidence).toUpperCase()] ?? 55 : 55;
+    if (verified) reasons.push(`Owner verified${l.verified_owner_source ? ` via ${l.verified_owner_source}` : ''}`);
+    const agree = (nm?: string | null) => !!nm && last(nm) === last(primaryName);
+    if (st?.primary?.name && agree(st.primary.name)) {
+      if (l.owner_name || master?.owner_name) { pct += 5; reasons.push('Skip trace gives the same name'); }
+      if (String(st.matchType).toUpperCase() === 'CURRENT_RESIDENT') { pct += 3; reasons.push('Skip trace: current resident at this address'); }
+      if (st.phoneMatchesListing) { pct += 3; reasons.push('Phone matches the listing'); }
+      if (!verified && st.confidence) reasons.push(`Skip trace confidence ${String(st.confidence).toLowerCase()}`);
+    }
+    if (agree(master?.owner_name)) { pct += 4; reasons.push('Matches the homeowner record'); }
+    if (registry.some(r => agree(r.holder))) { pct += 4; reasons.push('Matches the registered permit holder'); }
+    if (!reasons.length) reasons.push('Single source, not cross-checked');
+    ownerMatch = { name: String(primaryName), percent: Math.min(99, Math.round(pct)), reasons };
+  }
   const ownership = {
     ownerName: l.owner_name || master?.owner_name || st?.primary?.name || null,
     ownerSource: l.owner_source || (l.owner_name ? null : master?.owner_name ? 'Homeowner records' : st?.primary?.name ? 'Skip trace' : null),
@@ -46,6 +66,7 @@ export async function GET(req: NextRequest) {
     homeValue: n(master?.estimated_home_value), homeAge: master?.home_age ?? null, residenceType: master?.residence_type ?? null, ownershipStatus: master?.ownership_status ?? null,
     recordMatch: match ? { score: match.match_score, strategy: match.match_strategy } : null,
     registry,
+    match: ownerMatch,
     skipTrace: st?.primary?.name ? { name: st.primary.name, matchType: st.matchType ?? null, confidence: st.confidence ?? null, alternates: (st.alternates ?? []).map(a => a.name).filter(Boolean).slice(0, 3) } : null,
   };
 

@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { dispatchSMS, getTwilioConfigStatus, isTwilioConfigured, lookupPhoneNumber } from '@/lib/services/twilioService';
 import { injectTrackedLinks } from '@/lib/services/linkTrackingService';
 import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { duplicateTextReason } from '@/lib/services/smsDuplicateGuard';
 
 export async function POST(req: NextRequest) {
   try {
@@ -95,6 +97,11 @@ export async function POST(req: NextRequest) {
       );
     }
     // ─────────────────────────────────────────────────────────────────────────
+    // Never double text: a scheduled or just-sent text to this lead blocks another unless the agent confirms.
+    if (body.force !== true) {
+      const dup = await duplicateTextReason(getSupabaseAdmin(), leadId);
+      if (dup) return NextResponse.json({ success: false, status: 'duplicate_text', error: `Not sent: ${dup}.`, canForce: true, twilioConfigured: isTwilioConfigured() }, { status: 409 });
+    }
     // ─── Twilio Lookup pre-send validation ─────────────────────────────────────
     // Block sends to numbers Twilio says are invalid, or landlines (which cannot
     // receive SMS at all). Fails OPEN if Lookup itself errors/is unconfigured —

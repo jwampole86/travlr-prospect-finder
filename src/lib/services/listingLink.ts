@@ -13,7 +13,7 @@ export type LinkResult =
   | { status: 'not_found'; reason: string }
   | { status: 'error'; reason: string };
 
-interface Raw { url?: string; zpid?: string | number; street?: string; state?: string; zip?: string; homeStatus?: string; homeType?: string; bedrooms?: number; bathrooms?: number; livingArea?: number; yearBuilt?: number; price?: number; zestimate?: number; rentZestimate?: number; agentName?: string; agentPhone?: string; mlsId?: string; error?: string }
+interface Raw { parcelId?: string; county?: string; taxAssessedValue?: number; url?: string; zpid?: string | number; street?: string; state?: string; zip?: string; homeStatus?: string; homeType?: string; bedrooms?: number; bathrooms?: number; livingArea?: number; yearBuilt?: number; price?: number; zestimate?: number; rentZestimate?: number; agentName?: string; agentPhone?: string; mlsId?: string; error?: string }
 
 const HOST = 'zillow-detail-scraper1.p.rapidapi.com';
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -52,6 +52,35 @@ function mismatch(lead: LinkLead, got: Raw): string | null {
   return null;
 }
 
+/** True when a Zillow URL's slug is this lead's street, city and state (a building page has a hash on the end of the slug). */
+export function slugMatches(url: string, lead: LinkLead): boolean {
+  const m = url.match(/^https?:\/\/(?:www\.)?zillow\.com\/(?:homedetails|b)\/([^/]+)\//i);
+  if (!m || !lead.city || !lead.state || lead.address.includes(',')) return false;
+  let tokens = m[1].toLowerCase().split('-');
+  if (/\/b\//i.test(url)) tokens = tokens.slice(0, -1);
+  const city = lead.city.toLowerCase().split(/\s+/);
+  const at = tokens.findIndex((_, i) => city.every((c, j) => tokens[i + j] === c) && tokens[i + city.length] === lead.state!.toLowerCase());
+  if (at < 1) return false;
+  const street = tokens.slice(0, at).join(' ').replace(/\b(unit|apt|apartment|suite|ste)\b.*$/, '').trim();
+  return normStreet(street) === normStreet(lead.address);
+}
+
+/** The research step: web search for the address with the owner's name, as a person would, keeping only URLs whose slug is this home. */
+async function searchZillowUrl(lead: LinkLead, ownerName: string | null | undefined, allowUnit: boolean): Promise<string | null> {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+  const who = (ownerName ?? '').replace(/&.*$/, '').trim();
+  const full = [lead.address, lead.city, [lead.state, lead.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, signal: AbortSignal.timeout(60_000),
+    body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 700, tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3, allowed_domains: ['zillow.com'] }], messages: [{ role: 'user', content: `Search for: ${full} ${who} zillow. List every zillow.com URL in the results that is the page for this exact address (a homedetails or /b/ building page).` }] }),
+  }).catch(() => null);
+  const j = (await res?.json().catch(() => null)) as { content?: Array<{ type: string; content?: Array<{ url?: string }> | unknown; text?: string }> } | null;
+  const found = (j?.content ?? []).flatMap(c => (c.type === 'web_search_tool_result' && Array.isArray(c.content) ? (c.content as Array<{ url?: string }>).map(r => r.url ?? '') : []))
+    .concat((j?.content ?? []).flatMap(c => (c.type === 'text' ? (c.text?.match(/https?:\/\/www\.zillow\.com\/(?:homedetails|b)\/[^\s)*"'\]]+/g) ?? []) : [])));
+  const ok = [...new Set(found.map(u => u.replace(/[.,;]+$/, '')))].filter(u => slugMatches(u, lead) && (allowUnit || !/-(unit|apt|apartment|suite|ste)-/i.test(u)));
+  return ok.find(u => /\/homedetails\//.test(u) && !/unit|apt/i.test(u)) ?? ok[0] ?? null;
+}
+
 /** A listed rent or sale price, else Zillow's own value estimate. */
 function priceOf(r: Raw): { price: number; type: 'rent' | 'sale' } | null {
   if (r.homeStatus === 'FOR_RENT' && r.price && r.price >= 400 && r.price <= 60000) return { price: Math.round(r.price), type: 'rent' };
@@ -63,7 +92,7 @@ function priceOf(r: Raw): { price: number; type: 'rent' | 'sale' } | null {
 
 /** Writes only the facts the lead is missing. */
 async function applyRecord(db: Db, leadId: string, row: Raw, extra: Record<string, unknown>): Promise<FilledFacts> {
-  const { data: cur } = await db.from('leads').select('beds,baths,price,price_type,square_feet,year_built,property_type,source_listing_id,listing_agent_name,listing_agent_phone,mls_number').eq('id', leadId).maybeSingle();
+  const { data: cur } = await db.from('leads').select('beds,baths,price,price_type,square_feet,year_built,property_type,source_listing_id,listing_agent_name,listing_agent_phone,mls_number,apn,county,tax_assessment').eq('id', leadId).maybeSingle();
   const now = new Date().toISOString();
   const update: Record<string, unknown> = { listing_link_lookup_at: now, ...extra };
   const facts: FilledFacts = {};
@@ -78,6 +107,9 @@ async function applyRecord(db: Db, leadId: string, row: Raw, extra: Record<strin
   if (!cur?.listing_agent_name && row.agentName) update.listing_agent_name = row.agentName;
   if (!cur?.listing_agent_phone && row.agentPhone) update.listing_agent_phone = row.agentPhone;
   if (!cur?.mls_number && row.mlsId) update.mls_number = row.mlsId;
+  if (!cur?.apn && row.parcelId) update.apn = String(row.parcelId);
+  if (!cur?.county && row.county) update.county = row.county;
+  if (!Number(cur?.tax_assessment) && row.taxAssessedValue) update.tax_assessment = Math.round(row.taxAssessedValue);
   await db.from('leads').update(update).eq('id', leadId);
   return facts;
 }
@@ -102,6 +134,15 @@ export async function findListingLink(db: Db, lead: LinkLead, storedUrl?: string
   if (row?.url && (!why || (why === 'unit_level_record' && ownerVerified))) {
     const facts = await applyRecord(db, lead.id, row, storedUrl ? {} : { listing_url: row.url, listing_source_url: row.url });
     return storedUrl ? { status: 'filled', facts } : { status: 'found', url: row.url, facts };
+  }
+  if (!storedUrl) {
+    const { data: who } = await db.from('leads').select('owner_name,contact_name').eq('id', lead.id).maybeSingle();
+    const hit = await searchZillowUrl(lead, who?.owner_name || who?.contact_name, ownerVerified);
+    if (hit) {
+      const rec = await zillowRow(hit);
+      const facts = await applyRecord(db, lead.id, rec ?? {}, { listing_url: hit, listing_source_url: hit });
+      return { status: 'found', url: hit, facts };
+    }
   }
   if (why === 'unit_level_record' && row?.url) {
     // One unit of a multi-unit building, owner not verified: kept as a labeled reference, never as the direct link.
