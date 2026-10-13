@@ -62,13 +62,16 @@ export interface DrillRow {
   status: string; errorCode: string | null; tone: string | null; audience: string | null; scheduledFor: string; deliveredAt: string | null;
   clicks: number; viewed: boolean; timeOnPage: number | null; deepestStep: string | null; submittedAt: string | null;
   replyAt: string | null; replyIntent: string | null; replyText: string | null; optedOut: boolean; temperature: string; score: number; device: string | null; os: string | null;
+  lastActivityAt: string | null; lastActivity: string | null;
 }
 
 /** The individual texts behind one number on the Campaigns page. `group` and `value` narrow it to a segment (tone, state, audience...). */
 export async function drilldown(db: Db, opts: { batch: string; metric: string; group?: string; value?: string }) {
   const now = Date.now();
   const rows = (await pageAll(db, opts.batch)).filter(r => inMetric(opts.metric, r, now) && (!opts.group || segmentKeys(r)[opts.group] === opts.value));
-  rows.sort((a, b) => (b.engagement_score ?? 0) - (a.engagement_score ?? 0) || Date.parse(a.scheduled_for) - Date.parse(b.scheduled_for));
+  // Most recent interaction first; texts nobody has touched fall to the bottom in send order.
+  const act = (r: Row) => (r.last_activity_at ? Date.parse(r.last_activity_at) : 0);
+  rows.sort((a, b) => act(b) - act(a) || (b.engagement_score ?? 0) - (a.engagement_score ?? 0) || Date.parse(a.scheduled_for) - Date.parse(b.scheduled_for));
   const shown = rows.slice(0, MAX_ROWS);
   const info = await leadInfo(db, [...new Set(shown.map(r => r.lead_id as string))]);
   const list: DrillRow[] = shown.map(r => {
@@ -79,6 +82,7 @@ export async function drilldown(db: Db, opts: { batch: string; metric: string; g
       scheduledFor: r.scheduled_for, deliveredAt: r.delivered_at ?? null, clicks: r.human_clicks ?? 0, viewed: !!r.estimate_viewed, timeOnPage: r.time_on_page_s ?? null,
       deepestStep: r.deepest_step ?? null, submittedAt: r.estimate_submitted_at ?? null, replyAt: r.reply_at ?? null, replyIntent: r.reply_intent ?? null,
       replyText: r.reply_text ? redact(String(r.reply_text)) : null, optedOut: !!r.opted_out, temperature: r.temperature, score: r.engagement_score ?? 0, device: r.device ?? null, os: r.os ?? null,
+      lastActivityAt: r.last_activity_at ?? null, lastActivity: r.last_activity ?? null,
     };
   });
   return { total: rows.length, shown: list.length, rows: list };

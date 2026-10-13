@@ -88,12 +88,13 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
   const t = rates(total);
 
   // Lead details for the people worth following up, plus what homeowners asked and replied.
-  const hotRows = rows.filter(r => ['hot', 'warm', 'wrong_contact'].includes(r.temperature)).sort((a, b) => b.engagement_score - a.engagement_score).slice(0, 200);
+  const act = (r: Row) => (r.last_activity_at ? Date.parse(r.last_activity_at) : 0);
+  const hotRows = rows.filter(r => ['hot', 'warm', 'wrong_contact'].includes(r.temperature)).sort((a, b) => act(b) - act(a) || b.engagement_score - a.engagement_score).slice(0, 200);
   const leadIds = hotRows.map(r => r.lead_id);
   const { data: leadInfo } = leadIds.length ? await db.from('leads').select('id,address,city,state,owner_name,contact_phone,stage').in('id', leadIds) : { data: [] as Row[] };
   const info = new Map((leadInfo ?? []).map(l => [l.id, l]));
   const why = (r: Row) => [r.temperature === 'wrong_contact' && 'said this is the wrong person or number', r.estimate_submitted_at && 'submitted the estimate form', r.contact_requested_at && 'asked for a call or a question', r.reply_intent === 'yes' && 'replied YES', r.reply_intent === 'other' && 'replied', r.report_downloaded && 'saved the report', r.chat_questions > 0 && `asked ${r.chat_questions} chat question(s)`, r.deepest_step === 'questionnaire' && 'reached the questionnaire', r.deepest_step === 'contact' && 'started the contact form', r.human_clicks > 0 && 'opened the link', r.time_on_page_s >= 30 && `${r.time_on_page_s}s on the page`].filter(Boolean).join(', ');
-  const hotLeads = hotRows.map(r => { const l = info.get(r.lead_id) ?? {}; return { leadId: r.lead_id, batch: r.batch, temperature: r.temperature, score: r.engagement_score, address: [l.address, l.city, l.state].filter(Boolean).join(', '), owner: l.owner_name ?? null, stage: l.stage ?? null, phone: l.contact_phone ?? null, why: why(r) }; });
+  const hotLeads = hotRows.map(r => { const l = info.get(r.lead_id) ?? {}; return { leadId: r.lead_id, batch: r.batch, temperature: r.temperature, score: r.engagement_score, address: [l.address, l.city, l.state].filter(Boolean).join(', '), owner: l.owner_name ?? null, stage: l.stage ?? null, phone: l.contact_phone ?? null, why: why(r), lastActivityAt: (r.last_activity_at ?? null) as string | null, lastActivity: (r.last_activity ?? null) as string | null }; });
 
   const replyRows = rows.filter(r => r.reply_at).sort((a, b) => Date.parse(b.reply_at) - Date.parse(a.reply_at)).slice(0, 40);
   const replies = replyRows.map(r => ({ leadId: r.lead_id, batch: r.batch as string, at: r.reply_at, intent: r.reply_intent, text: redact(String(r.reply_text ?? '')) }));

@@ -27,9 +27,9 @@ export async function GET(req: NextRequest) {
     const { data } = await db.from('leads').select('id,address,city,state,zip,owner_name,contact_phone,contact_email,stage,source').in('id', ids.slice(i, i + 150));
     for (const l of data ?? []) leads.set(l.id, l);
   }
-  const cols = ['batch', 'audience', 'lead_id', 'address', 'city', 'state', 'zip', 'owner_name', 'contact_phone', 'contact_email', 'source', 'stage', 'temperature', 'engagement_score', 'twilio_status', 'phone_quality', 'variant', 'generated_by', 'range_text', 'human_clicks', 'first_click_at', 'device', 'os', 'click_region', 'estimate_viewed', 'time_on_page_s', 'deepest_step', 'report_downloaded', 'chat_questions', 'estimate_submitted_at', 'contact_requested_at', 'reply_at', 'reply_intent', 'reply_text', 'opted_in', 'opted_out'];
+  const cols = ['batch', 'audience', 'lead_id', 'address', 'city', 'state', 'zip', 'owner_name', 'contact_phone', 'contact_email', 'source', 'stage', 'temperature', 'engagement_score', 'twilio_status', 'phone_quality', 'variant', 'generated_by', 'range_text', 'human_clicks', 'first_click_at', 'last_activity_at', 'last_activity', 'device', 'os', 'click_region', 'estimate_viewed', 'time_on_page_s', 'deepest_step', 'report_downloaded', 'chat_questions', 'estimate_submitted_at', 'contact_requested_at', 'reply_at', 'reply_intent', 'reply_text', 'opted_in', 'opted_out'];
   const lines = [cols.join(',')];
-  for (const e of eng.sort((a, b) => b.engagement_score - a.engagement_score)) {
+  for (const e of eng.sort((a, b) => Date.parse(b.last_activity_at ?? 0) - Date.parse(a.last_activity_at ?? 0) || b.engagement_score - a.engagement_score)) {
     const row = { ...(leads.get(e.lead_id) ?? {}), ...e };
     lines.push(cols.map(c => esc(safe(row[c]))).join(','));
   }

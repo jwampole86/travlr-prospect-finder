@@ -153,6 +153,15 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
     const optedIn = lead.sms_opt_in === true;
     const chat = myJ.filter(e => e.event === 'chat_question').length;
     if (reply && isWrongContact(replyBody)) quality = 'wrong_person';
+    // Latest thing the homeowner did, so the Campaigns lists can show who interacted most recently.
+    const journeyLabel = (ev: string) => ev === 'submitted' ? 'Submitted the form' : ev === 'call_requested' || ev === 'question_requested' ? 'Asked for a call' : ev === 'chat_question' ? 'Asked a chat question' : ev === 'report_downloaded' || ev === 'report_printed' || ev === 'link_copied' ? 'Saved the report' : ev === 'contact_started' ? 'Started the contact form' : ev === 'questionnaire_started' ? 'Started the questionnaire' : 'Viewed the estimate';
+    const activity: Array<{ t: number; label: string }> = [
+      ...human.map(l => ({ t: Date.parse(l.occurred_at), label: 'Opened the link' })),
+      ...myJ.map(e => ({ t: Date.parse(e.created_at), label: journeyLabel(e.event) })),
+      ...(reply ? [{ t: Date.parse(reply.sent_at), label: 'Replied' }] : []),
+      ...(submittedAt ? [{ t: submittedAt, label: 'Submitted the form' }] : []),
+    ].filter(a => !Number.isNaN(a.t));
+    const lastAct = activity.reduce<{ t: number; label: string } | null>((m, a) => (!m || a.t >= m.t ? a : m), null);
     const sc = scoreEngagement({
       delivered, humanClicks: human.length, viewed: has('estimate_shown') || has('page_view'), seconds: maxNum('time_on_page', 'seconds'), scroll: maxNum('scroll_depth', 'pct'),
       step, downloaded: has('report_downloaded') || has('report_printed') || has('link_copied'), chat, website: has('website_clicked'),
@@ -170,6 +179,7 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
       report_downloaded: has('report_downloaded') || has('report_printed'), chat_questions: chat, website_clicked: has('website_clicked'),
       estimate_submitted_at: submittedAt ? new Date(submittedAt).toISOString() : null, contact_requested_at: contactAt ?? null,
       reply_at: reply ? reply.sent_at : null, reply_intent: replyIntent, reply_text: reply ? String(reply.metadata?.body ?? '').slice(0, 500) : null,
+      last_activity_at: lastAct ? new Date(lastAct.t).toISOString() : null, last_activity: lastAct?.label ?? null,
       opted_in: optedIn, opted_out: optedOut, engagement_score: sc.score, temperature: sc.temperature, final, updated_at: new Date().toISOString(),
     });
 

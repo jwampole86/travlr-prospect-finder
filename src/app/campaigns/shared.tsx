@@ -4,7 +4,7 @@ import React from 'react';
 
 export interface BatchInfo { batch: string; texts: number; firstSend: string; lastSend: string; audience: string | null; pending: number; canceled: number }
 export interface Bucket { texts: number; delivered: number; clicked: number; viewed: number; submitted: number; replied: number; yes: number; optOut: number; hot: number; cost: number; deliveredPct: number; clickPct: number; viewPct: number; submitPct: number; replyPct: number; optOutPct: number; hotPct: number }
-export interface Hot { leadId: string; batch: string; temperature: string; score: number; address: string; owner: string | null; stage: string | null; phone: string | null; why: string }
+export interface Hot { leadId: string; batch: string; temperature: string; score: number; address: string; owner: string | null; stage: string | null; phone: string | null; why: string; lastActivityAt: string | null; lastActivity: string | null }
 export interface Overview {
   empty?: boolean; updatedAt?: string; final?: boolean; totals: Bucket;
   funnel: { texts: number; sent: number; delivered: number; clicked: number; viewed: number; contactStarted: number; submitted: number; replied: number; optedIn: number; optedOut: number };
@@ -27,6 +27,10 @@ export interface AssistantResult { summary: string; options: CampaignOption[]; o
 export interface BuilderForm { name: string; audience: string; states: string[]; minScore: number; maxTexts: number; tone: 'friendly' | 'direct' | 'mix'; startAt: string; spreadHours: 0 | 1 | 2 | 4 }
 
 export const fmtDate = (s: string) => new Date(s).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+export function timeAgo(s: string) {
+  const m = Math.max(0, Math.round((Date.now() - Date.parse(s)) / 60_000));
+  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+}
 export const pct = (n: number, d: number) => (d ? Math.round((n / d) * 1000) / 10 : 0);
 export const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
 

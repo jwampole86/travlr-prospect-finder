@@ -3,13 +3,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Copy, Download, ExternalLink, Loader2, Search, X } from 'lucide-react';
-import { Chip, DrillSpec, ERROR_MEANING, TEMP_STYLE, cx, fmtDate } from './shared';
+import { Chip, DrillSpec, ERROR_MEANING, TEMP_STYLE, cx, fmtDate, timeAgo } from './shared';
 
 interface DrillRow {
   leadId: string; batch: string; address: string; owner: string | null; state: string | null; phone: string | null; stage: string | null;
   status: string; errorCode: string | null; tone: string | null; audience: string | null; scheduledFor: string; deliveredAt: string | null;
   clicks: number; viewed: boolean; timeOnPage: number | null; deepestStep: string | null; submittedAt: string | null;
   replyAt: string | null; replyIntent: string | null; replyText: string | null; optedOut: boolean; temperature: string; score: number; device: string | null; os: string | null;
+  lastActivityAt: string | null; lastActivity: string | null;
 }
 interface Detail {
   leadId: string; batch: string; temperature: string; score: number; status: string; errorCode: string | null; audience: string | null; tone: string | null; writtenBy: string | null;
@@ -93,6 +94,7 @@ export default function DrilldownDrawer({ spec, batch, onClose }: { spec: DrillS
   const [data, setData] = useState<{ total: number; shown: number; rows: DrillRow[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [order, setOrder] = useState<'newest' | 'oldest' | 'strongest'>('newest');
   const [open, setOpen] = useState<{ leadId: string; batch: string } | null>(spec.openLead ?? null);
 
   useEffect(() => {
@@ -113,12 +115,16 @@ export default function DrilldownDrawer({ spec, batch, onClose }: { spec: DrillS
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (data?.rows ?? []).filter(r => !q || `${r.address} ${r.owner ?? ''} ${r.phone ?? ''} ${r.state ?? ''} ${r.replyText ?? ''}`.toLowerCase().includes(q));
-  }, [data, query]);
+    const at = (r: DrillRow) => (r.lastActivityAt ? Date.parse(r.lastActivityAt) : 0);
+    const list = (data?.rows ?? []).filter(r => !q || `${r.address} ${r.owner ?? ''} ${r.phone ?? ''} ${r.state ?? ''} ${r.replyText ?? ''}`.toLowerCase().includes(q));
+    if (order === 'strongest') return [...list].sort((a, b) => b.score - a.score || at(b) - at(a));
+    if (order === 'oldest') return [...list].sort((a, b) => (at(a) || Infinity) - (at(b) || Infinity) || b.score - a.score);
+    return list;
+  }, [data, query, order]);
 
   function exportCsv() {
-    const head = ['Address', 'Owner', 'Phone', 'State', 'Campaign', 'Audience', 'Tone', 'Status', 'Scheduled', 'Opened link', 'Viewed estimate', 'Submitted form', 'Reply', 'Reply text', 'Opted out', 'Outcome', 'Score'];
-    const body = rows.map(r => [r.address, r.owner, r.phone, r.state, r.batch, r.audience, r.tone, r.status, r.scheduledFor, r.clicks, r.viewed ? 'yes' : 'no', r.submittedAt ?? '', r.replyIntent ?? '', r.replyText ?? '', r.optedOut ? 'yes' : 'no', r.temperature, r.score]);
+    const head = ['Address', 'Owner', 'Phone', 'State', 'Campaign', 'Audience', 'Tone', 'Status', 'Scheduled', 'Last activity', 'Last activity at', 'Opened link', 'Viewed estimate', 'Submitted form', 'Reply', 'Reply text', 'Opted out', 'Outcome', 'Score'];
+    const body = rows.map(r => [r.address, r.owner, r.phone, r.state, r.batch, r.audience, r.tone, r.status, r.scheduledFor, r.lastActivity ?? '', r.lastActivityAt ?? '', r.clicks, r.viewed ? 'yes' : 'no', r.submittedAt ?? '', r.replyIntent ?? '', r.replyText ?? '', r.optedOut ? 'yes' : 'no', r.temperature, r.score]);
     const blob = new Blob([[head, ...body].map(l => l.map(csvCell).join(',')).join('\n')], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${spec.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`; a.click(); URL.revokeObjectURL(a.href);
   }
@@ -143,6 +149,7 @@ export default function DrilldownDrawer({ spec, batch, onClose }: { spec: DrillS
               <>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative"><Search size={13} className="absolute left-2.5 top-2.5 text-muted-foreground" /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search address, owner, phone" className="h-8 w-64 rounded-xl border border-border bg-background pl-7 pr-2 text-xs outline-none focus:ring-2 focus:ring-primary/40" /></div>
+                  <select value={order} onChange={e => setOrder(e.target.value as typeof order)} aria-label="Sort" className="h-8 rounded-xl border border-border bg-background px-2 text-xs"><option value="newest">Newest activity first</option><option value="oldest">Oldest activity first</option><option value="strongest">Strongest first</option></select>
                   <button onClick={exportCsv} disabled={!rows.length} className="h-8 inline-flex items-center gap-1.5 px-3 rounded-xl border border-border text-xs hover:bg-muted disabled:opacity-50"><Download size={13} /> Export these {rows.length}</button>
                   <span className="text-[11px] text-muted-foreground">Click a row for the message and full timeline.</span>
                 </div>
@@ -154,7 +161,7 @@ export default function DrilldownDrawer({ spec, batch, onClose }: { spec: DrillS
                         <tr key={`${r.leadId}-${r.batch}`} onClick={() => setOpen({ leadId: r.leadId, batch: r.batch })} className="border-t border-border align-top cursor-pointer hover:bg-muted/50">
                           <td className="py-2.5 pl-4 pr-3 max-w-xs"><p className="font-medium text-primary truncate">{r.address || r.leadId}</p><p className="text-[11px] text-muted-foreground truncate">{r.owner ?? 'Owner unknown'}{r.phone ? ` · ${r.phone}` : ''}</p><p className="text-[11px] text-muted-foreground">{[r.tone, r.audience].filter(Boolean).join(' · ')}</p></td>
                           <td className="pr-3 whitespace-nowrap"><Chip tone={STATUS_TONE[r.status] ?? 'muted'}>{r.status}</Chip>{r.errorCode && <p className="text-[11px] text-amber-600 mt-1">{ERROR_MEANING[r.errorCode]?.[0] ?? `error ${r.errorCode}`}</p>}<p className="text-[11px] text-muted-foreground mt-1">{fmtDate(r.scheduledFor)}</p></td>
-                          <td className="pr-3 text-xs text-muted-foreground">{r.clicks > 0 ? <p className="text-foreground">Opened the link{r.clicks > 1 ? ` x${r.clicks}` : ''}</p> : <p>No click</p>}{r.viewed && <p>Viewed the estimate{r.timeOnPage ? ` (${r.timeOnPage}s)` : ''}</p>}{r.submittedAt && <p className="text-emerald-600 font-medium">Submitted the form</p>}</td>
+                          <td className="pr-3 text-xs text-muted-foreground">{r.lastActivityAt && <p className="text-foreground font-medium">{timeAgo(r.lastActivityAt)}<span className="text-muted-foreground font-normal"> · {r.lastActivity}</span></p>}{r.clicks > 0 ? <p className="text-foreground">Opened the link{r.clicks > 1 ? ` x${r.clicks}` : ''}</p> : <p>No click</p>}{r.viewed && <p>Viewed the estimate{r.timeOnPage ? ` (${r.timeOnPage}s)` : ''}</p>}{r.submittedAt && <p className="text-emerald-600 font-medium">Submitted the form</p>}</td>
                           <td className="pr-3 text-xs max-w-[14rem]">{r.replyAt ? <><Chip tone={r.replyIntent === 'yes' ? 'green' : r.replyIntent === 'stop' ? 'red' : 'muted'} className="uppercase">{r.replyIntent ?? 'reply'}</Chip><p className="text-muted-foreground mt-1 line-clamp-2">{r.replyText}</p></> : <span className="text-muted-foreground">-</span>}</td>
                           <td className="pr-4 text-right whitespace-nowrap"><span className={cx('px-2 py-0.5 rounded-full text-[11px] font-semibold', TEMP_STYLE[r.temperature])}>{r.temperature.replace('_', ' ')}</span><p className="text-[11px] text-muted-foreground mt-1">score {r.score}</p></td>
                         </tr>))}</tbody>

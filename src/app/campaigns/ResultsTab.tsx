@@ -3,7 +3,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Copy, DollarSign, Flame, Loader2, MessageSquare, MousePointerClick, Search, Send, ShieldOff, Sparkles, ArrowDown, ArrowUp, Eye, X, Check } from 'lucide-react';
-import { BatchInfo, Card, Chip, DrillSpec, ERROR_MEANING, Insights, Notice, Overview, SectionTitle, Skeleton, TEMP_STYLE, cx, fmtDate, pct, post } from './shared';
+import { BatchInfo, Card, Chip, DrillSpec, ERROR_MEANING, Hot, Insights, Notice, Overview, SectionTitle, Skeleton, TEMP_STYLE, cx, fmtDate, pct, post, timeAgo } from './shared';
 import DrilldownDrawer from './DrilldownDrawer';
 
 const BREAKDOWNS: Array<[string, string]> = [
@@ -16,6 +16,7 @@ const LEAD_GROUPS: Array<{ key: string; label: string; hint: string }> = [
   { key: 'wrong_contact', label: 'Wrong contact', hint: 'Said it is the wrong person or number. Find the right contact.' },
 ];
 const LEAD_PREVIEW = 8;
+const TIMELINE_PREVIEW = 15;
 const FUNNEL_METRIC: Record<string, string> = { texts: 'texts', sent: 'sent', delivered: 'delivered', clicked: 'clicked', viewed: 'viewed', contact: 'contact', submitted: 'submitted' };
 
 function status(b: BatchInfo): { label: string; tone: 'blue' | 'amber' | 'green' | 'muted' } {
@@ -95,6 +96,8 @@ export default function ResultsTab(props: {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'texts', dir: -1 });
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ hot: true });
   const [showAll, setShowAll] = useState<Record<string, boolean>>({});
+  const [leadView, setLeadView] = useState<'timeline' | 'groups'>('timeline');
+  const [order, setOrder] = useState<'newest' | 'oldest'>('newest');
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
   const [drill, setDrill] = useState<DrillSpec | null>(null);
@@ -113,9 +116,11 @@ export default function ResultsTab(props: {
   }, [data, tab, sort]);
   const leading = useMemo(() => { const c = rows.filter(([, b]) => b.texts >= 15 && b.delivered > 0); return c.length > 1 ? c.reduce((m, x) => (x[1].submitPct + x[1].replyPct > m[1].submitPct + m[1].replyPct ? x : m))[0] : null; }, [rows]);
   const leadGroups = useMemo(() => {
-    const found = (data?.hotLeads ?? []).filter(h => !query || `${h.address} ${h.owner ?? ''} ${h.phone ?? ''}`.toLowerCase().includes(query.toLowerCase()));
-    return LEAD_GROUPS.map(g => ({ ...g, rows: found.filter(h => h.temperature === g.key) }));
-  }, [data, query]);
+    const at = (h: Hot) => (h.lastActivityAt ? Date.parse(h.lastActivityAt) : 0);
+    const found = (data?.hotLeads ?? []).filter(h => !query || `${h.address} ${h.owner ?? ''} ${h.phone ?? ''}`.toLowerCase().includes(query.toLowerCase()))
+      .sort((a, b) => order === 'newest' ? at(b) - at(a) || b.score - a.score : (at(a) || Infinity) - (at(b) || Infinity) || b.score - a.score);
+    return { all: found, groups: LEAD_GROUPS.map(g => ({ ...g, rows: found.filter(h => h.temperature === g.key) })) };
+  }, [data, query, order]);
   const groupOpen = (key: string, n: number) => (query ? n > 0 : !!openGroups[key]);
 
   const th = (k: SortKey, label: string) => (
@@ -126,6 +131,21 @@ export default function ResultsTab(props: {
     ? <button onClick={() => setDrill({ title: `${BREAKDOWNS.find(([k]) => k === tab)?.[1] ?? tab}: ${value}, ${METRIC_LABEL[metric]}`, metric, group: tab, value })} className="hover:text-primary hover:underline">{shown ?? n}</button>
     : <>{shown ?? n}</>;
   async function copy(text: string) { try { await navigator.clipboard.writeText(text); setCopied(text); setTimeout(() => setCopied(null), 1500); } catch { /* clipboard unavailable */ } }
+
+  const leadTable = (list: Hot[], showTemp: boolean) => (
+    <table className="w-full text-sm"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground"><th className="py-2 pl-4 pr-3">Lead</th><th className="pr-3 whitespace-nowrap">Last activity</th><th className="pr-3">Score</th><th className="pr-3">What they did</th><th className="pr-4">Phone</th></tr></thead>
+      <tbody>{list.map(h => {
+        const fresh = !!h.lastActivityAt && Date.now() - Date.parse(h.lastActivityAt) < 86_400_000;
+        return (
+          <tr key={`${h.leadId}-${h.batch}`} className="border-t border-border align-top hover:bg-muted/40">
+            <td className="py-2.5 pl-4 pr-3"><Link href={`/lead-profile?id=${h.leadId}`} className="font-medium text-primary hover:underline">{h.address || h.leadId}</Link><div className="text-[11px] text-muted-foreground">{h.owner ?? 'Owner unknown'}{h.stage ? ` · ${h.stage}` : ''}</div>{showTemp && <span className={cx('mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold', TEMP_STYLE[h.temperature])}>{h.temperature.replace('_', ' ')}</span>}</td>
+            <td className="pr-3 text-xs whitespace-nowrap">{h.lastActivityAt ? <><p className={cx('font-medium inline-flex items-center gap-1.5', fresh && 'text-emerald-600')}>{fresh && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}{timeAgo(h.lastActivityAt)}</p><p className="text-muted-foreground">{h.lastActivity}</p><p className="text-[11px] text-muted-foreground">{fmtDate(h.lastActivityAt)}</p></> : <span className="text-muted-foreground">-</span>}</td>
+            <td className="pr-3 tabular-nums">{h.score}</td><td className="pr-3 text-xs text-muted-foreground max-w-md">{h.why}</td>
+            <td className="pr-4 text-xs whitespace-nowrap"><div className="flex flex-col items-start gap-1">{h.phone && <button onClick={() => copy(h.phone!)} title="Copy number" className="inline-flex items-center gap-1 hover:text-primary">{h.phone} {copied === h.phone ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="opacity-50" />}</button>}
+              <button onClick={() => setDrill({ title: h.address || 'Lead', metric: `temp:${h.temperature}`, batch: h.batch, openLead: { leadId: h.leadId, batch: h.batch } })} className="text-primary font-medium hover:underline">Message and timeline</button></div></td>
+          </tr>);
+      })}</tbody></table>
+  );
 
   return (
     <div className="space-y-6">
@@ -222,10 +242,15 @@ export default function ResultsTab(props: {
           <Card className="p-5">
             <SectionTitle icon={<Flame size={15} className="text-red-500" />} title="Leads to follow up"
               right={<div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex gap-1 text-xs"><button onClick={() => setOpenGroups(Object.fromEntries(LEAD_GROUPS.map(g => [g.key, true])))} className="px-2.5 py-1 rounded-lg border border-border hover:bg-muted">Expand all</button><button onClick={() => setOpenGroups({})} className="px-2.5 py-1 rounded-lg border border-border hover:bg-muted">Collapse all</button></div>
+                <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs">{([['timeline', 'By activity'], ['groups', 'By outcome']] as const).map(([k, l]) => <button key={k} onClick={() => setLeadView(k)} className={cx('px-2.5 py-1', leadView === k ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}>{l}</button>)}</div>
+                <button onClick={() => setOrder(o => o === 'newest' ? 'oldest' : 'newest')} title="Change the order" className="px-2.5 py-1 rounded-lg border border-border text-xs hover:bg-muted inline-flex items-center gap-1">{order === 'newest' ? <ArrowDown size={11} /> : <ArrowUp size={11} />}{order === 'newest' ? 'Newest first' : 'Oldest first'}</button>
+                {leadView === 'groups' && <div className="inline-flex gap-1 text-xs"><button onClick={() => setOpenGroups(Object.fromEntries(LEAD_GROUPS.map(g => [g.key, true])))} className="px-2.5 py-1 rounded-lg border border-border hover:bg-muted">Expand all</button><button onClick={() => setOpenGroups({})} className="px-2.5 py-1 rounded-lg border border-border hover:bg-muted">Collapse all</button></div>}
                 <div className="relative"><Search size={13} className="absolute left-2.5 top-2.5 text-muted-foreground" /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search" className="h-8 w-36 rounded-xl border border-border bg-background pl-7 pr-2 text-xs outline-none focus:ring-2 focus:ring-primary/40" /></div></div>} />
-            {data.hotLeads.length === 0 ? <p className="text-sm text-muted-foreground">No engaged leads yet. Homeowners who open the link, submit the form, ask for a call or reply will be listed here, strongest first.</p> : leadGroups.every(g => g.rows.length === 0) ? <p className="text-sm text-muted-foreground">Nothing matches that search.</p> : (
-              <div className="space-y-2.5">{leadGroups.filter(g => g.rows.length > 0 || !query).map(g => {
+            {data.hotLeads.length === 0 ? <p className="text-sm text-muted-foreground">No engaged leads yet. Homeowners who open the link, submit the form, ask for a call or reply will be listed here, newest activity first.</p> : leadGroups.all.length === 0 ? <p className="text-sm text-muted-foreground">Nothing matches that search.</p> : leadView === 'timeline' ? (
+              <div className="rounded-xl border border-border overflow-hidden"><div className="overflow-x-auto">{leadTable(showAll.timeline || query ? leadGroups.all : leadGroups.all.slice(0, TIMELINE_PREVIEW), true)}</div>
+                {leadGroups.all.length > TIMELINE_PREVIEW && !query && <button onClick={() => setShowAll(x => ({ ...x, timeline: !x.timeline }))} className="w-full py-2 text-xs font-medium text-primary hover:bg-muted/40 border-t border-border">{showAll.timeline ? 'Show fewer' : `Show all ${leadGroups.all.length}`}</button>}</div>
+            ) : (
+              <div className="space-y-2.5">{leadGroups.groups.filter(g => g.rows.length > 0 || !query).map(g => {
                 const open = groupOpen(g.key, g.rows.length); const shownRows = showAll[g.key] || query ? g.rows : g.rows.slice(0, LEAD_PREVIEW);
                 return (
                   <div key={g.key} className="rounded-xl border border-border overflow-hidden">
@@ -237,14 +262,7 @@ export default function ResultsTab(props: {
                       <span role="button" tabIndex={0} onClick={e => { e.stopPropagation(); setDrill({ title: `${g.label} leads`, metric: `temp:${g.key}` }); }} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setDrill({ title: `${g.label} leads`, metric: `temp:${g.key}` }); } }} className="ml-auto shrink-0 text-xs font-medium text-primary hover:underline">See all</span>
                     </button>
                     {open && (g.rows.length === 0 ? <p className="px-4 py-3 text-sm text-muted-foreground">No leads here yet.</p> : (
-                      <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground"><th className="py-2 pl-4 pr-3">Lead</th><th className="pr-3">Score</th><th className="pr-3">What they did</th><th className="pr-4">Phone</th></tr></thead>
-                        <tbody>{shownRows.map(h => (
-                          <tr key={`${h.leadId}-${h.batch}`} className="border-t border-border align-top hover:bg-muted/40">
-                            <td className="py-2.5 pl-4 pr-3"><Link href={`/lead-profile?id=${h.leadId}`} className="font-medium text-primary hover:underline">{h.address || h.leadId}</Link><div className="text-[11px] text-muted-foreground">{h.owner ?? 'Owner unknown'}{h.stage ? ` · ${h.stage}` : ''}</div></td>
-                            <td className="pr-3 tabular-nums">{h.score}</td><td className="pr-3 text-xs text-muted-foreground max-w-md">{h.why}</td>
-                            <td className="pr-4 text-xs whitespace-nowrap"><div className="flex flex-col items-start gap-1">{h.phone && <button onClick={() => copy(h.phone!)} title="Copy number" className="inline-flex items-center gap-1 hover:text-primary">{h.phone} {copied === h.phone ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="opacity-50" />}</button>}
-                              <button onClick={() => setDrill({ title: h.address || 'Lead', metric: `temp:${h.temperature}`, batch: h.batch, openLead: { leadId: h.leadId, batch: h.batch } })} className="text-primary font-medium hover:underline">Message and timeline</button></div></td>
-                          </tr>))}</tbody></table>
+                      <div className="overflow-x-auto">{leadTable(shownRows, false)}
                         {g.rows.length > LEAD_PREVIEW && !query && <button onClick={() => setShowAll(s => ({ ...s, [g.key]: !s[g.key] }))} className="w-full py-2 text-xs font-medium text-primary hover:bg-muted/40 border-t border-border">{showAll[g.key] ? 'Show fewer' : `Show all ${g.rows.length}`}</button>}
                       </div>))}
                   </div>);
