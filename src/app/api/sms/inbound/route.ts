@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { classifyReply, findLeadByPhone, isWrongContact, notifyAdmins, recordOptIn, recordOptOut, toE164, verifyTwilioSignature } from '@/lib/services/smsConsent';
 import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
-import { sendReplyAlert } from '@/lib/services/replyAlerts';
+import { sendReplyAlert, sendTeamAlert } from '@/lib/services/replyAlerts';
 
 /**
  * POST /api/sms/inbound
@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
     if (intent === 'stop' || intent === 'no') {
       await db.from('cohost_offer_links').update({ opted_out_at: now }).eq('property_id', sentTo.property_id);
       if (l && !['agreed', 'onboarded'].includes(l.pipeline_stage)) await db.from('str_listings').update({ pipeline_stage: 'declined', stage_updated_at: now }).eq('property_id', sentTo.property_id);
+      await sendTeamAlert({ key: `cohost-sms-optout:${messageSid || `${e164}:${now}`}`, text: `Co-Host owner replied "${text.replace(/\s+/g, ' ').trim().slice(0, 40)}" to our text${l?.market ? ` (${l.market})` : ''}. Marked declined.`, url: `${site}/cohost?open=${encodeURIComponent(sentTo.property_id)}` });
     } else {
       if (l && ['identified', 'reviewed', 'contacted'].includes(l.pipeline_stage)) await db.from('str_listings').update({ pipeline_stage: 'replied', stage_updated_at: now }).eq('property_id', sentTo.property_id);
       await notifyAdmins(db, { title: 'Co-host prospect replied', message: `A co-host prospect${l?.market ? ` (${l.market})` : ''} replied: "${text.slice(0, 80)}"`, metadata: { property_id: sentTo.property_id, reason: 'cohost_sms_reply' } }).catch(() => {});

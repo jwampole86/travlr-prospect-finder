@@ -7,9 +7,16 @@ import { phonesFor } from '@/lib/services/cohostText';
 import { contactablePersons } from '@/lib/services/homesageSkipTrace';
 import { notifyAdmins } from '@/lib/services/smsConsent';
 import { inSendWindow } from '@/lib/services/estimateOutreachSms';
+import { sendTeamAlert } from '@/lib/services/replyAlerts';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
+
+/** Who a co-host alert is about, e.g. "Mountain Chalet (Snowmass, CO)", and the pipeline page that opens on them. */
+export async function cohostAlertTarget(db: Db, propertyId: string) {
+  const { data: l } = await db.from('str_listings').select('title,market').eq('property_id', propertyId).maybeSingle();
+  return { who: [l?.title, l?.market && `(${l.market})`].filter(Boolean).join(' ') || 'A co-host prospect', url: `${OFFER_SITE}/cohost?open=${encodeURIComponent(propertyId)}` };
+}
 
 const REPLY_TO = process.env.REPLY_ALERT_EMAIL ?? 'info@staytrvlr.com';
 const POSTAL = process.env.COHOST_POSTAL_ADDRESS ?? '17 Coronel Pl, Aliso Viejo, CA 92656-1631';
@@ -188,6 +195,7 @@ export async function retryNextAddress(db: Db, id: string): Promise<{ ok: true; 
   }
   await db.from('cohost_email_messages').update({ tried_emails: [...tried].filter(e => e !== m.to_email), retry_at: null, updated_at: new Date().toISOString() }).eq('id', id);
   await notifyAdmins(db, { title: 'Co-host email could not be delivered', message: `Every address on file for ${l.title ?? 'a co-host prospect'} bounced. Find another way to reach the owner.`, metadata: { kind: 'cohost_email_undeliverable', property_id: m.property_id } }).catch(() => {});
+  await sendTeamAlert({ key: `cohost-undeliverable:${id}`, text: `Co-Host email could not be delivered to ${l.title ?? 'a prospect'}${l.market ? ` (${l.market})` : ''}: every address bounced.`, url: `${OFFER_SITE}/cohost?open=${encodeURIComponent(m.property_id)}` });
   return { ok: false, reason: 'No other address on file.' };
 }
 
@@ -200,6 +208,8 @@ export async function optOutOwner(db: Db, propertyId: string, reason: string) {
   if (l && !['agreed', 'onboarded'].includes(l.pipeline_stage)) await db.from('str_listings').update({ pipeline_stage: 'declined', stage_updated_at: now }).eq('property_id', propertyId);
   for (const p of phonesFor(l?.matched_owner)) await db.from('sms_suppressions').upsert({ phone_e164: p.e164, reason: 'opt_out', last_message: reason }, { onConflict: 'phone_e164' });
   await db.from('cohost_email_messages').update({ status: 'opted_out', opted_out_at: now, updated_at: now }).eq('property_id', propertyId).in('status', ['draft', 'sent', 'delivered', 'opened']);
+  const t = await cohostAlertTarget(db, propertyId);
+  await sendTeamAlert({ key: `cohost-optout:${propertyId}`, text: `Co-Host: ${t.who} opted out (${reason}).`, url: t.url });
 }
 
 /** Resend delivery events for a campaign email. Returns false when the message id is not one of ours. */
@@ -215,6 +225,10 @@ export async function applyResendEvent(db: Db, messageId: string, type: string, 
   else if (type === 'email.complained') { await optOutOwner(db, m.property_id, 'marked a co-host email as spam'); return true; }
   else return true;
   await db.from('cohost_email_messages').update(u).eq('id', m.id);
+  if ((type === 'email.opened' || type === 'email.clicked') && m.status !== 'opened') {
+    const t = await cohostAlertTarget(db, m.property_id);
+    await sendTeamAlert({ key: `cohost-open:${m.id}`, text: `Co-Host email ${type === 'email.clicked' ? 'link clicked' : 'opened'} by ${t.who}. Some opens are mail apps pre-loading.`, url: t.url });
+  }
   // A dead address is not the end: try the owner's next address on file.
   if ((u.status === 'bounced' && u.bounce_type === 'hard') || u.status === 'failed') await retryNextAddress(db, m.id).catch(e => console.warn('[cohost email retry]', e instanceof Error ? e.message : e));
   return true;
@@ -227,6 +241,8 @@ export async function logReply(db: Db, id: string, text: string) {
   await db.from('cohost_email_messages').update({ replied_at: now, reply_text: text.slice(0, 1000), updated_at: now }).eq('id', id);
   const { data: l } = await db.from('str_listings').select('pipeline_stage').eq('property_id', m.property_id).maybeSingle();
   if (l && ['identified', 'reviewed', 'contacted'].includes(l.pipeline_stage)) await db.from('str_listings').update({ pipeline_stage: 'replied', stage_updated_at: now }).eq('property_id', m.property_id);
+  const t = await cohostAlertTarget(db, m.property_id);
+  await sendTeamAlert({ key: `cohost-reply:${id}:${now.slice(0, 16)}`, text: `Co-Host email reply from ${t.who}: "${text.replace(/\s+/g, ' ').trim().slice(0, 110)}"`, url: t.url, email: true });
   return true;
 }
 

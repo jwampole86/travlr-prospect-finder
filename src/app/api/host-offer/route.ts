@@ -3,6 +3,8 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { allowRequest, clientIp } from '@/lib/publicRateLimit';
 import { notifyAdmins } from '@/lib/services/smsConsent';
 import { toE164 } from '@/lib/services/smsConsent';
+import { sendTeamAlert } from '@/lib/services/replyAlerts';
+import { cohostAlertTarget } from '@/lib/services/cohostEmail';
 
 export const maxDuration = 30;
 
@@ -42,6 +44,8 @@ export async function POST(req: NextRequest) {
     if (l && (EARLY_STAGES.includes(l.pipeline_stage) || l.pipeline_stage === 'declined')) { patch.pipeline_stage = 'replied'; patch.stage_updated_at = new Date().toISOString(); }
     if (Object.keys(patch).length) await db.from('str_listings').update(patch).eq('property_id', link.property_id);
     await notifyAdmins(db, { title: 'Co-host audit requested', message: `${name} asked for a listing audit${l?.market ? ` (${l.market})` : ''}.`, metadata: { kind: 'cohost_offer_request', code, property_id: link.property_id } }).catch(() => {});
+    const t = await cohostAlertTarget(db, link.property_id);
+    await sendTeamAlert({ key: `cohost-request:${code}:${Math.floor(Date.now() / 600_000)}`, text: `Co-Host owner asked for a listing audit: ${name}, ${t.who}. ${email || phone}`, url: t.url, email: true });
     return NextResponse.json({ ok: true });
   }
 
@@ -54,6 +58,8 @@ export async function POST(req: NextRequest) {
     const o = (l?.matched_owner ?? {}) as { skipTrace?: { results?: Array<{ found?: { phones?: Array<{ e164?: string }> } }> }; homesage?: { persons?: Array<{ phones?: Array<{ e164?: string }> }> }; contact?: { phone?: string } };
     const phones = [...(o.skipTrace?.results ?? []).flatMap(r => (r.found?.phones ?? []).map(p => p.e164)), ...(o.homesage?.persons ?? []).flatMap(p => (p.phones ?? []).map(x => x.e164)), toE164(o.contact?.phone)].filter((p): p is string => !!p);
     for (const p of new Set(phones)) await db.from('sms_suppressions').upsert({ phone_e164: p, reason: 'opt_out', last_message: 'co-host offer page opt-out' }, { onConflict: 'phone_e164' });
+    const t = await cohostAlertTarget(db, link.property_id);
+    await sendTeamAlert({ key: `cohost-optout:${link.property_id}`, text: `Co-Host: ${t.who} opted out on the offer page.`, url: t.url });
     return NextResponse.json({ ok: true });
   }
 

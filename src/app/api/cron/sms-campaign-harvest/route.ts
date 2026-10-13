@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { harvestBatch, listBatches } from '@/lib/services/smsCampaignHarvest';
 import { buildOverview, generateInsights, saveSnapshot } from '@/lib/services/campaignInsights';
+import { audienceCandidates } from '@/lib/services/campaignBuilder';
+import { sendTeamAlert } from '@/lib/services/replyAlerts';
+import { wasSent } from '@/lib/services/smsSendState';
 
 export const maxDuration = 300;
 
@@ -25,6 +28,23 @@ export async function GET(req: NextRequest) {
     const entry: Record<string, unknown> = { ...result };
 
     const lastSend = Date.parse(b.lastSend);
+    // Once a fresh campaign has finished sending and delivery has settled, text the result and what to do next (once).
+    if (now - lastSend > 90 * 60_000 && now - lastSend < 6 * 3_600_000) {
+      const { data: rows } = await db.from('sms_lead_engagement').select('twilio_status,opted_out,temperature').eq('batch', b.batch);
+      const live = (rows ?? []).filter(r => r.twilio_status !== 'canceled');
+      if (live.length && live.every(r => wasSent(r.twilio_status))) {
+        const delivered = live.filter(r => ['delivered', 'read'].includes(r.twilio_status)).length;
+        const undelivered = live.filter(r => ['undelivered', 'failed'].includes(r.twilio_status)).length;
+        const optOut = live.filter(r => r.opted_out).length;
+        const warm = live.filter(r => r.temperature === 'hot' || r.temperature === 'warm').length;
+        const dPct = Math.round((delivered / live.length) * 100); const oPct = (optOut / live.length) * 100;
+        const [high, verified] = await Promise.all([audienceCandidates(db, 'high-score'), audienceCandidates(db, 'fully-verified')]);
+        const next = dPct >= 85 && oPct <= 5
+          ? `Delivery is good: ready to launch the next campaign from the ${high.length} untexted leads scoring 70+. Say go.`
+          : `Delivery or opt-outs are off: hold the unverified-phone groups and send only fully verified (${verified.length} available).`;
+        await sendTeamAlert({ key: `batch-verdict:${b.batch}`, text: `${b.batch} finished: ${live.length} texts, ${delivered} delivered (${dPct}%), ${undelivered} undelivered, ${optOut} opted out, ${warm} warm/hot. ${next}`, url: `${(process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com').replace(/\/$/, '')}/campaigns`, email: true });
+      }
+    }
     const milestone = now > lastSend + 72 * 3_600_000 ? 'final' : now > lastSend + 24 * 3_600_000 ? 'day1' : null;
     if (milestone) {
       const { data: done } = await db.from('campaign_insight_snapshots').select('id').eq('batch', b.batch).not('insights', 'is', null).gte('created_at', new Date(lastSend + (milestone === 'final' ? 72 : 24) * 3_600_000).toISOString()).limit(1);
