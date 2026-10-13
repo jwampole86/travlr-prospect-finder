@@ -27,7 +27,7 @@ const CO_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a boutique luxury vacation rental and property management company. We launched our Colorado subsidiary in early 2025 and are actively growing our portfolio across Aspen, Breckenridge, and Vail, which is what brought {{address}} to my attention.
+I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company. We launched our Colorado subsidiary in early 2025 and are actively growing our portfolio across Aspen, Breckenridge, and Vail, which is what brought {{address}} to my attention.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -87,7 +87,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
 
-A bit more about us: TRAVLR is a boutique luxury vacation rental and property management company with over 10 years of experience, now operating in Colorado across Aspen, Breckenridge, and Vail since launching our subsidiary in early 2025. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, now operating in Colorado across Aspen, Breckenridge, and Vail since launching our subsidiary in early 2025. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -139,7 +139,7 @@ const CA_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a boutique luxury vacation rental and property management company based in Palm Springs / Palm Desert, where we've operated for over 10 years, with an active presence across the LA basin and Southern California coast — including Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach.
+I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company based in Palm Springs / Palm Desert, where we've operated for over 10 years, with an active presence across the LA basin and Southern California coast — including Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -199,7 +199,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
 
-A bit more about us: TRAVLR is a boutique luxury vacation rental and property management company with over 10 years of experience, proudly serving Southern California — including Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, proudly serving Southern California — including Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -251,7 +251,7 @@ const NV_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a boutique luxury vacation rental and property management company. We're growing our presence in Nevada, focused on Las Vegas and Henderson, which is what brought {{address}} to my attention.
+I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company. We're growing our presence in Nevada, focused on Las Vegas and Henderson, which is what brought {{address}} to my attention.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -311,7 +311,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
 
-A bit more about us: TRAVLR is a boutique luxury vacation rental and property management company with over 10 years of experience, now expanding into Nevada across Las Vegas and Henderson. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, now expanding into Nevada across Las Vegas and Henderson. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -363,7 +363,7 @@ const WA_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a boutique luxury vacation rental and property management company. We're expanding into Washington State, with a focus on Seattle, Bellevue, and Renton, which is what brought {{address}} to my attention.
+I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company. We're expanding into Washington State, with a focus on Seattle, Bellevue, and Renton, which is what brought {{address}} to my attention.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -423,7 +423,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
 
-A bit more about us: TRAVLR is a boutique luxury vacation rental and property management company with over 10 years of experience, now expanding into Washington State across Seattle, Bellevue, and Renton. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, now expanding into Washington State across Seattle, Bellevue, and Renton. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -475,7 +475,7 @@ const MD_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a boutique luxury vacation rental and property management company. We're expanding into Maryland, with Baltimore among our first target markets, which is what brought {{address}} to my attention.
+I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company. We're expanding into Maryland, with Baltimore among our first target markets, which is what brought {{address}} to my attention.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -535,7 +535,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
 
-A bit more about us: TRAVLR is a boutique luxury vacation rental and property management company with over 10 years of experience, now expanding into Maryland with Baltimore among our first target markets. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, now expanding into Maryland with Baltimore among our first target markets. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -587,7 +587,7 @@ const MASTER_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a boutique luxury vacation rental and property management company. We've operated in Palm Springs / Palm Desert, California for over 10 years, and {{localBlurb}}.
+I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company. We've operated in Palm Springs / Palm Desert, California for over 10 years, and {{localBlurb}}.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -647,7 +647,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
 
-A bit more about us: TRAVLR is a boutique luxury vacation rental and property management company with over 10 years of experience, and {{localBlurb}}. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, and {{localBlurb}}. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}

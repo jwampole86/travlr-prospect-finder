@@ -93,7 +93,7 @@ const initialOutreach: CallScript = {
         {
           id: 'io-yes-1',
           type: 'spoken',
-          text: 'Great — so TRAVLR is a boutique vacation rental and property management company, and {localBlurb}. I wanted to see if you\'d be open to hearing a bit about how it works and whether it might be a fit for your property.',
+          text: 'Great — so TRAVLR is a vacation rental and property management company, and {localBlurb}. I wanted to see if you\'d be open to hearing a bit about how it works and whether it might be a fit for your property.',
         },
       ],
     },

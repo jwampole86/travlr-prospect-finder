@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   Phone, Mail, CheckSquare, Plus, Clock, CheckCircle2,
   AlertCircle, Trash2, ChevronDown, Calendar, Loader2,
-  ListTodo, ArrowRight, RotateCcw
+  ListTodo, ArrowRight, RotateCcw, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -24,8 +24,12 @@ interface LeadTask {
   cadence_day?: number;
   sequence_order?: number;
   notes?: string;
+  ai_generated?: boolean;
   created_at: string;
 }
+
+interface PlanTask { title: string; type: LeadTask['task_type']; priority: LeadTask['priority']; dueInDays: number; why: string; script?: string }
+interface TaskPlan { generatedAt: string; summary: string; tasks: PlanTask[] }
 
 interface LeadTaskBoardProps {
   leadId: string;
@@ -86,7 +90,7 @@ function isOverdue(dateStr?: string): boolean {
 
 export default function LeadTaskBoard({ leadId, leadName }: LeadTaskBoardProps) {
   const supabase = createClient();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [tasks, setTasks] = useState<LeadTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -101,6 +105,41 @@ export default function LeadTaskBoard({ leadId, leadName }: LeadTaskBoardProps) 
   const [newNotes, setNewNotes] = useState('');
   const [newCadenceDay, setNewCadenceDay] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [plan, setPlan] = useState<TaskPlan | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [openScript, setOpenScript] = useState<string | null>(null);
+
+  const loadPlan = useCallback(async (refresh = false) => {
+    setPlanLoading(true);
+    try {
+      const res = await fetch('/api/leads/ai-tasks', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) }, body: JSON.stringify({ leadId, refresh }) });
+      const j = res.ok ? await res.json() : null;
+      setPlan(j?.plan ?? null);
+    } catch { /* the board still works without suggestions */ } finally { setPlanLoading(false); }
+  }, [leadId, session?.access_token]);
+
+  useEffect(() => { loadPlan(false); }, [loadPlan]);
+
+  async function addPlanTasks(items: PlanTask[]) {
+    if (!items.length) return;
+    setSaving(true);
+    try {
+      const now = Date.now();
+      const rows = items.map((t, i) => ({
+        lead_id: leadId, title: t.title, task_type: t.type, priority: t.priority,
+        due_date: new Date(now + (t.dueInDays === 0 ? 3_600_000 : t.dueInDays * 86_400_000)).toISOString(),
+        cadence_day: t.dueInDays || null, sequence_order: tasks.length + i, created_by: user?.id ?? null, status: 'pending' as const,
+        notes: [t.why, t.script ? `Talking points: ${t.script}` : ''].filter(Boolean).join('\n\n'), ai_generated: true,
+      }));
+      const { error } = await supabase.from('lead_tasks').insert(rows);
+      if (error) throw error;
+      toast.success(items.length === 1 ? 'Task added' : `${items.length} AI tasks added`);
+      await loadTasks();
+    } catch { toast.error('Failed to add AI tasks'); } finally { setSaving(false); }
+  }
+
+  const suggested = (plan?.tasks ?? []).filter(t => !tasks.some(x => x.title.toLowerCase() === t.title.toLowerCase() && x.status !== 'cancelled'));
 
   const loadTasks = useCallback(async () => {
     try {
@@ -280,6 +319,45 @@ export default function LeadTaskBoard({ leadId, leadName }: LeadTaskBoardProps) 
       </div>
 
       <div className="p-5 space-y-4">
+        {/* AI plan from the whole lead profile */}
+        {(planLoading || suggested.length > 0 || plan?.summary) && (
+          <div className="border border-primary/25 bg-primary/5 rounded-xl p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Sparkles size={13} className="text-primary" />AI recommended next steps</p>
+                {planLoading && !plan ? <p className="text-[11px] text-muted-foreground mt-1">Reading the full lead profile…</p> : plan?.summary ? <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{plan.summary}</p> : null}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button onClick={() => loadPlan(true)} disabled={planLoading} className="p-1.5 text-muted-foreground hover:text-foreground border border-border rounded-md disabled:opacity-50" title="Rebuild from the latest profile"><RotateCcw size={11} className={planLoading ? 'animate-spin' : ''} /></button>
+                {suggested.length > 0 && (
+                  <button onClick={() => addPlanTasks(suggested)} disabled={saving} className="px-2.5 py-1.5 text-[11px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50">Add all ({suggested.length})</button>
+                )}
+              </div>
+            </div>
+            {suggested.map(t => {
+              const cfg = TASK_TYPE_CONFIG[t.type]; const Icon = cfg.icon; const key = t.title;
+              return (
+                <div key={key} className="p-3 bg-card border border-border rounded-lg">
+                  <div className="flex items-start gap-2.5">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${cfg.bg} ${cfg.color}`}><Icon size={13} /></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-foreground">{t.title}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{t.why}</p>
+                      <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
+                        <span className={`inline-flex items-center gap-1 ${PRIORITY_CONFIG[t.priority].color}`}><span className={`w-1.5 h-1.5 rounded-full ${PRIORITY_CONFIG[t.priority].dot}`} />{PRIORITY_CONFIG[t.priority].label}</span>
+                        <span>{t.dueInDays === 0 ? 'Today' : t.dueInDays === 1 ? 'Tomorrow' : `In ${t.dueInDays} days`}</span>
+                        {t.script && <button onClick={() => setOpenScript(openScript === key ? null : key)} className="text-primary hover:underline">{openScript === key ? 'Hide talking points' : 'Talking points'}</button>}
+                      </div>
+                      {t.script && openScript === key && <p className="mt-2 p-2 bg-muted/40 rounded-md text-[11px] text-foreground leading-relaxed">{t.script}</p>}
+                    </div>
+                    <button onClick={() => addPlanTasks([t])} disabled={saving} className="px-2 py-1 text-[11px] font-medium border border-border rounded-md hover:bg-muted shrink-0 disabled:opacity-50">Add</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Add task form */}
         {showAddForm && (
           <div className="border border-border rounded-xl p-4 bg-muted/20 space-y-3">
@@ -429,6 +507,7 @@ export default function LeadTaskBoard({ leadId, leadName }: LeadTaskBoardProps) 
                     <div className="flex items-start justify-between gap-2">
                       <p className={`text-xs font-semibold text-foreground leading-tight ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
                         {task.title}
+                        {task.ai_generated && <span className="ml-1.5 align-middle text-[9px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary">AI</span>}
                       </p>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {/* Priority dot */}

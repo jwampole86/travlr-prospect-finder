@@ -68,7 +68,8 @@ export default function ContractDealModal({
       onClose();
     } catch (e) {
       console.error('[ContractDealModal] save error:', e);
-      toast.error('Failed to save contract details');
+      const msg = (e as { message?: string })?.message ?? '';
+      toast.error(/DocuSign/.test(msg) ? msg : 'Failed to save contract details');
     } finally {
       setSaving(false);
     }

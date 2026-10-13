@@ -277,11 +277,21 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   const ownerMatch = records?.ownership?.match ? { name: String(records.ownership.match.name), percent: Number(records.ownership.match.percent) } : null;
   const recordsFor = useRef<string | null>(null);
   const linkFor = useRef<string | null>(null);
+  const [signing, setSigning] = useState<{ state: 'signed' | 'sent' | 'viewed' | 'declined' | 'voided' | 'none' | 'loading' }>({ state: 'loading' });
+  const signingFor = useRef<string | null>(null);
   const [linkLooking, setLinkLooking] = useState(false);
   const [relatedLink, setRelatedLink] = useState<{ url: string; address: string } | null>(null);
   const filledFor = useRef<string | null>(null);
 
   // Blank estimates and days on market are filled from the revenue model and the listing date, for display only.
+  // Closing a deal waits on the homeowner's signed DocuSign agreements.
+  useEffect(() => {
+    if (!lead?.id || signingFor.current === lead.id) return;
+    signingFor.current = lead.id;
+    fetch(`/api/leads/signing-status?leadId=${encodeURIComponent(lead.id)}`, { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined })
+      .then(r => (r.ok ? r.json() : null)).then(j => setSigning({ state: j?.state ?? 'none' })).catch(() => setSigning({ state: 'none' }));
+  }, [lead, session?.access_token]);
+
   // A lead with no stored listing link is searched for on Zillow by address once, then the link is saved to the lead.
   useEffect(() => {
     if (!lead?.id || linkFor.current === lead.id) return;
@@ -739,18 +749,20 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
 
   async function handleMarkDealClosed() {
     if (!lead) return;
+    if (signing.state !== 'signed') { toast.error('The homeowner must sign the DocuSign agreements before this deal can be closed.'); return; }
     setSavingDeal(true);
     try {
       const revenueNum = dealRevenue ? parseFloat(dealRevenue.replace(/[^0-9.]/g, '')) : null;
       const closedAt = new Date().toISOString();
 
-      await supabase.from('leads').update({
+      const { error: closeError } = await supabase.from('leads').update({
         deal_closed: true,
         deal_closed_at: closedAt,
         deal_revenue: revenueNum,
         deal_notes: dealNotes || null,
         stage: 'closed',
       }).eq('id', lead.id);
+      if (closeError) throw closeError;
 
       const portfolioKey = lead.state ? lead.state.toLowerCase() : null;
       await supabase.from('closed_deals').insert({
@@ -966,7 +978,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   ];
   const variantIdx = lead.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % msgVariants.length;
   const variant = msgVariants[variantIdx];
-  const outreachMessage = `${variant.opening} I'm with TRAVLR Vacation Homes, a boutique property management company. ${variant.cta}\nstaytrvlr.com/estimate\nYou can also learn more about us at staytrvlr.com. Happy to answer any questions!\n— ${agentFirstName}, TRAVLR Vacation Homes`;
+  const outreachMessage = `${variant.opening} I'm with TRAVLR Vacation Homes, a property management company. ${variant.cta}\nstaytrvlr.com/estimate\nYou can also learn more about us at staytrvlr.com. Happy to answer any questions!\n— ${agentFirstName}, TRAVLR Vacation Homes`;
 
   async function handleCopyMessage() {
     const text = outreachMessage;
@@ -1903,7 +1915,15 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {!showDealForm ? (
+                      {signing.state !== 'signed' ? (
+                        <div className="p-3 bg-muted/40 border border-border rounded-xl">
+                          <p className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Handshake size={13} className="text-muted-foreground" />Mark as Deal / Closed is locked</p>
+                          <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                            It unlocks once the homeowner has signed the DocuSign agreements.{' '}
+                            {signing.state === 'loading' ? 'Checking signing status…' : signing.state === 'none' ? 'No agreements have been sent yet.' : signing.state === 'sent' ? 'Agreements sent, waiting for the homeowner to open them.' : signing.state === 'viewed' ? 'The homeowner has opened the agreements but not finished signing.' : signing.state === 'declined' ? 'The homeowner declined to sign.' : 'The last envelope was voided; send new agreements.'}
+                          </p>
+                        </div>
+                      ) : !showDealForm ? (
                         <button
                           onClick={() => setShowDealForm(true)}
                           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold text-xs hover:bg-emerald-700 transition-all active:scale-[0.98]"

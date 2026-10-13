@@ -10,7 +10,7 @@
 export const OUTREACH_BIZDEV_ROLE_TITLE = 'Outreach & Business Development Agent';
 
 export const OUTREACH_BIZDEV_JOB_DESCRIPTION = `
-COMPANY: TRAVLR Vacation Homes — a boutique luxury property management company serving a curated
+COMPANY: TRAVLR Vacation Homes — a luxury property management company serving a curated
 collection of ultra-luxury vacation rental properties across Bermuda Dunes, Coachella, Indio,
 La Quinta, Palm Desert, and Palm Springs (Coachella Valley, CA). TRAVLR partners with homeowners of
 multi-million dollar properties to manage their investment while delivering exceptional guest hospitality.

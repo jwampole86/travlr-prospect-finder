@@ -429,7 +429,7 @@ export function runPersonalizationReconciliation(
 /**
  * The canonical TRAVLR outreach template.
  */
-export const TRAVLR_OUTREACH_TEMPLATE = `Hi {first_name}! I came across {address} and wanted to reach out. I'm Jennifer with TRAVLR Vacation Homes — a boutique property management company.
+export const TRAVLR_OUTREACH_TEMPLATE = `Hi {first_name}! I came across {address} and wanted to reach out. I'm Jennifer with TRAVLR Vacation Homes — a property management company.
 
 Curious what your property could earn as a professionally managed STR?
 

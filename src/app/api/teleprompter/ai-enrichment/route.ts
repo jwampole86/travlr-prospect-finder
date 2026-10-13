@@ -25,7 +25,7 @@ Rules:
 - talkingPoints: 3 specific talking points based on their property profile and revenue potential.
 - confidenceBooster: One short motivational insight about why this prospect is worth calling.
 
-Tone: Warm, professional, boutique-luxury. Never pushy. Never fabricate specific revenue numbers.`;
+Tone: Warm, professional, premium. Never pushy. Never fabricate specific revenue numbers.`;
 
 export async function POST(req: NextRequest) {
   try {
