@@ -22,7 +22,8 @@ export async function scheduleYesFollowup(db: Db, leadId: string, firstName: str
   if (!to) return { ok: false, reason: 'no_valid_number' };
   const { count } = await db.from('outreach_history').select('id', { count: 'exact', head: true }).eq('lead_id', leadId).eq('metadata->>kind', 'yes_followup').neq('metadata->>twilio_status', 'canceled');
   if ((count ?? 0) > 0) return { ok: false, reason: 'already_followed_up' };
-  const dup = await duplicateTextReason(db, leadId);
+  // Only a text already queued counts; the campaign text this YES answers was sent earlier today.
+  const dup = await duplicateTextReason(db, leadId, 0.01);
   if (dup) return { ok: false, reason: dup };
 
   let sendAt: Date | null = null;

@@ -4,6 +4,7 @@ import { classifyReply, findLeadByPhone, isWrongContact, notifyAdmins, recordOpt
 import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
 import { sendReplyAlert, sendTeamAlert } from '@/lib/services/replyAlerts';
 import { advancePipeline } from '@/lib/services/leadPipeline';
+import { scheduleYesFollowup } from '@/lib/services/yesFollowup';
 
 /**
  * POST /api/sms/inbound
@@ -85,7 +86,13 @@ export async function POST(req: NextRequest) {
         message: `${lead.contact_name || 'A homeowner'} replied YES to the estimate text. Call them.`,
         metadata: { lead_id: lead.id, reason: 'sms_reply_yes' },
       });
-      reply = `Thanks! A TRAVLR specialist will reach out shortly. Your free estimate: ${site}/estimate. Reply STOP anytime to opt out.`;
+      // The acknowledgment goes back at any hour; the follow-up question waits for the texting window (never before 9am Mountain).
+      const first = String(lead.contact_name || '').trim().split(/\s+/)[0];
+      const fu = await scheduleYesFollowup(db, lead.id, /^[A-Za-z'-]{2,}$/.test(first) ? first : null).catch(() => null);
+      const later = !!fu?.ok && !!fu.sendAt && Date.parse(fu.sendAt) - Date.now() > 2 * 3_600_000;
+      reply = fu?.ok
+        ? `Thanks for replying YES! We'll text you ${later ? 'in the morning' : 'shortly'} to find a time for a quick call. Your free estimate: ${site}/estimate. Reply STOP anytime to opt out.`
+        : `Thanks! A TRAVLR specialist will reach out shortly. Your free estimate: ${site}/estimate. Reply STOP anytime to opt out.`;
     } else if (lead) {
       // Signature could not be verified (no Twilio webhook token): alert a human, but do not record consent.
       await notifyAdmins(db, {
