@@ -550,11 +550,12 @@ export default function DashboardPage() {
             <span className="ml-2 text-xs text-muted-foreground">Latest changes across all leads</span>
           </div>
           {/* ActivityFeed fetches its own data independently — never blocked by dashboard loading */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-5">
-            <div className="xl:col-span-2">
+          <div className="flex flex-col xl:flex-row gap-4 sm:gap-5">
+            <div className="min-w-0 flex-1">
               <ActivityFeed />
             </div>
-            <div className="space-y-4">
+            {/* Hidden while the badge has nothing to show, so the feed takes the full width. */}
+            <div className="space-y-4 xl:w-80 xl:shrink-0 empty:hidden">
               <Base44WarmLeadBadge />
             </div>
           </div>
