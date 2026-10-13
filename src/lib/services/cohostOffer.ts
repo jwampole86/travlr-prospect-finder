@@ -1,6 +1,6 @@
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { assessData, marketBenchmark, type Benchmark } from '@/lib/services/cohostNumbers';
+import { assessData, marketBenchmark, occupancyView, type Benchmark } from '@/lib/services/cohostNumbers';
 import { EXPECTED_GAP_SHARE } from '@/lib/cohostFees';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
@@ -68,7 +68,7 @@ export async function getOfferData(db: Db, code: string): Promise<OfferData | nu
   const full = pn.complete === true;
   return {
     code, title: String(l.title ?? 'Your listing').slice(0, 120), city: city ?? '', state: state ?? '', bedrooms: num(l.bedrooms), bathrooms: num(l.bathrooms), luxury: !!l.is_luxury, rating: num(l.rating), reviews: num(l.reviews),
-    current: { revenue, adr: num(l.adr), occupancyPct: num(l.occupancy_pct), daysAvailable: num(l.days_available_ltm) },
+    current: { revenue, adr: num(l.adr), occupancyPct: occupancyView(l)?.headlinePct ?? num(l.occupancy_pct), daysAvailable: num(l.days_available_ltm) },
     potential: Math.max(potential, revenue), gap, scenarios, mode, benchmark,
     // Findings built on thin booking numbers (occupancy rank, share of potential) would not hold up, so only review and rating notes are kept for those listings.
     findings: ((l.under_reasons ?? []) as string[]).filter(f => quality.reliable || /review|rating/i.test(f)).slice(0, 4),

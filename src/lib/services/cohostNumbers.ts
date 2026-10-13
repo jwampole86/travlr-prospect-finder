@@ -42,3 +42,36 @@ export async function marketBenchmark(db: SupabaseClient, market: string, bedroo
   const adr = comps.map(r => Number(r.adr)).filter(Boolean).sort((a, b) => a - b); const occ = comps.map(r => Number(r.occupancy_pct)).sort((a, b) => a - b);
   return { typical: round500(pct(rev, 0.5)), strong: round500(pct(rev, 0.75)), adr: adr.length ? Math.round(pct(adr, 0.5)) : null, occupancyPct: occ.length ? Math.round(pct(occ, 0.5)) : null, sample: comps.length, bedrooms };
 }
+
+/** Same size bands as the market occupancy function (str_market_occupancy). */
+export const occupancyBand = (bedrooms: number | null | undefined) => (!bedrooms || bedrooms <= 3 ? '3' : bedrooms === 4 ? '4' : bedrooms === 5 ? '5' : '6+');
+
+export interface OccupancyView {
+  /** Share of the nights the home was open to guests that were booked: the figure to show. */
+  headlinePct: number; reportedPct: number; revenueImpliedPct: number | null;
+  bookedNights: number; openDays: number;
+  /** Booked nights as a share of the whole year, which is lower whenever the home was blocked for part of it. */
+  yearPct: number;
+  marketMedianPct: number | null; marketSample: number;
+  note: string | null;
+}
+
+/**
+ * AirDNA's occupancy is booked nights over the nights the home was open, not over the year. Earnings never exceed rate x booked nights,
+ * so when earnings fall well short of what the reported rate implies (a few high-priced stays can skew the average rate), the reported
+ * rate is the weaker figure and the one backed by earnings is shown instead.
+ */
+export function occupancyView(l: NightsInput, market?: { median: number; n: number } | null): OccupancyView | null {
+  const reported = Number(l.occupancy_pct); const open = Number(l.days_available_ltm ?? 0);
+  if (!Number.isFinite(reported) || !(open > 0)) return null;
+  const adr = Number(l.adr ?? 0), rev = Number(l.revenue_ltm ?? 0);
+  const implied = adr > 0 && rev > 0 ? Math.min(100, (rev / (adr * open)) * 100) : null;
+  const useImplied = implied != null && implied < reported * 0.75;
+  const headline = useImplied ? implied : reported;
+  const booked = Math.round((headline / 100) * open);
+  return {
+    headlinePct: Math.round(headline), reportedPct: Math.round(reported), revenueImpliedPct: implied == null ? null : Math.round(implied), bookedNights: booked, openDays: Math.round(open),
+    yearPct: Math.round((booked / 365) * 100), marketMedianPct: market ? Math.round(market.median) : null, marketSample: market?.n ?? 0,
+    note: useImplied ? `The source reports ${Math.round(reported)}% booked, but this home's earnings and nightly rate only support about ${Math.round(implied!)}%, so that is the figure shown.` : null,
+  };
+}

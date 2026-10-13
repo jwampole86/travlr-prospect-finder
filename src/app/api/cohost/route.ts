@@ -2,13 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyOwner } from '@/lib/services/ownerVerification';
-import { assessData } from '@/lib/services/cohostNumbers';
+import { assessData, occupancyBand, occupancyView } from '@/lib/services/cohostNumbers';
 import { contactablePersons, homesagePhones } from '@/lib/services/homesageSkipTrace';
 
 export const maxDuration = 60;
 
 const STAGES = ['identified', 'reviewed', 'contacted', 'replied', 'audit_sent', 'meeting', 'agreed', 'onboarded', 'declined', 'not_a_fit'] as const;
 const SERVICE_MODELS = ['undecided', 'co_host_only', 'co_host_and_manager'] as const;
+
+// Market medians change only when listings are refreshed (every 12 hours), so they are kept for an hour.
+let occCache: { at: number; map: Map<string, { median: number; n: number }> } | null = null;
+async function marketOccupancy(db: ReturnType<typeof getSupabaseAdmin>) {
+  if (occCache && Date.now() - occCache.at < 3_600_000) return occCache.map;
+  const { data } = await db.rpc('str_market_occupancy');
+  const map = new Map<string, { median: number; n: number }>();
+  for (const r of (data ?? []) as Array<{ market: string; band: string; median_pct: number; n: number }>) map.set(`${r.market}|${r.band}`, { median: Number(r.median_pct), n: r.n });
+  if (map.size) occCache = { at: Date.now(), map };
+  return map;
+}
 
 /** GET /api/cohost  (admin). Co-host pipeline: existing short-term-rental owners we found on Airbnb, Vrbo and similar listings, plus CRM leads moved to the co-host program. */
 export async function GET(req: NextRequest) {
@@ -54,13 +65,14 @@ export async function GET(req: NextRequest) {
   const { data: msgRows } = await db.from('cohost_messages').select('property_id,direction,intent,created_at').order('created_at', { ascending: false }).limit(3000);
   const texts = new Map<string, { sent: number; replied: boolean; lastIntent: string | null; lastAt: string }>();
   for (const m of msgRows ?? []) { const t = texts.get(m.property_id) ?? { sent: 0, replied: false, lastIntent: null, lastAt: m.created_at }; if (m.direction === 'outbound') t.sent++; else { if (!t.replied) t.lastIntent = m.intent; t.replied = true; } texts.set(m.property_id, t); }
+  const marketOcc = await marketOccupancy(db);
   const clean = listings.map(l => {
     const o = l.matched_owner ?? {};
     const found = (o.skipTrace?.results ?? []).filter((r: any) => r.found).map((r: any) => r.found);
     const cands = (l.match_candidates as any[] | null) ?? [];
     const verification = verifyOwner({ ...(l as any), candidate: cands[0] ?? null, candidateCount: cands.length, sharedAddressCount: l.matched_address ? shared.get(l.matched_address) ?? 1 : 1 });
     const { match_candidates: _drop, ...rest } = l;
-    return { ...rest, verification, candidates: l.match_status === 'ambiguous' ? cands.slice(0, 3).map((c: any) => ({ address: c.address, owners: c.ownerNames ?? [], ownerType: c.ownerType ?? null, mailing: c.mailing ?? null, sqft: c.sqft ?? null, distanceM: c.distanceM ?? null, loose: !!c.loose, parcelOnly: !!c.parcelOnly, permit: c.permit ?? null, lookedUp: !!c.homesage, people: (c.homesage?.persons ?? []).map((p: any) => ({ name: p.name, mailing: p.mailing ?? null, doNotContact: !!p.doNotContact, litigator: !!p.litigator, tcpaRisk: !!p.tcpaRisk, deceased: !!p.deceased, phones: p.doNotContact ? [] : (p.phones ?? []).slice(0, 3).map((x: any) => ({ number: x.e164, type: x.type, reachable: !!x.reachable })), emails: p.doNotContact ? [] : (p.emails ?? []).slice(0, 2).map((e: any) => e.email) })) })) : [], dataQuality: assessData(l), offer: offers.get(l.property_id) ?? null, texts: texts.get(l.property_id) ?? null, matched_owner: l.matched_owner ? { names: o.names ?? [], type: o.type ?? null, mailing: o.mailing ?? null, permitHolder: o.permitHolder ?? null, contactFound: found.length > 0 || contactablePersons(o).length > 0, skipTraced: !!o.skipTrace, entity: o.entity ?? null, homesage: o.homesage ? { found: !!o.homesage.found, error: o.homesage.error ?? null, people: (o.homesage.persons ?? []).map((p: any) => ({ name: p.name, mailing: p.mailing, doNotContact: !!p.doNotContact, litigator: !!p.litigator, tcpaRisk: !!p.tcpaRisk, deceased: !!p.deceased, reachableMobiles: (p.phones ?? []).filter((x: any) => x.type === 'mobile' && x.reachable).length })) } : null, phones: [...new Set([...homesagePhones(o).map(p => p.e164), ...found.flatMap((p: any) => p.phones.map((x: any) => x.e164))])].slice(0, 3), emails: [...new Set([...contactablePersons(o).flatMap(p => p.emails.map(e => e.email)), ...found.flatMap((p: any) => p.emails)])].slice(0, 3), published: o.contact ? { email: o.contact.email ?? null, phone: o.contact.phone ?? null, managerEmail: o.contact.managerEmail ?? null, managerPhone: o.contact.managerPhone ?? null } : null } : null };
+    return { ...rest, verification, candidates: l.match_status === 'ambiguous' ? cands.slice(0, 3).map((c: any) => ({ address: c.address, owners: c.ownerNames ?? [], ownerType: c.ownerType ?? null, mailing: c.mailing ?? null, sqft: c.sqft ?? null, distanceM: c.distanceM ?? null, loose: !!c.loose, parcelOnly: !!c.parcelOnly, permit: c.permit ?? null, lookedUp: !!c.homesage, people: (c.homesage?.persons ?? []).map((p: any) => ({ name: p.name, mailing: p.mailing ?? null, doNotContact: !!p.doNotContact, litigator: !!p.litigator, tcpaRisk: !!p.tcpaRisk, deceased: !!p.deceased, phones: p.doNotContact ? [] : (p.phones ?? []).slice(0, 3).map((x: any) => ({ number: x.e164, type: x.type, reachable: !!x.reachable })), emails: p.doNotContact ? [] : (p.emails ?? []).slice(0, 2).map((e: any) => e.email) })) })) : [], dataQuality: assessData(l), occupancy: occupancyView(l, marketOcc.get(`${l.market}|${occupancyBand(l.bedrooms)}`)), offer: offers.get(l.property_id) ?? null, texts: texts.get(l.property_id) ?? null, matched_owner: l.matched_owner ? { names: o.names ?? [], type: o.type ?? null, mailing: o.mailing ?? null, permitHolder: o.permitHolder ?? null, contactFound: found.length > 0 || contactablePersons(o).length > 0, skipTraced: !!o.skipTrace, entity: o.entity ?? null, homesage: o.homesage ? { found: !!o.homesage.found, error: o.homesage.error ?? null, people: (o.homesage.persons ?? []).map((p: any) => ({ name: p.name, mailing: p.mailing, doNotContact: !!p.doNotContact, litigator: !!p.litigator, tcpaRisk: !!p.tcpaRisk, deceased: !!p.deceased, reachableMobiles: (p.phones ?? []).filter((x: any) => x.type === 'mobile' && x.reachable).length })) } : null, phones: [...new Set([...homesagePhones(o).map(p => p.e164), ...found.flatMap((p: any) => p.phones.map((x: any) => x.e164))])].slice(0, 3), emails: [...new Set([...contactablePersons(o).flatMap(p => p.emails.map(e => e.email)), ...found.flatMap((p: any) => p.emails)])].slice(0, 3), published: o.contact ? { email: o.contact.email ?? null, phone: o.contact.phone ?? null, managerEmail: o.contact.managerEmail ?? null, managerPhone: o.contact.managerPhone ?? null } : null } : null };
   });
 
   const { data: crm } = await db.from('leads').select('id,address,city,state,owner_name,contact_phone,program,cohost_service,existing_platforms,program_reason,program_set_at,stage').eq('program', 'co_host').order('program_set_at', { ascending: false }).limit(500);
