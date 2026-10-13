@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Handshake, Loader2, RefreshCw, Download, ShieldAlert, ExternalLink, Camera, MapPin, AlertTriangle, Gem, Crown, Link2, Copy, Check, Mail, Eye, MessageSquare, ShieldCheck, Clock } from 'lucide-react';
 import type { OwnerVerification, VerificationLevel } from '@/lib/services/ownerVerification';
@@ -210,6 +210,20 @@ export default function CoHostView() {
   }, [listings, passes, sort]);
   const counts = useMemo(() => stages.map(s => [s, listings.filter(l => passes(l, 'stage') && l.pipeline_stage === s).length] as const), [stages, listings, passes]);
 
+  // /cohost?open=<property id> (from the Co-Host email tab) scrolls to that home, clearing filters first if they hide it.
+  const [target, setTarget] = useState<string | null>(null);
+  const clearedFor = useRef<string | null>(null);
+  useEffect(() => { const t = new URLSearchParams(window.location.search).get('open'); if (t) setTarget(t); }, []);
+  useEffect(() => {
+    if (!target || loading || !listings.length) return;
+    if (!listings.some(l => l.property_id === target)) { setTarget(null); return; }
+    if (!shown.some(l => l.property_id === target)) { if (clearedFor.current !== target) { clearedFor.current = target; clearFilters(); setView('all'); } return; }
+    const el = document.getElementById(`listing-${target}`); if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setTarget(null), 6000); return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, loading, listings, shown]);
+
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -282,7 +296,7 @@ export default function CoHostView() {
           {shown.slice(0, 150).map(l => {
             const m = MATCH_LABEL[l.match_status ?? ''] ?? null; const o = l.matched_owner; const url = l.airbnb_url ?? l.vrbo_url ?? l.booking_url;
             return (
-              <div key={l.property_id} className="bg-card border border-border rounded-xl p-4">
+              <div key={l.property_id} id={`listing-${l.property_id}`} className={`bg-card border rounded-xl p-4 transition-shadow ${target === l.property_id ? 'border-primary ring-2 ring-primary/40' : 'border-border'}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

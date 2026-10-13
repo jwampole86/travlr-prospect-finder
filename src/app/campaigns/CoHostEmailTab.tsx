@@ -95,6 +95,7 @@ function EmailRow({ r, focusId, onChanged, onError }: { r: Row; focusId: string 
             <span>Home: <b className="text-foreground font-medium">{r.title}</b>{r.market ? `, ${r.market}` : ''}</span>
             {r.stage && <span>Stage: <b className="text-foreground font-medium">{r.stage}</b></span>}
             <span>Sent to: <b className="text-foreground font-medium">{r.toEmail}</b></span>
+            <a href={`/cohost?open=${encodeURIComponent(r.propertyId)}`} className="inline-flex items-center gap-1 text-primary font-medium hover:underline">Open in Co-Host pipeline <ExternalLink size={11} /></a>
             {r.offer.code && <a href={`/h/${r.offer.code}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary font-medium hover:underline">View their offer page <ExternalLink size={11} /></a>}
             {r.offer.ctaClicks > 0 && <span>{r.offer.ctaClicks} button click{r.offer.ctaClicks === 1 ? '' : 's'} on the offer page</span>}
           </div>
