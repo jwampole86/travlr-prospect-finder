@@ -9,7 +9,8 @@ type Block =
   | { t: 'ul'; items: string[] }
   | { t: 'note'; text: string }
   | { t: 'ask'; text: string }
-  | { t: 'cta'; text: string };
+  | { t: 'cta'; text: string }
+  | { t: 'img'; file: string; alt: string; caption?: string };
 
 interface Issue { subject: string; preheader: string; blocks: Block[]; sign: [string, string] }
 
@@ -21,6 +22,7 @@ const ISSUES: Record<number, Record<Audience, Issue>> = {
       blocks: [
         { t: 'h1', text: 'The Future of Vacation Rentals Is Changing.' },
         { t: 'sub', text: "And we'd love to know what you think." },
+        { t: 'img', file: 'turnover-concept-grid.jpg', alt: 'Concept images of a humanoid robot helping prepare a vacation rental: vacuuming, making a bed, wiping a vanity, carrying towels and supplies, and running laundry', caption: 'Concept imagery created to illustrate the vision. Not a product available today.' },
         { t: 'p', text: 'Imagine a future where vacation rental properties could be prepared for the next guest with the assistance of intelligent technology.' },
         { t: 'p', text: 'Cleaning teams could work alongside advanced robotics, while AI-powered software helps coordinate inspections, supplies, maintenance, and property turnovers.' },
         { t: 'p', text: "At **VAYO AI**, we're exploring how technology could make vacation rental operations more efficient, consistent, and reliable." },
@@ -32,6 +34,7 @@ const ISSUES: Record<number, Record<Audience, Issue>> = {
           'Property managers have better visibility into cleaning quality.',
           'One day, robots could assist human cleaning teams with selected tasks.',
         ] },
+        { t: 'img', file: 'turnover-concept-detail.jpg', alt: 'Concept images of a humanoid robot loading a dishwasher, making a bed, wiping a vanity and stocking towels and amenities', caption: 'Illustration of tasks that supervised help could one day assist with.' },
         { t: 'note', text: "**This is a vision we're researching, not a service we're announcing today.**" },
         { t: 'p', text: 'Before taking that vision further, we want to hear from the people whose properties would be involved.' },
         { t: 'ask', text: 'Would you feel comfortable having a supervised robot assist with cleaning and preparing your vacation rental?' },
@@ -47,6 +50,7 @@ const ISSUES: Record<number, Record<Audience, Issue>> = {
       blocks: [
         { t: 'h1', text: 'Help shape how vacation rental turnovers get done.' },
         { t: 'sub', text: "We'd love to learn from the people who run them." },
+        { t: 'img', file: 'turnover-concept-grid.jpg', alt: 'Concept images of a humanoid robot assisting with turnover tasks: vacuuming, bedding, bathroom, towels, supplies, laundry and a turnover checklist', caption: 'Concept imagery created to illustrate the vision. Not a product available today.' },
         { t: 'p', text: 'Turnovers are where reliability is won or lost: late checkouts, missed tasks, supply gaps, callbacks and guest-ready approvals.' },
         { t: 'p', text: "At **VAYO AI**, we're developing software to coordinate crews, checklists, photo inspections and supplies in one place. We're also researching, carefully and at an early stage, whether supervised robotic help could one day assist with selected tasks." },
         { t: 'note', text: '**Nothing here is available today, and no robotics service is being announced.** We want to understand real turnover work before we build further.' },
@@ -56,6 +60,7 @@ const ISSUES: Record<number, Record<Audience, Issue>> = {
           'Which tools you use today, and what you would want them to do better.',
           'Which tasks you would welcome help with, and which should always stay human.',
         ] },
+        { t: 'img', file: 'turnover-concept-detail.jpg', alt: 'Concept images of a humanoid robot loading a dishwasher, making a bed, wiping a vanity and stocking towels and amenities', caption: 'Illustration of tasks that supervised help could one day assist with.' },
         { t: 'ask', text: 'Would you share a few minutes of your perspective, and possibly talk with us for 20 minutes?' },
         { t: 'cta', text: 'Share Your Perspective' },
         { t: 'p', text: 'We are looking for a small number of early design partners, and your answers help us decide who to talk to first.' },
@@ -71,7 +76,7 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const inline = (s: string) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 const plain = (s: string) => s.replace(/\*\*/g, '');
 
-export interface RenderOpts { siteUrl: string; unsubscribeUrl: string; postal: string; brandSite?: string; reason?: string }
+export interface RenderOpts { siteUrl: string; unsubscribeUrl: string; postal: string; brandSite?: string; reason?: string; imageBase?: string }
 
 export function renderIssue(issue: number, audience: Audience, o: RenderOpts) {
   const def = ISSUES[issue]?.[audience];
@@ -79,6 +84,7 @@ export function renderIssue(issue: number, audience: Audience, o: RenderOpts) {
   const surveyUrl = `${o.siteUrl}/future-of-str?a=${audience}&src=issue${issue}`;
   const reason = o.reason ?? 'You are receiving this because you asked for updates from VAYO AI about the future of vacation rental operations.';
   const brand = o.brandSite ? `<br>${esc(o.brandSite)}` : '';
+  const imageBase = (o.imageBase ?? `${o.siteUrl}/assets/future-str`).replace(/\/$/, '');
 
   const body = def.blocks.map(b => {
     switch (b.t) {
@@ -89,6 +95,7 @@ export function renderIssue(issue: number, audience: Audience, o: RenderOpts) {
       case 'ul': return `<ul style="margin:0 0 18px;padding-left:22px;">${b.items.map(i => `<li style="margin:0 0 6px;">${inline(i)}</li>`).join('')}</ul>`;
       case 'note': return `<div style="margin:6px 0 20px;padding:14px 16px;background:#eaf2ff;border-left:4px solid #1f7ae0;border-radius:6px;">${inline(b.text)}</div>`;
       case 'ask': return `<p style="margin:8px 0 14px;font:700 19px/1.4 Georgia,serif;color:#12263f;">${inline(b.text)}</p>`;
+      case 'img': return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 20px;"><tr><td><img src="${esc(`${imageBase}/${b.file}`)}" alt="${esc(b.alt)}" width="536" style="display:block;width:100%;max-width:536px;height:auto;border:0;border-radius:8px;"></td></tr>${b.caption ? `<tr><td style="padding-top:6px;font:italic 12px/1.4 Arial,sans-serif;color:#6b7686;">${esc(b.caption)}</td></tr>` : ''}</table>`;
       case 'cta': return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 22px;"><tr><td style="background:#1f7ae0;border-radius:8px;"><a href="${esc(surveyUrl)}" style="display:inline-block;padding:14px 28px;font:700 16px Arial,sans-serif;color:#ffffff;text-decoration:none;">${inline(b.text)}</a></td></tr></table>`;
     }
   }).join('\n');
@@ -107,7 +114,7 @@ ${body}
 <tr><td style="padding:18px 32px 28px;border-top:1px solid #e5e9f0;font:12px/1.55 Arial,sans-serif;color:#6b7686;">${esc(reason)}<br>VAYO AI, ${esc(o.postal)}.<br><a href="${esc(o.unsubscribeUrl)}" style="color:#6b7686;">Unsubscribe</a> at any time and we will stop emailing you.</td></tr>
 </table></td></tr></table></body></html>`;
 
-  const text = def.blocks.map(b => {
+  const text = def.blocks.filter(b => b.t !== 'img').map(b => {
     switch (b.t) {
       case 'h1': return plain(b.text).toUpperCase();
       case 'ul': return b.items.map(i => `- ${i}`).join('\n');
