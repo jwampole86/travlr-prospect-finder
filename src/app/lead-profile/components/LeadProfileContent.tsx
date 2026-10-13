@@ -127,10 +127,10 @@ function formatCurrency(n: number) {
 
 type DetailRow = { label: string; value: React.ReactNode };
 const hasValue = (v: unknown) => v !== null && v !== undefined && v !== '' && v !== false;
-function DetailRows({ rows }: { rows: DetailRow[] }) {
+function DetailRows({ rows, stacked = false }: { rows: DetailRow[]; stacked?: boolean }) {
   const shown = rows.filter(r => hasValue(r.value));
   return (
-    <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+    <div className={stacked ? 'grid grid-cols-1 gap-y-2.5' : 'grid grid-cols-2 gap-x-8 gap-y-3'}>
       {shown.map(f => (
         <div key={f.label} className="flex items-start gap-2">
           <span className="text-xs text-muted-foreground w-28 shrink-0 pt-0.5">{f.label}</span>
@@ -275,9 +275,32 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   const [marketRent, setMarketRent] = useState(0);
   const [records, setRecords] = useState<{ ownership: Record<string, any>; comparables: Array<Record<string, any>> } | null>(null);
   const recordsFor = useRef<string | null>(null);
+  const linkFor = useRef<string | null>(null);
+  const [linkLooking, setLinkLooking] = useState(false);
+  const [relatedLink, setRelatedLink] = useState<{ url: string; address: string } | null>(null);
   const filledFor = useRef<string | null>(null);
 
   // Blank estimates and days on market are filled from the revenue model and the listing date, for display only.
+  // A lead with no stored listing link is searched for on Zillow by address once, then the link is saved to the lead.
+  useEffect(() => {
+    if (!lead?.id || linkFor.current === lead.id) return;
+    linkFor.current = lead.id;
+    const ev = (lead.extra?.listing_evidence as { related_zillow?: { url?: string; address?: string } } | null | undefined)?.related_zillow;
+    if (ev?.url) setRelatedLink({ url: ev.url, address: ev.address ?? '' });
+    const stored = [lead.listingUrl, lead.extra?.listing_source_url, lead.extra?.sync_source_url].some(u => typeof u === 'string' && /^https?:\/\/[^/]+\/.+/.test(u));
+    if (stored || !lead.address || !lead.state) return;
+    const id = lead.id;
+    setLinkLooking(true);
+    fetch('/api/leads/listing-link', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) }, body: JSON.stringify({ leadId: id }) })
+      .then(r => (r.ok ? r.json() : null))
+      .then((j: { status: string; url?: string; address?: string } | null) => {
+        if (j?.status === 'found' && j.url) setLead(p => (p && p.id === id ? { ...p, listingUrl: j.url! } : p));
+        else if (j?.status === 'related' && j.url) setRelatedLink({ url: j.url, address: j.address ?? '' });
+      })
+      .catch(() => { /* the no-link message stays */ })
+      .then(() => setLinkLooking(false));
+  }, [lead, session?.access_token]);
+
   useEffect(() => {
     if (!lead?.id || recordsFor.current === lead.id) return;
     recordsFor.current = lead.id;
@@ -1235,7 +1258,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                     ) : (
                       <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60 italic">
                         <XCircle size={11} className="text-muted-foreground/40 shrink-0" />
-                        No verified listing URL on file — use the fallback below
+                        {linkLooking ? 'Looking for the listing on Zillow…' : 'No verified listing URL on file — use the fallback below'}
                       </span>
                     )}
                     {isStoredUrl && extra.link_status && (
@@ -1245,6 +1268,14 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                       </span>
                     )}
                   </div>
+                  {!isStoredUrl && relatedLink && (
+                    <div className="flex items-start gap-2 text-[11px] text-muted-foreground">
+                      <span className="w-20 shrink-0" />
+                      <span>Zillow has only a single unit of this building ({relatedLink.address || 'unit record'}), which may not be this home.{' '}
+                        <a href={relatedLink.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View that record</a>
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
                     <span className="text-[10px] text-muted-foreground w-20 shrink-0">Fallback:</span>
@@ -2060,7 +2091,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   }
                   return (
                     <div className="flex flex-col gap-3">
-                      <DetailRows rows={rows} />
+                      <DetailRows rows={rows} stacked />
                       {registry.length > 0 && (
                         <div className="pt-3 border-t border-border space-y-1.5">
                           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Short-term rental registry</p>
