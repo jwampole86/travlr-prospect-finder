@@ -9,7 +9,7 @@ export interface Overview {
   empty?: boolean; updatedAt?: string; final?: boolean; totals: Bucket;
   funnel: { texts: number; sent: number; delivered: number; clicked: number; viewed: number; contactStarted: number; submitted: number; replied: number; optedIn: number; optedOut: number };
   statuses: Record<string, number>; deliveryErrors: Record<string, number>; replyIntents: Record<string, number>;
-  by: Record<string, Record<string, Bucket>>; hotLeads: Hot[]; replies: Array<{ leadId: string; at: string; intent: string; text: string }>; chatQuestions: string[];
+  by: Record<string, Record<string, Bucket>>; hotLeads: Hot[]; replies: Array<{ leadId: string; batch: string; at: string; intent: string; text: string }>; chatQuestions: string[];
   skipTrace: Array<{ audience: string; texts: number; sent: number; delivered: number; deliveredPct: number; unreachable: number; wrongPerson: number; engaged: number; engagedPct: number; likelyReachedPct: number; screenedLeads: number | null; prefilterLandline: number | null; prefilterInvalid: number | null; landlinePct: number | null }>;
   cost: { totalUsd: number; pricedTexts: number; perClick: number | null; perSubmission: number | null; perHotLead: number | null }; botClicksFiltered: number;
 }
@@ -80,3 +80,25 @@ export const TONES: Array<{ id: BuilderForm['tone']; title: string; blurb: strin
   { id: 'friendly', title: 'Friendly', blurb: 'Warm and neighborly, low pressure.' },
   { id: 'direct', title: 'Direct', blurb: 'Brief and businesslike.' },
 ];
+
+export const ERROR_MEANING: Record<string, [string, string]> = {
+  '30003': ['phone off or unreachable', 'The handset was switched off, out of coverage or otherwise unreachable, so the carrier could not deliver the text.'],
+  '30004': ['blocked by carrier', 'The carrier or the recipient blocked the message.'],
+  '30005': ['number not in service', 'The number does not exist or is no longer active (disconnected or inactive line).'],
+  '30006': ['landline or carrier cannot receive texts', 'The number is a landline or the carrier cannot receive texts, so it will never be delivered.'],
+  '30007': ['filtered as spam', 'The carrier filtered the message as spam or a policy violation.'],
+  '30008': ['carrier gave no reason', 'The carrier rejected the message without saying why. Often temporary or a number that cannot receive texts.'],
+  '21211': ['invalid phone number', 'The number is not a valid phone number.'],
+  '21610': ['recipient opted out', 'The recipient replied STOP, so no more texts can be sent to this number.'],
+  '21614': ['not a mobile number', 'The number cannot receive texts because it is not a mobile line.'],
+};
+
+
+export const TEMP_STYLE: Record<string, string> = {
+  wrong_contact: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300', hot: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300', warm: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+  cold: 'bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-300', unreachable: 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300', opted_out: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
+  declined: 'bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300', untouched: 'bg-slate-100 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400', pending: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+};
+
+/** What a number on the Results tab opens: the texts behind it, optionally narrowed to one segment, optionally straight to one text. */
+export interface DrillSpec { title: string; metric: string; group?: string; value?: string; batch?: string; openLead?: { leadId: string; batch: string } }

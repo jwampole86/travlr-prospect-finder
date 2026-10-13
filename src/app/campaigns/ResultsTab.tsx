@@ -1,21 +1,10 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Copy, DollarSign, Flame, Loader2, MessageSquare, MousePointerClick, Search, Send, ShieldOff, Sparkles, ArrowDown, ArrowUp, Eye, X, Check } from 'lucide-react';
-import { BatchInfo, Card, Chip, Insights, Notice, Overview, SectionTitle, Skeleton, cx, fmtDate, pct, post } from './shared';
-
-const ERROR_MEANING: Record<string, [string, string]> = {
-  '30003': ['phone off or unreachable', 'The handset was switched off, out of coverage or otherwise unreachable, so the carrier could not deliver the text.'],
-  '30004': ['blocked by carrier', 'The carrier or the recipient blocked the message.'],
-  '30005': ['number not in service', 'The number does not exist or is no longer active (disconnected or inactive line).'],
-  '30006': ['landline or carrier cannot receive texts', 'The number is a landline or the carrier cannot receive texts, so it will never be delivered.'],
-  '30007': ['filtered as spam', 'The carrier filtered the message as spam or a policy violation.'],
-  '30008': ['carrier gave no reason', 'The carrier rejected the message without saying why. Often temporary or a number that cannot receive texts.'],
-  '21211': ['invalid phone number', 'The number is not a valid phone number.'],
-  '21610': ['recipient opted out', 'The recipient replied STOP, so no more texts can be sent to this number.'],
-  '21614': ['not a mobile number', 'The number cannot receive texts because it is not a mobile line.'],
-};
+import { BatchInfo, Card, Chip, DrillSpec, ERROR_MEANING, Insights, Notice, Overview, SectionTitle, Skeleton, TEMP_STYLE, cx, fmtDate, pct, post } from './shared';
+import DrilldownDrawer from './DrilldownDrawer';
 
 const BREAKDOWNS: Array<[string, string]> = [
   ['audience', 'Audience'], ['variant', 'Tone'], ['writtenBy', 'AI vs template'], ['segments', 'Length'], ['estimate', 'Estimate size'], ['state', 'State'],
@@ -27,11 +16,7 @@ const LEAD_GROUPS: Array<{ key: string; label: string; hint: string }> = [
   { key: 'wrong_contact', label: 'Wrong contact', hint: 'Said it is the wrong person or number. Find the right contact.' },
 ];
 const LEAD_PREVIEW = 8;
-const TEMP_STYLE: Record<string, string> = {
-  wrong_contact: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300', hot: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300', warm: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
-  cold: 'bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-300', unreachable: 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300', opted_out: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
-  declined: 'bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300', untouched: 'bg-slate-100 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400', pending: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
-};
+const FUNNEL_METRIC: Record<string, string> = { texts: 'texts', sent: 'sent', delivered: 'delivered', clicked: 'clicked', viewed: 'viewed', contact: 'contact', submitted: 'submitted' };
 
 function status(b: BatchInfo): { label: string; tone: 'blue' | 'amber' | 'green' | 'muted' } {
   if (b.canceled >= b.texts) return { label: 'Canceled', tone: 'muted' };
@@ -39,7 +24,7 @@ function status(b: BatchInfo): { label: string; tone: 'blue' | 'amber' | 'green'
   return b.pending > 0 ? { label: 'Sending', tone: 'amber' } : { label: 'Complete', tone: 'green' };
 }
 
-function CampaignStrip({ batches, selected, onSelect, onCancelled }: { batches: BatchInfo[]; selected: string; onSelect: (k: string) => void; onCancelled: () => void }) {
+function CampaignStrip({ batches, selected, onSelect, onCancelled, onDrill }: { batches: BatchInfo[]; selected: string; onSelect: (k: string) => void; onCancelled: () => void; onDrill: (d: DrillSpec) => void }) {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -68,6 +53,7 @@ function CampaignStrip({ batches, selected, onSelect, onCancelled }: { batches: 
                 <div className="h-1.5 rounded-full bg-muted mt-3 overflow-hidden"><div className="h-full bg-primary transition-all duration-700" style={{ width: `${pct(sent, b.texts)}%` }} /></div>
                 <p className="text-[11px] text-muted-foreground mt-1">{sent} sent{b.pending ? ` · ${b.pending} waiting` : ''}{b.canceled ? ` · ${b.canceled} canceled` : ''}</p>
               </button>
+              <button onClick={() => onDrill({ title: `Texts in ${b.batch}`, metric: 'texts', batch: b.batch })} className="mt-2 text-xs font-medium text-primary hover:underline">View every text</button>
               {b.pending > 0 && (confirm === b.batch ? (
                 <div className="mt-3 flex items-center gap-1.5 text-xs"><span className="text-rose-600 font-medium">Cancel {b.pending}?</span>
                   <button disabled={busy === b.batch} onClick={() => cancel(b.batch)} className="px-2 py-1 rounded-lg bg-rose-600 text-white font-semibold disabled:opacity-60">{busy === b.batch ? <Loader2 size={12} className="animate-spin" /> : 'Yes'}</button>
@@ -111,6 +97,8 @@ export default function ResultsTab(props: {
   const [showAll, setShowAll] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
+  const [drill, setDrill] = useState<DrillSpec | null>(null);
+  const closeDrill = useCallback(() => setDrill(null), []);
 
   const f = data?.funnel;
   const notSent = !!f && f.sent === 0;
@@ -133,11 +121,15 @@ export default function ResultsTab(props: {
   const th = (k: SortKey, label: string) => (
     <th className="pr-3 text-right"><button onClick={() => setSort(s => ({ key: k, dir: s.key === k ? (s.dir === 1 ? -1 : 1) : -1 }))} className="inline-flex items-center gap-0.5 uppercase tracking-wide hover:text-foreground">{label}{sort.key === k && (sort.dir === 1 ? <ArrowUp size={11} /> : <ArrowDown size={11} />)}</button></th>
   );
+  const METRIC_LABEL: Record<string, string> = { texts: 'texts', delivered: 'delivered', clicked: 'opened the link', submitted: 'submitted the form', replied: 'replied', optout: 'opted out', 'temp:hot': 'hot leads' };
+  const seg = (n: number, metric: string, value: string, shown?: React.ReactNode) => n > 0
+    ? <button onClick={() => setDrill({ title: `${BREAKDOWNS.find(([k]) => k === tab)?.[1] ?? tab}: ${value}, ${METRIC_LABEL[metric]}`, metric, group: tab, value })} className="hover:text-primary hover:underline">{shown ?? n}</button>
+    : <>{shown ?? n}</>;
   async function copy(text: string) { try { await navigator.clipboard.writeText(text); setCopied(text); setTimeout(() => setCopied(null), 1500); } catch { /* clipboard unavailable */ } }
 
   return (
     <div className="space-y-6">
-      {batches.length > 0 && <CampaignStrip batches={batches} selected={selected} onSelect={setSelected} onCancelled={onReload} />}
+      {batches.length > 0 && <CampaignStrip batches={batches} selected={selected} onSelect={setSelected} onCancelled={onReload} onDrill={setDrill} />}
 
       {error && <Notice tone="red"><AlertTriangle size={15} className="mt-0.5 shrink-0" /> {error}</Notice>}
       {loading && !data && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-24" />)}</div>}
@@ -151,14 +143,14 @@ export default function ResultsTab(props: {
           {notSent && <Notice tone="blue"><Clock size={15} className="mt-0.5 shrink-0" /> {data.totals.texts} texts are scheduled and have not gone out yet. Numbers fill in automatically as they send, are delivered and homeowners respond.</Notice>}
 
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
-            <Kpi label="Texts" value={data.totals.texts} sub={`${f.sent} sent`} icon={<Send size={14} />} tone="bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300" active={focus === 'texts'} onClick={() => setFocus(focus === 'texts' ? null : 'texts')} />
-            <Kpi label="Delivered" value={data.totals.delivered} sub={`${data.totals.deliveredPct}% of texts`} icon={<CheckCircle2 size={14} />} tone="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" active={focus === 'delivered'} onClick={() => setFocus(focus === 'delivered' ? null : 'delivered')} />
-            <Kpi label="Opened link" value={data.totals.clicked} sub={`${data.totals.clickPct}% of delivered`} icon={<MousePointerClick size={14} />} tone="bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300" active={focus === 'clicked'} onClick={() => setFocus(focus === 'clicked' ? null : 'clicked')} />
-            <Kpi label="Viewed estimate" value={data.totals.viewed} sub={`${data.totals.viewPct}%`} icon={<Eye size={14} />} tone="bg-indigo-100 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300" active={focus === 'viewed'} onClick={() => setFocus(focus === 'viewed' ? null : 'viewed')} />
-            <Kpi label="Submitted form" value={data.totals.submitted} sub={`${data.totals.submitPct}%`} icon={<CheckCircle2 size={14} />} tone="bg-teal-100 text-teal-600 dark:bg-teal-500/15 dark:text-teal-300" active={focus === 'submitted'} onClick={() => setFocus(focus === 'submitted' ? null : 'submitted')} />
-            <Kpi label="Replies" value={data.totals.replied} sub={`${data.totals.yes} YES`} icon={<MessageSquare size={14} />} tone="bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300" />
-            <Kpi label="Opt-outs" value={data.totals.optOut} sub={`${data.totals.optOutPct}%`} icon={<ShieldOff size={14} />} tone="bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300" />
-            <Kpi label="Hot leads" value={data.totals.hot} sub={data.cost.perHotLead != null ? `$${data.cost.perHotLead} each` : undefined} icon={<Flame size={14} />} tone="bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300" />
+            <Kpi label="Texts" value={data.totals.texts} sub={`${f.sent} sent`} icon={<Send size={14} />} tone="bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300" active={focus === 'texts'} onClick={() => setDrill({ title: 'All texts', metric: 'texts' })} />
+            <Kpi label="Delivered" value={data.totals.delivered} sub={`${data.totals.deliveredPct}% of texts`} icon={<CheckCircle2 size={14} />} tone="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" active={focus === 'delivered'} onClick={() => setDrill({ title: 'Delivered texts', metric: 'delivered' })} />
+            <Kpi label="Opened link" value={data.totals.clicked} sub={`${data.totals.clickPct}% of delivered`} icon={<MousePointerClick size={14} />} tone="bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300" active={focus === 'clicked'} onClick={() => setDrill({ title: 'Opened the link', metric: 'clicked' })} />
+            <Kpi label="Viewed estimate" value={data.totals.viewed} sub={`${data.totals.viewPct}%`} icon={<Eye size={14} />} tone="bg-indigo-100 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300" active={focus === 'viewed'} onClick={() => setDrill({ title: 'Viewed the estimate', metric: 'viewed' })} />
+            <Kpi label="Submitted form" value={data.totals.submitted} sub={`${data.totals.submitPct}%`} icon={<CheckCircle2 size={14} />} tone="bg-teal-100 text-teal-600 dark:bg-teal-500/15 dark:text-teal-300" active={focus === 'submitted'} onClick={() => setDrill({ title: 'Submitted the form', metric: 'submitted' })} />
+            <Kpi label="Replies" value={data.totals.replied} sub={`${data.totals.yes} YES`} icon={<MessageSquare size={14} />} tone="bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300" onClick={() => setDrill({ title: 'Replies', metric: 'replied' })} />
+            <Kpi label="Opt-outs" value={data.totals.optOut} sub={`${data.totals.optOutPct}%`} icon={<ShieldOff size={14} />} tone="bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300" onClick={() => setDrill({ title: 'Opt-outs', metric: 'optout' })} />
+            <Kpi label="Hot leads" value={data.totals.hot} sub={data.cost.perHotLead != null ? `$${data.cost.perHotLead} each` : undefined} icon={<Flame size={14} />} tone="bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300" onClick={() => setDrill({ title: 'Hot leads', metric: 'temp:hot' })} />
           </div>
 
           <div className="grid lg:grid-cols-3 gap-4">
@@ -168,7 +160,7 @@ export default function ResultsTab(props: {
                 {steps.map((s, i) => {
                   const prev = i > 0 ? steps[i - 1].n : null; const w = f.texts ? Math.max(s.n ? 2 : 0, (s.n / f.texts) * 100) : 0;
                   return (
-                    <div key={s.key} onMouseEnter={() => setFocus(s.key)} className={cx('flex items-center gap-3 rounded-lg px-2 py-1 -mx-2 transition-colors', focus === s.key && 'bg-primary/5')}>
+                    <div key={s.key} role="button" tabIndex={0} title={`See the ${s.n} text${s.n === 1 ? '' : 's'} at this step`} onMouseEnter={() => setFocus(s.key)} onClick={() => setDrill({ title: s.label, metric: FUNNEL_METRIC[s.key] })} onKeyDown={e => e.key === 'Enter' && setDrill({ title: s.label, metric: FUNNEL_METRIC[s.key] })} className={cx('flex items-center gap-3 rounded-lg px-2 py-1 -mx-2 transition-colors cursor-pointer hover:bg-primary/5', focus === s.key && 'bg-primary/5')}>
                       <span className="w-24 sm:w-44 text-xs text-muted-foreground shrink-0">{s.label}</span>
                       <div className="flex-1 min-w-8 h-6 bg-muted rounded-md overflow-hidden"><div className={cx('h-full rounded-md transition-all duration-700', focus === s.key ? 'bg-primary' : 'bg-primary/60')} style={{ width: `${w}%` }} /></div>
                       <span className="w-20 sm:w-28 text-right text-xs tabular-nums shrink-0">{s.n} <span className="text-muted-foreground">({pct(s.n, f.texts)}%)</span></span>
@@ -186,8 +178,8 @@ export default function ResultsTab(props: {
                 <div className="mt-3 text-xs space-y-1.5"><div className="flex justify-between"><span className="text-muted-foreground">Per click</span><b>{data.cost.perClick != null ? `$${data.cost.perClick}` : '-'}</b></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Per submission</span><b>{data.cost.perSubmission != null ? `$${data.cost.perSubmission}` : '-'}</b></div></div></div>
               <div><SectionTitle title="Delivery" />
-                <div className="text-xs space-y-1.5">{Object.entries(data.statuses).map(([k, v]) => <div key={k} className="flex justify-between"><span className="text-muted-foreground capitalize">{k}</span><b>{v}</b></div>)}
-                  {Object.entries(data.deliveryErrors).map(([k, v]) => <div key={k} title={ERROR_MEANING[k]?.[1]} className="flex justify-between gap-3 text-amber-600"><span>Error {k}{ERROR_MEANING[k] && <span className="text-muted-foreground"> · {ERROR_MEANING[k][0]}</span>}</span><b>{v}</b></div>)}</div></div>
+                <div className="text-xs space-y-1.5">{Object.entries(data.statuses).map(([k, v]) => <button key={k} onClick={() => setDrill({ title: `Texts with status "${k}"`, metric: `status:${k}` })} className="w-full flex justify-between rounded-md px-1 -mx-1 hover:bg-muted"><span className="text-muted-foreground capitalize">{k}</span><b>{v}</b></button>)}
+                  {Object.entries(data.deliveryErrors).map(([k, v]) => <button key={k} onClick={() => setDrill({ title: `Error ${k}${ERROR_MEANING[k] ? `: ${ERROR_MEANING[k][0]}` : ''}`, metric: `error:${k}` })} title={ERROR_MEANING[k]?.[1]} className="w-full flex justify-between gap-3 text-amber-600 text-left rounded-md px-1 -mx-1 hover:bg-muted"><span>Error {k}{ERROR_MEANING[k] && <span className="text-muted-foreground"> · {ERROR_MEANING[k][0]}</span>}</span><b>{v}</b></button>)}</div></div>
             </Card>
           </div>
 
@@ -197,8 +189,8 @@ export default function ResultsTab(props: {
               <tbody>{(data.skipTrace ?? []).map(s => (
                 <tr key={s.audience} className="border-t border-border"><td className="py-2.5 pr-3 font-medium">{s.audience}</td>
                   <td className="pr-3 text-right tabular-nums">{s.landlinePct != null ? `${s.landlinePct}% (${(s.prefilterLandline ?? 0) + (s.prefilterInvalid ?? 0)} of ${s.screenedLeads})` : 'not recorded'}</td>
-                  <td className="pr-3 text-right tabular-nums">{s.sent ? `${s.deliveredPct}% (${s.delivered} of ${s.sent})` : 'not sent yet'}</td>
-                  <td className="pr-3 text-right tabular-nums">{s.wrongPerson}</td><td className="pr-3 text-right tabular-nums">{s.engaged} <span className="text-muted-foreground text-xs">({s.engagedPct}%)</span></td>
+                  <td className="pr-3 text-right tabular-nums">{s.sent ? <button onClick={() => setDrill({ title: `${s.audience}: delivered`, metric: 'delivered', group: 'audience', value: s.audience })} className="hover:text-primary hover:underline">{`${s.deliveredPct}% (${s.delivered} of ${s.sent})`}</button> : 'not sent yet'}</td>
+                  <td className="pr-3 text-right tabular-nums">{s.wrongPerson ? <button onClick={() => setDrill({ title: `${s.audience}: wrong person`, metric: 'wrong_person', group: 'audience', value: s.audience })} className="hover:text-primary hover:underline">{s.wrongPerson}</button> : s.wrongPerson}</td><td className="pr-3 text-right tabular-nums">{s.engaged ? <button onClick={() => setDrill({ title: `${s.audience}: engaged`, metric: 'engaged', group: 'audience', value: s.audience })} className="hover:text-primary hover:underline">{s.engaged} <span className="text-muted-foreground text-xs">({s.engagedPct}%)</span></button> : <>{s.engaged} <span className="text-muted-foreground text-xs">({s.engagedPct}%)</span></>}</td>
                   <td className="text-right tabular-nums font-semibold">{s.sent ? `${s.likelyReachedPct}%` : '-'}</td></tr>))}</tbody></table></div>
           </Card>
 
@@ -242,6 +234,7 @@ export default function ResultsTab(props: {
                       <span className={cx('px-2 py-0.5 rounded-full text-[11px] font-semibold', TEMP_STYLE[g.key])}>{g.label}</span>
                       <span className="text-sm font-semibold tabular-nums">{g.rows.length}</span>
                       <span className="text-xs text-muted-foreground truncate">{g.hint}</span>
+                      <span role="button" tabIndex={0} onClick={e => { e.stopPropagation(); setDrill({ title: `${g.label} leads`, metric: `temp:${g.key}` }); }} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setDrill({ title: `${g.label} leads`, metric: `temp:${g.key}` }); } }} className="ml-auto shrink-0 text-xs font-medium text-primary hover:underline">See all</span>
                     </button>
                     {open && (g.rows.length === 0 ? <p className="px-4 py-3 text-sm text-muted-foreground">No leads here yet.</p> : (
                       <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground"><th className="py-2 pl-4 pr-3">Lead</th><th className="pr-3">Score</th><th className="pr-3">What they did</th><th className="pr-4">Phone</th></tr></thead>
@@ -249,7 +242,8 @@ export default function ResultsTab(props: {
                           <tr key={`${h.leadId}-${h.batch}`} className="border-t border-border align-top hover:bg-muted/40">
                             <td className="py-2.5 pl-4 pr-3"><Link href={`/lead-profile?id=${h.leadId}`} className="font-medium text-primary hover:underline">{h.address || h.leadId}</Link><div className="text-[11px] text-muted-foreground">{h.owner ?? 'Owner unknown'}{h.stage ? ` · ${h.stage}` : ''}</div></td>
                             <td className="pr-3 tabular-nums">{h.score}</td><td className="pr-3 text-xs text-muted-foreground max-w-md">{h.why}</td>
-                            <td className="pr-4 text-xs whitespace-nowrap">{h.phone && <button onClick={() => copy(h.phone!)} title="Copy number" className="inline-flex items-center gap-1 hover:text-primary">{h.phone} {copied === h.phone ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="opacity-50" />}</button>}</td>
+                            <td className="pr-4 text-xs whitespace-nowrap"><div className="flex flex-col items-start gap-1">{h.phone && <button onClick={() => copy(h.phone!)} title="Copy number" className="inline-flex items-center gap-1 hover:text-primary">{h.phone} {copied === h.phone ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="opacity-50" />}</button>}
+                              <button onClick={() => setDrill({ title: h.address || 'Lead', metric: `temp:${h.temperature}`, batch: h.batch, openLead: { leadId: h.leadId, batch: h.batch } })} className="text-primary font-medium hover:underline">Message and timeline</button></div></td>
                           </tr>))}</tbody></table>
                         {g.rows.length > LEAD_PREVIEW && !query && <button onClick={() => setShowAll(s => ({ ...s, [g.key]: !s[g.key] }))} className="w-full py-2 text-xs font-medium text-primary hover:bg-muted/40 border-t border-border">{showAll[g.key] ? 'Show fewer' : `Show all ${g.rows.length}`}</button>}
                       </div>))}
@@ -262,20 +256,21 @@ export default function ResultsTab(props: {
             <div className="flex flex-wrap gap-1.5 mb-4">{BREAKDOWNS.map(([k, label]) => <button key={k} onClick={() => setTab(k)} className={cx('px-3 py-1.5 rounded-full text-xs font-medium border transition-colors', tab === k ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:border-primary/50')}>{label}</button>)}</div>
             <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground"><th className="py-2 pr-3">Segment</th>{th('texts', 'Texts')}{th('deliveredPct', 'Delivered')}{th('clickPct', 'Opened')}{th('submitted', 'Submitted')}{th('replied', 'Replied')}{th('optOut', 'Opt-out')}{th('hot', 'Hot')}</tr></thead>
               <tbody>{rows.map(([k, b]) => (
-                <tr key={k} className="border-t border-border hover:bg-muted/40"><td className="py-2.5 pr-3 font-medium">{k}{leading === k && <Chip tone="green" className="ml-2">Leading</Chip>}</td><td className="pr-3 text-right tabular-nums">{b.texts}</td><td className="pr-3 text-right tabular-nums">{b.deliveredPct}%</td>
-                  <td className="pr-3 text-right tabular-nums"><div className="flex items-center justify-end gap-2"><span className="hidden sm:block w-16 h-1.5 rounded-full bg-muted overflow-hidden"><span className="block h-full bg-primary" style={{ width: `${Math.min(100, b.clickPct)}%` }} /></span>{b.clicked} <span className="text-muted-foreground text-xs">({b.clickPct}%)</span></div></td>
-                  <td className="pr-3 text-right tabular-nums">{b.submitted}</td><td className="pr-3 text-right tabular-nums">{b.replied}</td><td className="pr-3 text-right tabular-nums">{b.optOut}</td><td className="text-right tabular-nums">{b.hot}</td></tr>))}</tbody></table></div>
+                <tr key={k} className="border-t border-border hover:bg-muted/40"><td className="py-2.5 pr-3 font-medium">{k}{leading === k && <Chip tone="green" className="ml-2">Leading</Chip>}</td><td className="pr-3 text-right tabular-nums">{seg(b.texts, 'texts', k, String(b.texts))}</td><td className="pr-3 text-right tabular-nums">{seg(b.delivered, 'delivered', k, `${b.deliveredPct}%`)}</td>
+                  <td className="pr-3 text-right tabular-nums"><div className="flex items-center justify-end gap-2"><span className="hidden sm:block w-16 h-1.5 rounded-full bg-muted overflow-hidden"><span className="block h-full bg-primary" style={{ width: `${Math.min(100, b.clickPct)}%` }} /></span>{seg(b.clicked, 'clicked', k, <>{b.clicked} <span className="text-muted-foreground text-xs">({b.clickPct}%)</span></>)}</div></td>
+                  <td className="pr-3 text-right tabular-nums">{seg(b.submitted, 'submitted', k)}</td><td className="pr-3 text-right tabular-nums">{seg(b.replied, 'replied', k)}</td><td className="pr-3 text-right tabular-nums">{seg(b.optOut, 'optout', k)}</td><td className="text-right tabular-nums">{seg(b.hot, 'temp:hot', k)}</td></tr>))}</tbody></table></div>
           </Card>
 
           <div className="grid md:grid-cols-2 gap-4">
-            <Card className="p-5"><SectionTitle title="Replies" />
+            <Card className="p-5"><SectionTitle title="Replies" right={data.replies.length > 0 ? <button onClick={() => setDrill({ title: 'Replies', metric: 'replied' })} className="text-xs font-medium text-primary hover:underline">See all</button> : undefined} />
               {data.replies.length === 0 ? <p className="text-sm text-muted-foreground">No replies yet.</p> : <ul className="space-y-3 max-h-80 overflow-y-auto pr-1">{data.replies.map((r, i) => (
-                <li key={i} className="text-sm"><Chip tone={r.intent === 'yes' ? 'green' : r.intent === 'stop' ? 'red' : 'muted'} className="mr-2 uppercase">{r.intent}</Chip>{r.text}<Link href={`/lead-profile?id=${r.leadId}`} className="ml-2 text-xs text-primary hover:underline">open lead</Link><div className="text-[11px] text-muted-foreground mt-0.5">{fmtDate(r.at)}</div></li>))}</ul>}</Card>
+                <li key={i} className="text-sm"><Chip tone={r.intent === 'yes' ? 'green' : r.intent === 'stop' ? 'red' : 'muted'} className="mr-2 uppercase">{r.intent}</Chip>{r.text}<button onClick={() => setDrill({ title: 'Replies', metric: 'replied', batch: r.batch, openLead: { leadId: r.leadId, batch: r.batch } })} className="ml-2 text-xs text-primary hover:underline">details</button><Link href={`/lead-profile?id=${r.leadId}`} className="ml-2 text-xs text-primary hover:underline">open lead</Link><div className="text-[11px] text-muted-foreground mt-0.5">{fmtDate(r.at)}</div></li>))}</ul>}</Card>
             <Card className="p-5"><SectionTitle title="Questions asked in the chat" />
               {data.chatQuestions.length === 0 ? <p className="text-sm text-muted-foreground">No questions yet. This shows what homeowners want to know before they commit.</p> : <ul className="space-y-2 max-h-80 overflow-y-auto pr-1">{data.chatQuestions.map((q, i) => <li key={i} className="text-sm rounded-xl bg-muted/60 px-3 py-2">&ldquo;{q}&rdquo;</li>)}</ul>}</Card>
           </div>
         </>
       )}
+      {drill && <DrilldownDrawer spec={drill} batch={selected} onClose={closeDrill} />}
     </div>
   );
 }

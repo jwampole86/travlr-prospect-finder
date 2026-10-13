@@ -21,6 +21,16 @@ async function pageAll<T>(f: (from: number, to: number) => PromiseLike<{ data: T
   return all;
 }
 
+/** The value of each breakdown (audience, tone, state...) for one text. The drill-down filters on these same keys. */
+export function segmentKeys(r: Row): Record<string, string> {
+  const ttc = r.first_click_at && r.delivered_at ? Math.max(0, (Date.parse(r.first_click_at) - Date.parse(r.delivered_at)) / 60_000) : null;
+  return {
+    audience: r.audience ?? 'fully-verified', variant: r.variant ?? '?', writtenBy: r.generated_by ?? '?', segments: `${r.segments ?? '?'} seg`, state: r.state ?? '?',
+    estimate: rangeBucket(String(r.range_text ?? '')), device: r.device ?? (r.human_clicks ? 'unknown' : 'no click'), os: r.os ?? (r.human_clicks ? 'unknown' : 'no click'),
+    sendHourUtc: `${new Date(r.scheduled_for).getUTCHours()}:00`, phone: r.phone_quality ?? 'pending', timeToClick: ttc === null ? 'no click' : ttcBucket(ttc), temperature: r.temperature,
+  };
+}
+
 export async function buildOverview(db: Db, batches: string[] | 'all') {
   const rows = await pageAll<Row>((a, b) => {
     let q = db.from('sms_lead_engagement').select('*').range(a, b);
@@ -42,12 +52,7 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
       delivered: +delivered, clicked: +(r.human_clicks > 0), viewed: +r.estimate_viewed, submitted: +!!r.estimate_submitted_at, replied: +!!r.reply_at,
       yes: +(r.reply_intent === 'yes' || r.opted_in), optOut: +r.opted_out, hot: +(r.temperature === 'hot'), cost: Number(r.price_usd ?? 0),
     };
-    const ttc = r.first_click_at && r.delivered_at ? Math.max(0, (Date.parse(r.first_click_at) - Date.parse(r.delivered_at)) / 60_000) : null;
-    const keys: Record<string, string> = {
-      audience: r.audience ?? 'fully-verified', variant: r.variant ?? '?', writtenBy: r.generated_by ?? '?', segments: `${r.segments ?? '?'} seg`, state: r.state ?? '?',
-      estimate: rangeBucket(String(r.range_text ?? '')), device: r.device ?? (r.human_clicks ? 'unknown' : 'no click'), os: r.os ?? (r.human_clicks ? 'unknown' : 'no click'),
-      sendHourUtc: `${new Date(r.scheduled_for).getUTCHours()}:00`, phone: r.phone_quality ?? 'pending', timeToClick: ttc === null ? 'no click' : ttcBucket(ttc), temperature: r.temperature,
-    };
+    const keys = segmentKeys(r);
     for (const b of [total, ...Object.entries(keys).map(([g, k]) => (groups[g][k] ??= empty()))]) { b.texts++; for (const k of Object.keys(f) as Array<keyof typeof f>) b[k] += f[k]; }
     statuses[r.twilio_status ?? 'scheduled'] = (statuses[r.twilio_status ?? 'scheduled'] ?? 0) + 1;
     if (r.twilio_error_code) errors[r.twilio_error_code] = (errors[r.twilio_error_code] ?? 0) + 1;
@@ -91,7 +96,7 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
   const hotLeads = hotRows.map(r => { const l = info.get(r.lead_id) ?? {}; return { leadId: r.lead_id, batch: r.batch, temperature: r.temperature, score: r.engagement_score, address: [l.address, l.city, l.state].filter(Boolean).join(', '), owner: l.owner_name ?? null, stage: l.stage ?? null, phone: l.contact_phone ?? null, why: why(r) }; });
 
   const replyRows = rows.filter(r => r.reply_at).sort((a, b) => Date.parse(b.reply_at) - Date.parse(a.reply_at)).slice(0, 40);
-  const replies = replyRows.map(r => ({ leadId: r.lead_id, at: r.reply_at, intent: r.reply_intent, text: redact(String(r.reply_text ?? '')) }));
+  const replies = replyRows.map(r => ({ leadId: r.lead_id, batch: r.batch as string, at: r.reply_at, intent: r.reply_intent, text: redact(String(r.reply_text ?? '')) }));
 
   const { data: journey } = await db.from('estimate_journey_events').select('data').eq('event', 'chat_question').in('lead_id', rows.map(r => r.lead_id)).order('created_at', { ascending: false }).limit(200);
   const chat = (journey ?? []).map(j => redact(String(j.data?.text ?? ''))).filter(Boolean).slice(0, 60);
