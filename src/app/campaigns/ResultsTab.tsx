@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Copy, DollarSign, Flame, Loader2, MessageSquare, MousePointerClick, Search, Send, ShieldOff, Sparkles, ArrowDown, ArrowUp, Eye, X, Check } from 'lucide-react';
 import { BatchInfo, Card, Chip, DrillSpec, ERROR_MEANING, Hot, Insights, Notice, Overview, SectionTitle, Skeleton, TEMP_STYLE, cx, fmtDate, pct, post, timeAgo } from './shared';
@@ -19,16 +19,23 @@ const LEAD_PREVIEW = 8;
 const TIMELINE_PREVIEW = 15;
 const FUNNEL_METRIC: Record<string, string> = { texts: 'texts', sent: 'sent', delivered: 'delivered', clicked: 'clicked', viewed: 'viewed', contact: 'contact', submitted: 'submitted' };
 
-function status(b: BatchInfo): { label: string; tone: 'blue' | 'amber' | 'green' | 'muted' } {
+function status(b: BatchInfo, now = Date.now()): { label: string; tone: 'blue' | 'amber' | 'green' | 'muted' } {
   if (b.canceled >= b.texts) return { label: 'Canceled', tone: 'muted' };
-  if (Date.parse(b.firstSend) > Date.now()) return { label: 'Scheduled', tone: 'blue' };
+  if (Date.parse(b.firstSend) > now) return { label: 'Scheduled', tone: 'blue' };
   return b.pending > 0 ? { label: 'Sending', tone: 'amber' } : { label: 'Complete', tone: 'green' };
+}
+
+function countdown(ms: number) {
+  const t = Math.max(0, Math.floor(ms / 1000)); const d = Math.floor(t / 86400); const h = Math.floor((t % 86400) / 3600); const m = Math.floor((t % 3600) / 60); const sec = t % 60;
+  return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m ${sec}s` : `${m}m ${sec}s`;
 }
 
 function CampaignStrip({ batches, selected, onSelect, onCancelled, onDrill }: { batches: BatchInfo[]; selected: string; onSelect: (k: string) => void; onCancelled: () => void; onDrill: (d: DrillSpec) => void }) {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   async function cancel(batch: string) {
     setBusy(batch); setMsg(null);
     try {
@@ -44,7 +51,7 @@ function CampaignStrip({ batches, selected, onSelect, onCancelled, onDrill }: { 
           <p className="text-xs text-muted-foreground">Everything</p><p className="font-semibold mt-0.5">All campaigns</p><p className="text-xs text-muted-foreground mt-2">{all} texts · {batches.length} campaign{batches.length === 1 ? '' : 's'}</p>
         </button>
         {batches.map(b => {
-          const st = status(b); const sent = Math.max(0, b.texts - b.pending - b.canceled);
+          const st = status(b, now); const sent = Math.max(0, b.texts - b.pending - b.canceled);
           return (
             <div key={b.batch} className={cx('snap-start shrink-0 w-64 rounded-2xl border p-4 transition-all', selected === b.batch ? 'border-primary ring-2 ring-primary/30 bg-primary/5' : 'border-border bg-card hover:border-primary/50 hover:shadow-sm')}>
               <button onClick={() => onSelect(b.batch)} className="text-left w-full">
@@ -54,12 +61,19 @@ function CampaignStrip({ batches, selected, onSelect, onCancelled, onDrill }: { 
                 <div className="h-1.5 rounded-full bg-muted mt-3 overflow-hidden"><div className="h-full bg-primary transition-all duration-700" style={{ width: `${pct(sent, b.texts)}%` }} /></div>
                 <p className="text-[11px] text-muted-foreground mt-1">{sent} sent{b.pending ? ` · ${b.pending} waiting` : ''}{b.canceled ? ` · ${b.canceled} canceled` : ''}</p>
               </button>
-              <button onClick={() => onDrill({ title: `Texts in ${b.batch}`, metric: 'texts', batch: b.batch })} className="mt-2 text-xs font-medium text-primary hover:underline">View every text</button>
-              {b.pending > 0 && (confirm === b.batch ? (
-                <div className="mt-3 flex items-center gap-1.5 text-xs"><span className="text-rose-600 font-medium">Cancel {b.pending}?</span>
-                  <button disabled={busy === b.batch} onClick={() => cancel(b.batch)} className="px-2 py-1 rounded-lg bg-rose-600 text-white font-semibold disabled:opacity-60">{busy === b.batch ? <Loader2 size={12} className="animate-spin" /> : 'Yes'}</button>
-                  <button onClick={() => setConfirm(null)} className="px-2 py-1 rounded-lg border border-border">Keep</button></div>
-              ) : <button onClick={() => setConfirm(b.batch)} className="mt-3 text-xs text-muted-foreground hover:text-rose-600 inline-flex items-center gap-1"><X size={12} /> Cancel unsent texts</button>)}
+              {b.pending > 0 && (Date.parse(b.firstSend) > now
+                ? <div className="mt-3 rounded-xl bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/30 px-3 py-2"><p className="text-[11px] text-sky-700 dark:text-sky-300 inline-flex items-center gap-1"><Clock size={11} /> Starts in</p><p className="text-base font-bold tabular-nums text-sky-900 dark:text-sky-100 leading-tight">{countdown(Date.parse(b.firstSend) - now)}</p><p className="text-[11px] text-muted-foreground">{fmtDate(b.firstSend)}</p></div>
+                : Date.parse(b.lastSend) > now
+                  ? <div className="mt-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 px-3 py-2"><p className="text-[11px] text-amber-700 dark:text-amber-300 inline-flex items-center gap-1"><Clock size={11} /> Sending now, last text in</p><p className="text-base font-bold tabular-nums leading-tight">{countdown(Date.parse(b.lastSend) - now)}</p><p className="text-[11px] text-muted-foreground">{fmtDate(b.lastSend)}</p></div>
+                  : <p className="mt-3 text-[11px] text-muted-foreground inline-flex items-center gap-1"><Clock size={11} /> Waiting for Twilio to confirm delivery</p>)}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button onClick={() => onDrill({ title: `Texts in ${b.batch}`, metric: 'texts', batch: b.batch })} className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-primary hover:bg-primary/5">View every text</button>
+                {b.pending > 0 && confirm !== b.batch && <button onClick={() => setConfirm(b.batch)} className="h-8 px-3 rounded-lg border border-rose-500 text-rose-600 text-xs font-medium hover:bg-rose-50 dark:hover:bg-rose-500/10 inline-flex items-center gap-1"><X size={12} /> Cancel unsent</button>}
+              </div>
+              {b.pending > 0 && confirm === b.batch && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs rounded-lg border border-rose-500 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-2"><span className="text-rose-700 dark:text-rose-300 font-medium">Cancel {b.pending} unsent?</span>
+                  <button disabled={busy === b.batch} onClick={() => cancel(b.batch)} className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-semibold disabled:opacity-60">{busy === b.batch ? <Loader2 size={12} className="animate-spin" /> : 'Yes, cancel'}</button>
+                  <button onClick={() => setConfirm(null)} className="px-2.5 py-1 rounded-lg border border-border bg-background">Keep</button></div>)}
             </div>
           );
         })}
