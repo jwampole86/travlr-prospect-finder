@@ -4,6 +4,7 @@ import type {
   HomeownerReport, EstimateScenario, RegulationReport, RegulationRequirement, RegulationTone, PermitDetails,
 } from '@/lib/homeownerEstimateTypes';
 import { tidySentence } from '@/lib/homeownerReportContent';
+import { airdnaFiguresFor } from '@/lib/services/airdnaEstimate';
 
 const STATE_NAMES: Record<string, string> = {
   AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut',
@@ -71,6 +72,7 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n
 const money = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 
 interface LeadFacts {
+  id: string; address: string; airdnaAdr: number | null; airdnaOccupancy: number | null; airdnaCheckedAt: string | null;
   beds: number | null; baths: number | null; type: string | null; price: number | null; priceType: string | null;
   rent: number | null; adr: number | null; occupancy: number | null;
 }
@@ -81,11 +83,12 @@ async function findLead(db: ReturnType<typeof getSupabaseAdmin>, a: ParsedAddres
   if (!number) return null;
   const safe = a.street.replace(/[%_\\,()]/g, ' ').replace(/\s+/g, ' ').trim();
   const { data } = await db.from('leads')
-    .select('address,city,beds,baths,property_type,price,price_type,estimated_monthly_rent_ai,estimated_adr,estimated_occupancy')
+    .select('id,address,city,beds,baths,property_type,price,price_type,estimated_monthly_rent_ai,estimated_adr,estimated_occupancy,airdna_adr,airdna_occupancy,airdna_checked_at')
     .eq('state', a.state).ilike('address', `${safe}%`).or('is_synthetic.is.null,is_synthetic.eq.false').limit(5);
   const lead = (data ?? []).find(l => !a.city || String(l.city || '').toLowerCase() === a.city.toLowerCase()) ?? null;
   if (!lead) return null;
   return {
+    id: String(lead.id), address: String(lead.address ?? ''), airdnaAdr: lead.airdna_adr ? Number(lead.airdna_adr) : null, airdnaOccupancy: lead.airdna_occupancy ? Number(lead.airdna_occupancy) : null, airdnaCheckedAt: lead.airdna_checked_at ?? null,
     beds: lead.beds ? Math.round(Number(lead.beds)) : null,
     baths: lead.baths ? Number(lead.baths) : null,
     type: lead.property_type ? String(lead.property_type) : null,
@@ -219,6 +222,9 @@ export async function buildHomeownerReport(rawAddress: string): Promise<Homeowne
   const lead = db ? await findLead(db, a).catch(() => null) : null;
   const idx = db ? await rentIndex(db, a).catch(() => null) : null;
 
+  // Real AirDNA figures for this address when we can get them; otherwise the calibrated bedroom model below.
+  const air = db && lead ? await airdnaFiguresFor(db, { id: lead.id, address: [lead.address, a.city, a.state, a.zip].filter(Boolean).join(', '), beds: lead.beds, baths: lead.baths, airdna_adr: lead.airdnaAdr, airdna_occupancy: lead.airdnaOccupancy, airdna_checked_at: lead.airdnaCheckedAt }).catch(() => null) : null;
+
   const assumedBeds = !lead?.beds;
   const beds = clamp(lead?.beds ?? 3, 1, 6);
   const baths = lead?.baths ?? Math.max(1, beds * 0.75);
@@ -241,17 +247,20 @@ export async function buildHomeownerReport(rawAddress: string): Promise<Homeowne
   }
   longTermRent = round25(clamp(longTermRent, 600, 60000));
 
-  // Short-term revenue: the importer's bedroom model, never below 1.8x the long-term rent for the same home.
-  const adrBase = lead?.adr ?? Math.round((BASE_ADR[beds] ?? 225) * (STATE_MULT[a.state] ?? 1));
-  const occBase = lead?.occupancy ?? Math.round(Math.min(0.78, 0.62 + beds * 0.02) * 100);
+  // Short-term revenue. Checked against AirDNA's Rentalizer on 30 sampled addresses (Oct 2026), the bedroom model ran about 1.85x high:
+  // its occupancy (68-74%) and nightly rates sat well above what AirDNA finds (about 52% booked). It is scaled down to match, and
+  // AirDNA's own figures for the address replace it whenever we have them.
+  const MODEL_OCC = 0.75; const MODEL_ADR = 0.74;
+  const adrBase = air ? air.adr : Math.round((lead?.adr ?? (BASE_ADR[beds] ?? 225) * (STATE_MULT[a.state] ?? 1)) * MODEL_ADR);
+  const occBase = air ? air.occupancy : Math.round((lead?.occupancy ?? Math.min(0.78, 0.62 + beds * 0.02) * 100) * MODEL_OCC);
   let expectedGross = adrBase * 30 * (occBase / 100);
-  const floorGross = longTermRent * 1.8;
+  const floorGross = air ? 0 : longTermRent * 1.0;
   const adrExpected = expectedGross < floorGross ? Math.round(floorGross / (30 * occBase / 100)) : adrBase;
   expectedGross = Math.max(expectedGross, floorGross);
 
   const net = (g: number) => Math.round(g * 0.65);
   const make = (key: EstimateScenario['key'], label: string, occDelta: number, adrMult: number): EstimateScenario => {
-    const occupancy = clamp(occBase + occDelta, 35, 88);
+    const occupancy = clamp(occBase + occDelta, air ? 25 : 35, 88);
     const adr = Math.round(adrExpected * adrMult);
     const gross = Math.round(adr * 30 * (occupancy / 100));
     return { key, label, occupancy, adr, grossMonthly: gross, netMonthly: net(gross), annualNet: net(gross) * 12 };
@@ -281,7 +290,7 @@ export async function buildHomeownerReport(rawAddress: string): Promise<Homeowne
     address: rawAddress,
     street: a.street, city: a.city, state: a.state, zip: a.zip,
     basis,
-    basisLabel: basis === 'PROPERTY'
+    basisLabel: air ? 'Built from AirDNA short-term rental data for homes like yours' : basis === 'PROPERTY'
       ? 'Built from your home\u2019s own details and local rent data'
       : basis === 'MARKET'
         ? `Built from ${a.zip ? `ZIP ${a.zip}` : 'local'} rent data and a typical ${beds}-bedroom home`
