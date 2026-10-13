@@ -100,13 +100,13 @@ export default function CoHostView() {
   const [open, setOpen] = useState<string | null>(null);
   // Filters always start cleared so every visit lands on All candidates.
   const [luxuryOnly, setLuxuryOnly] = useState(false);
-  const toggleLuxury = () => setLuxuryOnly(v => !v);
+  const toggleLuxury = () => { setLuxuryOnly(v => !v); setEliteOnly(false); };
   const [eliteOnly, setEliteOnly] = useState(false);
   const [sort, setSort] = useState<SortKey>('best');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [contactOnly, setContactOnly] = useState(false);
   useEffect(() => { try { localStorage.removeItem('cohost_luxury_only'); localStorage.removeItem('cohost_elite_only'); const s = localStorage.getItem('cohost_sort') as SortKey | null; if (s && SORTS.some(x => x[0] === s)) setSort(s); } catch { /* storage unavailable */ } }, []);
-  const toggleElite = () => setEliteOnly(v => !v);
+  const toggleElite = () => { setEliteOnly(v => !v); setLuxuryOnly(false); };
   const changeSort = (s: SortKey) => { setSort(s); try { localStorage.setItem('cohost_sort', s); } catch { /* storage unavailable */ } };
   const [totals, setTotals] = useState<{ all: number; luxury: number; elite: number } | null>(null);
   const [refresh, setRefresh] = useState<RefreshInfo | null>(null);
@@ -185,10 +185,10 @@ export default function CoHostView() {
   // A listing passes every active filter except the one named, so each bubble shows what clicking it would give.
   const passes = useCallback((l: Listing, skip?: Facet) => (usState === 'all' || stateOf(l.market) === usState) && (market === 'all' || l.market === market) && (!niches.length || (l.niches ?? []).some(n => niches.includes(n)))
     && (skip === 'stage' || stage === 'all' || l.pipeline_stage === stage) && (skip === 'view' || view === 'all' || (view === 'matched' && isMatched(l)))
-    && (skip === 'luxury' || !luxuryOnly || !!l.is_luxury) && (skip === 'elite' || !eliteOnly || !!l.is_elite)
+    && (skip === 'luxury' || !luxuryOnly || (!!l.is_luxury && !l.is_elite)) && (skip === 'elite' || !eliteOnly || !!l.is_elite)
     && (skip === 'verified' || !verifiedOnly || l.verification?.level === 'verified') && (skip === 'contact' || !contactOnly || hasContact(l)),
   [usState, market, niches, stage, view, luxuryOnly, eliteOnly, verifiedOnly, contactOnly]);
-  const luxuryCount = useMemo(() => listings.filter(l => passes(l, 'luxury') && l.is_luxury).length, [listings, passes]);
+  const luxuryCount = useMemo(() => listings.filter(l => passes(l, 'luxury') && l.is_luxury && !l.is_elite).length, [listings, passes]);
   const matchedTotal = useMemo(() => listings.filter(l => passes(l, 'view') && isMatched(l)).length, [listings, passes]);
   const activeFilters = [usState !== 'all' && `State ${usState}`, market !== 'all' && market, stage !== 'all' && `Stage ${STAGE_LABEL[stage] ?? stage}`, niches.length > 0 && `${niches.length} niche${niches.length === 1 ? '' : 's'}`, luxuryOnly && 'LUXURY', eliteOnly && 'ELITE', verifiedOnly && 'Verified owner', contactOnly && 'Has contact'].filter(Boolean) as string[];
   function clearFilters() {
@@ -260,7 +260,7 @@ export default function CoHostView() {
         <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
           {([['all', 'All candidates'], ['matched', `Matched to a home${matchedTotal ? ` (${matchedTotal})` : ''}`], ['crm', 'Already in CRM']] as const).map(([k, label]) => <button key={k} onClick={() => setView(k)} className={`px-3 py-1.5 ${view === k ? 'bg-[#1d4ed8] text-[#ffffff] font-semibold' : 'bg-card hover:bg-muted'}`}>{label}</button>)}
         </div>
-        {view !== 'crm' && <button onClick={toggleLuxury} aria-pressed={luxuryOnly} title={luxuryOnly ? 'Showing luxury listings only. Click to show all.' : 'Show luxury listings only: $1,000 a night and up (ELITE, $4,995 and up, is included)'} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-bold tracking-wide transition-all ${luxuryOnly ? 'bg-[#b45309] border-[#b45309] text-[#ffffff] ring-2 ring-[#fcd34d] shadow-md' : 'border-border bg-card text-foreground hover:bg-muted'}`}>{luxuryOnly ? <Check size={14} strokeWidth={3} /> : <Gem size={14} className="text-[#b45309]" />} LUXURY <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${luxuryOnly ? 'bg-[#ffffff] text-[#92400e]' : 'bg-[#b45309] text-white'}`}>{luxuryCount}</span></button>}
+        {view !== 'crm' && <button onClick={toggleLuxury} aria-pressed={luxuryOnly} title={luxuryOnly ? 'Showing luxury listings only. Click to show all.' : 'Show luxury listings only: $1,000 to $4,994 a night. ELITE ($4,995 and up) is a separate list'} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-bold tracking-wide transition-all ${luxuryOnly ? 'bg-[#b45309] border-[#b45309] text-[#ffffff] ring-2 ring-[#fcd34d] shadow-md' : 'border-border bg-card text-foreground hover:bg-muted'}`}>{luxuryOnly ? <Check size={14} strokeWidth={3} /> : <Gem size={14} className="text-[#b45309]" />} LUXURY <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${luxuryOnly ? 'bg-[#ffffff] text-[#92400e]' : 'bg-[#b45309] text-white'}`}>{luxuryCount}</span></button>}
         {view !== 'crm' && <button onClick={toggleElite} aria-pressed={eliteOnly} title={eliteOnly ? 'Showing ELITE listings only. Click to show all.' : 'Show ultra-luxury listings only: $4,995 a night and up'} className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg border text-sm font-bold tracking-wide transition-all ${eliteOnly ? 'bg-[#0f172a] border-[#0f172a] text-[#fcd34d] ring-2 ring-[#fcd34d] shadow-md' : 'border-border bg-card text-foreground hover:bg-muted'}`}>{eliteOnly ? <Check size={14} strokeWidth={3} /> : <Crown size={14} className="text-[#334155]" />} ELITE <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${eliteOnly ? 'bg-[#fcd34d] text-[#0f172a]' : 'bg-[#334155] text-white'}`}>{eliteCount}</span></button>}
         {view !== 'crm' && <button onClick={() => setVerifiedOnly(v => !v)} aria-pressed={verifiedOnly} title="Show only owners confirmed by two independent sources" className={`h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border text-sm font-semibold ${verifiedOnly ? 'bg-[#047857] border-[#047857] text-[#ffffff] ring-2 ring-[#6ee7b7] shadow-md' : 'border-border bg-card text-foreground hover:bg-muted'}`}>{verifiedOnly ? <Check size={14} strokeWidth={3} /> : <ShieldCheck size={14} className="text-[#047857]" />} Verified owner <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${verifiedOnly ? 'bg-[#ffffff] text-[#065f46]' : 'bg-[#047857] text-white'}`}>{verifiedCount}</span></button>}
         {view !== 'crm' && <button onClick={() => setContactOnly(v => !v)} aria-pressed={contactOnly} title="Show only listings with an owner phone or email we can use" className={`h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border text-sm font-semibold ${contactOnly ? 'bg-[#0369a1] border-[#0369a1] text-[#ffffff] ring-2 ring-[#7dd3fc] shadow-md' : 'border-border bg-card text-foreground hover:bg-muted'}`}>{contactOnly ? <Check size={14} strokeWidth={3} /> : <Mail size={14} className="text-[#0369a1]" />} Has contact <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${contactOnly ? 'bg-[#ffffff] text-[#075985]' : 'bg-[#0369a1] text-white'}`}>{contactCount}</span></button>}
@@ -304,7 +304,7 @@ export default function CoHostView() {
                       {url && <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary" aria-label="Open the listing"><ExternalLink size={14} /></a>}
                       {m && <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${m.cls}`}>{m.text}</span>}
                       {l.segment === 'new_or_dormant' && <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700">New or dormant</span>}
-                      {l.is_luxury && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 inline-flex items-center gap-1"><Gem size={10} /> Luxury</span>}
+                      {l.is_luxury && !l.is_elite && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 inline-flex items-center gap-1"><Gem size={10} /> Luxury</span>}
                       {l.is_elite && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-900 text-amber-300 inline-flex items-center gap-1"><Crown size={10} /> Elite</span>}
                       {refresh?.firstRunAt && l.first_seen_at && l.first_seen_at >= refresh.firstRunAt && Date.now() - Date.parse(l.first_seen_at) < 7 * 86_400_000 && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-600 text-white">New {ago(l.first_seen_at)}</span>}
                       {l.verification && ['verified', 'likely', 'conflict'].includes(l.verification.level) && <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 ${LEVEL_STYLE[l.verification.level]}`}><ShieldCheck size={10} /> {l.verification.label}</span>}

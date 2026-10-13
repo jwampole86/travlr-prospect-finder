@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   }
   const sets = await Promise.all([
     inNiches(db.from('str_listings').select(COLS).in('segment', SEG)).order('under_score', { ascending: false, nullsFirst: false }).limit(400),
-    inNiches(db.from('str_listings').select(COLS).in('segment', SEG).eq('is_luxury', true)).order('under_score', { ascending: false, nullsFirst: false }).limit(300),
+    inNiches(db.from('str_listings').select(COLS).in('segment', SEG).eq('is_luxury', true).or('is_elite.is.null,is_elite.eq.false')).order('under_score', { ascending: false, nullsFirst: false }).limit(300),
     inNiches(db.from('str_listings').select(COLS).in('segment', SEG).eq('is_elite', true)).order('under_score', { ascending: false, nullsFirst: false }).limit(300),
     inNiches(db.from('str_listings').select(COLS).in('segment', SEG)).order('revenue_potential_ltm', { ascending: false, nullsFirst: false }).limit(400),
     inNiches(db.from('str_listings').select(COLS).in('segment', SEG)).order('first_seen_at', { ascending: false }).limit(200),
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   const failed = sets.find(s => s.error); if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
   sets.forEach(s => add(s.data));
   const countOf = async (f: (q: any) => any) => (await f(db.from('str_listings').select('property_id', { count: 'exact', head: true }).in('segment', SEG))).count ?? 0;
-  const [totalAll, totalLux, totalElite] = await Promise.all([countOf(q => q), countOf(q => q.eq('is_luxury', true)), countOf(q => q.eq('is_elite', true))]);
+  const [totalAll, totalLux, totalElite] = await Promise.all([countOf(q => q), countOf(q => q.eq('is_luxury', true).or('is_elite.is.null,is_elite.eq.false')), countOf(q => q.eq('is_elite', true))]);
   const { data: sharedRows } = await db.from('str_listings').select('matched_address').eq('match_status', 'unique').not('matched_address', 'is', null).limit(5000);
   const shared = new Map<string, number>(); for (const r of sharedRows ?? []) shared.set(r.matched_address, (shared.get(r.matched_address) ?? 0) + 1);
   const { data: lastRun } = await db.from('str_refresh_runs').select('started_at,finished_at,status,trigger,api_calls,new_listings,new_matches,quota_remaining,note,markets').order('started_at', { ascending: false }).limit(1);
