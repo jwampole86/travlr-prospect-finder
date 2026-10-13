@@ -41,7 +41,7 @@ export async function GET(
       airdna_adr, airdna_occupancy, airdna_annual_revenue, airdna_confidence, airdna_checked_at, airdna_data, listing_evidence,
       verification_status, verification_score, verification_method, verification_timestamp, verification_notes, verification_error, verification_source,
       verification_review_required, normalized_address, property_provider, provider_property_id, fully_verified, is_verified_lead, listing_url_verified,
-      ownership_record_verified, address_verified_at, owner_verified_at, phone_verified_at, listing_verification_confidence
+      ownership_record_verified, address_verified_at, owner_verified_at, phone_verified_at, listing_verification_confidence, listing_verified_at, verified_number_at, last_verified_at
     `)
     .eq('id', leadId)
     .single();

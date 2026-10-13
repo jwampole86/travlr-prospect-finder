@@ -21,7 +21,7 @@ import LeadTaskBoard from './LeadTaskBoard';
 import { useAuth } from '@/contexts/AuthContext';
 import { activityService } from '@/lib/services/activityService';
 import { outreachDisplay } from '@/lib/services/smsSendState';
-import { assessLead, assessLeadData, outreachCleared } from '@/lib/leadVerification';
+import { assessLead, assessLeadData, lastVerified, outreachCleared } from '@/lib/leadVerification';
 import PipelineStatusBadge, { PIPELINE_STATUS_CONFIG, PIPELINE_STATUS_ORDER, type PipelineStatus } from '@/components/ui/PipelineStatusBadge';
 import ConfidenceBandBadge, { getConfidenceBand, CONFIDENCE_BAND_CONFIG } from '@/components/ui/ConfidenceBandBadge';
 import Icon from '@/components/ui/AppIcon';
@@ -1119,7 +1119,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
             {/* ── Verification Badge ─────────────────────────────────────────── */}
             {lead.verificationStatus === 'VERIFIED' && (lead.verificationScore ?? 0) >= 75 ? (
               <span
-                title={`Verified property — Score: ${lead.verificationScore ?? 0}/100 | Method: ${lead.verificationMethod || 'structural'} | ${lead.verificationTimestamp ? new Date(lead.verificationTimestamp).toLocaleDateString() : ''}`}
+                title={`Verified property — Score: ${lead.verificationScore ?? 0}/100 | Method: ${lead.verificationMethod || 'structural'} | ${lastVerified(lead) ? new Date(lastVerified(lead)!.at).toLocaleString() : ''}`}
                 className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-full bg-green-500/15 text-green-600 border border-green-500/30"
               >
                 <CheckCircle size={10} />
@@ -1642,7 +1642,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                           { label: 'Provider', value: lead.propertyProvider },
                           { label: 'Provider ID', value: lead.providerPropertyId },
                           { label: 'County', value: lead.county },
-                          { label: 'Last verified', value: lead.verificationTimestamp ? new Date(lead.verificationTimestamp).toLocaleDateString() : null },
+                          { label: 'Last verified', value: (() => { const lv = lastVerified(lead); return lv ? `${new Date(lv.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })} · ${lv.what}` : null; })() },
                           { label: 'Owner verified', value: lead.extra?.verified_owner ? 'Yes' : null },
                           { label: 'Phone verified', value: lead.extra?.verified_number ? 'Yes' : null },
                         ].filter(f => f.value).map(f => (

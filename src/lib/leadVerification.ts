@@ -51,3 +51,19 @@ export function assessLead(l: Facts, ownerMatch?: OwnerMatch | null): DataAssess
 export function outreachCleared(l: Facts & { verificationStatus?: string; verificationScore?: number }, ownerMatch?: OwnerMatch | null): boolean {
   return (l.verificationStatus === 'VERIFIED' && (l.verificationScore ?? 0) >= 75) || assessLead(l, ownerMatch).level === 'strong';
 }
+
+/** The most recent time anything about this property was actually verified, and what it was. Never the date the lead was first added or scored. */
+export function lastVerified(l: { verificationTimestamp?: string; extra?: Record<string, any> }): { at: string; what: string } | null {
+  const x = l.extra ?? {};
+  const events: Array<[unknown, string]> = [
+    [l.verificationTimestamp ?? x.verification_timestamp, 'Verification pipeline'], [x.last_verified_at, 'Verification pipeline'], [x.address_verified_at, 'Address'],
+    [x.owner_verified_at, 'Owner record'], [x.phone_verified_at, 'Phone number'], [x.verified_number_at, 'Phone number'], [x.price_verified_at, 'Zillow listing facts'],
+    [x.listing_verified_at, 'Zillow listing record'], [x.link_last_checked_at, 'Listing link check'],
+  ];
+  let best: { at: string; what: string; t: number } | null = null;
+  for (const [v, what] of events) {
+    const t = typeof v === 'string' ? Date.parse(v) : NaN;
+    if (Number.isFinite(t) && t <= Date.now() + 60_000 && (!best || t > best.t)) best = { at: new Date(t).toISOString(), what, t };
+  }
+  return best ? { at: best.at, what: best.what } : null;
+}

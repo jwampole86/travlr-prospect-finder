@@ -94,7 +94,7 @@ function priceOf(r: Raw): { price: number; type: 'rent' | 'sale' } | null {
 async function applyRecord(db: Db, leadId: string, row: Raw, extra: Record<string, unknown>): Promise<FilledFacts> {
   const { data: cur } = await db.from('leads').select('beds,baths,price,price_type,square_feet,year_built,property_type,source_listing_id,listing_agent_name,listing_agent_phone,mls_number,apn,county,tax_assessment').eq('id', leadId).maybeSingle();
   const now = new Date().toISOString();
-  const update: Record<string, unknown> = { listing_link_lookup_at: now, ...extra };
+  const update: Record<string, unknown> = { listing_link_lookup_at: now, listing_verified_at: now, ...extra };
   const facts: FilledFacts = {};
   if (!Number(cur?.beds) && row.bedrooms && row.bedrooms > 0 && row.bedrooms <= 12) { update.beds = facts.beds = Math.round(row.bedrooms); update.beds_source = 'zillow'; update.beds_retrieved_at = now; }
   if (!Number(cur?.baths) && row.bathrooms && row.bathrooms > 0) { update.baths = facts.baths = row.bathrooms; update.baths_source = 'zillow'; }
