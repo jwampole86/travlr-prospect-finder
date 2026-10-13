@@ -7,7 +7,7 @@ import { Card, Chip, Notice, SectionTitle, Skeleton, cx, fmtDate, pct, post } fr
 interface Summary { id: string; name: string; createdAt: string; emails: number; drafts: number; sent: number; canceled: number; firstSend: string | null }
 interface Row {
   id: string; campaignId: string; propertyId: string; title: string; market: string; owner: string | null; stage: string | null; toEmail: string; subject: string; body: string; status: string; temperature: string;
-  sentAt: string | null; deliveredAt: string | null; openedAt: string | null; bouncedAt: string | null; bounceType: string | null; failureReason: string | null; repliedAt: string | null; replyText: string | null; optedOutAt: string | null; testedAt: string | null; triedEmails: string[];
+  sentAt: string | null; deliveredAt: string | null; openedAt: string | null; bouncedAt: string | null; bounceType: string | null; failureReason: string | null; repliedAt: string | null; replyText: string | null; optedOutAt: string | null; testedAt: string | null; triedEmails: string[]; retryAt: string | null;
   offer: { code: string | null; views: number; firstViewedAt: string | null; requested: boolean; requestedAt: string | null; ctaClicks: number };
 }
 interface Report { totals: { emails: number; drafts: number; sent: number; delivered: number; opened: number; viewed: number; clicked: number; requested: number; replied: number; bounced: number; optedOut: number; hot: number }; rows: Row[]; updatedAt: string }
@@ -75,6 +75,7 @@ function EmailRow({ r, onChanged, onError }: { r: Row; onChanged: () => void; on
               {r.offer.requestedAt && <li className="text-emerald-600 font-medium">Asked for a listing audit {fmtDate(r.offer.requestedAt)}</li>}
               {r.repliedAt && <li className="text-emerald-600 font-medium">Replied {fmtDate(r.repliedAt)}</li>}
               {r.bouncedAt && <li className="text-rose-600">Bounced ({r.bounceType}): {r.failureReason}</li>}
+              {r.retryAt && ['bounced', 'failed'].includes(r.status) && <li className="text-amber-600">Waiting to resend to the next address on file until {fmtDate(r.retryAt)}, 9 AM in the owner&apos;s time zone.</li>}
               {!r.bouncedAt && r.status === 'failed' && <li className="text-rose-600">Could not send: {r.failureReason}</li>}
               {r.optedOutAt && <li className="text-rose-600">Opted out {fmtDate(r.optedOutAt)}</li>}
               {!r.openedAt && r.sentAt && <li>Opens are not always reported, so the offer page views above are the better signal.</li>}

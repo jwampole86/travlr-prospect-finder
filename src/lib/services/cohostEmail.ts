@@ -6,6 +6,7 @@ import { ensureOfferLink, OFFER_SITE } from '@/lib/services/cohostOffer';
 import { phonesFor } from '@/lib/services/cohostText';
 import { contactablePersons } from '@/lib/services/homesageSkipTrace';
 import { notifyAdmins } from '@/lib/services/smsConsent';
+import { inSendWindow } from '@/lib/services/estimateOutreachSms';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
@@ -144,18 +145,32 @@ export async function testSend(db: Db, id: string, toEmail: string): Promise<{ o
   } catch (e) { return { ok: false, error: e instanceof Error ? e.message : 'Send error' }; }
 }
 
+/** When a resend may go out: now when it is 9am to 8pm for the owner, otherwise the next 9am in the owner's time zone. */
+export function retryTime(state: string | null, now = new Date()): Date {
+  if (!state || inSendWindow(state, now)) return now;
+  for (let m = 15; m <= 48 * 60; m += 15) { const t = new Date(now.getTime() + m * 60_000); if (inSendWindow(state, t)) return t; }
+  return now; // a state with no known time zone is not held
+}
+const stateOf = (market: string | null) => (market ?? '').split(',').pop()?.trim().toUpperCase() || null;
+
 /**
  * An email that bounced or failed is resent to the next address on file for the same owner, and again if that one bounces, until one is accepted
- * or no address is left (then a person is told). Never retries an owner who opted out or was marked declined, or an address that bounced before.
+ * or no address is left (then a person is told). A resend that would land outside 9am to 8pm for the owner waits until the next 9am (a cron
+ * picks it up). Never retries an owner who opted out or was marked declined, or an address that bounced before.
  */
-export async function retryNextAddress(db: Db, id: string): Promise<{ ok: true; to: string } | { ok: false; reason: string }> {
+export async function retryNextAddress(db: Db, id: string): Promise<{ ok: true; to: string } | { ok: false; reason: string; heldUntil?: string }> {
   const { data: m } = await db.from('cohost_email_messages').select('*').eq('id', id).maybeSingle();
   if (!m) return { ok: false, reason: 'Unknown email.' };
   if (!['bounced', 'failed'].includes(m.status)) return { ok: false, reason: 'This email was not undelivered.' };
-  const { data: l } = await db.from('str_listings').select('pipeline_stage,matched_owner,title').eq('property_id', m.property_id).maybeSingle();
-  if (!l || NO_EMAIL_STAGES.includes(l.pipeline_stage)) return { ok: false, reason: 'The owner is marked declined or not a fit.' };
+  const { data: l } = await db.from('str_listings').select('pipeline_stage,matched_owner,title,market').eq('property_id', m.property_id).maybeSingle();
+  if (!l || NO_EMAIL_STAGES.includes(l.pipeline_stage)) { await db.from('cohost_email_messages').update({ retry_at: null }).eq('id', id); return { ok: false, reason: 'The owner is marked declined or not a fit.' }; }
   const { data: link } = await db.from('cohost_offer_links').select('opted_out_at').eq('property_id', m.property_id).maybeSingle();
-  if (link?.opted_out_at) return { ok: false, reason: 'The owner opted out.' };
+  if (link?.opted_out_at) { await db.from('cohost_email_messages').update({ retry_at: null }).eq('id', id); return { ok: false, reason: 'The owner opted out.' }; }
+  const at = retryTime(stateOf(l.market));
+  if (at.getTime() - Date.now() > 60_000) {
+    await db.from('cohost_email_messages').update({ retry_at: at.toISOString(), updated_at: new Date().toISOString() }).eq('id', id);
+    return { ok: false, reason: 'Held until 9 AM in the owner\'s time zone.', heldUntil: at.toISOString() };
+  }
   const tried = new Set<string>([...((m.tried_emails ?? []) as string[]), m.to_email]);
   const { data: bad } = await db.from('cohost_email_messages').select('to_email').or('bounce_type.eq.hard,status.eq.opted_out');
   const blocked = new Set((bad ?? []).map(b => b.to_email as string));
@@ -167,11 +182,11 @@ export async function retryNextAddress(db: Db, id: string): Promise<{ ok: true; 
       const { data, error } = await deliver({ ...m, to_email: next }, m.subject, next);
       if (error) continue;
       await db.from('cohost_email_messages').update({ to_email: next, tried_emails: [...tried].filter(e => e !== next), status: 'sent', sent_at: now, resend_message_id: data?.id ?? null,
-        delivered_at: null, opened_at: null, bounced_at: null, bounce_type: null, failure_reason: null, updated_at: now }).eq('id', id);
+        delivered_at: null, opened_at: null, bounced_at: null, bounce_type: null, failure_reason: null, retry_at: null, updated_at: now }).eq('id', id);
       return { ok: true, to: next };
     } catch { /* try the next address */ }
   }
-  await db.from('cohost_email_messages').update({ tried_emails: [...tried].filter(e => e !== m.to_email), updated_at: new Date().toISOString() }).eq('id', id);
+  await db.from('cohost_email_messages').update({ tried_emails: [...tried].filter(e => e !== m.to_email), retry_at: null, updated_at: new Date().toISOString() }).eq('id', id);
   await notifyAdmins(db, { title: 'Co-host email could not be delivered', message: `Every address on file for ${l.title ?? 'a co-host prospect'} bounced. Find another way to reach the owner.`, metadata: { kind: 'cohost_email_undeliverable', property_id: m.property_id } }).catch(() => {});
   return { ok: false, reason: 'No other address on file.' };
 }
@@ -220,7 +235,7 @@ export async function logReply(db: Db, id: string, text: string) {
 export interface EmailRow {
   id: string; campaignId: string; propertyId: string; title: string; market: string; owner: string | null; stage: string | null; toEmail: string; subject: string; body: string;
   status: string; temperature: string; sentAt: string | null; deliveredAt: string | null; openedAt: string | null; bouncedAt: string | null; bounceType: string | null; failureReason: string | null;
-  repliedAt: string | null; replyText: string | null; optedOutAt: string | null; testedAt: string | null; triedEmails: string[];
+  repliedAt: string | null; replyText: string | null; optedOutAt: string | null; testedAt: string | null; triedEmails: string[]; retryAt: string | null;
   offer: { code: string | null; views: number; firstViewedAt: string | null; requested: boolean; requestedAt: string | null; ctaClicks: number };
 }
 export interface CampaignSummary { id: string; name: string; createdAt: string; emails: number; drafts: number; sent: number; canceled: number; firstSend: string | null }
@@ -259,7 +274,7 @@ export async function campaignReport(db: Db, key: string) {
     return {
       id: m.id, campaignId: m.campaign_id, propertyId: m.property_id, title: l.title ?? m.property_id, market: l.market ?? '', owner: m.to_name ?? l.matched_owner?.names?.[0] ?? null, stage: l.pipeline_stage ?? null,
       toEmail: m.to_email, subject: m.subject, body: m.body, status, temperature, sentAt: m.sent_at, deliveredAt: m.delivered_at, openedAt: m.opened_at, bouncedAt: m.bounced_at, bounceType: m.bounce_type, failureReason: m.failure_reason,
-      repliedAt: m.replied_at, replyText: m.reply_text, optedOutAt: m.opted_out_at, testedAt: m.tested_at, triedEmails: (m.tried_emails ?? []) as string[],
+      repliedAt: m.replied_at, replyText: m.reply_text, optedOutAt: m.opted_out_at, testedAt: m.tested_at, triedEmails: (m.tried_emails ?? []) as string[], retryAt: m.retry_at ?? null,
       offer: { code: m.offer_code, views: views.length, firstViewedAt: views[0]?.created_at ?? null, requested: !!req, requestedAt: req?.created_at ?? null, ctaClicks: mine.filter(e => e.event === 'cta_click').length },
     };
   });

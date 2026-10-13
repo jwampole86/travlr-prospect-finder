@@ -28,6 +28,10 @@
     {
       "path": "/api/cron/cohost-skiptrace",
       "schedule": "*/20 * * * *"
+    },
+    {
+      "path": "/api/cron/cohost-email-retry",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
