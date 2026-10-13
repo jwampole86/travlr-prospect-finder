@@ -33,7 +33,7 @@ const STATE_TZ: Record<string, string> = {
   WY: 'America/Denver',
 };
 
-export const LEAD_COLUMNS = 'id,address,city,state,zip,owner_name,contact_name,contact_phone,verified_owner,verified_number,source,sms_opt_in,sms_opted_out_at,program';
+export const LEAD_COLUMNS = 'id,address,city,state,zip,owner_name,contact_name,contact_phone,verified_owner,verified_number,source,sms_opt_in,sms_opted_out_at,program,listing_url';
 
 export interface OutreachLead {
   id: string; address: string | null; city: string | null; state: string | null; zip: string | null;

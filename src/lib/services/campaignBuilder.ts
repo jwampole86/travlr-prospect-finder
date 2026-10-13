@@ -4,6 +4,7 @@ import { draftOutreach, finalizeMessage, inSendWindow, LEAD_COLUMNS, type Outrea
 import { lookupPhoneNumber, smsBlockReason } from '@/lib/services/twilioService';
 import { scheduleSMS, cancelScheduled } from '@/lib/services/twilioSchedule';
 import { toE164 } from '@/lib/services/smsConsent';
+import { checkListingStatuses } from '@/lib/services/listingStatus';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
@@ -178,11 +179,15 @@ export async function scheduleChunk(db: Db, p: CampaignParams, ids: string[], bu
   const { data: used } = phones.length ? await db.from('outreach_history').select('metadata').eq('channel', 'sms').eq('metadata->>kind', 'estimate_outreach').eq('metadata->>batch', batch).in('metadata->>to', phones) : { data: [] as Row[] };
   const taken = new Set((used ?? []).map(u => (u.metadata as Row)?.to as string));
 
+  // A home that has sold, gone pending or come off Zillow is not texted "we saw your home on Zillow".
+  const listingStatus = await checkListingStatuses(db, leads as Array<{ id: string; listing_url?: string | null }>).catch(() => new Map());
   let scheduled = 0; let landline = 0; let invalid = 0; let segments = 0; let reserved = 0;
   const failures: string[] = [];
   const manifest: Array<{ sid: string; leadId: string; to: string; sendAt: string }> = [];
   await pool(leads, 4, async lead => {
     const to = toE164(lead.contact_phone);
+    const ls = listingStatus.get(lead.id);
+    if (ls?.blocked) return skip(`listing_${ls.reason}`);
     if (to && taken.has(to)) return skip('phone_already_texted');
     if (to) taken.add(to);
     if (reserved >= budget) return skip('target_reached');
