@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Check, CheckCircle2, ChevronDown, Clock, Copy, Download, Eye, Flame, Loader2, Mail, MailOpen, MessageSquare, MousePointerClick, RefreshCw, Send, ShieldOff, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, Clock, Copy, Download, Eye, Flame, Loader2, Mail, MailOpen, MessageSquare, MousePointerClick, RefreshCw, Search, Send, ShieldOff, X, ExternalLink } from 'lucide-react';
 import { Card, Chip, Notice, SectionTitle, Skeleton, cx, fmtDate, pct, post } from './shared';
 
 interface Summary { id: string; name: string; createdAt: string; emails: number; drafts: number; sent: number; canceled: number; firstSend: string | null }
@@ -15,6 +15,13 @@ interface Report { totals: { emails: number; drafts: number; sent: number; deliv
 const TEMP_TONE: Record<string, 'red' | 'amber' | 'muted' | 'green' | 'blue'> = { hot: 'red', warm: 'amber', cold: 'muted', draft: 'muted', undeliverable: 'red', opted_out: 'red', canceled: 'muted' };
 const TEMP_LABEL: Record<string, string> = { hot: 'Hot', warm: 'Warm', cold: 'No response yet', draft: 'Draft', undeliverable: 'Not delivered', opted_out: 'Opted out', canceled: 'Canceled' };
 
+const FILTERS: Record<string, (r: Row) => boolean> = {
+  sent: r => !!r.sentAt, delivered: r => !!r.deliveredAt || !!r.openedAt, opened: r => !!r.openedAt, viewed: r => r.offer.views > 0, clicked: r => r.offer.ctaClicks > 0, requested: r => r.offer.requested,
+  replied: r => !!r.repliedAt, notdelivered: r => r.status === 'bounced' || r.status === 'failed', optedOut: r => r.status === 'opted_out', hot: r => r.temperature === 'hot', warm: r => r.temperature === 'warm',
+  cold: r => r.temperature === 'cold', draft: r => r.status === 'draft',
+};
+const QUICK: Array<[string, string]> = [['all', 'All'], ['hot', 'Hot'], ['warm', 'Warm'], ['cold', 'No response yet'], ['draft', 'Drafts'], ['notdelivered', 'Not delivered'], ['optedOut', 'Opted out']];
+
 function campaignStatus(c: Summary): { label: string; tone: 'blue' | 'amber' | 'green' | 'muted' } {
   if (c.canceled >= c.emails) return { label: 'Canceled', tone: 'muted' };
   if (c.sent === 0) return { label: 'Draft', tone: 'muted' };
@@ -25,18 +32,20 @@ function why(r: Row): string {
   return [r.repliedAt && 'replied', r.offer.requested && 'asked for a listing audit', r.offer.ctaClicks > 0 && `clicked a button on the offer page`, r.offer.views > 0 && `opened the offer page${r.offer.views > 1 ? ` ${r.offer.views} times` : ''}`, r.openedAt && 'opened the email'].filter(Boolean).join(', ');
 }
 
-function Kpi({ label, value, sub, icon, tone }: { label: string; value: string | number; sub?: string; icon: React.ReactNode; tone: string }) {
+function Kpi({ label, value, sub, icon, tone, active, onClick }: { label: string; value: string | number; sub?: string; icon: React.ReactNode; tone: string; active?: boolean; onClick?: () => void }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <button onClick={onClick} className={cx('text-left rounded-2xl border bg-card p-4 transition-all hover:shadow-md hover:-translate-y-0.5', active ? 'border-primary ring-2 ring-primary/30' : 'border-border')}>
       <div className="flex items-center justify-between"><span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span><span className={cx('w-7 h-7 rounded-lg flex items-center justify-center', tone)}>{icon}</span></div>
       <p className="mt-2 text-2xl font-bold tabular-nums">{value}</p>
       {sub && <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>}
-    </div>
+    </button>
   );
 }
 
-function EmailRow({ r, onChanged, onError }: { r: Row; onChanged: () => void; onError: (m: string) => void }) {
+function EmailRow({ r, focusId, onChanged, onError }: { r: Row; focusId: string | null; onChanged: () => void; onError: (m: string) => void }) {
   const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (focusId === r.id) { setOpen(true); requestAnimationFrame(() => box.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })); } }, [focusId, r.id]);
   const [subject, setSubject] = useState(r.subject);
   const [body, setBody] = useState(r.body);
   const [busy, setBusy] = useState<string | null>(null);
@@ -56,7 +65,7 @@ function EmailRow({ r, onChanged, onError }: { r: Row; onChanged: () => void; on
   const spin = (a: string) => busy === a && <Loader2 size={12} className="animate-spin" />;
 
   return (
-    <div className="border-t border-border">
+    <div ref={box} className={cx('border-t border-border', focusId === r.id && 'bg-primary/5')}>
       <button onClick={() => setOpen(o => !o)} aria-expanded={open} className="w-full flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left hover:bg-muted/40">
         <ChevronDown size={15} className={cx('shrink-0 text-muted-foreground transition-transform', !open && '-rotate-90')} />
         <div className="min-w-0 flex-1 basis-56"><p className="font-medium text-sm truncate">{r.title}</p><p className="text-[11px] text-muted-foreground truncate">{r.market}{r.owner ? ` · ${r.owner}` : ''} · {r.toEmail}</p></div>
@@ -82,6 +91,13 @@ function EmailRow({ r, onChanged, onError }: { r: Row; onChanged: () => void; on
             </ol>
           )}
           {r.replyText && <div className="rounded-xl bg-muted/60 px-3 py-2 text-sm">&ldquo;{r.replyText}&rdquo;</div>}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
+            <span>Home: <b className="text-foreground font-medium">{r.title}</b>{r.market ? `, ${r.market}` : ''}</span>
+            {r.stage && <span>Stage: <b className="text-foreground font-medium">{r.stage}</b></span>}
+            <span>Sent to: <b className="text-foreground font-medium">{r.toEmail}</b></span>
+            {r.offer.code && <a href={`/h/${r.offer.code}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary font-medium hover:underline">View their offer page <ExternalLink size={11} /></a>}
+            {r.offer.ctaClicks > 0 && <span>{r.offer.ctaClicks} button click{r.offer.ctaClicks === 1 ? '' : 's'} on the offer page</span>}
+          </div>
 
           <div className="space-y-2">
             <input value={subject} onChange={e => setSubject(e.target.value)} disabled={!editable} aria-label="Subject" className="w-full h-9 rounded-xl border border-border bg-background px-3 text-sm font-medium disabled:opacity-80 outline-none focus:ring-2 focus:ring-primary/40" />
@@ -118,6 +134,12 @@ export default function CoHostEmailTab() {
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<{ key: string; label: string } | null>(null);
+  const [query, setQuery] = useState('');
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const show = (key: string, label: string) => { setFilter(key === 'emails' || key === 'all' ? null : { key, label }); setQuery(''); setFocusId(null); requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
+  useEffect(() => { setFilter(null); setQuery(''); setFocusId(null); }, [selected]);
 
   const load = useCallback(async (key: string, quiet = false) => {
     if (!quiet) setLoading(true);
@@ -137,6 +159,10 @@ export default function CoHostEmailTab() {
   ] : [], [t]);
   const follow = useMemo(() => (report?.rows ?? []).filter(r => r.temperature === 'hot' || r.temperature === 'warm').sort((a, b) => Number(b.temperature === 'hot') - Number(a.temperature === 'hot')), [report]);
   const notSent = !!t && t.sent === 0;
+  const visible = useMemo(() => {
+    const pred = filter ? FILTERS[filter.key] : null; const q = query.trim().toLowerCase();
+    return (report?.rows ?? []).filter(r => (!pred || pred(r)) && (!q || `${r.title} ${r.market} ${r.owner ?? ''} ${r.toEmail} ${r.subject}`.toLowerCase().includes(q)));
+  }, [report, filter, query]);
 
   return (
     <div className="space-y-6">
@@ -174,14 +200,14 @@ export default function CoHostEmailTab() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
-            <Kpi label="Emails" value={t.emails} sub={`${t.sent} sent`} icon={<Mail size={14} />} tone="bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300" />
-            <Kpi label="Delivered" value={t.delivered} sub={`${pct(t.delivered, t.sent)}% of sent`} icon={<CheckCircle2 size={14} />} tone="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" />
-            <Kpi label="Opened" value={t.opened} sub={`${pct(t.opened, t.sent)}% of sent`} icon={<MailOpen size={14} />} tone="bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300" />
-            <Kpi label="Offer page" value={t.viewed} sub={`${pct(t.viewed, t.sent)}% of sent`} icon={<MousePointerClick size={14} />} tone="bg-indigo-100 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300" />
-            <Kpi label="Asked for audit" value={t.requested} sub={`${pct(t.requested, t.sent)}%`} icon={<CheckCircle2 size={14} />} tone="bg-teal-100 text-teal-600 dark:bg-teal-500/15 dark:text-teal-300" />
-            <Kpi label="Replies" value={t.replied} sub={`${pct(t.replied, t.sent)}%`} icon={<MessageSquare size={14} />} tone="bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300" />
-            <Kpi label="Opt-outs" value={t.optedOut} sub={`${t.bounced} not delivered`} icon={<ShieldOff size={14} />} tone="bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300" />
-            <Kpi label="Hot leads" value={t.hot} sub="asked or replied" icon={<Flame size={14} />} tone="bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300" />
+            <Kpi label="Emails" value={t.emails} sub={`${t.sent} sent`} icon={<Mail size={14} />} tone="bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300" active={!filter} onClick={() => show('emails', 'All emails')} />
+            <Kpi label="Delivered" value={t.delivered} sub={`${pct(t.delivered, t.sent)}% of sent`} icon={<CheckCircle2 size={14} />} tone="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" active={filter?.key === 'delivered'} onClick={() => show('delivered', 'Delivered')} />
+            <Kpi label="Opened" value={t.opened} sub={`${pct(t.opened, t.sent)}% of sent`} icon={<MailOpen size={14} />} tone="bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300" active={filter?.key === 'opened'} onClick={() => show('opened', 'Opened the email')} />
+            <Kpi label="Offer page" value={t.viewed} sub={`${pct(t.viewed, t.sent)}% of sent`} icon={<MousePointerClick size={14} />} tone="bg-indigo-100 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300" active={filter?.key === 'viewed'} onClick={() => show('viewed', 'Opened the offer page')} />
+            <Kpi label="Asked for audit" value={t.requested} sub={`${pct(t.requested, t.sent)}%`} icon={<CheckCircle2 size={14} />} tone="bg-teal-100 text-teal-600 dark:bg-teal-500/15 dark:text-teal-300" active={filter?.key === 'requested'} onClick={() => show('requested', 'Asked for an audit')} />
+            <Kpi label="Replies" value={t.replied} sub={`${pct(t.replied, t.sent)}%`} icon={<MessageSquare size={14} />} tone="bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300" active={filter?.key === 'replied'} onClick={() => show('replied', 'Replied')} />
+            <Kpi label="Opt-outs" value={t.optedOut} sub={`${t.bounced} not delivered`} icon={<ShieldOff size={14} />} tone="bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300" active={filter?.key === 'optedOut'} onClick={() => show('optedOut', 'Opted out')} />
+            <Kpi label="Hot leads" value={t.hot} sub="asked or replied" icon={<Flame size={14} />} tone="bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300" active={filter?.key === 'hot'} onClick={() => show('hot', 'Hot leads')} />
           </div>
 
           <Card className="p-5">
@@ -190,7 +216,7 @@ export default function CoHostEmailTab() {
               {steps.map((s, i) => {
                 const prev = i > 0 ? steps[i - 1].n : null; const w = t.emails ? Math.max(s.n ? 2 : 0, (s.n / t.emails) * 100) : 0;
                 return (
-                  <div key={s.key} className="flex items-center gap-3 rounded-lg px-2 py-1 -mx-2">
+                  <div key={s.key} role="button" tabIndex={0} title={`See the ${s.n} email${s.n === 1 ? '' : 's'} at this step`} onClick={() => show(s.key, s.label)} onKeyDown={e => e.key === 'Enter' && show(s.key, s.label)} className="flex items-center gap-3 rounded-lg px-2 py-1 -mx-2 cursor-pointer hover:bg-primary/5">
                     <span className="w-28 sm:w-44 text-xs text-muted-foreground shrink-0">{s.label}</span>
                     <div className="flex-1 min-w-8 h-6 bg-muted rounded-md overflow-hidden"><div className="h-full rounded-md bg-primary/70 transition-all duration-700" style={{ width: `${w}%` }} /></div>
                     <span className="w-20 sm:w-28 text-right text-xs tabular-nums shrink-0">{s.n} <span className="text-muted-foreground">({pct(s.n, t.emails)}%)</span></span>
@@ -205,14 +231,24 @@ export default function CoHostEmailTab() {
             <Card className="p-5">
               <SectionTitle icon={<Flame size={15} className="text-red-500" />} title="Owners to follow up" hint="Hot owners asked for an audit or replied: reach out now. Warm owners opened the email or offer page." />
               <ul className="divide-y divide-border">{follow.map(r => (
-                <li key={r.id} className="py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1"><Chip tone={TEMP_TONE[r.temperature]}>{TEMP_LABEL[r.temperature]}</Chip><span className="font-medium text-sm">{r.title}</span><span className="text-xs text-muted-foreground">{r.owner ?? r.toEmail}: {why(r)}</span></li>))}</ul>
+                <li key={r.id} className="py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1"><Chip tone={TEMP_TONE[r.temperature]}>{TEMP_LABEL[r.temperature]}</Chip><button onClick={() => { setFilter(null); setQuery(''); setFocusId(r.id); requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} className="font-medium text-sm text-primary hover:underline text-left">{r.title}</button><span className="text-xs text-muted-foreground">{r.owner ?? r.toEmail}: {why(r)}</span></li>))}</ul>
             </Card>
           )}
 
-          <Card className="overflow-hidden">
-            <div className="p-5 pb-3"><SectionTitle title="Emails" hint="Open an email to edit it, send yourself a test, and send it. Sending is unlocked only after a test, and never in bulk." /></div>
-            <div>{report.rows.map(r => <EmailRow key={r.id} r={r} onChanged={() => load(selected, true)} onError={setError} />)}</div>
-          </Card>
+          <div ref={listRef} className="scroll-mt-4"><Card className="overflow-hidden">
+            <div className="p-5 pb-3">
+              <SectionTitle title={filter ? `Emails: ${filter.label}` : 'Emails'} hint="Click any number above to see the emails behind it. Open an email to read it, edit it, send yourself a test, and send it. Sending is unlocked only after a test, and never in bulk." />
+              <div className="flex flex-wrap items-center gap-2">
+                {QUICK.map(([k, label]) => {
+                  const n = k === 'all' ? report.rows.length : report.rows.filter(FILTERS[k]).length; const on = (filter?.key ?? 'all') === k;
+                  return <button key={k} onClick={() => show(k, label)} className={cx('px-3 py-1.5 rounded-full text-xs font-medium border transition-colors', on ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:border-primary/50')}>{label} <span className="opacity-70">{n}</span></button>;
+                })}
+                <div className="relative ml-auto"><Search size={13} className="absolute left-2.5 top-2.5 text-muted-foreground" /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search home, owner, email" className="h-8 w-56 rounded-xl border border-border bg-background pl-7 pr-2 text-xs outline-none focus:ring-2 focus:ring-primary/40" /></div>
+              </div>
+              {(filter || query) && <p className="text-[11px] text-muted-foreground mt-2">Showing {visible.length} of {report.rows.length}. <button onClick={() => { setFilter(null); setQuery(''); }} className="text-primary hover:underline">Clear</button></p>}
+            </div>
+            <div>{visible.length === 0 ? <p className="px-5 pb-6 text-sm text-muted-foreground">No emails match.</p> : visible.map(r => <EmailRow key={r.id} r={r} focusId={focusId} onChanged={() => load(selected, true)} onError={setError} />)}</div>
+          </Card></div>
         </>
       )}
     </div>
