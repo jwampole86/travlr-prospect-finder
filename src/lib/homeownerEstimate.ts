@@ -223,7 +223,7 @@ export async function buildHomeownerReport(rawAddress: string): Promise<Homeowne
   const idx = db ? await rentIndex(db, a).catch(() => null) : null;
 
   // Real AirDNA figures for this address when we can get them; otherwise the calibrated bedroom model below.
-  const air = db && lead ? await airdnaFiguresFor(db, { id: lead.id, address: [lead.address, a.city, a.state, a.zip].filter(Boolean).join(', '), beds: lead.beds, baths: lead.baths, airdna_adr: lead.airdnaAdr, airdna_occupancy: lead.airdnaOccupancy, airdna_checked_at: lead.airdnaCheckedAt }).catch(() => null) : null;
+  const air = db && lead ? await airdnaFiguresFor(db, { id: lead.id, address: lead.address, city: a.city, state: a.state, zip: a.zip, beds: lead.beds, baths: lead.baths, airdna_adr: lead.airdnaAdr, airdna_occupancy: lead.airdnaOccupancy, airdna_checked_at: lead.airdnaCheckedAt }).catch(() => null) : null;
 
   const assumedBeds = !lead?.beds;
   const beds = clamp(lead?.beds ?? 3, 1, 6);
@@ -290,7 +290,7 @@ export async function buildHomeownerReport(rawAddress: string): Promise<Homeowne
     address: rawAddress,
     street: a.street, city: a.city, state: a.state, zip: a.zip,
     basis,
-    basisLabel: air ? 'Built from AirDNA short-term rental data for homes like yours' : basis === 'PROPERTY'
+    basisLabel: air ? (air.scope === 'area' ? 'Built from AirDNA data for similar homes nearby' : 'Built from AirDNA short-term rental data for homes like yours') : basis === 'PROPERTY'
       ? 'Built from your home\u2019s own details and local rent data'
       : basis === 'MARKET'
         ? `Built from ${a.zip ? `ZIP ${a.zip}` : 'local'} rent data and a typical ${beds}-bedroom home`

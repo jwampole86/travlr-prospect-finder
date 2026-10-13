@@ -5,7 +5,7 @@ export interface LeadFill {
   adr: number; occupancy: number; grossMonthly: number; netMonthly: number; marketRent: number;
   basis: 'PROPERTY' | 'MARKET' | 'STATE'; basisLabel: string; assumedBeds: boolean;
   /** airdna: AirDNA's own figures for this address. model: the bedroom model, calibrated to AirDNA. */
-  source: 'airdna' | 'model';
+  source: 'airdna' | 'airdna_area' | 'model';
 }
 
 /** The same revenue model the homeowner report uses, so an agent sees the numbers the homeowner would. Nothing is saved: it only fills blanks on screen. */
@@ -14,7 +14,7 @@ export async function estimateFill(lead: { address?: string | null; city?: strin
   const report = await buildHomeownerReport([lead.address, lead.city, [lead.state, lead.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')).catch(() => null);
   const exp = report?.scenarios.find(s => s.key === 'expected');
   if (!report || !exp) return null;
-  return { adr: exp.adr, occupancy: exp.occupancy, grossMonthly: exp.grossMonthly, netMonthly: exp.netMonthly, marketRent: report.longTermRent, basis: report.basis, basisLabel: report.basisLabel, assumedBeds: report.property.assumedBeds, source: report.basisLabel.startsWith('Built from AirDNA') ? 'airdna' : 'model' };
+  return { adr: exp.adr, occupancy: exp.occupancy, grossMonthly: exp.grossMonthly, netMonthly: exp.netMonthly, marketRent: report.longTermRent, basis: report.basis, basisLabel: report.basisLabel, assumedBeds: report.property.assumedBeds, source: report.basisLabel.startsWith('Built from AirDNA data for similar') ? 'airdna_area' : report.basisLabel.startsWith('Built from AirDNA') ? 'airdna' : 'model' };
 }
 
 /** Live days on market, with a one-line basis. A recorded count is a snapshot from the day the listing was last checked, so the days since are added. Null when no date is on file. */

@@ -38,7 +38,10 @@ export async function GET(
       listing_status, listing_date, days_on_market_listing, listing_source, listing_source_url, sync_source_url, listing_agent_name, listing_agent_phone,
       listing_broker_name, listing_broker_phone, mls_number, mls_source_name, price_verified_at, listing_updated_at, link_status, link_last_checked_at,
       current_asking_rent, current_monthly_rent, estimated_market_rent, estimated_monthly_rent_ai, estimated_monthly_rent_ai_confidence, rent_source, historical_rent,
-      airdna_adr, airdna_occupancy, airdna_annual_revenue, airdna_confidence, airdna_checked_at
+      airdna_adr, airdna_occupancy, airdna_annual_revenue, airdna_confidence, airdna_checked_at, airdna_data,
+      verification_status, verification_score, verification_method, verification_timestamp, verification_notes, verification_error, verification_source,
+      verification_review_required, normalized_address, property_provider, provider_property_id, fully_verified, is_verified_lead, listing_url_verified,
+      ownership_record_verified, address_verified_at, owner_verified_at, phone_verified_at, listing_verification_confidence
     `)
     .eq('id', leadId)
     .single();

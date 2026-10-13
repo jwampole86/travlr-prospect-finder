@@ -26,6 +26,10 @@
       "schedule": "0 */12 * * *"
     },
     {
+      "path": "/api/cron/airdna-enrich",
+      "schedule": "30 */4 * * *"
+    },
+    {
       "path": "/api/cron/cohost-skiptrace",
       "schedule": "*/20 * * * *"
     },

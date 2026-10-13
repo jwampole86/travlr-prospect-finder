@@ -21,6 +21,7 @@ import LeadTaskBoard from './LeadTaskBoard';
 import { useAuth } from '@/contexts/AuthContext';
 import { activityService } from '@/lib/services/activityService';
 import { outreachDisplay } from '@/lib/services/smsSendState';
+import { assessLeadData } from '@/lib/leadVerification';
 import PipelineStatusBadge, { PIPELINE_STATUS_CONFIG, PIPELINE_STATUS_ORDER, type PipelineStatus } from '@/components/ui/PipelineStatusBadge';
 import ConfidenceBandBadge, { getConfidenceBand, CONFIDENCE_BAND_CONFIG } from '@/components/ui/ConfidenceBandBadge';
 import Icon from '@/components/ui/AppIcon';
@@ -271,21 +272,32 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   const [leadNotFound, setLeadNotFound] = useState(false);
   const [fillNote, setFillNote] = useState<string | null>(null);
   const [domNote, setDomNote] = useState<string | null>(null);
+  const [marketRent, setMarketRent] = useState(0);
+  const [records, setRecords] = useState<{ ownership: Record<string, any>; comparables: Array<Record<string, any>> } | null>(null);
+  const recordsFor = useRef<string | null>(null);
   const filledFor = useRef<string | null>(null);
 
   // Blank estimates and days on market are filled from the revenue model and the listing date, for display only.
+  useEffect(() => {
+    if (!lead?.id || recordsFor.current === lead.id) return;
+    recordsFor.current = lead.id;
+    fetch(`/api/leads/records?leadId=${encodeURIComponent(lead.id)}`, { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined })
+      .then(r => (r.ok ? r.json() : null)).then(j => { if (j) setRecords(j); }).catch(() => { /* the empty states show */ });
+  }, [lead, session?.access_token]);
+
   useEffect(() => {
     if (!lead?.id || filledFor.current === lead.id) return;
     filledFor.current = lead.id;
     const base = lead;
     fetch(`/api/leads/fill?leadId=${encodeURIComponent(base.id)}`, { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined })
       .then(r => (r.ok ? r.json() : null))
-      .then((j: { fill: { adr: number; occupancy: number; grossMonthly: number; netMonthly: number; basisLabel: string; assumedBeds: boolean; source: 'airdna' | 'model' } | null; daysOnMarket: { days: number; basis: string; note: string } | null } | null) => {
+      .then((j: { fill: { adr: number; occupancy: number; grossMonthly: number; netMonthly: number; basisLabel: string; assumedBeds: boolean; marketRent: number; source: 'airdna' | 'airdna_area' | 'model' } | null; daysOnMarket: { days: number; basis: string; note: string } | null } | null) => {
         if (!j) return;
         const f = j.fill;
         // The stored estimates come from an older bedroom model that ran high against AirDNA, so the profile shows the same AirDNA-backed figures the homeowner page uses.
         setLead(p => p ? { ...p, estimatedADR: f?.adr || p.estimatedADR || 0, estimatedOccupancy: f?.occupancy || p.estimatedOccupancy || 0, estimatedGrossMonthly: f?.grossMonthly || p.estimatedGrossMonthly || 0, estimatedNetMonthly: f?.netMonthly || p.estimatedNetMonthly || 0, daysOnMarket: j.daysOnMarket?.days ?? p.daysOnMarket ?? 0 } : p);
         if (j.daysOnMarket) setDomNote(j.daysOnMarket.note);
+        if (f?.marketRent) setMarketRent(f.marketRent);
         if (f) setFillNote(f.source === 'airdna' ? `AirDNA's estimate for this address (nightly rate and occupancy), after our standard cost shares${f.assumedBeds ? '; bedrooms are assumed to be 3 because the count is not on file' : ''}. Not saved to the lead.` : `${f.basisLabel}, calibrated to AirDNA${f.assumedBeds ? ', assuming a 3-bedroom home because the bedroom count is not on file' : ''}. It is not specific to this home. Not saved to the lead.`);
       })
       .catch(() => { /* the blanks simply stay blank */ });
@@ -328,6 +340,10 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
           skipTracePhones: Array.isArray(found.secondary_phones) ? (found.secondary_phones as string[]).slice(0, 2) : [],
           skipTraceEmails: ((found.skip_trace as { emails?: string[] } | null)?.emails ?? []),
           extra: found,
+          verificationStatus: found.verification_status ? String(found.verification_status) : undefined, verificationScore: Number(found.verification_score || 0), verificationMethod: found.verification_method ? String(found.verification_method) : undefined,
+          verificationTimestamp: found.verification_timestamp ? String(found.verification_timestamp) : undefined, verifiedAddress: found.verified_address ? String(found.verified_address) : undefined, normalizedAddress: found.normalized_address ? String(found.normalized_address) : undefined,
+          apn: found.apn ? String(found.apn) : undefined, propertyProvider: found.property_provider ? String(found.property_provider) : undefined, providerPropertyId: found.provider_property_id ? String(found.provider_property_id) : undefined,
+          county: found.county ? String(found.county) : undefined, verificationNotes: found.verification_notes ? String(found.verification_notes) : undefined,
         } as Lead;
       })
       .then((found) => {
@@ -830,7 +846,9 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   const grossMonthly = lead.estimatedGrossMonthly;
   const netMonthly = lead.estimatedNetMonthly;
   const annualNet = netMonthly * 12;
-  const roi = lead.price > 0 ? ((netMonthly / lead.price) * 100).toFixed(1) : 'N/A';
+  const askingRent = lead.priceType === 'rent' && lead.price >= 400 && lead.price <= 25000 ? lead.price : 0;
+  const leaseCost = askingRent || marketRent || Number(lead.extra?.estimated_market_rent) || 0;
+  const roi = leaseCost > 0 && netMonthly > 0 ? Math.round((netMonthly / leaseCost) * 100) : null;
 
   // ── Source site map for fallback ──────────────────────────────────────────
   const SOURCE_SITE_MAP: Record<string, { label: string; url: string }> = {
@@ -1522,60 +1540,63 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
               <Section title="Property Verification" icon={<Shield size={15} />} defaultOpen={true}>
                 {(() => {
                   const isVerified = lead.verificationStatus === 'VERIFIED' && (lead.verificationScore ?? 0) >= 75;
-                  const score = lead.verificationScore ?? 0;
-                  const scoreColor = score >= 90 ? 'text-green-600' : score >= 75 ? 'text-emerald-600' : score >= 50 ? 'text-amber-600' : 'text-red-500';
-                  const scoreBarColor = score >= 90 ? 'bg-green-500' : score >= 75 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                  const da = assessLeadData(lead, directListingUrl);
+                  const score = da.score;
+                  const scoreColor = score >= 75 ? 'text-green-600' : score >= 50 ? 'text-amber-600' : 'text-red-500';
+                  const scoreBarColor = score >= 75 ? 'bg-green-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                  const formal = lead.verificationStatus && lead.verificationStatus !== 'CANDIDATE' ? lead.verificationStatus : 'Not run';
                   return (
                     <div className="space-y-4">
-                      {/* Status banner */}
-                      <div className={`flex items-center gap-3 p-3 rounded-lg border ${isVerified ? 'bg-green-500/8 border-green-500/25' : 'bg-amber-500/8 border-amber-500/25'}`}>
-                        {isVerified
+                      <div className={`flex items-center gap-3 p-3 rounded-lg border ${da.level === 'strong' ? 'bg-green-500/8 border-green-500/25' : 'bg-amber-500/8 border-amber-500/25'}`}>
+                        {da.level === 'strong'
                           ? <CheckCircle size={18} className="text-green-600 shrink-0" />
-                          : <AlertCircle size={18} className="text-amber-600 shrink-0" />
-                        }
+                          : <AlertCircle size={18} className="text-amber-600 shrink-0" />}
                         <div>
-                          <p className={`text-sm font-semibold ${isVerified ? 'text-green-700' : 'text-amber-700'}`}>
-                            {isVerified ? '✓ VERIFIED PROPERTY' : '⚠ UNVERIFIED PROPERTY'}
-                          </p>
+                          <p className={`text-sm font-semibold ${da.level === 'strong' ? 'text-green-700' : 'text-amber-700'}`}>{da.label} · {score}/100</p>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
-                            {isVerified
-                              ? 'This property has passed the verification gate and is cleared for outreach.'
-                              : 'This property has not passed verification. Outreach is blocked until verified.'}
+                            {da.checks.filter(c => c.pass).length} of {da.checks.length} checks pass on the data on file. {isVerified ? 'Passed the property verification gate.' : 'The licensed property-record check has not been run for this lead.'}
                           </p>
                         </div>
                       </div>
 
-                      {/* Score bar */}
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[11px] text-muted-foreground font-medium">Verification Score</span>
+                          <span className="text-[11px] text-muted-foreground font-medium">Data match score</span>
                           <span className={`text-sm font-bold ${scoreColor}`}>{score}/100</span>
                         </div>
                         <div className="h-2 bg-muted rounded-full overflow-hidden">
                           <div className={`h-full rounded-full transition-all ${scoreBarColor}`} style={{ width: `${score}%` }} />
                         </div>
-                        <div className="flex justify-between mt-1">
-                          <span className="text-[9px] text-muted-foreground">0 — No match</span>
-                          <span className="text-[9px] text-muted-foreground">75 — Production threshold</span>
-                          <span className="text-[9px] text-muted-foreground">100 — Full match</span>
-                        </div>
                       </div>
 
-                      {/* Verification details */}
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                        {da.checks.map(c => (
+                          <div key={c.label} className="flex items-start gap-2">
+                            {c.pass ? <CheckCircle size={13} className="text-green-600 shrink-0 mt-0.5" /> : <XCircle size={13} className="text-muted-foreground/50 shrink-0 mt-0.5" />}
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-foreground">{c.label}</p>
+                              <p className="text-[10px] text-muted-foreground truncate" title={c.detail}>{c.detail}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 pt-3 border-t border-border">
                         {[
-                          { label: 'Status', value: lead.verificationStatus || 'CANDIDATE' },
-                          { label: 'Method', value: lead.verificationMethod || '—' },
-                          { label: 'Verified Address', value: lead.verifiedAddress || lead.normalizedAddress || '—' },
-                          { label: 'APN', value: lead.apn || '—' },
-                          { label: 'Provider', value: lead.propertyProvider || '—' },
-                          { label: 'Provider ID', value: lead.providerPropertyId || '—' },
-                          { label: 'County', value: lead.county || '—' },
-                          { label: 'Last Verified', value: lead.verificationTimestamp ? new Date(lead.verificationTimestamp).toLocaleDateString() : '—' },
-                        ].map(f => (
+                          { label: 'Provider check', value: formal },
+                          { label: 'Method', value: lead.verificationMethod },
+                          { label: 'Verified address', value: lead.verifiedAddress || lead.normalizedAddress },
+                          { label: 'APN', value: lead.apn },
+                          { label: 'Provider', value: lead.propertyProvider },
+                          { label: 'Provider ID', value: lead.providerPropertyId },
+                          { label: 'County', value: lead.county },
+                          { label: 'Last verified', value: lead.verificationTimestamp ? new Date(lead.verificationTimestamp).toLocaleDateString() : null },
+                          { label: 'Owner verified', value: lead.extra?.verified_owner ? 'Yes' : null },
+                          { label: 'Phone verified', value: lead.extra?.verified_number ? 'Yes' : null },
+                        ].filter(f => f.value).map(f => (
                           <div key={f.label} className="flex flex-col gap-0.5">
                             <span className="text-[10px] text-muted-foreground">{f.label}</span>
-                            <span className="text-xs font-medium text-foreground truncate" title={f.value}>{f.value}</span>
+                            <span className="text-xs font-medium text-foreground truncate" title={String(f.value)}>{f.value}</span>
                           </div>
                         ))}
                       </div>
@@ -1632,6 +1653,11 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                     { label: 'Occupancy', value: Number(extra.airdna_occupancy) > 0 ? `${Math.round(Number(extra.airdna_occupancy) * (Number(extra.airdna_occupancy) <= 1 ? 100 : 1))}%` : null },
                     { label: 'Annual revenue', value: usd(extra.airdna_annual_revenue) },
                     { label: 'Confidence', value: extra.airdna_confidence },
+                    { label: 'Market', value: [extra.airdna_data?.market, extra.airdna_data?.submarket].filter(Boolean).join(' / ') },
+                    { label: 'Market score', value: extra.airdna_data?.marketScore ? `${Math.round(extra.airdna_data.marketScore)}/100${extra.airdna_data.marketType ? ` · ${String(extra.airdna_data.marketType).replace(/_/g, ' ')}` : ''}` : null },
+                    { label: 'AirDNA home value', value: usd(extra.airdna_data?.homeValue) },
+                    { label: 'Cleaning fee', value: usd(extra.airdna_data?.cleaningFee) },
+                    { label: 'Comparables used', value: extra.airdna_data?.totalComps ? `${extra.airdna_data.totalComps}` : null },
                     { label: 'Checked', value: dt(extra.airdna_checked_at) },
                   ] },
                 ].filter(g => g.rows.some(r => hasValue(r.value)));
@@ -1651,7 +1677,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                     { label: 'Gross Monthly', value: formatCurrency(grossMonthly), sub: 'before costs' },
                     { label: 'Net Monthly', value: formatCurrency(netMonthly), sub: 'after costs' },
                     { label: 'Annual Net', value: formatCurrency(annualNet), sub: 'projected' },
-                    { label: 'Monthly ROI', value: `${roi}%`, sub: 'vs. lease cost' },
+                    { label: 'Monthly ROI', value: roi != null ? `${roi}%` : '—', sub: leaseCost > 0 ? `net vs. ${formatCurrency(leaseCost)}/mo ${askingRent ? 'asking' : 'market'} rent` : 'no rent figure on file' },
                   ].map(item => (
                     <div key={item.label} className="bg-muted/40 rounded-lg p-3">
                       <p className="text-[10px] text-muted-foreground mb-1">{item.label}</p>
@@ -2005,58 +2031,51 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   <Building2 size={15} className="text-primary" />
                   <span className="text-sm font-semibold text-foreground">Ownership Records</span>
                 </div>
-                {ownershipData ? (
-                  <div className="flex flex-col gap-2.5">
-                    {(ownershipData.owner_name as string) && (
-                      <div className="flex items-start gap-2">
-                        <span className="text-[10px] text-muted-foreground w-24 shrink-0 pt-0.5">Owner Name</span>
-                        <span className="text-xs font-medium text-foreground">{ownershipData.owner_name as string}</span>
+                {(() => {
+                  const o = records?.ownership;
+                  const dt = (v: unknown) => (v ? new Date(String(v)).toLocaleDateString() : null);
+                  const rows: DetailRow[] = o ? [
+                    { label: 'Owner', value: o.ownerName ? `${o.ownerName}${o.verified ? ' (verified)' : ''}` : null },
+                    { label: 'Source', value: o.ownerSource },
+                    { label: 'Verified', value: o.verified ? [o.verifiedMethod, dt(o.verifiedAt)].filter(Boolean).join(' · ') || 'Yes' : null },
+                    { label: 'Ownership', value: o.ownershipStatus },
+                    { label: 'Residence type', value: o.residenceType },
+                    { label: 'Home age', value: o.homeAge },
+                    { label: 'Est. home value', value: Number(o.homeValue) > 0 ? formatCurrency(Number(o.homeValue)) : null },
+                    { label: 'Tax assessment', value: Number(o.taxAssessment) > 0 ? formatCurrency(Number(o.taxAssessment)) : null },
+                    { label: 'APN', value: o.apn },
+                    { label: 'County', value: o.county },
+                    { label: 'Record match', value: o.recordMatch ? `${o.recordMatch.score}% · ${String(o.recordMatch.strategy).toLowerCase().replace(/_/g, ' ')}` : null },
+                    { label: 'Skip trace', value: o.skipTrace ? [o.skipTrace.name, o.skipTrace.matchType && String(o.skipTrace.matchType).toLowerCase().replace(/_/g, ' '), o.skipTrace.confidence && `${String(o.skipTrace.confidence).toLowerCase()} confidence`].filter(Boolean).join(' · ') : null },
+                    { label: 'Other possible', value: o.skipTrace?.alternates?.length ? o.skipTrace.alternates.join(', ') : null },
+                  ] : [];
+                  const registry: Array<Record<string, any>> = o?.registry ?? [];
+                  if (!rows.some(r => hasValue(r.value)) && registry.length === 0) {
+                    return (
+                      <div className="text-center py-4">
+                        <Building2 size={20} className="text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">{records ? 'No ownership records found for this address' : 'Loading ownership records…'}</p>
                       </div>
-                    )}
-                    {(ownershipData.mailing_address as string) && (
-                      <div className="flex items-start gap-2">
-                        <span className="text-[10px] text-muted-foreground w-24 shrink-0 pt-0.5">Mailing Address</span>
-                        <span className="text-xs text-foreground">{ownershipData.mailing_address as string}</span>
-                      </div>
-                    )}
-                    {(ownershipData.ownership_type as string) && (
-                      <div className="flex items-start gap-2">
-                        <span className="text-[10px] text-muted-foreground w-24 shrink-0 pt-0.5">Ownership Type</span>
-                        <span className="text-xs text-foreground capitalize">{ownershipData.ownership_type as string}</span>
-                      </div>
-                    )}
-                    {(ownershipData.purchase_date as string) && (
-                      <div className="flex items-start gap-2">
-                        <span className="text-[10px] text-muted-foreground w-24 shrink-0 pt-0.5">Purchase Date</span>
-                        <span className="text-xs text-foreground">{ownershipData.purchase_date as string}</span>
-                      </div>
-                    )}
-                    {(ownershipData.purchase_price as number) && (
-                      <div className="flex items-start gap-2">
-                        <span className="text-[10px] text-muted-foreground w-24 shrink-0 pt-0.5">Purchase Price</span>
-                        <span className="text-xs text-foreground">{formatCurrency(ownershipData.purchase_price as number)}</span>
-                      </div>
-                    )}
-                    {(ownershipData.years_owned as number) !== undefined && (
-                      <div className="flex items-start gap-2">
-                        <span className="text-[10px] text-muted-foreground w-24 shrink-0 pt-0.5">Years Owned</span>
-                        <span className="text-xs text-foreground">{ownershipData.years_owned as number} yrs</span>
-                      </div>
-                    )}
-                    {(ownershipData.data_source as string) && (
-                      <div className="mt-2 pt-2 border-t border-border flex items-center gap-1.5">
-                        <CheckCircle size={10} className="text-emerald-500" />
-                        <span className="text-[10px] text-muted-foreground">Source: {ownershipData.data_source as string}</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <Building2 size={20} className="text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground">No ownership records enriched yet</p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1">Run BatchData or PDL enrichment to populate</p>
-                  </div>
-                )}
+                    );
+                  }
+                  return (
+                    <div className="flex flex-col gap-3">
+                      <DetailRows rows={rows} />
+                      {registry.length > 0 && (
+                        <div className="pt-3 border-t border-border space-y-1.5">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Short-term rental registry</p>
+                          {registry.map((r, i) => (
+                            <div key={i} className="text-xs text-foreground">
+                              <span className="font-medium">{r.holder || 'Permit holder not listed'}</span>
+                              <span className="text-muted-foreground"> · {[r.jurisdiction, r.license, r.permitId && `#${r.permitId}`, r.active === true ? 'active' : r.active === false ? 'inactive' : null].filter(Boolean).join(' · ')}</span>
+                              {r.url && <a href={r.url} target="_blank" rel="noopener noreferrer" className="ml-2 text-primary hover:underline">source</a>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* ── Market Comparables ── */}
@@ -2065,56 +2084,46 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   <BarChart2 size={15} className="text-primary" />
                   <span className="text-sm font-semibold text-foreground">Market Comparables</span>
                 </div>
-                {marketComparables.length > 0 ? (
-                  <div className="flex flex-col gap-3">
-                    {marketComparables.slice(0, 4).map((comp, i) => (
-                      <div key={i} className="p-3 bg-muted/30 rounded-lg border border-border">
-                        <div className="flex items-start justify-between gap-2 mb-1.5">
-                          <p className="text-xs font-medium text-foreground truncate">{comp.address as string || `Comparable #${i + 1}`}</p>
-                          {(comp.price as number) && (
-                            <span className="text-xs font-bold text-primary shrink-0">{formatCurrency(comp.price as number)}/mo</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                          {(comp.beds as number) && <span>{comp.beds as number} bd</span>}
-                          {(comp.baths as number) && <span>{comp.baths as number} ba</span>}
-                          {(comp.dom as number) !== undefined && <span>{comp.dom as number} DOM</span>}
-                          {(comp.source as string) && <span className="ml-auto">{comp.source as string}</span>}
-                        </div>
-                        {(comp.adr as number) && (
-                          <div className="mt-1.5 flex items-center gap-2 text-[10px]">
-                            <span className="text-muted-foreground">Est. ADR:</span>
-                            <span className="font-medium text-foreground">{formatCurrency(comp.adr as number)}/night</span>
-                          </div>
-                        )}
+                {(() => {
+                  const comps = records?.comparables ?? [];
+                  if (comps.length === 0) {
+                    return (
+                      <div className="text-center py-4">
+                        <BarChart2 size={20} className="text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">{records ? 'No comparable short-term rentals found near this address' : 'Loading comparables…'}</p>
                       </div>
-                    ))}
-                    <div className="pt-2 border-t border-border">
-                      <p className="text-[10px] text-muted-foreground">
-                        Avg. price: <span className="font-medium text-foreground">
-                          {formatCurrency(Math.round(marketComparables.reduce((sum, c) => sum + ((c.price as number) || 0), 0) / marketComparables.length))}/mo
-                        </span>
-                        {' · '}
-                        {lead.price > 0 && (() => {
-                          const avg = marketComparables.reduce((sum, c) => sum + ((c.price as number) || 0), 0) / marketComparables.length;
-                          const diff = ((lead.price - avg) / avg * 100).toFixed(0);
-                          const isAbove = lead.price > avg;
-                          return (
-                            <span className={isAbove ? 'text-amber-600' : 'text-emerald-600'}>
-                              {isAbove ? '+' : ''}{diff}% vs. comps
-                            </span>
-                          );
-                        })()}
-                      </p>
+                    );
+                  }
+                  const med = (xs: number[]) => { const v = xs.filter(x => x > 0).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : 0; };
+                  const mAdr = med(comps.map(c => Number(c.adr))), mOcc = med(comps.map(c => Number(c.occupancy))), mRev = med(comps.map(c => Number(c.revenue)));
+                  return (
+                    <div className="flex flex-col gap-3">
+                      {comps.slice(0, 6).map((c, i) => (
+                        <div key={i} className="p-3 bg-muted/30 rounded-lg border border-border">
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            {c.url ? <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:underline truncate">{c.title || `Comparable #${i + 1}`}</a> : <p className="text-xs font-medium text-foreground truncate">{c.title || `Comparable #${i + 1}`}</p>}
+                            {Number(c.revenue) > 0 && <span className="text-xs font-bold text-primary shrink-0">{formatCurrency(Number(c.revenue))}/yr</span>}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+                            {Number(c.beds) > 0 && <span>{c.beds} bd</span>}
+                            {Number(c.baths) > 0 && <span>{c.baths} ba</span>}
+                            {Number(c.adr) > 0 && <span>{formatCurrency(Number(c.adr))}/night</span>}
+                            {Number(c.occupancy) > 0 && <span>{Math.round(Number(c.occupancy))}% booked</span>}
+                            {Number(c.rating) > 0 && <span>{c.rating}★{Number(c.reviews) > 0 ? ` (${c.reviews})` : ''}</span>}
+                            {c.miles != null && <span>{c.miles} mi away</span>}
+                            <span className="ml-auto">{c.source}</span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="pt-2 border-t border-border">
+                        <p className="text-[10px] text-muted-foreground">
+                          Comparable median:{mAdr > 0 && <> <span className="font-medium text-foreground">{formatCurrency(mAdr)}/night</span></>}{mOcc > 0 && <> · <span className="font-medium text-foreground">{mOcc}% booked</span></>}{mRev > 0 && <> · <span className="font-medium text-foreground">{formatCurrency(mRev)}/yr</span></>}
+                          {lead.estimatedADR > 0 && mAdr > 0 && <> · this home is estimated at {formatCurrency(lead.estimatedADR)}/night ({lead.estimatedADR >= mAdr ? '+' : ''}{Math.round(((lead.estimatedADR - mAdr) / mAdr) * 100)}% vs comps)</>}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <BarChart2 size={20} className="text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground">No market comparables yet</p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1">Comparable listings will appear after enrichment</p>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* ── Task Board & Follow-up Sequence ── */}

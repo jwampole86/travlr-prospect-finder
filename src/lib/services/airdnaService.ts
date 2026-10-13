@@ -34,6 +34,7 @@ interface AirdnaFetchResult {
   status?: number;
   data?: unknown;
   error?: string;
+  quotaRemaining?: number | null;
 }
 
 async function airdnaFetch(path: string): Promise<AirdnaFetchResult> {
@@ -57,6 +58,8 @@ async function airdnaFetch(path: string): Promise<AirdnaFetchResult> {
       }
 
       const data = await res.json().catch(() => null);
+      const remaining = Number(res.headers.get('x-ratelimit-requests-remaining'));
+      const quotaRemaining = Number.isFinite(remaining) && res.headers.has('x-ratelimit-requests-remaining') ? remaining : null;
       // The account's PRO plan enforces a tight per-second cap, reported as a
       // plain 200 body (same pattern seen on other RapidAPI real-estate hosts
       // in rapidApiRealEstateService.ts) — surface it as a retryable DEGRADED
@@ -68,7 +71,7 @@ async function airdnaFetch(path: string): Promise<AirdnaFetchResult> {
       if (!res.ok) {
         return { ok: false, status: res.status, data, error: msg || `HTTP ${res.status}` };
       }
-      return { ok: true, status: res.status, data };
+      return { ok: true, status: res.status, data, quotaRemaining };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : 'Request failed' };
     }
@@ -116,7 +119,7 @@ interface RentalizerRaw {
 /** GET /rentalizer — estimated nightly rate, occupancy, and annual revenue for any address. */
 export async function getRentalEstimate(
   params: RentalEstimateParams
-): Promise<{ ok: boolean; estimate?: RentalEstimateResult; error?: string; status?: number }> {
+): Promise<{ ok: boolean; estimate?: RentalEstimateResult; error?: string; status?: number; quotaRemaining?: number | null }> {
   const query = new URLSearchParams({ address: params.address });
   if (params.bedrooms != null) query.set('bedrooms', String(params.bedrooms));
   if (params.bathrooms != null) query.set('bathrooms', String(params.bathrooms));
@@ -133,6 +136,7 @@ export async function getRentalEstimate(
   const stats = raw?.data?.property_statistics;
   return {
     ok: true,
+    quotaRemaining: result.quotaRemaining,
     estimate: {
       marketName: marketInfo?.airdna_market_name,
       submarketName: marketInfo?.airdna_submarket_name,
