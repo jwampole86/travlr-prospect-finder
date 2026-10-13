@@ -7,6 +7,7 @@ import type { OwnerVerification, VerificationLevel } from '@/lib/services/ownerV
 import NicheFilter, { type NicheCounts } from '@/components/niche/NicheFilter';
 import SelectBox from '@/components/ui/SelectBox';
 import { nicheName, nichePriority } from '@/lib/niches';
+import { estimateCommission } from '@/lib/cohostFees';
 
 interface Owner { names: string[]; type: string | null; mailing: string | null; permitHolder: string | null; contactFound: boolean; skipTraced?: boolean; homesage?: { found: boolean; error: string | null; people: Array<{ name: string; mailing: string | null; doNotContact: boolean; litigator: boolean; tcpaRisk: boolean; deceased: boolean; reachableMobiles: number }> } | null; entity?: { found: boolean; trust: boolean; state: string; mailingState?: string | null; source: string | null; manualUrl: string | null; manualName: string | null; entityName?: string; status?: string; agent?: string | null; agentAddress?: string | null; principalAddress?: string | null; mailingAddress?: string | null } | null; phones: string[]; emails: string[]; published?: { email: string | null; phone: string | null; managerEmail?: string | null; managerPhone?: string | null } | null }
 interface OfferInfo { code: string; views: number; lastViewedAt: string | null; requestedAt: string | null; optedOutAt: string | null; request: { name?: string; email?: string | null; phone?: string | null; service?: string; message?: string | null; at?: string } | null }
@@ -35,8 +36,6 @@ const money = (n: number | null) => (n == null ? '-' : `$${Math.round(n).toLocal
 
 interface RefreshInfo { lastRun: { started_at: string; finished_at: string | null; status: string; trigger: string; api_calls: number; new_listings: number; new_matches: number; quota_remaining: number | null; note: string | null; markets: number } | null; markets: number; oldestRefresh: string | null; firstRunAt: string | null; intervalHours: number }
 type SortKey = 'best' | 'potential_desc' | 'potential_asc' | 'earned_desc' | 'newest' | 'niche_priority';
-/** TRAVLR's share of a managed home's gross revenue, the same 20% used in the homeowner estimate. */
-const COMMISSION_PCT = 20;
 const SORTS: Array<[SortKey, string]> = [['best', 'Best match first'], ['potential_desc', 'Potential earnings: high to low'], ['potential_asc', 'Potential earnings: low to high'], ['earned_desc', 'Earned last 12 months: high to low'], ['newest', 'Newest listings'], ['niche_priority', 'Niche priority (national ranking)']];
 const LEVEL_STYLE: Record<VerificationLevel, string> = {
   verified: 'bg-emerald-600 text-white', likely: 'bg-teal-100 text-teal-800', unconfirmed: 'bg-amber-100 text-amber-800', review: 'bg-amber-100 text-amber-800',
@@ -315,7 +314,7 @@ export default function CoHostView() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{l.market} &middot; {l.bedrooms} bd / {l.bathrooms} ba &middot; {l.dataQuality?.reliable === false
                       ? <span className="font-semibold text-amber-600 dark:text-amber-400">Not enough booking history to quote earnings ({l.dataQuality.reasons.join(', ')})</span>
-                      : <>{money(l.adr)} per night &middot; {l.occupancy_pct != null ? `${Math.round(l.occupancy_pct)}% occupied` : ''} &middot; {money(l.revenue_ltm)} earned of <span className="font-semibold text-foreground">{money(l.revenue_potential_ltm)} potential</span>{l.revenue_potential_ltm ? <span className="font-semibold text-[#15803d] dark:text-[#4ade80]" title={`TRAVLR's ${COMMISSION_PCT}% management fee on the potential yearly revenue, about ${money(l.revenue_potential_ltm * COMMISSION_PCT / 1200)} a month`}> &rarr; {money(l.revenue_potential_ltm * COMMISSION_PCT / 100)}/yr commission</span> : null}</>} &middot; {l.rating ?? '-'} ({l.reviews ?? 0} reviews){l.host_listing_count ? ` · host runs ${l.host_listing_count}` : ''}</p>
+                      : <>{money(l.adr)} per night &middot; {l.occupancy_pct != null ? `${Math.round(l.occupancy_pct)}% occupied` : ''} &middot; {money(l.revenue_ltm)} earned of <span className="font-semibold text-foreground">{money(l.revenue_potential_ltm)} potential</span>{(() => { const c = estimateCommission(l.revenue_ltm, l.revenue_potential_ltm); return c ? <span className="font-semibold text-[#15803d] dark:text-[#4ade80]" title={`Expected revenue about ${money(c.expectedRevenue)} a year (what it earns now plus 40% of the gap to its potential). Co-host fee on a sliding scale, ${c.effectivePct.toFixed(1)}% on average, about ${money(c.totalFee)} a year. Split with the other co-host: your share ${money(c.ours)}, theirs ${money(c.theirs)}.`}> &rarr; {money(c.ours)}/yr your share</span> : null; })()}</>} &middot; {l.rating ?? '-'} ({l.reviews ?? 0} reviews){l.host_listing_count ? ` · host runs ${l.host_listing_count}` : ''}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <SelectBox dense value={l.pipeline_stage} onChange={e => update(l.property_id, { stage: e.target.value })} aria-label="Stage">{stages.map(s => <option key={s} value={s}>{STAGE_LABEL[s] ?? s}</option>)}</SelectBox>

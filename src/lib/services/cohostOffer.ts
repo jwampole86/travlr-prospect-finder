@@ -1,6 +1,7 @@
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { assessData, marketBenchmark, type Benchmark } from '@/lib/services/cohostNumbers';
+import { EXPECTED_GAP_SHARE } from '@/lib/cohostFees';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 const ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -20,7 +21,7 @@ export interface OfferData {
 }
 
 const num = (v: unknown) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
-const SCENARIOS: Array<[Scenario['key'], string, number]> = [['conservative', 'Conservative', 0.2], ['expected', 'Expected', 0.4], ['stretch', 'Stretch', 0.65]];
+const SCENARIOS: Array<[Scenario['key'], string, number]> = [['conservative', 'Conservative', 0.2], ['expected', 'Expected', EXPECTED_GAP_SHARE], ['stretch', 'Stretch', 0.65]];
 
 /** Illustrative only: assumes we close a share of the gap between what the home earns now and what comparable demand supports. */
 export function buildScenarios(current: number, potential: number): { gap: number; scenarios: Scenario[] } {
