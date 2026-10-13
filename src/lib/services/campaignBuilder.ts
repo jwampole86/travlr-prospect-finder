@@ -16,7 +16,7 @@ export const CHUNK_SIZE = 8;
 /** Early results (2026-10-12) favored these states, so campaigns take their leads first, then the rest by score. */
 const PRIORITY_STATES = ['CO', 'FL', 'AZ'];
 
-/** Who can be texted. The database function campaign_audience applies the shared rules (real leads, never co-host, never opted out, never texted). */
+/** Who can be texted. The database function campaign_audience applies the shared rules (real leads, never co-host, never a property already texted, never a phone or owner that opted out or said no, one lead per phone). */
 export const AUDIENCES = [
   { id: 'fully-verified', label: 'Fully verified', blurb: 'Owner, phone and address all confirmed. The cleanest data we have.' },
   { id: 'luxury-phone', label: 'Luxury homes with a phone', blurb: 'High-value homes where a rental estimate is most compelling. Phone numbers are less verified.' },
@@ -173,9 +173,9 @@ export async function scheduleChunk(db: Db, p: CampaignParams, ids: string[], bu
   const leads: OutreachLead[] = [];
   for (const id of unique) { const l = (leadRows ?? []).find(x => x.id === id) as OutreachLead | undefined; if (!l || !eligible.has(id)) skip('no_longer_eligible'); else leads.push(l); }
 
-  // One text per phone number, ever, across every campaign.
+  // One text per phone number per campaign. Across campaigns the audience rules decide: only the same owner's other property may be texted again.
   const phones = leads.map(l => toE164(l.contact_phone)).filter((x): x is string => !!x);
-  const { data: used } = phones.length ? await db.from('outreach_history').select('metadata').eq('channel', 'sms').eq('metadata->>kind', 'estimate_outreach').in('metadata->>to', phones) : { data: [] as Row[] };
+  const { data: used } = phones.length ? await db.from('outreach_history').select('metadata').eq('channel', 'sms').eq('metadata->>kind', 'estimate_outreach').eq('metadata->>batch', batch).in('metadata->>to', phones) : { data: [] as Row[] };
   const taken = new Set((used ?? []).map(u => (u.metadata as Row)?.to as string));
 
   let scheduled = 0; let landline = 0; let invalid = 0; let segments = 0; let reserved = 0;
