@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { sendTeamAlert } from '@/lib/services/replyAlerts';
+import { advancePipeline } from '@/lib/services/leadPipeline';
 
 /**
  * POST /api/estimate/event { c, sid, event, data }
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
 
     await db.from('estimate_journey_events').insert({ code, lead_id: link.lead_id, session_id: sid, event, data });
     if (event === 'submitted') {
+      await advancePipeline(db, link.lead_id, 'callback_scheduled');
       const { data: l } = await db.from('leads').select('address,city,state,owner_name').eq('id', link.lead_id).maybeSingle();
       const base = (process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com').replace(/\/$/, '');
       await sendTeamAlert({ key: `home-submit:${link.lead_id}`, text: `Homeowner submitted the estimate form: ${[l?.owner_name, [l?.address, l?.city, l?.state].filter(Boolean).join(', ')].filter(Boolean).join(', ')}`, url: `${base}/lead-profile?id=${encodeURIComponent(link.lead_id)}`, email: true });

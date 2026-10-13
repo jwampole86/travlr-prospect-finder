@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/client';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
+import { advancePipeline } from '@/lib/services/leadPipeline';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,10 +27,10 @@ export async function POST(req: NextRequest) {
       .from('leads')
       .update({
         assigned_agent: agentName,
-        pipeline_status: 'contacted',
         updated_at: assignedAt,
       })
       .eq('id', leadId);
+    await advancePipeline(getSupabaseAdmin(), leadId, 'contacted');
 
     if (updateError) {
       console.error('Lead update error:', updateError);

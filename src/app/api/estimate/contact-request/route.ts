@@ -8,6 +8,7 @@ import { validateContact } from '@/lib/contactValidation';
 import { allowRequest, clientIp } from '@/lib/publicRateLimit';
 import { CONTACT_EMAIL } from '@/lib/homeownerContact';
 import { sendTeamAlert } from '@/lib/services/replyAlerts';
+import { advancePipeline } from '@/lib/services/leadPipeline';
 
 export const maxDuration = 30;
 
@@ -122,6 +123,7 @@ export async function POST(req: NextRequest) {
     const leadUrl = `${base}/lead-profile?id=${encodeURIComponent(lead.leadId)}`;
     let teamNotified = false;
     let confirmed = false;
+    await advancePipeline(db, lead.leadId, 'callback_scheduled');
     await sendTeamAlert({ key: `home-contact:${inquiry?.id ?? `${lead.leadId}:${Date.now()}`}`, text: `Homeowner ${type === 'call' ? `asked for a call (${when})` : 'asked a question'}: ${details.name}${phone ? `, ${phoneDisplay}` : ''}${message ? `. "${message.replace(/\s+/g, ' ').slice(0, 80)}"` : ''}`, url: leadUrl });
     try {
       const team = buildTeamInquiryEmail(details, report, { lead: leadUrl, report: reportUrl });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { createSigningEnvelope, type SignerInfo, type PrefillData,  } from '@/lib/services/docusignService';
 import { createClient as createServerClient } from '@supabase/supabase-js';
+import { advancePipeline } from '@/lib/services/leadPipeline';
 
 // POST /api/docusign/create-envelope
 export async function POST(req: NextRequest) {
@@ -83,6 +84,7 @@ export async function POST(req: NextRequest) {
     }));
 
     await supabase.from('signing_signers').insert(signerRows);
+    await advancePipeline(supabase, leadId, 'offer_sent');
 
     return NextResponse.json({ sessionId: session.id, envelopeId, status });
   } catch (err) {

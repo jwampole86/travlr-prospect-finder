@@ -3,6 +3,7 @@ import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { classifyReply, isWrongContact } from '@/lib/services/smsConsent';
 import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
 import { wasSent } from '@/lib/services/smsSendState';
+import { nextPipelineStatus, type PipelineTarget } from '@/lib/services/leadPipeline';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Meta = Record<string, any>;
@@ -112,7 +113,7 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
     gather<Meta>(c => db.from('sms_link_events').select('lead_id, occurred_at, is_bot, device, os, region, city').in('lead_id', c).gte('occurred_at', sinceIso).order('occurred_at')),
     gather<Meta>(c => db.from('estimate_journey_events').select('lead_id, session_id, event, data, created_at').in('lead_id', c).gte('created_at', sinceIso).order('created_at')),
     gather<Meta>(c => db.from('outreach_history').select('lead_id, sent_at, metadata').eq('channel', 'sms').eq('status', 'replied').in('lead_id', c).gte('sent_at', sinceIso).order('sent_at')),
-    gather<Meta>(c => db.from('leads').select('id, sms_opt_in, sms_opt_in_at, sms_opted_out_at, tags, outreach_responded_at, last_contacted_at').in('id', c)),
+    gather<Meta>(c => db.from('leads').select('id, sms_opt_in, sms_opt_in_at, sms_opted_out_at, tags, outreach_responded_at, last_contacted_at, pipeline_status').in('id', c)),
     gather<Meta>(c => db.from('outreach_history').select('lead_id, sent_at').eq('channel', 'email').eq('metadata->>kind', 'homeowner_report').in('lead_id', c).gte('sent_at', sinceIso)),
   ]);
   const by = <T extends Meta>(list: T[]) => { const m = new Map<string, T[]>(); for (const x of list) { const a = m.get(x.lead_id) ?? []; a.push(x); m.set(x.lead_id, a); } return m; };
@@ -191,6 +192,11 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
     const responded = reply?.sent_at ?? (submittedAt ? new Date(submittedAt).toISOString() : null) ?? contactAt ?? null;
     if (responded && !lead.outreach_responded_at) patch.outreach_responded_at = responded;
     if (sent && delivered && (!lead.last_contacted_at || Date.parse(lead.last_contacted_at) < sendAt)) patch.last_contacted_at = new Date(sendAt).toISOString();
+    // Conversion Pipeline: a refusal rejects the lead, a YES / form / call request means a callback is due, a delivered text means contacted.
+    const pipelineTarget: PipelineTarget | null = optedOut || replyIntent === 'stop' || replyIntent === 'no' ? 'rejected'
+      : replyIntent === 'yes' || contactAt || submittedAt ? 'callback_scheduled' : sent && delivered ? 'contacted' : null;
+    const pipelineNext = pipelineTarget ? nextPipelineStatus(lead.pipeline_status as string | null, pipelineTarget) : null;
+    if (pipelineNext) { patch.pipeline_status = pipelineNext; patch.pipeline_status_updated_at = new Date().toISOString(); }
     const oldTags = (lead.tags as string[] | null) ?? [];
     if (tags.length !== oldTags.length || tags.some(t => !oldTags.includes(t))) patch.tags = tags;
     if (Object.keys(patch).length) crm.push({ id: r.lead_id, tags, patch });

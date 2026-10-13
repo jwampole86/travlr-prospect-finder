@@ -362,6 +362,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
 
   // ── Pipeline status state ─────────────────────────────────────────────────
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>(null);
+  const [pipelineUpdatedAt, setPipelineUpdatedAt] = useState<string | null>(null);
   const [savingPipelineStatus, setSavingPipelineStatus] = useState(false);
 
   // ── Ownership & market data state ─────────────────────────────────────────
@@ -493,18 +494,34 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
     // Pipeline status & ownership/market data
     supabase
       .from('leads')
-      .select('pipeline_status,ownership_data,market_comparables')
+      .select('pipeline_status,pipeline_status_updated_at,ownership_data,market_comparables')
       .eq('id', lead.id)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
           if (data.pipeline_status) setPipelineStatus(data.pipeline_status as PipelineStatus);
+          setPipelineUpdatedAt((data.pipeline_status_updated_at as string | null) ?? null);
           if (data.ownership_data) setOwnershipData(data.ownership_data as Record<string, unknown>);
           if (data.market_comparables) setMarketComparables(data.market_comparables as Array<Record<string, unknown>>);
         }
       })
       .then(undefined, () => {});
   }, [lead]);
+
+  // Replies, form submissions, offers and signatures move the pipeline on the server, so keep the track in step while the page is open.
+  useEffect(() => {
+    if (!lead?.id) return;
+    const id = lead.id;
+    const tick = () => {
+      if (document.visibilityState !== 'visible') return;
+      supabase.from('leads').select('pipeline_status,pipeline_status_updated_at').eq('id', id).maybeSingle()
+        .then(({ data }) => { if (data) { setPipelineStatus((data.pipeline_status as PipelineStatus) ?? null); setPipelineUpdatedAt((data.pipeline_status_updated_at as string | null) ?? null); } })
+        .then(undefined, () => {});
+    };
+    const timer = setInterval(tick, 30_000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead?.id]);
 
   // Reload secondary data after mutations
   const reloadSecondaryData = useCallback(() => {
@@ -740,6 +757,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
         pipeline_status_updated_at: new Date().toISOString(),
       } as Record<string, unknown>).eq('id', lead.id);
       setPipelineStatus(newStatus);
+      setPipelineUpdatedAt(new Date().toISOString());
       toast.success(newStatus ? `Pipeline status: ${PIPELINE_STATUS_CONFIG[newStatus].label}` : 'Pipeline status cleared');
     } catch {
       toast.error('Failed to update pipeline status');
@@ -1300,6 +1318,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   </div>
                   {pipelineStatus && <PipelineStatusBadge status={pipelineStatus} />}
                 </div>
+                <p className="text-[11px] text-muted-foreground -mt-2 mb-3">Updates automatically from texts, replies, form submissions, offers and signatures. You can also set it by hand.{pipelineUpdatedAt ? ` Last changed ${new Date(pipelineUpdatedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` : ''}</p>
                 {/* Pipeline progress track */}
                 <div className="relative mb-4">
                   <div className="absolute top-3.5 left-0 right-0 h-0.5 bg-border" />

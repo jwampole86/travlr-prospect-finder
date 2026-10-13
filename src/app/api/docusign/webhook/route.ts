@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { downloadSignedDocuments } from '@/lib/services/docusignService';
 import { createClient } from '@supabase/supabase-js';
 import { activityService } from '@/lib/services/activityService';
+import { advancePipeline } from '@/lib/services/leadPipeline';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
 /**
@@ -206,6 +207,7 @@ export async function POST(req: NextRequest) {
         .from('leads')
         .update({ stage: 'Under Contract' })
         .eq('id', session.lead_id);
+      await advancePipeline(supabase, session.lead_id, 'signed');
 
       // Create homeowner onboarding record to trigger post-signing flow
       try {
@@ -414,6 +416,8 @@ export async function POST(req: NextRequest) {
         metadata: { envelopeId, sessionId: session.id },
       }).then(undefined, () => {});
     }
+
+    if (newStatus === 'declined') await advancePipeline(supabase, session.lead_id, 'rejected');
 
     if (newStatus === 'voided') {
       activityService.record({

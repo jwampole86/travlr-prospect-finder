@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { classifyReply, findLeadByPhone, isWrongContact, notifyAdmins, recordOptIn, recordOptOut, toE164, verifyTwilioSignature } from '@/lib/services/smsConsent';
 import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
 import { sendReplyAlert, sendTeamAlert } from '@/lib/services/replyAlerts';
+import { advancePipeline } from '@/lib/services/leadPipeline';
 
 /**
  * POST /api/sms/inbound
@@ -62,6 +63,10 @@ export async function POST(req: NextRequest) {
 
   let reply = '';
 
+  if (lead) {
+    if (intent === 'stop' || intent === 'no') await advancePipeline(db, lead.id, 'rejected');
+    else if (intent === 'yes') await advancePipeline(db, lead.id, 'callback_scheduled');
+  }
   if (intent === 'stop' || intent === 'no') {
     await recordOptOut(db, { leadId: lead?.id ?? null, phone: from, message: text });
     if (threadId) await db.from('sms_conversation_threads').update({ conversation_status: 'opted_out' }).eq('id', threadId);
