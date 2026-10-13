@@ -101,22 +101,23 @@ async function blockReason(db: Db, m: Row): Promise<string | null> {
   return null;
 }
 
-async function deliver(m: Row, subject: string, to: string) {
+async function deliver(m: Row, subject: string, to: string, scheduledAt?: Date) {
   const unsub = unsubscribeUrl(m.id);
   return getResendClient().emails.send({
     from: getResendFrom(), to: [to], subject, html: buildHtml(m.body, unsub), text: plainText(m.body, unsub), replyTo: REPLY_TO,
+    ...(scheduledAt ? { scheduledAt: scheduledAt.toISOString() } : {}),
     headers: { 'List-Unsubscribe': `<${unsub}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
     tags: [{ name: 'kind', value: 'cohost_email' }, { name: 'campaign_id', value: m.campaign_id }],
   });
 }
 
-export async function sendOne(db: Db, id: string, actorId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function sendOne(db: Db, id: string, actorId: string, opts: { scheduledAt?: Date } = {}): Promise<{ ok: true } | { ok: false; error: string }> {
   const { data: m } = await db.from('cohost_email_messages').select('*').eq('id', id).maybeSingle();
   if (!m) return { ok: false, error: 'Unknown email.' };
   const why = await blockReason(db, m); if (why) return { ok: false, error: why };
-  const now = new Date().toISOString();
+  const now = opts.scheduledAt ? opts.scheduledAt.toISOString() : new Date().toISOString();
   try {
-    const { data, error } = await deliver(m, m.subject, m.to_email);
+    const { data, error } = await deliver(m, m.subject, m.to_email, opts.scheduledAt);
     if (error) { await db.from('cohost_email_messages').update({ status: 'failed', failure_reason: error.message.slice(0, 300), updated_at: now }).eq('id', id); return { ok: false, error: error.message }; }
     await db.from('cohost_email_messages').update({ status: 'sent', sent_at: now, sent_by: actorId, resend_message_id: data?.id ?? null, failure_reason: null, updated_at: now }).eq('id', id);
     const { data: l } = await db.from('str_listings').select('pipeline_stage').eq('property_id', m.property_id).maybeSingle();
