@@ -1,6 +1,7 @@
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { wasSent } from '@/lib/services/smsSendState';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
@@ -57,7 +58,7 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
     statuses[r.twilio_status ?? 'scheduled'] = (statuses[r.twilio_status ?? 'scheduled'] ?? 0) + 1;
     if (r.twilio_error_code) errors[r.twilio_error_code] = (errors[r.twilio_error_code] ?? 0) + 1;
     if (r.reply_intent) intents[r.reply_intent] = (intents[r.reply_intent] ?? 0) + 1;
-    funnel.texts++; funnel.sent += +(Date.parse(r.scheduled_for) < now && r.twilio_status !== 'canceled'); funnel.delivered += f.delivered; funnel.clicked += f.clicked; funnel.viewed += f.viewed;
+    funnel.texts++; funnel.sent += +wasSent(r.twilio_status); funnel.delivered += f.delivered; funnel.clicked += f.clicked; funnel.viewed += f.viewed;
     funnel.contactStarted += +(['contact', 'questionnaire', 'submitted'].includes(r.deepest_step)); funnel.submitted += f.submitted; funnel.replied += f.replied; funnel.optedIn += +r.opted_in; funnel.optedOut += +r.opted_out;
     if (r.price_usd != null) { cost += Number(r.price_usd); costRows++; }
     chatQuestions += r.chat_questions ?? 0; botClicks += r.bot_clicks ?? 0;
@@ -66,7 +67,7 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
   const st: Record<string, { texts: number; sent: number; delivered: number; unreachable: number; wrongPerson: number; engaged: number; optedOut: number }> = {};
   for (const r of rows) {
     const a = (st[r.audience ?? 'fully-verified'] ??= { texts: 0, sent: 0, delivered: 0, unreachable: 0, wrongPerson: 0, engaged: 0, optedOut: 0 });
-    a.texts++; a.sent += +(Date.parse(r.scheduled_for) < now && r.twilio_status !== 'canceled');
+    a.texts++; a.sent += +wasSent(r.twilio_status);
     a.delivered += +['delivered', 'read'].includes(r.twilio_status); a.unreachable += +['landline', 'invalid', 'unreachable', 'filtered'].includes(r.phone_quality);
     a.wrongPerson += +(r.phone_quality === 'wrong_person'); a.optedOut += +r.opted_out;
     a.engaged += +(r.human_clicks > 0 || !!r.reply_at || !!r.estimate_submitted_at);

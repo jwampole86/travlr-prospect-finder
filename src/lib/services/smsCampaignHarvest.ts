@@ -2,6 +2,7 @@ import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { classifyReply, isWrongContact } from '@/lib/services/smsConsent';
 import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
+import { wasSent } from '@/lib/services/smsSendState';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Meta = Record<string, any>;
@@ -125,7 +126,7 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
     const m = r.metadata; const lead = leadBy.get(r.lead_id) ?? {};
     const status = String(m.twilio_status ?? 'scheduled');
     const sendAt = Date.parse(m.scheduled_for ?? r.sent_at);
-    const sent = sendAt < now && status !== 'canceled';
+    const sent = wasSent(status);
     const delivered = status === 'delivered' || status === 'read';
     const deliveredAt = m.delivered_at ? Date.parse(m.delivered_at) : delivered ? sendAt : NaN;
     const errorCode = m.twilio_error_code ? String(m.twilio_error_code) : null;
@@ -223,7 +224,7 @@ export async function listBatches(db: Db): Promise<Array<{ batch: string; texts:
       const m = (r.metadata ?? {}) as Meta; if (!m.batch) continue;
       const t = Date.parse(m.scheduled_for ?? r.sent_at); const e = map.get(m.batch) ?? { texts: 0, first: t, last: t, audience: m.audience ?? null, pending: 0, canceled: 0 };
       e.texts++; e.first = Math.min(e.first, t); e.last = Math.max(e.last, t); map.set(m.batch, e);
-      if (m.twilio_status === 'canceled') e.canceled++; else if (t > nowMs) e.pending++;
+      if (m.twilio_status === 'canceled') e.canceled++; else if (!wasSent(m.twilio_status ?? (t > nowMs ? 'scheduled' : 'sent'))) e.pending++;
     }
     if ((data ?? []).length < 1000) break;
   }

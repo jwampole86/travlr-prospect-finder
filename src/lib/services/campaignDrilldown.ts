@@ -1,6 +1,7 @@
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { redact, segmentKeys } from '@/lib/services/campaignInsights';
+import { wasSent } from '@/lib/services/smsSendState';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
@@ -10,7 +11,7 @@ const delivered = (r: Row) => ['delivered', 'read'].includes(r.twilio_status);
 
 /** Whether one text belongs to a metric, using the same definitions as the overview numbers. */
 function inMetric(metric: string, r: Row, now: number): boolean {
-  const sent = Date.parse(r.scheduled_for) < now && r.twilio_status !== 'canceled';
+  const sent = wasSent(r.twilio_status);
   const [m, arg = ''] = metric.split(':');
   switch (m) {
     case 'texts': return true;
@@ -101,7 +102,7 @@ export async function textDetail(db: Db, leadId: string, batch: string) {
   ]);
   const meta = (hist?.[0]?.metadata ?? {}) as Row;
   const t: TimelineItem[] = [];
-  t.push({ at: r.scheduled_for, label: Date.parse(r.scheduled_for) > Date.now() ? 'Scheduled to send' : 'Sent' });
+  t.push({ at: r.scheduled_for, label: wasSent(r.twilio_status) ? 'Sent' : 'Scheduled to send' });
   if (r.delivered_at) t.push({ at: r.delivered_at, label: 'Delivered to the phone' });
   else if (r.twilio_status && !['scheduled', 'queued', 'sent', 'accepted', 'sending'].includes(r.twilio_status)) t.push({ at: r.scheduled_for, label: `Delivery: ${r.twilio_status}`, detail: r.twilio_error_code ? `Carrier error ${r.twilio_error_code}` : undefined });
   if (r.first_click_at) t.push({ at: r.first_click_at, label: `Opened the link${r.human_clicks > 1 ? ` (${r.human_clicks} times)` : ''}`, detail: [r.device, r.os, r.click_region].filter(Boolean).join(' · ') || undefined });
