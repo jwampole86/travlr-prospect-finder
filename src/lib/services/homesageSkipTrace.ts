@@ -70,8 +70,9 @@ export async function homesageOwnerLookup(address: string): Promise<{ record: Ho
 export interface HomesageQueueItem { property_id: string; market: string | null; matched_address: string | null; matched_owner: Record<string, any>; is_elite: boolean | null; is_luxury: boolean | null; revenue_potential_ltm: number | null }
 
 /**
- * Who gets a Homesage lookup: every ELITE home, and any home whose owner is a business or trust with no named person (the case the other
- * skip-trace cannot trace). Each at most once. ELITE first, then LUXURY, then by potential earnings.
+ * Who gets a Homesage lookup: every ELITE home, any home whose owner is a business or trust with no named person, and any LUXURY or
+ * $100K+ potential home whose record has no owner name at all (the cases the other skip-trace cannot trace, since it needs a name).
+ * Each at most once. ELITE first, then LUXURY, then by potential earnings (commission).
  */
 export async function homesageQueue(db: SupabaseClient): Promise<HomesageQueueItem[]> {
   const { data } = await db.from('str_listings').select('property_id,market,matched_address,matched_owner,is_elite,is_luxury,revenue_potential_ltm,pipeline_stage')
@@ -84,7 +85,7 @@ export async function homesageQueue(db: SupabaseClient): Promise<HomesageQueueIt
     const o = r.matched_owner as Record<string, any>;
     if (o.homesage || (shared.get(r.matched_address) ?? 1) > 1 || out.has(r.property_id) || !r.matched_address) return false;
     const names: string[] = o.names ?? [];
-    return !!r.is_elite || (names.length > 0 && names.every(isEntityName));
+    return !!r.is_elite || (names.length > 0 && names.every(isEntityName)) || (names.length === 0 && (!!r.is_luxury || Number(r.revenue_potential_ltm ?? 0) >= 100_000));
   }).sort((a, b) => Number(!!b.is_elite) - Number(!!a.is_elite) || Number(!!b.is_luxury) - Number(!!a.is_luxury) || Number(b.revenue_potential_ltm ?? 0) - Number(a.revenue_potential_ltm ?? 0)) as HomesageQueueItem[];
 }
 
