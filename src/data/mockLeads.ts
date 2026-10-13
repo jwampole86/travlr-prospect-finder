@@ -51,6 +51,8 @@ export interface Lead {
   skipTraceConfidence?: string;
   skipTracePhones?: string[];
   skipTraceEmails?: string[];
+  /** Every extra column the lead API returns (property facts, listing agent, rent, AirDNA); shown on the profile only when present. */
+  extra?: Record<string, any>;
   // Property verification fields
   verificationStatus?: string;
   verificationScore?: number;

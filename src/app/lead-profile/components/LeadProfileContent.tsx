@@ -20,6 +20,7 @@ import LeadTaskBoard from './LeadTaskBoard';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { activityService } from '@/lib/services/activityService';
+import { outreachDisplay } from '@/lib/services/smsSendState';
 import PipelineStatusBadge, { PIPELINE_STATUS_CONFIG, PIPELINE_STATUS_ORDER, type PipelineStatus } from '@/components/ui/PipelineStatusBadge';
 import ConfidenceBandBadge, { getConfidenceBand, CONFIDENCE_BAND_CONFIG } from '@/components/ui/ConfidenceBandBadge';
 import Icon from '@/components/ui/AppIcon';
@@ -67,6 +68,7 @@ interface OutreachLogEntry {
   reply_snippet: string | null;
   sent_at: string;
   agent_id: string | null;
+  metadata?: Record<string, any> | null;
 }
 
 interface DealRecord {
@@ -108,9 +110,34 @@ const outreachStatusColors: Record<string, string> = {
   bounced: 'bg-red-500/10 text-red-600',
   failed: 'bg-red-500/10 text-red-600',
 };
+const outreachToneColors: Record<string, string> = {
+  blue: 'bg-blue-500/10 text-blue-600',
+  amber: 'bg-amber-500/10 text-amber-600',
+  green: 'bg-green-500/10 text-green-600',
+  red: 'bg-red-500/10 text-red-600',
+  purple: 'bg-purple-500/10 text-purple-600',
+  gray: 'bg-muted text-muted-foreground',
+};
+const fmtLogTime = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
 
 function formatCurrency(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+}
+
+type DetailRow = { label: string; value: React.ReactNode };
+const hasValue = (v: unknown) => v !== null && v !== undefined && v !== '' && v !== false;
+function DetailRows({ rows }: { rows: DetailRow[] }) {
+  const shown = rows.filter(r => hasValue(r.value));
+  return (
+    <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+      {shown.map(f => (
+        <div key={f.label} className="flex items-start gap-2">
+          <span className="text-xs text-muted-foreground w-28 shrink-0 pt-0.5">{f.label}</span>
+          <span className="text-xs font-medium text-foreground break-words min-w-0">{f.value}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 const Section = React.memo(function Section({ title, icon, children, defaultOpen = true }: {
@@ -253,12 +280,13 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
     const base = lead;
     fetch(`/api/leads/fill?leadId=${encodeURIComponent(base.id)}`, { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined })
       .then(r => (r.ok ? r.json() : null))
-      .then((j: { fill: { adr: number; occupancy: number; grossMonthly: number; netMonthly: number; basisLabel: string; assumedBeds: boolean } | null; daysOnMarket: { days: number; basis: string } | null } | null) => {
+      .then((j: { fill: { adr: number; occupancy: number; grossMonthly: number; netMonthly: number; basisLabel: string; assumedBeds: boolean; source: 'airdna' | 'model' } | null; daysOnMarket: { days: number; basis: string } | null } | null) => {
         if (!j) return;
         const f = j.fill;
-        setLead(p => p ? { ...p, estimatedADR: p.estimatedADR || f?.adr || 0, estimatedOccupancy: p.estimatedOccupancy || f?.occupancy || 0, estimatedGrossMonthly: p.estimatedGrossMonthly || f?.grossMonthly || 0, estimatedNetMonthly: p.estimatedNetMonthly || f?.netMonthly || 0, daysOnMarket: p.daysOnMarket || j.daysOnMarket?.days || 0 } : p);
+        // The stored estimates come from an older bedroom model that ran high against AirDNA, so the profile shows the same AirDNA-backed figures the homeowner page uses.
+        setLead(p => p ? { ...p, estimatedADR: f?.adr || p.estimatedADR || 0, estimatedOccupancy: f?.occupancy || p.estimatedOccupancy || 0, estimatedGrossMonthly: f?.grossMonthly || p.estimatedGrossMonthly || 0, estimatedNetMonthly: f?.netMonthly || p.estimatedNetMonthly || 0, daysOnMarket: p.daysOnMarket || j.daysOnMarket?.days || 0 } : p);
         if (j.daysOnMarket && !base.daysOnMarket && j.daysOnMarket.basis === 'first_seen') setDomNote('days since we first saw this listing');
-        if (f && (!base.estimatedGrossMonthly || !base.estimatedNetMonthly)) setFillNote(`${f.basisLabel}${f.assumedBeds ? ', assuming a 3-bedroom home because the bedroom count is not on file' : ''}. Not saved to the lead.`);
+        if (f) setFillNote(f.source === 'airdna' ? `AirDNA's estimate for this address (nightly rate and occupancy), after our standard cost shares${f.assumedBeds ? '; bedrooms are assumed to be 3 because the count is not on file' : ''}. Not saved to the lead.` : `${f.basisLabel}, calibrated to AirDNA${f.assumedBeds ? ', assuming a 3-bedroom home because the bedroom count is not on file' : ''}. It is not specific to this home. Not saved to the lead.`);
       })
       .catch(() => { /* the blanks simply stay blank */ });
   }, [lead, session?.access_token]);
@@ -299,6 +327,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
           skipTraceConfidence: (found.skip_trace as { confidence?: string } | null)?.confidence ?? undefined,
           skipTracePhones: Array.isArray(found.secondary_phones) ? (found.secondary_phones as string[]).slice(0, 2) : [],
           skipTraceEmails: ((found.skip_trace as { emails?: string[] } | null)?.emails ?? []),
+          extra: found,
         } as Lead;
       })
       .then((found) => {
@@ -452,10 +481,10 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
     // Outreach log
     supabase
       .from('outreach_history')
-      .select('id,lead_id,channel,subject,body_preview,full_body,status,recipient_email,recipient_phone,reply_detected,reply_snippet,sent_at,agent_id')
+      .select('id,lead_id,channel,subject,body_preview,full_body,status,recipient_email,recipient_phone,reply_detected,reply_snippet,sent_at,agent_id,metadata')
       .eq('lead_id', lead.id)
       .order('sent_at', { ascending: false })
-      .limit(20)
+      .limit(50)
       .then(({ data }) => {
         if (data) setOutreachLog(data as OutreachLogEntry[]);
       })
@@ -554,10 +583,10 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
 
     supabase
       .from('outreach_history')
-      .select('id,lead_id,channel,subject,body_preview,full_body,status,recipient_email,recipient_phone,reply_detected,reply_snippet,sent_at,agent_id')
+      .select('id,lead_id,channel,subject,body_preview,full_body,status,recipient_email,recipient_phone,reply_detected,reply_snippet,sent_at,agent_id,metadata')
       .eq('lead_id', lead.id)
       .order('sent_at', { ascending: false })
-      .limit(20)
+      .limit(50)
       .then(({ data }) => { if (data) setOutreachLog(data as OutreachLogEntry[]); })
       .then(undefined, () => {})
       .then(() => setOutreachLoading(false));
@@ -879,11 +908,10 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
     }
   }
 
-  const directListingUrl: string | null = isRealListingUrl(lead.listingUrl)
-    ? lead.listingUrl
-    : null; // Do NOT fall back to a search URL — show "no verified URL" instead
+  const extra = (lead.extra ?? {}) as Record<string, any>;
+  const directListingUrl: string | null = [lead.listingUrl, extra.listing_source_url, extra.sync_source_url].find(u => isRealListingUrl(u)) ?? null; // never a search URL
 
-  const isStoredUrl = isRealListingUrl(lead.listingUrl);
+  const isStoredUrl = !!directListingUrl;
 
   // ── Outreach message with slight variation to avoid spam flags ────────────
   const msgVariants = [
@@ -1065,9 +1093,9 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
               <MessageSquare size={12} />
               Send SMS
             </button>
-            {lead.listingUrl ? (
+            {directListingUrl ? (
               <a
-                href={lead.listingUrl}
+                href={directListingUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => {
@@ -1189,7 +1217,13 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                     ) : (
                       <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60 italic">
                         <XCircle size={11} className="text-muted-foreground/40 shrink-0" />
-                        No verified listing URL — use the fallback below
+                        No verified listing URL on file — use the fallback below
+                      </span>
+                    )}
+                    {isStoredUrl && extra.link_status && (
+                      <span className={`text-[10px] shrink-0 ${extra.link_status === 'Unavailable' ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                        {extra.link_status === 'Unavailable' ? 'listing may be off market' : String(extra.link_status).toLowerCase()}
+                        {extra.link_last_checked_at ? ` (checked ${new Date(extra.link_last_checked_at).toLocaleDateString()})` : ''}
                       </span>
                     )}
                   </div>
@@ -1398,7 +1432,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    {outreachLog.map(entry => (
+                    {outreachLog.map(entry => { const disp = outreachDisplay(entry); const text = entry.body_preview || (entry.metadata?.message as string | undefined) || (entry.metadata?.body as string | undefined) || null; return (
                       <div key={entry.id} className="flex items-start gap-3 p-3.5 bg-muted/20 rounded-xl border border-border">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${entry.channel === 'email' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}`}>
                           {entry.channel === 'email' ? <Mail size={14} /> : <MessageSquare size={14} />}
@@ -1409,8 +1443,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                             {entry.subject && (
                               <span className="text-xs text-muted-foreground truncate max-w-[200px]">— {entry.subject}</span>
                             )}
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize ml-auto shrink-0 ${outreachStatusColors[entry.status] ?? 'bg-muted text-muted-foreground'}`}>
-                              {entry.status}
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize ml-auto shrink-0 ${outreachToneColors[disp.tone]}`}>
+                              {disp.label}
                             </span>
                           </div>
                           {(entry.recipient_email || entry.recipient_phone) && (
@@ -1418,8 +1452,11 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                               To: {entry.recipient_email || entry.recipient_phone}
                             </p>
                           )}
-                          {entry.body_preview && (
-                            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{entry.body_preview}</p>
+                          {entry.metadata?.campaign_name || entry.metadata?.batch ? (
+                            <p className="text-[10px] text-muted-foreground/70 mb-1">Campaign: {String(entry.metadata?.campaign_name ?? entry.metadata?.batch)}</p>
+                          ) : null}
+                          {text && (
+                            <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{text}</p>
                           )}
                           {entry.reply_detected && entry.reply_snippet && (
                             <div className="mt-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
@@ -1429,39 +1466,46 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                               <p className="text-xs text-emerald-700 line-clamp-2">{entry.reply_snippet}</p>
                             </div>
                           )}
-                          <p className="text-[10px] text-muted-foreground/60 mt-1.5">
-                            {new Date(entry.sent_at).toLocaleString()}
-                          </p>
+                          <div className="mt-1.5 space-y-0.5">
+                            {disp.events.map(ev => (
+                              <p key={ev.label} className="text-[10px] text-muted-foreground/70">{ev.label} {fmtLogTime(ev.at)}</p>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    ))}
+                    ); })}
                   </div>
                 )}
               </Section>
 
               {/* All Lead Fields */}
               <Section title="Property Details" icon={<Home size={15} />}>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-                  {[
-                    { label: 'Address', value: lead.address },
-                    { label: 'City', value: lead.city },
-                    { label: 'State', value: lead.state },
-                    { label: 'ZIP', value: lead.zip },
-                    { label: 'Bedrooms', value: `${lead.beds} bed` },
-                    { label: 'Bathrooms', value: `${lead.baths} bath` },
-                    { label: 'Price', value: `${formatCurrency(lead.price)}${lead.priceType === 'rent' ? '/mo' : ''}` },
-                    { label: 'Price Type', value: lead.priceType === 'rent' ? 'Rental' : 'For Sale' },
-                    { label: 'Source', value: lead.source },
-                    { label: 'Days on Market', value: lead.daysOnMarket > 0 ? `${lead.daysOnMarket} days` : '—' },
-                    { label: 'Last Checked', value: lead.lastChecked },
-                    { label: 'Created', value: lead.createdAt },
-                  ].map(f => (
-                    <div key={f.label} className="flex items-start gap-2">
-                      <span className="text-xs text-muted-foreground w-28 shrink-0 pt-0.5">{f.label}</span>
-                      <span className="text-xs font-medium text-foreground">{f.value}</span>
-                    </div>
-                  ))}
-                </div>
+                <DetailRows rows={[
+                  { label: 'Address', value: lead.address },
+                  { label: 'City', value: lead.city },
+                  { label: 'State', value: lead.state },
+                  { label: 'ZIP', value: lead.zip },
+                  { label: 'County', value: extra.county },
+                  { label: 'Neighborhood', value: extra.neighborhood },
+                  { label: 'Property type', value: extra.property_type_label || extra.property_type },
+                  { label: 'Bedrooms', value: lead.beds > 0 ? `${lead.beds} bed` : null },
+                  { label: 'Bathrooms', value: lead.baths > 0 ? `${lead.baths} bath` : null },
+                  { label: 'Square feet', value: Number(extra.square_feet) > 0 ? Number(extra.square_feet).toLocaleString() : null },
+                  { label: 'Lot size', value: extra.lot_size },
+                  { label: 'Year built', value: Number(extra.year_built) > 0 ? extra.year_built : null },
+                  { label: 'HOA fee', value: Number(extra.hoa_fee) > 0 ? `${formatCurrency(Number(extra.hoa_fee))}/mo` : null },
+                  { label: 'Tax assessment', value: Number(extra.tax_assessment) > 0 ? formatCurrency(Number(extra.tax_assessment)) : null },
+                  { label: 'APN', value: extra.apn },
+                  { label: 'Parcel ID', value: extra.parcel_id },
+                  { label: lead.priceType === 'rent' ? 'Asking rent' : 'List price', value: lead.price > 0 ? `${formatCurrency(lead.price)}${lead.priceType === 'rent' ? '/mo' : ''}` : null },
+                  { label: 'Price type', value: lead.priceType === 'rent' ? 'Rental' : 'For Sale' },
+                  { label: 'Amenities', value: Array.isArray(extra.amenities) ? extra.amenities.join(', ') : extra.amenities },
+                  { label: 'Features', value: [extra.has_pool && 'Pool', extra.has_parking && 'Parking', extra.is_waterfront && 'Waterfront', extra.is_furnished && 'Furnished', extra.is_fsbo && 'For sale by owner', extra.is_apartment_community && 'Apartment community', extra.luxury && 'Luxury'].filter(Boolean).join(', ') },
+                  { label: 'Source', value: lead.source },
+                  { label: 'Days on market', value: lead.daysOnMarket > 0 ? `${lead.daysOnMarket} days` : null },
+                  { label: 'Last checked', value: lead.lastChecked },
+                  { label: 'Created', value: lead.createdAt },
+                ]} />
                 {lead.tags.length > 0 && (
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
                     <Tag size={12} className="text-muted-foreground" />
@@ -1558,6 +1602,46 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                 })()}
               </Section>
 
+              {/* Listing, agent, rent and AirDNA, shown only when on file */}
+              {(() => {
+                const dt = (v: unknown) => (v ? new Date(String(v)).toLocaleDateString() : null);
+                const usd = (v: unknown) => (Number(v) > 0 ? formatCurrency(Number(v)) : null);
+                const contact = (n: unknown, ph: unknown) => [n, ph].filter(Boolean).join(' · ');
+                const groups: Array<{ title: string; icon: React.ReactNode; rows: DetailRow[] }> = [
+                  { title: 'Listing & Agent', icon: <Link2 size={15} />, rows: [
+                    { label: 'Listing status', value: extra.listing_status },
+                    { label: 'Listed', value: dt(extra.listing_date) },
+                    { label: 'Days on market (listing)', value: Number(extra.days_on_market_listing) > 0 ? `${extra.days_on_market_listing} days` : null },
+                    { label: 'Listing source', value: extra.listing_source },
+                    { label: 'MLS #', value: [extra.mls_number, extra.mls_source_name].filter(Boolean).join(' · ') },
+                    { label: 'Listing agent', value: contact(extra.listing_agent_name, extra.listing_agent_phone) },
+                    { label: 'Broker', value: contact(extra.listing_broker_name, extra.listing_broker_phone) },
+                    { label: 'Price verified', value: dt(extra.price_verified_at) },
+                    { label: 'Listing updated', value: dt(extra.listing_updated_at) },
+                  ] },
+                  { title: 'Rent & Market', icon: <BarChart2 size={15} />, rows: [
+                    { label: 'Asking rent', value: usd(extra.current_asking_rent) },
+                    { label: 'Current rent', value: usd(extra.current_monthly_rent) },
+                    { label: 'Market rent', value: usd(extra.estimated_market_rent) },
+                    { label: 'AI rent estimate', value: usd(extra.estimated_monthly_rent_ai) ? `${usd(extra.estimated_monthly_rent_ai)}${extra.estimated_monthly_rent_ai_confidence ? ` (${extra.estimated_monthly_rent_ai_confidence} confidence)` : ''}` : null },
+                    { label: 'Historical rent', value: typeof extra.historical_rent === 'object' ? null : usd(extra.historical_rent) },
+                    { label: 'Rent source', value: extra.rent_source },
+                  ] },
+                  { title: 'AirDNA', icon: <TrendingUp size={15} />, rows: [
+                    { label: 'Nightly rate', value: usd(extra.airdna_adr) },
+                    { label: 'Occupancy', value: Number(extra.airdna_occupancy) > 0 ? `${Math.round(Number(extra.airdna_occupancy) * (Number(extra.airdna_occupancy) <= 1 ? 100 : 1))}%` : null },
+                    { label: 'Annual revenue', value: usd(extra.airdna_annual_revenue) },
+                    { label: 'Confidence', value: extra.airdna_confidence },
+                    { label: 'Checked', value: dt(extra.airdna_checked_at) },
+                  ] },
+                ].filter(g => g.rows.some(r => hasValue(r.value)));
+                return groups.map(g => (
+                  <Section key={g.title} title={g.title} icon={g.icon}>
+                    <DetailRows rows={g.rows} />
+                  </Section>
+                ));
+              })()}
+
               {/* Revenue Estimate */}
               <Section title="Revenue Estimate" icon={<BarChart2 size={15} />}>
                 <div className="grid grid-cols-2 gap-4 mb-4">
@@ -1576,6 +1660,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                     </div>
                   ))}
                 </div>
+                {fillNote && <p className="text-[11px] text-muted-foreground mb-3">{fillNote}</p>}
                 <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
                   <TrendingUp size={14} className="text-primary" />
                   <p className="text-xs text-primary font-medium">

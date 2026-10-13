@@ -32,7 +32,13 @@ export async function GET(
       estimated_occupancy, estimated_gross_monthly, estimated_net_monthly, photos,
       created_at, updated_at, verified_owner, verified_address, verified_number,
       lead_status, next_followup_due, last_contacted_at, primary_agent_id, is_synthetic,
-      owner_name, secondary_phones, skip_trace_status, skip_trace_result
+      owner_name, secondary_phones, skip_trace_status, skip_trace_result,
+      neighborhood, county, apn, parcel_id, property_type, property_type_label, square_feet, lot_size, year_built, hoa_fee, tax_assessment,
+      amenities, has_pool, has_parking, is_waterfront, is_furnished, is_fsbo, is_apartment_community, luxury, priority_tier, verified_address,
+      listing_status, listing_date, days_on_market_listing, listing_source, listing_source_url, sync_source_url, listing_agent_name, listing_agent_phone,
+      listing_broker_name, listing_broker_phone, mls_number, mls_source_name, price_verified_at, listing_updated_at, link_status, link_last_checked_at,
+      current_asking_rent, current_monthly_rent, estimated_market_rent, estimated_monthly_rent_ai, estimated_monthly_rent_ai_confidence, rent_source, historical_rent,
+      airdna_adr, airdna_occupancy, airdna_annual_revenue, airdna_confidence, airdna_checked_at
     `)
     .eq('id', leadId)
     .single();
