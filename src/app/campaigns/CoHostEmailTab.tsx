@@ -7,7 +7,7 @@ import { Card, Chip, Notice, SectionTitle, Skeleton, cx, fmtDate, pct, post } fr
 interface Summary { id: string; name: string; createdAt: string; emails: number; drafts: number; sent: number; canceled: number; firstSend: string | null }
 interface Row {
   id: string; campaignId: string; propertyId: string; title: string; market: string; owner: string | null; stage: string | null; toEmail: string; subject: string; body: string; status: string; temperature: string;
-  sentAt: string | null; deliveredAt: string | null; openedAt: string | null; bouncedAt: string | null; bounceType: string | null; failureReason: string | null; repliedAt: string | null; replyText: string | null; optedOutAt: string | null; testedAt: string | null;
+  sentAt: string | null; deliveredAt: string | null; openedAt: string | null; bouncedAt: string | null; bounceType: string | null; failureReason: string | null; repliedAt: string | null; replyText: string | null; optedOutAt: string | null; testedAt: string | null; triedEmails: string[];
   offer: { code: string | null; views: number; firstViewedAt: string | null; requested: boolean; requestedAt: string | null; ctaClicks: number };
 }
 interface Report { totals: { emails: number; drafts: number; sent: number; delivered: number; opened: number; viewed: number; clicked: number; requested: number; replied: number; bounced: number; optedOut: number; hot: number }; rows: Row[]; updatedAt: string }
@@ -67,6 +67,7 @@ function EmailRow({ r, onChanged, onError }: { r: Row; onChanged: () => void; on
         <div className="px-4 pb-4 space-y-3">
           {r.temperature !== 'draft' && r.temperature !== 'canceled' && (
             <ol className="text-xs text-muted-foreground space-y-0.5">
+              {r.triedEmails.length > 0 && <li className="text-amber-600">{r.triedEmails.length === 1 ? 'An earlier address bounced' : `${r.triedEmails.length} earlier addresses bounced`} ({r.triedEmails.join(', ')}); it was resent to {r.toEmail} automatically.</li>}
               {r.sentAt && <li>Sent {fmtDate(r.sentAt)}</li>}
               {r.deliveredAt && <li>Delivered {fmtDate(r.deliveredAt)}</li>}
               {r.openedAt && <li className="text-emerald-600">Opened the email {fmtDate(r.openedAt)}</li>}

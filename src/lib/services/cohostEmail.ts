@@ -5,6 +5,7 @@ import { getResendClient, getResendFrom } from '@/lib/email/resend';
 import { ensureOfferLink, OFFER_SITE } from '@/lib/services/cohostOffer';
 import { phonesFor } from '@/lib/services/cohostText';
 import { contactablePersons } from '@/lib/services/homesageSkipTrace';
+import { notifyAdmins } from '@/lib/services/smsConsent';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
@@ -143,6 +144,38 @@ export async function testSend(db: Db, id: string, toEmail: string): Promise<{ o
   } catch (e) { return { ok: false, error: e instanceof Error ? e.message : 'Send error' }; }
 }
 
+/**
+ * An email that bounced or failed is resent to the next address on file for the same owner, and again if that one bounces, until one is accepted
+ * or no address is left (then a person is told). Never retries an owner who opted out or was marked declined, or an address that bounced before.
+ */
+export async function retryNextAddress(db: Db, id: string): Promise<{ ok: true; to: string } | { ok: false; reason: string }> {
+  const { data: m } = await db.from('cohost_email_messages').select('*').eq('id', id).maybeSingle();
+  if (!m) return { ok: false, reason: 'Unknown email.' };
+  if (!['bounced', 'failed'].includes(m.status)) return { ok: false, reason: 'This email was not undelivered.' };
+  const { data: l } = await db.from('str_listings').select('pipeline_stage,matched_owner,title').eq('property_id', m.property_id).maybeSingle();
+  if (!l || NO_EMAIL_STAGES.includes(l.pipeline_stage)) return { ok: false, reason: 'The owner is marked declined or not a fit.' };
+  const { data: link } = await db.from('cohost_offer_links').select('opted_out_at').eq('property_id', m.property_id).maybeSingle();
+  if (link?.opted_out_at) return { ok: false, reason: 'The owner opted out.' };
+  const tried = new Set<string>([...((m.tried_emails ?? []) as string[]), m.to_email]);
+  const { data: bad } = await db.from('cohost_email_messages').select('to_email').or('bounce_type.eq.hard,status.eq.opted_out');
+  const blocked = new Set((bad ?? []).map(b => b.to_email as string));
+  const candidates = knownEmails(l.matched_owner).filter(e => !tried.has(e) && !blocked.has(e));
+  for (const next of candidates) {
+    tried.add(next);
+    const now = new Date().toISOString();
+    try {
+      const { data, error } = await deliver({ ...m, to_email: next }, m.subject, next);
+      if (error) continue;
+      await db.from('cohost_email_messages').update({ to_email: next, tried_emails: [...tried].filter(e => e !== next), status: 'sent', sent_at: now, resend_message_id: data?.id ?? null,
+        delivered_at: null, opened_at: null, bounced_at: null, bounce_type: null, failure_reason: null, updated_at: now }).eq('id', id);
+      return { ok: true, to: next };
+    } catch { /* try the next address */ }
+  }
+  await db.from('cohost_email_messages').update({ tried_emails: [...tried].filter(e => e !== m.to_email), updated_at: new Date().toISOString() }).eq('id', id);
+  await notifyAdmins(db, { title: 'Co-host email could not be delivered', message: `Every address on file for ${l.title ?? 'a co-host prospect'} bounced. Find another way to reach the owner.`, metadata: { kind: 'cohost_email_undeliverable', property_id: m.property_id } }).catch(() => {});
+  return { ok: false, reason: 'No other address on file.' };
+}
+
 /** The owner asked not to be contacted (unsubscribe link or spam complaint): same effect as the opt-out on the offer page. */
 export async function optOutOwner(db: Db, propertyId: string, reason: string) {
   const now = new Date().toISOString();
@@ -167,6 +200,8 @@ export async function applyResendEvent(db: Db, messageId: string, type: string, 
   else if (type === 'email.complained') { await optOutOwner(db, m.property_id, 'marked a co-host email as spam'); return true; }
   else return true;
   await db.from('cohost_email_messages').update(u).eq('id', m.id);
+  // A dead address is not the end: try the owner's next address on file.
+  if ((u.status === 'bounced' && u.bounce_type === 'hard') || u.status === 'failed') await retryNextAddress(db, m.id).catch(e => console.warn('[cohost email retry]', e instanceof Error ? e.message : e));
   return true;
 }
 
@@ -185,7 +220,7 @@ export async function logReply(db: Db, id: string, text: string) {
 export interface EmailRow {
   id: string; campaignId: string; propertyId: string; title: string; market: string; owner: string | null; stage: string | null; toEmail: string; subject: string; body: string;
   status: string; temperature: string; sentAt: string | null; deliveredAt: string | null; openedAt: string | null; bouncedAt: string | null; bounceType: string | null; failureReason: string | null;
-  repliedAt: string | null; replyText: string | null; optedOutAt: string | null; testedAt: string | null;
+  repliedAt: string | null; replyText: string | null; optedOutAt: string | null; testedAt: string | null; triedEmails: string[];
   offer: { code: string | null; views: number; firstViewedAt: string | null; requested: boolean; requestedAt: string | null; ctaClicks: number };
 }
 export interface CampaignSummary { id: string; name: string; createdAt: string; emails: number; drafts: number; sent: number; canceled: number; firstSend: string | null }
@@ -224,7 +259,7 @@ export async function campaignReport(db: Db, key: string) {
     return {
       id: m.id, campaignId: m.campaign_id, propertyId: m.property_id, title: l.title ?? m.property_id, market: l.market ?? '', owner: m.to_name ?? l.matched_owner?.names?.[0] ?? null, stage: l.pipeline_stage ?? null,
       toEmail: m.to_email, subject: m.subject, body: m.body, status, temperature, sentAt: m.sent_at, deliveredAt: m.delivered_at, openedAt: m.opened_at, bouncedAt: m.bounced_at, bounceType: m.bounce_type, failureReason: m.failure_reason,
-      repliedAt: m.replied_at, replyText: m.reply_text, optedOutAt: m.opted_out_at, testedAt: m.tested_at,
+      repliedAt: m.replied_at, replyText: m.reply_text, optedOutAt: m.opted_out_at, testedAt: m.tested_at, triedEmails: (m.tried_emails ?? []) as string[],
       offer: { code: m.offer_code, views: views.length, firstViewedAt: views[0]?.created_at ?? null, requested: !!req, requestedAt: req?.created_at ?? null, ctaClicks: mine.filter(e => e.event === 'cta_click').length },
     };
   });
