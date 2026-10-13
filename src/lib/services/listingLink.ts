@@ -2,6 +2,7 @@ import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { airdnaAddress } from '@/lib/services/airdnaEstimate';
 import { normStreet } from '@/lib/normStreet';
+import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 export interface LinkLead { id: string; address: string; city?: string | null; state?: string | null; zip?: string | null }
@@ -111,6 +112,7 @@ async function applyRecord(db: Db, leadId: string, row: Raw, extra: Record<strin
   if (!cur?.county && row.county) update.county = row.county;
   if (!Number(cur?.tax_assessment) && row.taxAssessedValue) update.tax_assessment = Math.round(row.taxAssessedValue);
   await db.from('leads').update(update).eq('id', leadId);
+  await rescoreLeadsByIds(db, [leadId]).catch(() => 0);
   return facts;
 }
 

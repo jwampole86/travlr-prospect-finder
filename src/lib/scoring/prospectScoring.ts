@@ -46,10 +46,23 @@ export interface ProspectScoringInput {
   contactName?: string | null;
   /** How far the homeowner got in a text campaign; a person who replied or asked for a call is a lead worth calling whatever the property scores. */
   campaignEngagement?: 'replied' | 'hot' | 'warm' | null;
+  /** AirDNA's own yearly revenue for this address, as net monthly after our cost shares; beats the stored importer estimate. */
+  airdnaNetMonthly?: number | null;
+  skipTraceFound?: boolean | null;
+  skipTraceConfidence?: 'HIGH' | 'MEDIUM' | 'LOW' | string | null;
+  /** The number is known bad (landline, invalid or repeatedly undelivered). */
+  phoneUnreachable?: boolean | null;
+  /** Non-bot opens of the estimate link, and whether the estimate form was submitted. */
+  linkClicks?: number | null;
+  formSubmitted?: boolean | null;
+  /** When the lead last did something (replied, clicked, answered); engagement fades as this ages. */
+  lastEngagementAt?: string | null;
+  /** The homeowner said no, opted out, or was the wrong person: no longer a prospect whatever the property looks like. */
+  declined?: boolean | null;
 }
 
 /** Bump when the formula changes so stored scores can be recomputed. */
-export const SCORE_MODEL_VERSION = 'v3-calibrated';
+export const SCORE_MODEL_VERSION = 'v4-live-signals';
 
 export interface ProspectScoreFactor {
   key: string;
@@ -107,7 +120,7 @@ export function revenueBasis(input: ProspectScoringInput): number {
   const rentBasis = input.priceType === 'sale'
     ? positiveNumber(input.estimatedMonthlyRentAi)
     : positiveNumber(input.price);
-  return positiveNumber(input.estimatedNetMonthly) || positiveNumber(input.estimatedGrossMonthly) || rentBasis;
+  return positiveNumber(input.airdnaNetMonthly) || positiveNumber(input.estimatedNetMonthly) || positiveNumber(input.estimatedGrossMonthly) || rentBasis;
 }
 
 function scoreRevenue(input: ProspectScoringInput): ProspectScoreFactor {
@@ -196,12 +209,14 @@ function scoreRegulation(input: ProspectScoringInput): ProspectScoreFactor {
 
 function scoreLeadQuality(input: ProspectScoringInput): ProspectScoreFactor {
   let score = 0;
-  const phoneReady = input.verifiedNumber || input.hasPhone || Boolean(input.contactPhone);
+  const phoneReady = !input.phoneUnreachable && (input.verifiedNumber || input.hasPhone || Boolean(input.contactPhone));
   if (input.verifiedOwner) score += 25;
   else if (input.contactName && input.contactName.trim()) score += 10;
   if (hasVerifiedAddress(input.verifiedAddress)) score += 25;
   if (phoneReady) score += 25;
   if (input.contactEmail) score += 5;
+  // A skip-trace match names a likely owner even before anyone verifies it.
+  if (!input.verifiedOwner && input.skipTraceFound) score += ({ HIGH: 12, MEDIUM: 8 } as Record<string, number>)[String(input.skipTraceConfidence).toUpperCase()] ?? 4;
   // An owner-listed rental is the ideal STR prospect: the owner decides and there is no agent to route around.
   if (input.isFsbo) score += input.priceType === 'sale' ? 4 : 12;
 
@@ -226,11 +241,16 @@ function scoreEngagement(input: ProspectScoringInput): ProspectScoreFactor {
   const emailOpens = Number(input.emailOpens || 0);
   const stage = input.stage || '';
 
-  score += Math.min(25, smsReplies * 20);
-  score += Math.min(20, callbackRequests * 15);
-  score += Math.min(15, emailClicks * 8);
-  score += Math.min(12, callsAnswered * 6);
-  score += Math.min(8, emailOpens * 2);
+  // What a lead did a while ago counts for less: full weight for a week, then fading.
+  const age = input.lastEngagementAt ? (Date.now() - Date.parse(input.lastEngagementAt)) / 86_400_000 : 0;
+  const fade = !Number.isFinite(age) || age <= 7 ? 1 : age <= 21 ? 0.75 : age <= 45 ? 0.5 : age <= 90 ? 0.3 : 0.15;
+  score += Math.min(25, smsReplies * 20) * fade;
+  score += Math.min(12, Number(input.linkClicks || 0) * 4) * fade;
+  if (input.formSubmitted) score += 15 * fade;
+  score += Math.min(20, callbackRequests * 15) * fade;
+  score += Math.min(15, emailClicks * 8) * fade;
+  score += Math.min(12, callsAnswered * 6) * fade;
+  score += Math.min(8, emailOpens * 2) * fade;
 
   if (['Interested', 'Proposal Sent', 'Under Contract', 'interested', 'proposal_sent', 'human_outreach'].includes(stage)) score += 18;
   if (stage === 'New Lead') score += 5;
@@ -293,9 +313,14 @@ export function calculateProspectScore(
   if (!hasRegulatorySignal && !hasEngagementSignal) score = Math.min(score, 82);
 
   // Engagement outranks the property's own attractiveness: someone who replied or asked for a call should sit at the top of the call list.
-  const engagementFloor = input.campaignEngagement === 'replied' || input.campaignEngagement === 'hot' ? 80 : input.campaignEngagement === 'warm' ? 60 : 0;
+  // The floor fades with silence so a reply from two months ago does not pin a lead at the top forever.
+  const silent = input.lastEngagementAt ? (Date.now() - Date.parse(input.lastEngagementAt)) / 86_400_000 : 0;
+  const stepDown = !Number.isFinite(silent) || silent <= 7 ? 0 : silent <= 21 ? 10 : silent <= 45 ? 20 : 100;
+  const baseFloor = input.campaignEngagement === 'replied' || input.campaignEngagement === 'hot' ? 80 : input.campaignEngagement === 'warm' ? 60 : 0;
+  const engagementFloor = baseFloor > 0 && baseFloor - stepDown >= 50 ? baseFloor - stepDown : 0;
   if (engagementFloor && blockers.length === 0) score = Math.max(score, engagementFloor);
 
+  if (input.declined && blockers.length === 0) score = Math.min(score, 30);
   if (blockers.length > 0) score = Math.min(score, input.doNotContact ? 10 : 35);
 
   const band: ProspectScoreResult['band'] = blockers.length > 0
@@ -322,19 +347,40 @@ export function getProspectScoreBandLabel(score: number): string {
 export const SCORING_LEAD_COLUMNS =
   'estimated_net_monthly,estimated_gross_monthly,estimated_adr,price,price_type,beds,baths,property_type,regulation_status,' +
   'verified_owner,verified_number,verified_address,has_phone,contact_phone,contact_name,stage,days_on_market,luxury,' +
-  'is_fsbo,is_furnished,is_apartment_community,estimated_monthly_rent_ai,tags,outreach_responded_at,escalated_at';
+  'is_fsbo,is_furnished,is_apartment_community,estimated_monthly_rent_ai,tags,outreach_responded_at,escalated_at,' +
+  'airdna_annual_revenue,pipeline_status,skip_trace_status,skip_trace_confidence:skip_trace_result->>confidence,days_on_market_listing,listing_date,last_checked,sms_opted_out_at';
 
 /** Maps a leads table row to model input, so no route hand-builds its own field list. */
-export function leadRowToScoringInput(row: Record<string, unknown>): ProspectScoringInput {
+/** Signals that live outside the leads row (replies, link opens, calls), gathered by leadScoreSignals. */
+export interface LeadScoreSignals { replies: number; clicks: number; formSubmitted: boolean; callsAnswered: number; emailOpens: number; emailClicks: number; lastEngagementAt: string | null }
+
+function liveDaysOnMarket(row: Record<string, unknown>): number | null {
+  const day = 86_400_000;
+  const listed = typeof row.listing_date === 'string' ? Date.parse(row.listing_date) : NaN;
+  if (Number.isFinite(listed) && listed <= Date.now()) return Math.floor((Date.now() - listed) / day);
+  const rec = Number(row.days_on_market) > 0 ? Number(row.days_on_market) : Number(row.days_on_market_listing) > 0 ? Number(row.days_on_market_listing) : 0;
+  if (!rec) return typeof row.days_on_market === 'number' ? row.days_on_market : null;
+  const checked = typeof row.last_checked === 'string' ? Date.parse(row.last_checked) : NaN;
+  return Number.isFinite(checked) && checked < Date.now() ? rec + Math.floor((Date.now() - checked) / day) : rec;
+}
+
+export function leadRowToScoringInput(row: Record<string, unknown>, signals?: LeadScoreSignals | null): ProspectScoringInput {
   const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
   const flag = (v: unknown) => (typeof v === 'boolean' ? v : null);
   const tags = Array.isArray(row.tags) ? (row.tags as unknown[]).map(String) : [];
-  const negative = tags.some(t => ['sms:status:opted_out', 'sms:status:declined', 'sms:status:wrong_contact', 'sms:status:unreachable'].includes(t));
+  const negative = Boolean(row.sms_opted_out_at) || tags.some(t => ['sms:status:opted_out', 'sms:status:declined', 'sms:status:wrong_contact', 'sms:status:unreachable'].includes(t));
+  const phoneUnreachable = tags.some(t => ['sms:phone:landline', 'sms:phone:invalid', 'sms:status:unreachable'].includes(t));
+  const airdnaAnnual = Number(row.airdna_annual_revenue || 0);
   const replied = !negative && Boolean(row.outreach_responded_at || row.escalated_at);
   const temp = negative ? null : tags.includes('sms:status:hot') ? 'hot' : tags.includes('sms:status:warm') ? 'warm' : null;
   const campaignEngagement: ProspectScoringInput['campaignEngagement'] = replied ? 'replied' : temp;
   return {
-    smsReplies: replied ? 1 : 0, callbackRequests: temp === 'hot' ? 1 : 0, emailClicks: temp ? 1 : 0, campaignEngagement,
+    smsReplies: negative ? 0 : Math.max(replied ? 1 : 0, signals?.replies ?? 0), callbackRequests: temp === 'hot' ? 1 : 0, emailClicks: Math.max(temp ? 1 : 0, signals?.emailClicks ?? 0), campaignEngagement,
+    emailOpens: signals?.emailOpens ?? 0, callsAnswered: signals?.callsAnswered ?? 0, linkClicks: negative ? 0 : signals?.clicks ?? 0, formSubmitted: !negative && Boolean(signals?.formSubmitted),
+    lastEngagementAt: signals?.lastEngagementAt ?? (typeof row.outreach_responded_at === 'string' ? row.outreach_responded_at : typeof row.escalated_at === 'string' ? row.escalated_at : null),
+    declined: negative || row.pipeline_status === 'rejected',
+    airdnaNetMonthly: airdnaAnnual > 0 ? Math.round((airdnaAnnual * 0.65) / 12) : null, phoneUnreachable,
+    skipTraceFound: row.skip_trace_status === 'FOUND', skipTraceConfidence: typeof row.skip_trace_confidence === 'string' ? row.skip_trace_confidence : null,
     estimatedNetMonthly: Number(row.estimated_net_monthly || 0),
     estimatedGrossMonthly: Number(row.estimated_gross_monthly || 0),
     estimatedADR: Number(row.estimated_adr || 0),
@@ -352,7 +398,7 @@ export function leadRowToScoringInput(row: Record<string, unknown>): ProspectSco
     contactPhone: text(row.contact_phone),
     contactName: text(row.contact_name),
     stage: text(row.stage),
-    daysOnMarket: typeof row.days_on_market === 'number' ? row.days_on_market : null,
+    daysOnMarket: liveDaysOnMarket(row),
     luxury: Boolean(row.luxury),
     isFsbo: flag(row.is_fsbo),
     isFurnished: flag(row.is_furnished),

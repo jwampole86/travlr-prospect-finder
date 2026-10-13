@@ -471,7 +471,7 @@ export default function LeadTaskBoard({ leadId, leadName }: LeadTaskBoardProps) 
             <ListTodo size={20} className="mx-auto text-muted-foreground mb-2" />
             <p className="text-xs text-muted-foreground">
               {tasks.length === 0
-                ? 'No tasks yet. Add a task or load a follow-up sequence.' :'No tasks in this filter.'}
+                ? suggested.length > 0 ? `Nothing on the board yet. Add the ${suggested.length} AI recommended step${suggested.length === 1 ? '' : 's'} above, or add your own.` : planLoading ? 'Building recommendations from this lead\'s profile…' : 'No tasks yet. Add a task or load a follow-up sequence.' :'No tasks in this filter.'}
             </p>
           </div>
         ) : (

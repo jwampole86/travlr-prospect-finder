@@ -277,6 +277,8 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   const ownerMatch = records?.ownership?.match ? { name: String(records.ownership.match.name), percent: Number(records.ownership.match.percent) } : null;
   const recordsFor = useRef<string | null>(null);
   const linkFor = useRef<string | null>(null);
+  const [scoreMeta, setScoreMeta] = useState<{ refreshedAt: string; band: string; factors: Array<{ label: string; score: number; weight: number; explanation: string }> } | null>(null);
+  const scoreFor = useRef<string | null>(null);
   const [signing, setSigning] = useState<{ state: 'signed' | 'sent' | 'viewed' | 'declined' | 'voided' | 'none' | 'loading' }>({ state: 'loading' });
   const signingFor = useRef<string | null>(null);
   const [linkLooking, setLinkLooking] = useState(false);
@@ -284,6 +286,17 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   const filledFor = useRef<string | null>(null);
 
   // Blank estimates and days on market are filled from the revenue model and the listing date, for display only.
+  // The score is recomputed from everything on file when the profile opens (and by a job every 15 minutes), so it is never a month old.
+  useEffect(() => {
+    if (!lead?.id || scoreFor.current === lead.id) return;
+    scoreFor.current = lead.id;
+    const id = lead.id;
+    fetch('/api/leads/score-refresh', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) }, body: JSON.stringify({ leadId: id }) })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (j && typeof j.score === 'number') { setLead(p => (p && p.id === id ? { ...p, prospectScore: j.score } : p)); setScoreMeta({ refreshedAt: j.refreshedAt, band: j.band, factors: j.factors ?? [] }); } })
+      .catch(() => { /* the stored score stays */ });
+  }, [lead, session?.access_token]);
+
   // Closing a deal waits on the homeowner's signed DocuSign agreements.
   useEffect(() => {
     if (!lead?.id || signingFor.current === lead.id) return;
@@ -412,6 +425,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
 
   // Per-section loading states (independent, not a single blocking flag)
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [contactData, setContactData] = useState<{ events: Array<Record<string, any>>; upcoming: Array<Record<string, any>>; lastContactAt: string | null; counts: { texts: number; calls: number; emails: number; replies: number } } | null>(null);
   const [notesLoading, setNotesLoading] = useState(true);
   const [outreachLoading, setOutreachLoading] = useState(true);
 
@@ -499,6 +513,19 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   // ── Load secondary data in parallel, each section independently ──────────
   // Fires immediately after lead is resolved — does NOT block the main render
   const secondaryLoadedRef = useRef(false);
+
+  // Contact History is every real contact (texts, replies, calls, emails, link opens), refreshed while the profile is open.
+  const loadContactHistory = useCallback(() => {
+    if (!lead?.id) return;
+    fetch(`/api/leads/contact-history?leadId=${encodeURIComponent(lead.id)}`, { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined })
+      .then(r => (r.ok ? r.json() : null)).then(j => { if (j) setContactData(j); }).catch(() => { /* keeps the last view */ });
+  }, [lead?.id, session?.access_token]);
+
+  useEffect(() => {
+    loadContactHistory();
+    const t = setInterval(loadContactHistory, 60_000);
+    return () => clearInterval(t);
+  }, [loadContactHistory]);
 
   useEffect(() => {
     if (!lead || secondaryLoadedRef.current) return;
@@ -675,11 +702,11 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       timestamp: lead.lastChecked || '',
       type: 'verify' as const,
     },
-    ...history.slice(0, 3).map((h, i) => ({
+    ...(contactData?.events ?? []).filter(e => e.kind !== 'link').slice(0, 3).map((e, i) => ({
       id: `e-hist-${i}`,
-      label: `${h.type.charAt(0).toUpperCase() + h.type.slice(1)} Logged`,
-      detail: h.subject || h.body?.slice(0, 60),
-      timestamp: h.contacted_at,
+      label: String(e.title),
+      detail: String(e.status ?? e.source ?? ''),
+      timestamp: String(e.at),
       type: 'note' as const,
     })),
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : [];
@@ -730,6 +757,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       setLogSubject(''); setLogBody(''); setLogOutcome(''); setShowLogForm(false);
       toast.success('Contact logged');
       reloadSecondaryData();
+      loadContactHistory();
     } catch {
       setHistory(prev => [{
         id: `local-${Date.now()}`,
@@ -1335,7 +1363,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
               {/* KPI strip */}
               <div className="grid grid-cols-4 gap-3">
                 {[
-                  { label: 'Prospect Score', value: `${lead.prospectScore}`, sub: '/100', icon: <Star size={15} className="text-amber-500" />, color: 'text-amber-500' },
+                  { label: 'Prospect Score', value: `${lead.prospectScore}`, sub: scoreMeta ? `/100 · ${(() => { const m = Math.max(0, Math.round((Date.now() - Date.parse(scoreMeta.refreshedAt)) / 60_000)); return m < 1 ? 'updated just now' : m < 60 ? `updated ${m}m ago` : `updated ${Math.round(m / 60)}h ago`; })()}` : '/100', icon: <Star size={15} className="text-amber-500" />, color: 'text-amber-500' },
                   { label: 'Gross/Month', value: formatCurrency(grossMonthly), sub: 'estimated', icon: <TrendingUp size={15} className="text-green-500" />, color: 'text-green-600' },
                   { label: 'Net/Month', value: formatCurrency(netMonthly), sub: 'after costs', icon: <DollarSign size={15} className="text-primary" />, color: 'text-primary' },
                   { label: 'Days on Market', value: lead.daysOnMarket > 0 ? `${lead.daysOnMarket}` : '—', sub: lead.daysOnMarket > 0 ? 'days' : 'no listing date on file', icon: <Clock size={15} className="text-muted-foreground" />, color: 'text-foreground' },
@@ -1399,9 +1427,9 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                     emailOpens: outreachLog.filter(e => e.status === 'opened').length,
                     emailClicks: outreachLog.filter(e => e.status === 'clicked').length,
                     smsReplies: outreachLog.filter(e => e.channel === 'sms' && e.reply_detected).length,
-                    totalCalls: history.filter(h => h.type === 'call').length,
-                    callsAnswered: history.filter(h => h.type === 'call' && h.outcome?.toLowerCase().includes('answered')).length,
-                    lastContactedAt: history[0]?.contacted_at ?? null,
+                    totalCalls: contactData?.counts.calls ?? 0,
+                    callsAnswered: (contactData?.events ?? []).filter(e => e.kind === 'call' && /answer|connect|spoke|talked/i.test(String(e.status ?? ''))).length,
+                    lastContactedAt: contactData?.lastContactAt ?? null,
                   },
                   regulatoryContext: regulation ? {
                     cityRegulationStatus: regulation.status,
@@ -1750,7 +1778,12 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
               {/* Contact History — loads independently */}
               <Section title="Contact History" icon={<Activity size={15} />}>
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs text-muted-foreground">{history.length} interaction{history.length !== 1 ? 's' : ''} logged</p>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {contactData ? `${contactData.events.filter(e => e.kind !== 'link').length} contacts · ${contactData.counts.texts} texts · ${contactData.counts.calls} calls · ${contactData.counts.emails} emails · ${contactData.counts.replies} replies` : 'Loading…'}
+                    </p>
+                    {contactData?.lastContactAt && <p className="text-[10px] text-muted-foreground/70 mt-0.5">Last contact {fmtLogTime(contactData.lastContactAt)}</p>}
+                  </div>
                   <button
                     onClick={() => setShowLogForm(v => !v)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
@@ -1818,37 +1851,47 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   </div>
                 )}
 
-                {historyLoading ? (
+                {!contactData ? (
                   <div className="space-y-2">
                     {[1, 2, 3].map(i => <div key={i} className="h-14 bg-muted/50 rounded-lg animate-pulse" />)}
                   </div>
-                ) : history.length === 0 ? (
+                ) : contactData.events.length === 0 && contactData.upcoming.length === 0 ? (
                   <div className="text-center py-8">
                     <Activity size={24} className="text-muted-foreground/30 mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">No contact history yet</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    {history.map(entry => (
-                      <div key={entry.id} className="flex items-start gap-3 p-3 bg-muted/20 rounded-lg border border-border">
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${typeColors[entry.type]}`}>
-                          {typeIcons[entry.type]}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-xs font-medium text-foreground capitalize">{entry.type}</span>
-                            {entry.subject && <span className="text-xs text-muted-foreground truncate">— {entry.subject}</span>}
-                            <span className="text-[10px] text-muted-foreground ml-auto shrink-0">{entry.contacted_at}</span>
-                          </div>
-                          {entry.body && <p className="text-xs text-muted-foreground line-clamp-2">{entry.body}</p>}
-                          {entry.outcome && (
-                            <p className="text-[10px] text-green-600 mt-1 flex items-center gap-1">
-                              <CheckCircle size={9} /> {entry.outcome}
-                            </p>
-                          )}
-                        </div>
+                    {contactData.upcoming.length > 0 && (
+                      <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+                        <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-1.5">Not sent yet</p>
+                        {contactData.upcoming.map(u => (
+                          <p key={u.id} className="text-[11px] text-muted-foreground">{u.title} {u.due ? 'was due' : 'scheduled'} {fmtLogTime(u.at)}</p>
+                        ))}
                       </div>
-                    ))}
+                    )}
+                    {contactData.events.map(e => {
+                      const kind = e.kind === 'link' ? 'text' : String(e.kind);
+                      return (
+                        <div key={e.id} className="flex items-start gap-3 p-3 bg-muted/20 rounded-lg border border-border">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${typeColors[kind] ?? typeColors.note}`}>{typeIcons[kind] ?? typeIcons.note}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                              <span className="text-xs font-medium text-foreground">{e.title}</span>
+                              <span className="text-[10px] text-muted-foreground">{e.direction === 'inbound' ? 'received' : 'sent'}</span>
+                              {e.status && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ml-auto shrink-0 ${outreachToneColors[e.tone ?? 'gray']}`}>{e.status}</span>}
+                            </div>
+                            {e.body && <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{e.body}</p>}
+                            <div className="mt-1 space-y-0.5">
+                              <p className="text-[10px] text-muted-foreground/70">{e.dateOnly ? new Date(e.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : fmtLogTime(e.at)} · {e.source}</p>
+                              {(e.details as Array<{ label: string; at?: string; text?: string }>).map(d => (
+                                <p key={d.label} className="text-[10px] text-muted-foreground/70">{d.label} {d.at ? fmtLogTime(d.at) : d.text}</p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </Section>

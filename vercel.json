@@ -26,6 +26,10 @@
       "schedule": "0 */12 * * *"
     },
     {
+      "path": "/api/cron/lead-rescore",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/airdna-enrich",
       "schedule": "30 */4 * * *"
     },

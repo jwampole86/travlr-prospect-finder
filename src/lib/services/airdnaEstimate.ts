@@ -1,6 +1,7 @@
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getRentalEstimate } from '@/lib/services/airdnaService';
+import { rescoreLeadsByIds } from '@/lib/services/leadScoringService';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 export interface AirdnaFigures { adr: number; occupancy: number; annualRevenue: number | null; confidence: string | null; scope: 'property' | 'area' }
@@ -61,6 +62,7 @@ export async function lookupAirdna(db: Db, lead: AirdnaLead): Promise<LookupResu
   if (!ok) { await db.from('leads').update({ airdna_checked_at: now }).eq('id', lead.id); return { figures: null, transient: false, quotaRemaining }; }
   const figures: AirdnaFigures = { adr: Math.round(Number(e!.avgDailyRate)), occupancy: Math.round(occ!), annualRevenue: e!.annualRevenue ? Math.round(e!.annualRevenue) : null, confidence: conf, scope: 'property' };
   await db.from('leads').update({ airdna_adr: figures.adr, airdna_occupancy: figures.occupancy, airdna_annual_revenue: figures.annualRevenue, airdna_confidence: conf, airdna_checked_at: now, airdna_data: compact(e!.raw) }).eq('id', lead.id);
+  await rescoreLeadsByIds(db, [lead.id]).catch(() => 0);
   return { figures, transient: false, quotaRemaining };
 }
 

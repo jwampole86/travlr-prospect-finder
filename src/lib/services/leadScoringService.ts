@@ -1,16 +1,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { calculateProspectScore, leadRowToScoringInput, SCORING_LEAD_COLUMNS, SCORE_MODEL_VERSION } from '@/lib/scoring/prospectScoring';
+import { calculateProspectScore, leadRowToScoringInput, SCORING_LEAD_COLUMNS, SCORE_MODEL_VERSION, type LeadScoreSignals } from '@/lib/scoring/prospectScoring';
+import { loadScoreSignals } from '@/lib/services/leadScoreSignals';
 
 export interface ScoredLead { id: string; before: number; after: number }
 
 const WRITE_BATCH = 500;
 
 /** Scores rows with the shared model. Pure; no database access. */
-export function scoreLeadRows(rows: Array<Record<string, unknown>>): ScoredLead[] {
+export function scoreLeadRows(rows: Array<Record<string, unknown>>, signals?: Map<string, LeadScoreSignals>): ScoredLead[] {
   return rows.map(r => ({
     id: String(r.id),
     before: Number(r.prospect_score || 0),
-    after: calculateProspectScore(leadRowToScoringInput(r)).score,
+    after: calculateProspectScore(leadRowToScoringInput(r, signals?.get(String(r.id)))).score,
   }));
 }
 
@@ -33,7 +34,9 @@ export async function rescoreLeadsByIds(db: SupabaseClient, ids: string[]): Prom
   for (let i = 0; i < unique.length; i += 200) {
     const { data, error } = await db.from('leads').select(`id,prospect_score,${SCORING_LEAD_COLUMNS}`).in('id', unique.slice(i, i + 200));
     if (error || !data) continue;
-    written += await writeScores(db, scoreLeadRows(data as Array<Record<string, unknown>>));
+    const rows = data as Array<Record<string, unknown>>;
+    const signals = await loadScoreSignals(db, rows.map(r => String(r.id))).catch(() => undefined);
+    written += await writeScores(db, scoreLeadRows(rows, signals));
   }
   return written;
 }
