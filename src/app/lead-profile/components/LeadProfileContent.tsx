@@ -288,13 +288,15 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
     const ev = (lead.extra?.listing_evidence as { related_zillow?: { url?: string; address?: string } } | null | undefined)?.related_zillow;
     if (ev?.url) setRelatedLink({ url: ev.url, address: ev.address ?? '' });
     const stored = [lead.listingUrl, lead.extra?.listing_source_url, lead.extra?.sync_source_url].some(u => typeof u === 'string' && /^https?:\/\/[^/]+\/.+/.test(u));
-    if (stored || !lead.address || !lead.state) return;
+    const factsMissing = !(lead.beds > 0) || !(lead.baths > 0) || !(lead.price > 0);
+    if ((stored && !factsMissing) || !lead.address || !lead.state) return;
     const id = lead.id;
     setLinkLooking(true);
     fetch('/api/leads/listing-link', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) }, body: JSON.stringify({ leadId: id }) })
       .then(r => (r.ok ? r.json() : null))
-      .then((j: { status: string; url?: string; address?: string } | null) => {
-        if (j?.status === 'found' && j.url) setLead(p => (p && p.id === id ? { ...p, listingUrl: j.url! } : p));
+      .then((j: { status: string; url?: string; address?: string; facts?: { beds?: number; baths?: number; price?: number; priceType?: 'rent' | 'sale' } } | null) => {
+        const f = j?.facts;
+        if (f && (j?.status === 'found' || j?.status === 'filled')) setLead(p => (p && p.id === id ? { ...p, listingUrl: j.url ?? p.listingUrl, beds: f.beds ?? p.beds, baths: f.baths ?? p.baths, price: f.price ?? p.price, priceType: f.priceType ?? p.priceType } : p));
         else if (j?.status === 'related' && j.url) setRelatedLink({ url: j.url, address: j.address ?? '' });
       })
       .catch(() => { /* the no-link message stays */ })

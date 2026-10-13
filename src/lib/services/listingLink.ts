@@ -1,22 +1,49 @@
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { getZillowPropertyDetails } from '@/lib/services/rapidApiRealEstateService';
 import { airdnaAddress } from '@/lib/services/airdnaEstimate';
 import { normStreet } from '@/lib/normStreet';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
-export interface LinkLead { id: string; address: string; city?: string | null; state?: string | null; zip?: string | null; beds?: number | null; baths?: number | null }
-export type LinkResult = { status: 'found'; url: string } | { status: 'related'; url: string; address: string } | { status: 'not_found'; reason: string } | { status: 'error'; reason: string };
+export interface LinkLead { id: string; address: string; city?: string | null; state?: string | null; zip?: string | null }
+export interface FilledFacts { beds?: number; baths?: number; price?: number; priceType?: 'rent' | 'sale' }
+export type LinkResult =
+  | { status: 'found'; url: string; facts: FilledFacts }
+  | { status: 'filled'; facts: FilledFacts }
+  | { status: 'related'; url: string; address: string }
+  | { status: 'not_found'; reason: string }
+  | { status: 'error'; reason: string };
 
+interface Raw { url?: string; zpid?: string | number; street?: string; state?: string; zip?: string; homeStatus?: string; homeType?: string; bedrooms?: number; bathrooms?: number; livingArea?: number; yearBuilt?: number; price?: number; zestimate?: number; rentZestimate?: number; agentName?: string; agentPhone?: string; mlsId?: string; error?: string }
+
+const HOST = 'zillow-detail-scraper1.p.rapidapi.com';
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const hasUnit = (s: string) => /\b(unit|apt|apartment|suite|ste)\b|#\s*\w+/i.test(s);
 
-/** Why a returned listing is not this lead's home, or null when it is. Exact street match only: a wrong link is worse than none. */
-function mismatch(lead: LinkLead, got: { address: string; state: string; zip: string }): string | null {
+/** Zillow's detail record for an address or Zillow URL. Null when the request itself failed. */
+async function zillowRow(home: string): Promise<Raw | null | undefined> {
+  const keys = [process.env.RAPIDAPI_KEY_1, process.env.RAPIDAPI_KEY_2, process.env.RAPIDAPI_KEY_3].filter((k): k is string => !!k && !/your-rapidapi-key/i.test(k));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    for (const key of keys) {
+      await sleep(1200);
+      const res = await fetch(`https://${HOST}/`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': HOST }, body: JSON.stringify({ homes: [home] }), signal: AbortSignal.timeout(60_000) }).catch(() => null);
+      if (!res || [401, 403, 429].includes(res.status)) continue;
+      const data = await res.json().catch(() => null);
+      if (data && !Array.isArray(data) && /rate limit/i.test(String((data as { message?: string }).message))) { await sleep(3000); continue; }
+      if (!res.ok || !Array.isArray(data)) continue;
+      const row = (data as Raw[])[0];
+      return row && !row.error && row.street ? row : undefined;
+    }
+  }
+  return null;
+}
+
+/** Why a returned record is not this lead's home, or null when it is. Exact street match only: a wrong link is worse than none. */
+function mismatch(lead: LinkLead, got: Raw): string | null {
   const messy = lead.address.includes(',');
   const want = normStreet(lead.address);
-  const have = normStreet(got.address.replace(/\b(unit|apt|apartment|suite|ste)\b.*$/i, '').replace(/#.*$/, ''));
+  const have = normStreet(String(got.street).replace(/\b(unit|apt|apartment|suite|ste)\b.*$/i, '').replace(/#.*$/, ''));
   if (!have) return 'no_street';
-  if (hasUnit(got.address) && !hasUnit(lead.address)) return 'unit_level_record';
+  if (hasUnit(String(got.street)) && !hasUnit(lead.address)) return 'unit_level_record';
   if (want.split(' ')[0] !== have.split(' ')[0]) return 'house_number_differs';
   if (want !== have && !(messy && want.startsWith(have + ' ') && have.split(' ').length >= 3)) return 'street_differs';
   const wantState = messy ? lead.address.match(/,\s*([A-Za-z]{2})\b/)?.[1] : lead.state;
@@ -25,32 +52,62 @@ function mismatch(lead: LinkLead, got: { address: string; state: string; zip: st
   return null;
 }
 
-/** Finds the lead's Zillow page by address, saves the link (and blank facts the listing gives), and records that a search was made. */
-export async function findListingLink(db: Db, lead: LinkLead): Promise<LinkResult> {
-  const query = airdnaAddress({ address: lead.address, city: lead.city, state: lead.state, zip: lead.zip });
-  const res = await getZillowPropertyDetails([query]).catch(() => null);
-  if (!res?.ok) return { status: 'error', reason: res?.error ?? 'Zillow lookup failed' };
+/** A listed rent or sale price, else Zillow's own value estimate. */
+function priceOf(r: Raw): { price: number; type: 'rent' | 'sale' } | null {
+  if (r.homeStatus === 'FOR_RENT' && r.price && r.price >= 400 && r.price <= 60000) return { price: Math.round(r.price), type: 'rent' };
+  if (r.homeStatus === 'FOR_SALE' && r.price && r.price > 50_000) return { price: Math.round(r.price), type: 'sale' };
+  if (r.homeStatus === 'FOR_RENT' && r.rentZestimate && r.rentZestimate >= 400) return { price: Math.round(r.rentZestimate), type: 'rent' };
+  const v = r.zestimate ?? (r.homeStatus === 'FOR_RENT' ? null : r.price);
+  return v && v > 50_000 ? { price: Math.round(v), type: 'sale' } : null;
+}
 
+/** Writes only the facts the lead is missing. */
+async function applyRecord(db: Db, leadId: string, row: Raw, extra: Record<string, unknown>): Promise<FilledFacts> {
+  const { data: cur } = await db.from('leads').select('beds,baths,price,price_type,square_feet,year_built,property_type,source_listing_id,listing_agent_name,listing_agent_phone,mls_number').eq('id', leadId).maybeSingle();
   const now = new Date().toISOString();
-  const row = res.listings[0];
-  const why = !row || !row.listingUrl ? 'not_found' : mismatch(lead, { address: row.address, state: row.state, zip: row.zip });
-  if (why === 'unit_level_record' && row?.listingUrl) {
-    // Zillow has only one unit of this building, which may not be the lead's: kept as a labeled reference, never as the direct link.
-    const { data: ev } = await db.from('leads').select('listing_evidence').eq('id', lead.id).maybeSingle();
-    await db.from('leads').update({ listing_link_lookup_at: now, listing_evidence: { ...((ev?.listing_evidence as Record<string, unknown>) ?? {}), related_zillow: { url: row.listingUrl, address: row.address, beds: row.beds ?? null, found_at: now } } }).eq('id', lead.id);
-    return { status: 'related', url: row.listingUrl, address: row.address };
-  }
-  if (why || !row?.listingUrl) { await db.from('leads').update({ listing_link_lookup_at: now }).eq('id', lead.id); return { status: 'not_found', reason: why ?? 'not_found' }; }
+  const update: Record<string, unknown> = { listing_link_lookup_at: now, ...extra };
+  const facts: FilledFacts = {};
+  if (!Number(cur?.beds) && row.bedrooms && row.bedrooms > 0 && row.bedrooms <= 12) { update.beds = facts.beds = Math.round(row.bedrooms); update.beds_source = 'zillow'; update.beds_retrieved_at = now; }
+  if (!Number(cur?.baths) && row.bathrooms && row.bathrooms > 0) { update.baths = facts.baths = row.bathrooms; update.baths_source = 'zillow'; }
+  const p = priceOf(row);
+  if (!Number(cur?.price) && p) { update.price = facts.price = p.price; update.price_type = facts.priceType = p.type; update.price_verified_at = now; }
+  if (!Number(cur?.square_feet) && row.livingArea) update.square_feet = Math.round(row.livingArea);
+  if (!Number(cur?.year_built) && row.yearBuilt) update.year_built = row.yearBuilt;
+  if (!cur?.property_type && row.homeType) update.property_type = row.homeType;
+  if (!cur?.source_listing_id && row.zpid) update.source_listing_id = String(row.zpid);
+  if (!cur?.listing_agent_name && row.agentName) update.listing_agent_name = row.agentName;
+  if (!cur?.listing_agent_phone && row.agentPhone) update.listing_agent_phone = row.agentPhone;
+  if (!cur?.mls_number && row.mlsId) update.mls_number = row.mlsId;
+  await db.from('leads').update(update).eq('id', leadId);
+  return facts;
+}
 
-  const { data: cur } = await db.from('leads').select('beds,baths,listing_source_url,source_listing_id,listing_agent_name,listing_agent_phone,mls_number').eq('id', lead.id).maybeSingle();
-  const update: Record<string, unknown> = { listing_url: row.listingUrl, listing_link_lookup_at: now };
-  if (!cur?.listing_source_url) update.listing_source_url = row.listingUrl;
-  if (!cur?.source_listing_id && row.externalId) update.source_listing_id = String(row.externalId);
-  if (!Number(cur?.beds) && row.beds && row.beds > 0 && row.beds <= 12) { update.beds = Math.round(row.beds); update.beds_source = 'zillow'; }
-  if (!Number(cur?.baths) && row.baths && row.baths > 0) { update.baths = row.baths; update.baths_source = 'zillow'; }
-  if (!cur?.listing_agent_name && row.listingAgentName) update.listing_agent_name = row.listingAgentName;
-  if (!cur?.listing_agent_phone && row.listingAgentPhone) update.listing_agent_phone = row.listingAgentPhone;
-  if (!cur?.mls_number && row.mlsNumber) update.mls_number = row.mlsNumber;
-  await db.from('leads').update(update).eq('id', lead.id);
-  return { status: 'found', url: row.listingUrl };
+/**
+ * Finds a lead's Zillow record by address and fills the facts it lacks (beds, baths, price). With a stored listing link
+ * the record is read from that link first. A record for one unit of a building is used only when the lead's owner is verified.
+ */
+export async function findListingLink(db: Db, lead: LinkLead, storedUrl?: string | null): Promise<LinkResult> {
+  const { data: o } = await db.from('leads').select('verified_owner,ownership_record_verified,listing_evidence').eq('id', lead.id).maybeSingle();
+  const ownerVerified = !!(o?.verified_owner || o?.ownership_record_verified);
+  const stamp = (extra: Record<string, unknown> = {}) => db.from('leads').update({ listing_link_lookup_at: new Date().toISOString(), ...extra }).eq('id', lead.id);
+
+  if (storedUrl) {
+    const byUrl = await zillowRow(storedUrl);
+    if (byUrl) return { status: 'filled', facts: await applyRecord(db, lead.id, byUrl, {}) };
+  }
+  const row = await zillowRow(airdnaAddress({ address: lead.address, city: lead.city, state: lead.state, zip: lead.zip }));
+  if (row === null) return { status: 'error', reason: 'Zillow lookup failed' };
+  const why = !row || !row.url ? 'not_found' : mismatch(lead, row);
+
+  if (row?.url && (!why || (why === 'unit_level_record' && ownerVerified))) {
+    const facts = await applyRecord(db, lead.id, row, storedUrl ? {} : { listing_url: row.url, listing_source_url: row.url });
+    return storedUrl ? { status: 'filled', facts } : { status: 'found', url: row.url, facts };
+  }
+  if (why === 'unit_level_record' && row?.url) {
+    // One unit of a multi-unit building, owner not verified: kept as a labeled reference, never as the direct link.
+    await stamp({ listing_evidence: { ...((o?.listing_evidence as Record<string, unknown>) ?? {}), related_zillow: { url: row.url, address: row.street, beds: row.bedrooms ?? null, found_at: new Date().toISOString() } } });
+    return { status: 'related', url: row.url, address: String(row.street) };
+  }
+  await stamp();
+  return { status: 'not_found', reason: why ?? 'not_found' };
 }
