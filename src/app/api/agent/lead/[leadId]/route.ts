@@ -31,7 +31,8 @@ export async function GET(
       listing_url, notes, contact_name, contact_phone, tags, estimated_adr,
       estimated_occupancy, estimated_gross_monthly, estimated_net_monthly, photos,
       created_at, updated_at, verified_owner, verified_address, verified_number,
-      lead_status, next_followup_due, last_contacted_at, primary_agent_id, is_synthetic
+      lead_status, next_followup_due, last_contacted_at, primary_agent_id, is_synthetic,
+      owner_name, secondary_phones, skip_trace_status, skip_trace_result
     `)
     .eq('id', leadId)
     .single();
@@ -40,13 +41,21 @@ export async function GET(
     return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
   }
 
+  // Only what the profile shows from a skip trace is returned, never the raw result with its alternate people.
+  const { skip_trace_result, ...rest } = lead as Record<string, any>;
+  const primary = skip_trace_result?.primary;
+  const skipTrace = rest.skip_trace_status === 'FOUND'
+    ? { confidence: skip_trace_result?.confidence ?? null, matchType: skip_trace_result?.matchType ?? null, emails: ((primary?.emails ?? []) as string[]).slice(0, 2) }
+    : null;
+  const shaped: Record<string, any> = { ...rest, skip_trace: skipTrace };
+
   // Strip admin-only fields for agents
   if (!auth.actor.isAdmin) {
-    const { is_synthetic, ...agentLead } = lead as any;
+    const { is_synthetic, ...agentLead } = shaped;
     return NextResponse.json({ lead: agentLead });
   }
 
-  return NextResponse.json({ lead });
+  return NextResponse.json({ lead: shaped });
 }
 
 /**

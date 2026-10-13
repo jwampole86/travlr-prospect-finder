@@ -45,6 +45,12 @@ export interface Lead {
   // Contact gating: contact info only visible after homeowner consent
   contactInfoRequested?: boolean;
   contactInfoRequestedAt?: string;
+  // Found by the skip trace (only set when the trace found someone)
+  ownerName?: string;
+  skipTraceFound?: boolean;
+  skipTraceConfidence?: string;
+  skipTracePhones?: string[];
+  skipTraceEmails?: string[];
   // Property verification fields
   verificationStatus?: string;
   verificationScore?: number;

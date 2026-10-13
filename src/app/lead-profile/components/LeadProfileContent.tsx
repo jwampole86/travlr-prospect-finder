@@ -295,6 +295,10 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
           contactPhone: found.contact_phone ? String(found.contact_phone) : undefined, tags: (found.tags || []) as string[], estimatedADR: Number(found.estimated_adr || 0),
           estimatedOccupancy: Number(found.estimated_occupancy || 0), estimatedGrossMonthly: Number(found.estimated_gross_monthly || 0), estimatedNetMonthly: Number(found.estimated_net_monthly || 0),
           photos: (found.photos || []) as string[], createdAt: String(found.created_at || ''), updatedAt: String(found.updated_at || ''), isSynthetic: Boolean(found.is_synthetic),
+          ownerName: found.owner_name ? String(found.owner_name) : undefined, skipTraceFound: found.skip_trace_status === 'FOUND',
+          skipTraceConfidence: (found.skip_trace as { confidence?: string } | null)?.confidence ?? undefined,
+          skipTracePhones: Array.isArray(found.secondary_phones) ? (found.secondary_phones as string[]).slice(0, 2) : [],
+          skipTraceEmails: ((found.skip_trace as { emails?: string[] } | null)?.emails ?? []),
         } as Lead;
       })
       .then((found) => {
@@ -1795,37 +1799,42 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   <User size={15} className="text-primary" />
                   <span className="text-sm font-semibold text-foreground">Contact</span>
                 </div>
-                {(lead.contactInfoRequested || lead.contactEmail) ? (
+                {(lead.contactInfoRequested || lead.contactEmail || (lead.skipTraceFound && (lead.contactName || lead.ownerName || lead.contactPhone || (lead.skipTraceEmails?.length ?? 0) > 0))) ? (
                   <div className="flex flex-col gap-3">
-                    {lead.contactName && (
+                    {(lead.contactName || lead.ownerName) && (
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                           <span className="text-xs font-bold text-primary">
-                            {lead.contactName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                            {(lead.contactName || lead.ownerName || '').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                           </span>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-foreground">{lead.contactName}</p>
-                          <p className="text-[10px] text-muted-foreground">Property Owner</p>
+                          <p className="text-sm font-medium text-foreground">{lead.contactName || lead.ownerName}</p>
+                          <p className="text-[10px] text-muted-foreground">{lead.ownerName ? 'Property Owner' : 'Resident of record'}</p>
                         </div>
                       </div>
                     )}
-                    {lead.contactPhone && (
-                      <a href={`tel:${lead.contactPhone}`} className="flex items-center gap-2 text-xs text-foreground hover:text-primary transition-colors">
+                    {[lead.contactPhone, ...(lead.skipTracePhones ?? [])].filter((ph, i, all): ph is string => !!ph && all.indexOf(ph) === i).map(ph => (
+                      <a key={ph} href={`tel:${ph}`} className="flex items-center gap-2 text-xs text-foreground hover:text-primary transition-colors">
                         <Phone size={13} className="text-muted-foreground" />
-                        {lead.contactPhone}
+                        {ph}
                       </a>
-                    )}
-                    {lead.contactEmail && (
-                      <a href={`mailto:${lead.contactEmail}`} className="flex items-center gap-2 text-xs text-foreground hover:text-primary transition-colors">
+                    ))}
+                    {[lead.contactEmail, ...(lead.skipTraceEmails ?? [])].filter((em, i, all): em is string => !!em && all.indexOf(em) === i).map(em => (
+                      <a key={em} href={`mailto:${em}`} className="flex items-center gap-2 text-xs text-foreground hover:text-primary transition-colors">
                         <Mail size={13} className="text-muted-foreground" />
-                        {lead.contactEmail}
+                        {em}
                       </a>
-                    )}
+                    ))}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <MapPin size={13} />
                       {lead.city}, {lead.state}
                     </div>
+                    {lead.skipTraceFound && (
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        Found by skip trace{lead.skipTraceConfidence ? ` (${lead.skipTraceConfidence.toLowerCase()} confidence)` : ''}. Confirm the person before outreach. A phone found is not text consent.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
