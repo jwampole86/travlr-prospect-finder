@@ -1,536 +1,260 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, AlertTriangle, Clock, RefreshCw, Globe, Database, MessageSquare, Mail, Webhook, Server, ChevronDown, ChevronUp, Activity, Shield, Zap } from 'lucide-react';
-import Icon from '@/components/ui/AppIcon';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Clock, RefreshCw, Shield, Play } from 'lucide-react';
 
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type ServiceStatus = 'operational' | 'degraded' | 'outage' | 'maintenance';
-
-interface ServiceCheck {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ElementType;
-  status: ServiceStatus;
-  uptime30d: number | null;
-  uptime90d: number | null;
-  responseTime?: number;
-  lastChecked: string;
-  slaTarget: number;
+type Status = 'operational' | 'degraded' | 'outage' | 'maintenance';
+type Group = 'core' | 'messaging' | 'data' | 'jobs';
+interface Day { date: string; status: Status | 'none'; uptime: number | null; checks: number }
+interface Service {
+  id: string; name: string; description: string; group: Group; slaTarget: number; status: Status; responseMs: number | null;
+  lastChecked: string | null; stale: boolean; detail?: string; uptime30d: number | null; uptime90d: number | null; healthy30d: number | null; avgMs30d: number | null; days: Day[];
 }
+interface Incident { id: string; service: string; serviceName: string; severity: 'major' | 'minor'; status: 'ongoing' | 'resolved'; startedAt: string; resolvedAt: string | null; durationMin: number; worst: Status; samples: number; detail?: string }
+interface Report { checkedAt: string | null; overall: Status; services: Service[]; incidents: Incident[]; viewer: { admin: boolean } }
+interface Point { t: string; status: Status; ms: number | null }
 
-interface IncidentEntry {
-  id: string;
-  title: string;
-  service: string;
-  severity: 'critical' | 'major' | 'minor';
-  status: 'investigating' | 'identified' | 'monitoring' | 'resolved';
-  startedAt: string;
-  resolvedAt?: string;
-  updates: { time: string; message: string }[];
-}
+const GROUPS: Array<{ id: Group | 'all'; label: string }> = [{ id: 'all', label: 'All' }, { id: 'core', label: 'Core' }, { id: 'messaging', label: 'Messaging' }, { id: 'data', label: 'Data & AI' }, { id: 'jobs', label: 'Background jobs' }];
+const LABEL: Record<Status, string> = { operational: 'Operational', degraded: 'Degraded', outage: 'Outage', maintenance: 'Not checked yet' };
+const DOT: Record<Status, string> = { operational: 'bg-emerald-500', degraded: 'bg-amber-400', outage: 'bg-red-500', maintenance: 'bg-slate-400' };
+const TEXT: Record<Status, string> = { operational: 'text-emerald-600', degraded: 'text-amber-600', outage: 'text-red-600', maintenance: 'text-slate-500' };
+const BANNER: Record<Status, string> = { operational: 'bg-emerald-600', degraded: 'bg-amber-500', outage: 'bg-red-600', maintenance: 'bg-slate-500' };
+const BANNER_TEXT: Record<Status, string> = { operational: 'All Systems Operational', degraded: 'Partial Degradation', outage: 'Service Outage', maintenance: 'Waiting for the first check' };
 
-interface UptimeBucket {
-  date: string;
-  status: ServiceStatus;
-}
+const ago = (iso: string | null) => {
+  if (!iso) return 'never';
+  const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+};
+const dur = (min: number) => (min < 60 ? `${min} min` : min < 1440 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${Math.floor(min / 1440)} d ${Math.round((min % 1440) / 60)} h`);
+const when = (iso: string) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const pct = (n: number | null) => (n == null ? 'No data yet' : `${n.toFixed(n === 100 ? 0 : 2)}%`);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function statusColor(s: ServiceStatus) {
-  if (s === 'operational') return 'bg-emerald-500';
-  if (s === 'degraded') return 'bg-amber-400';
-  if (s === 'outage') return 'bg-red-500';
-  return 'bg-slate-400';
-}
-
-function statusTextColor(s: ServiceStatus) {
-  if (s === 'operational') return 'text-emerald-600';
-  if (s === 'degraded') return 'text-amber-600';
-  if (s === 'outage') return 'text-red-600';
-  return 'text-slate-500';
-}
-
-function statusBg(s: ServiceStatus) {
-  if (s === 'operational') return 'bg-emerald-50 border-emerald-200';
-  if (s === 'degraded') return 'bg-amber-50 border-amber-200';
-  if (s === 'outage') return 'bg-red-50 border-red-200';
-  return 'bg-slate-50 border-slate-200';
-}
-
-function statusLabel(s: ServiceStatus) {
-  if (s === 'operational') return 'Operational';
-  if (s === 'degraded') return 'Degraded';
-  if (s === 'outage') return 'Outage';
-  return 'Maintenance';
-}
-
-function slaClass(uptime: number | null, target: number) {
-  if (uptime === null) return 'text-slate-500 font-semibold';
-  if (uptime >= target) return 'text-emerald-600 font-semibold';
-  if (uptime >= target - 0.5) return 'text-amber-600 font-semibold';
-  return 'text-red-600 font-semibold';
-}
-
-function incidentSeverityBadge(s: IncidentEntry['severity']) {
-  if (s === 'critical') return 'bg-red-100 text-red-700 border border-red-200';
-  if (s === 'major') return 'bg-amber-100 text-amber-700 border border-amber-200';
-  return 'bg-blue-100 text-blue-700 border border-blue-200';
-}
-
-function incidentStatusBadge(s: IncidentEntry['status']) {
-  if (s === 'resolved') return 'bg-emerald-100 text-emerald-700';
-  if (s === 'monitoring') return 'bg-blue-100 text-blue-700';
-  if (s === 'identified') return 'bg-amber-100 text-amber-700';
-  return 'bg-red-100 text-red-700';
-}
-
-function genUptimeBuckets(baseStatus: ServiceStatus): UptimeBucket[] {
-  const buckets: UptimeBucket[] = [];
-  const now = Date.now();
-  for (let i = 89; i >= 0; i--) {
-    const d = new Date(now - i * 86400000);
-    const label = `${d.getMonth() + 1}/${d.getDate()}`;
-    let status: ServiceStatus = 'operational';
-    if (baseStatus === 'degraded' && i < 3) status = 'degraded';
-    if (baseStatus === 'outage' && i === 0) status = 'outage';
-    if (i === 14 || i === 31) status = 'degraded';
-    if (i === 45) status = 'outage';
-    buckets.push({ date: label, status });
-  }
-  return buckets;
-}
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const SERVICES: ServiceCheck[] = [
-  {
-    id: 'api', name: 'REST API', description: 'Core application API endpoints',
-    icon: Server, status: 'operational', uptime30d: 99.94, uptime90d: 99.87,
-    responseTime: 142, lastChecked: new Date(Date.now() - 30000).toISOString(), slaTarget: 99.9,
-  },
-  {
-    id: 'database', name: 'Database', description: 'Supabase PostgreSQL — read/write operations',
-    icon: Database, status: 'operational', uptime30d: 99.98, uptime90d: 99.96,
-    responseTime: 8, lastChecked: new Date(Date.now() - 15000).toISOString(), slaTarget: 99.9,
-  },
-  {
-    id: 'sms', name: 'SMS Delivery', description: 'Twilio SMS send & status webhooks',
-    icon: MessageSquare, status: 'operational', uptime30d: 99.72, uptime90d: 99.61,
-    responseTime: 210, lastChecked: new Date(Date.now() - 45000).toISOString(), slaTarget: 99.5,
-  },
-  {
-    id: 'email', name: 'Email Delivery', description: 'Resend transactional email service',
-    icon: Mail, status: 'degraded', uptime30d: 98.84, uptime90d: 99.21,
-    responseTime: 380, lastChecked: new Date(Date.now() - 60000).toISOString(), slaTarget: 99.5,
-  },
-  {
-    id: 'webhooks', name: 'Webhook Endpoints', description: 'Inbound webhooks — Twilio, DocuSign, Cadence',
-    icon: Webhook, status: 'degraded', uptime30d: 97.40, uptime90d: 98.10,
-    responseTime: 88, lastChecked: new Date(Date.now() - 20000).toISOString(), slaTarget: 99.0,
-  },
-  {
-    id: 'enrichment', name: 'Enrichment Sync', description: 'SalesGenie & third-party data enrichment',
-    icon: Zap, status: 'operational', uptime30d: 99.10, uptime90d: 98.90,
-    responseTime: 1840, lastChecked: new Date(Date.now() - 90000).toISOString(), slaTarget: 99.0,
-  },
-];
-
-const INCIDENTS: IncidentEntry[] = [
-  {
-    id: 'inc-001',
-    title: 'Email bounce rate elevated — Resend domain reputation',
-    service: 'Email Delivery',
-    severity: 'major',
-    status: 'monitoring',
-    startedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
-    updates: [
-      { time: new Date(Date.now() - 2 * 3600000).toISOString(), message: 'Investigating elevated bounce rates (4.8%) on outbound email campaigns.' },
-      { time: new Date(Date.now() - 90 * 60000).toISOString(), message: 'Identified: sending domain reputation flagged by Gmail. Resend support engaged.' },
-      { time: new Date(Date.now() - 30 * 60000).toISOString(), message: 'Monitoring: domain warm-up initiated. Bounce rate trending down to 3.2%.' },
-    ],
-  },
-  {
-    id: 'inc-002',
-    title: 'DocuSign webhook HMAC validation failures',
-    service: 'Webhook Endpoints',
-    severity: 'major',
-    status: 'identified',
-    startedAt: new Date(Date.now() - 72 * 3600000).toISOString(),
-    updates: [
-      { time: new Date(Date.now() - 72 * 3600000).toISOString(), message: 'DocuSign envelope event webhooks returning 401 — HMAC secret mismatch.' },
-      { time: new Date(Date.now() - 48 * 3600000).toISOString(), message: 'Root cause identified: DocuSign credentials not configured in production environment.' },
-    ],
-  },
-  {
-    id: 'inc-003',
-    title: 'SalesGenie API timeout — enrichment sync degraded',
-    service: 'Enrichment Sync',
-    severity: 'minor',
-    status: 'resolved',
-    startedAt: new Date(Date.now() - 5 * 86400000).toISOString(),
-    resolvedAt: new Date(Date.now() - 4 * 86400000).toISOString(),
-    updates: [
-      { time: new Date(Date.now() - 5 * 86400000).toISOString(), message: 'SalesGenie API returning 504 timeouts on batch enrichment requests.' },
-      { time: new Date(Date.now() - 4.5 * 86400000).toISOString(), message: 'SalesGenie confirmed infrastructure maintenance window.' },
-      { time: new Date(Date.now() - 4 * 86400000).toISOString(), message: 'Resolved: SalesGenie maintenance complete. Enrichment sync restored to normal.' },
-    ],
-  },
-  {
-    id: 'inc-004',
-    title: 'Database connection pool exhaustion — brief query latency spike',
-    service: 'Database',
-    severity: 'minor',
-    status: 'resolved',
-    startedAt: new Date(Date.now() - 14 * 86400000).toISOString(),
-    resolvedAt: new Date(Date.now() - 14 * 86400000 + 45 * 60000).toISOString(),
-    updates: [
-      { time: new Date(Date.now() - 14 * 86400000).toISOString(), message: 'Query latency spiked to 480ms avg — connection pool at 100% utilization.' },
-      { time: new Date(Date.now() - 14 * 86400000 + 20 * 60000).toISOString(), message: 'Pool size increased from 20 to 40 connections. Latency recovering.' },
-      { time: new Date(Date.now() - 14 * 86400000 + 45 * 60000).toISOString(), message: 'Resolved: query latency returned to baseline (8ms avg).' },
-    ],
-  },
-];
-
-// ─── Uptime Bar Component ─────────────────────────────────────────────────────
-
-function UptimeBar({ buckets }: { buckets: UptimeBucket[] }) {
+function ResponseChart({ points }: { points: Point[] }) {
+  if (points.length < 2) return <p className="text-xs text-slate-400">Not enough checks in this window to draw a chart.</p>;
+  const W = 640, H = 120, P = 6;
+  const t0 = Date.parse(points[0].t), t1 = Date.parse(points[points.length - 1].t) || t0 + 1;
+  const max = Math.max(200, ...points.map(p => p.ms ?? 0));
+  const x = (t: string) => P + ((Date.parse(t) - t0) / Math.max(1, t1 - t0)) * (W - 2 * P);
+  const y = (ms: number) => H - P - (ms / max) * (H - 2 * P);
+  const timed = points.filter(p => p.ms != null);
+  const line = timed.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.ms as number).toFixed(1)}`).join(' ');
   return (
-    <div className="flex gap-px items-end h-6">
-      {buckets.map((b, i) => (
-        <div
-          key={i}
-          title={`${b.date}: ${statusLabel(b.status)}`}
-          className={`flex-1 rounded-sm h-full ${statusColor(b.status)} opacity-80 hover:opacity-100 transition-opacity cursor-default`}
-        />
-      ))}
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-28" role="img" aria-label="Response time history">
+        {points.filter(p => p.status !== 'operational').map((p, i) => <rect key={i} x={x(p.t) - 2} y={0} width={4} height={H} className={p.status === 'outage' ? 'fill-red-200' : 'fill-amber-200'} />)}
+        {line && <path d={line} fill="none" className="stroke-emerald-500" strokeWidth={1.5} />}
+        {timed.map((p, i) => <circle key={i} cx={x(p.t)} cy={y(p.ms as number)} r={2.5} className={p.status === 'operational' ? 'fill-emerald-500' : p.status === 'outage' ? 'fill-red-500' : 'fill-amber-400'}><title>{`${when(p.t)}: ${p.ms} ms (${LABEL[p.status]})`}</title></circle>)}
+      </svg>
+      <div className="flex justify-between text-[10px] text-slate-400"><span>{when(points[0].t)}</span><span>Peak {max} ms</span><span>{when(points[points.length - 1].t)}</span></div>
     </div>
   );
 }
 
-// ─── Service Row ──────────────────────────────────────────────────────────────
-
-function ServiceRow({ svc }: { svc: ServiceCheck }) {
-  const [expanded, setExpanded] = useState(false);
-  const Icon = svc.icon;
-  const buckets = genUptimeBuckets(svc.status);
-
+function ServiceRow({ svc, open, onToggle, admin, onShowIncidents, incidentCount }: { svc: Service; open: boolean; onToggle: () => void; admin: boolean; onShowIncidents: () => void; incidentCount: number }) {
+  const [hours, setHours] = useState(24);
+  const [points, setPoints] = useState<Point[] | null>(null);
+  useEffect(() => {
+    if (!open) return; let live = true; setPoints(null);
+    fetch(`/api/system/health/history?service=${svc.id}&hours=${hours}`, { cache: 'no-store' }).then(r => r.json()).then(j => { if (live) setPoints(j.points ?? []); }).catch(() => { if (live) setPoints([]); });
+    return () => { live = false; };
+  }, [open, hours, svc.id]);
+  const withData = svc.days.filter(d => d.status !== 'none').length;
+  const slaMet = svc.uptime30d == null ? null : svc.uptime30d >= svc.slaTarget;
   return (
-    <div className={`border rounded-xl overflow-hidden transition-all ${statusBg(svc.status)}`}>
-      <button
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-black/5 transition-colors"
-      >
-        <div className="w-9 h-9 rounded-lg bg-white/80 border border-white flex items-center justify-center shrink-0 shadow-sm">
-          <Icon size={16} className="text-slate-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-slate-800">{svc.name}</span>
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-              svc.status === 'operational' ? 'bg-emerald-100 text-emerald-700' :
-              svc.status === 'degraded'? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-            }`}>
-              {statusLabel(svc.status)}
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">{svc.description}</p>
-        </div>
-        <div className="hidden sm:flex items-center gap-6 shrink-0">
-          <div className="text-right">
-            <p className={`text-sm ${slaClass(svc.uptime30d, svc.slaTarget)}`}>{svc.uptime30d === null ? 'Not tracked' : `${svc.uptime30d.toFixed(2)}%`}</p>
-            <p className="text-[10px] text-slate-500">30d uptime</p>
-          </div>
-          <div className="text-right">
-            <p className={`text-sm ${slaClass(svc.uptime90d, svc.slaTarget)}`}>{svc.uptime90d === null ? 'Not tracked' : `${svc.uptime90d.toFixed(2)}%`}</p>
-            <p className="text-[10px] text-slate-500">90d uptime</p>
-          </div>
-          {svc.responseTime !== undefined && (
-            <div className="text-right">
-              <p className="text-sm font-semibold text-slate-700">{svc.responseTime}ms</p>
-              <p className="text-[10px] text-slate-500">response</p>
-            </div>
-          )}
-        </div>
-        {expanded ? <ChevronUp size={14} className="text-slate-400 shrink-0" /> : <ChevronDown size={14} className="text-slate-400 shrink-0" />}
+    <div className={`bg-white border rounded-xl overflow-hidden ${svc.status === 'operational' ? 'border-slate-200' : svc.status === 'outage' ? 'border-red-200' : 'border-amber-200'}`}>
+      <button type="button" onClick={onToggle} aria-expanded={open} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50">
+        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${DOT[svc.status]}`} />
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold text-slate-800 truncate">{svc.name}</span>
+          <span className="block text-xs text-slate-500 truncate">{svc.description}</span>
+        </span>
+        <span className="hidden sm:block text-right text-xs text-slate-500 w-24">{svc.responseMs != null ? `${svc.responseMs} ms` : '—'}</span>
+        <span className="hidden sm:block text-right text-xs text-slate-500 w-20">{pct(svc.uptime30d)}</span>
+        <span className={`text-xs font-semibold w-28 text-right ${TEXT[svc.status]}`}>{LABEL[svc.status]}</span>
+        {open ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
       </button>
-
-      {expanded && (
-        <div className="px-5 pb-5 border-t border-white/60">
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-slate-500">90-day uptime history</span>
-              <span className="text-xs text-slate-500">SLA target: {svc.slaTarget}%</span>
-            </div>
-            {svc.uptime90d === null ? (
-              <p className="text-xs text-slate-500 bg-white/70 rounded-lg p-3 border border-white">Historical uptime is not available yet. Current status is based on the latest live check.</p>
-            ) : <UptimeBar buckets={buckets} />}
-            <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-slate-500">90 days ago</span>
-              <span className="text-[10px] text-slate-500">Today</span>
+      {open && (
+        <div className="border-t border-slate-100 px-4 py-4 space-y-4 bg-slate-50/50">
+          {svc.stale && <p className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2">The last check is {ago(svc.lastChecked)}. Checks normally run every 5 minutes.</p>}
+          {admin && svc.detail && <p className="text-xs text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2"><span className="font-semibold">Latest check: </span>{svc.detail}</p>}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="bg-white border border-slate-200 rounded-lg p-3"><p className="text-slate-500">30-day uptime</p><p className="text-base font-bold text-slate-800">{pct(svc.uptime30d)}</p></div>
+            <div className="bg-white border border-slate-200 rounded-lg p-3"><p className="text-slate-500">90-day uptime</p><p className="text-base font-bold text-slate-800">{pct(svc.uptime90d)}</p></div>
+            <div className="bg-white border border-slate-200 rounded-lg p-3"><p className="text-slate-500">Target {svc.slaTarget}%</p><p className={`text-base font-bold ${slaMet == null ? 'text-slate-500' : slaMet ? 'text-emerald-600' : 'text-red-600'}`}>{slaMet == null ? 'Too early' : slaMet ? 'Met' : 'Missed'}</p></div>
+            <div className="bg-white border border-slate-200 rounded-lg p-3"><p className="text-slate-500">Avg response (30d)</p><p className="text-base font-bold text-slate-800">{svc.avgMs30d != null ? `${svc.avgMs30d} ms` : '—'}</p></div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1.5"><p className="text-xs font-semibold text-slate-600">Last 90 days</p><p className="text-[10px] text-slate-400">{withData} day{withData === 1 ? '' : 's'} with recorded checks</p></div>
+            <div className="flex gap-[2px]">
+              {svc.days.map(d => <div key={d.date} title={d.status === 'none' ? `${d.date}: no checks recorded` : `${d.date}: ${LABEL[d.status as Status]} · ${pct(d.uptime)} up · ${d.checks} checks`} className={`h-7 flex-1 rounded-[2px] ${d.status === 'none' ? 'bg-slate-200' : DOT[d.status as Status]}`} />)}
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white/70 rounded-lg p-3 border border-white">
-              <p className={`text-base font-bold ${slaClass(svc.uptime30d, svc.slaTarget)}`}>{svc.uptime30d === null ? 'Not tracked' : `${svc.uptime30d.toFixed(2)}%`}</p>
-              <p className="text-[10px] text-slate-500">30-day uptime</p>
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs font-semibold text-slate-600">Response time</p>
+              <div className="flex gap-1">{[6, 24, 72, 168].map(h => <button key={h} type="button" onClick={() => setHours(h)} className={`text-[10px] px-2 py-0.5 rounded-md border ${hours === h ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}>{h < 72 ? `${h}h` : `${h / 24}d`}</button>)}</div>
             </div>
-            <div className="bg-white/70 rounded-lg p-3 border border-white">
-              <p className={`text-base font-bold ${slaClass(svc.uptime90d, svc.slaTarget)}`}>{svc.uptime90d === null ? 'Not tracked' : `${svc.uptime90d.toFixed(2)}%`}</p>
-              <p className="text-[10px] text-slate-500">90-day uptime</p>
-            </div>
-            <div className="bg-white/70 rounded-lg p-3 border border-white">
-              <p className="text-base font-bold text-slate-700">{svc.slaTarget}%</p>
-              <p className="text-[10px] text-slate-500">SLA target</p>
-            </div>
-            <div className="bg-white/70 rounded-lg p-3 border border-white">
-              <p className={`text-base font-bold ${svc.uptime30d === null ? 'text-slate-500' : svc.uptime30d >= svc.slaTarget ? 'text-emerald-600' : 'text-red-600'}`}>
-                {svc.uptime30d === null ? 'Not tracked' : svc.uptime30d >= svc.slaTarget ? 'Met' : 'Breached'}
-              </p>
-              <p className="text-[10px] text-slate-500">SLA status</p>
-            </div>
+            {points == null ? <p className="text-xs text-slate-400">Loading…</p> : <ResponseChart points={points} />}
+          </div>
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span>Last checked {ago(svc.lastChecked)}</span>
+            <button type="button" onClick={onShowIncidents} className="font-medium text-slate-700 hover:underline">{incidentCount ? `View ${incidentCount} incident${incidentCount === 1 ? '' : 's'} for this service` : 'No incidents in 30 days'}</button>
           </div>
         </div>
       )}
     </div>
   );
 }
-
-// ─── Incident Card ────────────────────────────────────────────────────────────
-
-function IncidentCard({ inc }: { inc: IncidentEntry }) {
-  const [expanded, setExpanded] = useState(inc.status !== 'resolved');
-
-  function fmt(iso: string) {
-    const d = new Date(iso);
-    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  }
-
-  return (
-    <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
-      <button
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-start gap-3 px-5 py-4 text-left hover:bg-slate-50 transition-colors"
-      >
-        <div className="mt-0.5 shrink-0">
-          {inc.status === 'resolved'
-            ? <CheckCircle size={16} className="text-emerald-500" />
-            : inc.severity === 'critical'
-            ? <XCircle size={16} className="text-red-500" />
-            : <AlertTriangle size={16} className="text-amber-500" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-slate-800">{inc.title}</span>
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${incidentSeverityBadge(inc.severity)}`}>
-              {inc.severity.toUpperCase()}
-            </span>
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${incidentStatusBadge(inc.status)}`}>
-              {inc.status.charAt(0).toUpperCase() + inc.status.slice(1)}
-            </span>
-          </div>
-          <div className="flex items-center gap-3 mt-1 flex-wrap">
-            <span className="text-xs text-slate-500">{inc.service}</span>
-            <span className="text-xs text-slate-500">Started {fmt(inc.startedAt)}</span>
-            {inc.resolvedAt && <span className="text-xs text-emerald-600">Resolved {fmt(inc.resolvedAt)}</span>}
-          </div>
-        </div>
-        {expanded ? <ChevronUp size={14} className="text-slate-400 shrink-0 mt-1" /> : <ChevronDown size={14} className="text-slate-400 shrink-0 mt-1" />}
-      </button>
-
-      {expanded && (
-        <div className="px-5 pb-5 border-t border-slate-100">
-          <div className="mt-4 space-y-3">
-            {inc.updates.map((u, i) => (
-              <div key={i} className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className="w-2 h-2 rounded-full bg-slate-300 mt-1.5 shrink-0" />
-                  {i < inc.updates.length - 1 && <div className="w-px flex-1 bg-slate-200 mt-1" />}
-                </div>
-                <div className="pb-3 min-w-0">
-                  <p className="text-[10px] text-slate-500 mb-0.5">{fmt(u.time)}</p>
-                  <p className="text-xs text-slate-700">{u.message}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SystemHealthPage() {
-  const [lastRefresh, setLastRefresh] = useState('');
+  const [report, setReport] = useState<Report | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [services, setServices] = useState<ServiceCheck[]>([]);
-  const [incidents] = useState<IncidentEntry[]>([]);
+  const [running, setRunning] = useState(false);
+  const [auto, setAuto] = useState(true);
+  const [group, setGroup] = useState<Group | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [incService, setIncService] = useState<string>('all');
+  const [openInc, setOpenInc] = useState<string | null>(null);
+  const incRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    void handleRefresh();
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setRefreshing(true);
+    try {
+      const res = await fetch('/api/system/health', { cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
+      setReport(await res.json()); setError(null);
+    } catch { setError('The status could not be loaded. This page will retry automatically.'); }
+    finally { setRefreshing(false); }
   }, []);
 
-  async function handleRefresh() {
-    setRefreshing(true);
-    try {
-      const response = await fetch('/api/system/health', { cache: 'no-store' });
-      if (!response.ok) throw new Error(`Health check failed (${response.status})`);
-      const result = await response.json() as { checkedAt: string; checks: Record<string, { status: ServiceStatus; responseTime: number | null }> };
-      setServices(SERVICES.map((definition) => ({
-        ...definition,
-        status: result.checks[definition.id]?.status ?? 'maintenance',
-        responseTime: result.checks[definition.id]?.responseTime ?? undefined,
-        uptime30d: null,
-        uptime90d: null,
-        lastChecked: result.checkedAt,
-      })));
-      setLastRefresh(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    } catch {
-      setServices(SERVICES.map((definition) => ({ ...definition, status: 'outage', uptime30d: null, uptime90d: null, responseTime: undefined })));
-    } finally {
-      setRefreshing(false);
-    }
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (!auto) return; const id = setInterval(() => void load(true), 30_000); return () => clearInterval(id); }, [auto, load]);
+
+  async function runNow() {
+    setRunning(true);
+    try { const res = await fetch('/api/system/health', { method: 'POST' }); if (res.ok) { setReport(await res.json()); setError(null); } else setError('The checks could not be run.'); }
+    catch { setError('The checks could not be run.'); } finally { setRunning(false); }
   }
 
-  const displayedServices = services.length > 0 ? services : SERVICES.map((service) => ({ ...service, status: 'maintenance' as ServiceStatus, uptime30d: null, uptime90d: null }));
-  const overallStatus: ServiceStatus = displayedServices.some(s => s.status === 'outage')
-    ? 'outage'
-    : displayedServices.some(s => s.status === 'degraded')
-    ? 'degraded' :'operational';
+  const services = report?.services ?? [];
+  const incidents = report?.incidents ?? [];
+  const counts = useMemo(() => ({ operational: services.filter(s => s.status === 'operational').length, degraded: services.filter(s => s.status === 'degraded').length, outage: services.filter(s => s.status === 'outage').length }), [services]);
+  const ongoing = incidents.filter(i => i.status === 'ongoing');
+  const shown = services.filter(s => (group === 'all' || s.group === group) && (statusFilter === 'all' || (statusFilter === 'operational' ? s.status === 'operational' : s.status === statusFilter)));
+  const shownIncidents = incidents.filter(i => incService === 'all' || i.service === incService);
+  const overall: Status = report?.overall ?? 'maintenance';
+  const admin = report?.viewer.admin === true;
 
-  const activeIncidents = incidents.filter(i => i.status !== 'resolved');
-  const resolvedIncidents = incidents.filter(i => i.status === 'resolved');
+  const showIncidents = (service: string) => { setIncService(service); setTimeout(() => incRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); };
+  const tile = (key: Status | 'all', label: string, value: number, color: string, sub: string) => (
+    <button type="button" key={label} onClick={() => setStatusFilter(statusFilter === key ? 'all' : key)} aria-pressed={statusFilter === key}
+      className={`text-left bg-white border rounded-xl p-4 transition hover:shadow-sm ${statusFilter === key ? 'border-slate-800 ring-1 ring-slate-800' : 'border-slate-200'}`}>
+      <p className={`text-2xl font-bold ${color}`}>{value}</p><p className="text-xs text-slate-500 mt-0.5">{label}</p>
+      <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-slate-500"><Shield size={10} />{sub}</p>
+    </button>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className={`border-b ${overallStatus === 'operational' ? 'bg-emerald-600' : overallStatus === 'degraded' ? 'bg-amber-500' : 'bg-red-600'}`}>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-                <Activity size={20} className="text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">TRAVLR System Status</h1>
-                <p className="text-sm text-white/90">Real-time service health &amp; uptime</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-white/20 rounded-lg px-3 py-2">
-                <div className={`w-2.5 h-2.5 rounded-full ${overallStatus === 'operational' ? 'bg-white animate-pulse' : 'bg-white'}`} />
-                <span className="text-sm font-semibold text-white">
-                  {overallStatus === 'operational' ? 'All Systems Operational' : overallStatus === 'degraded' ? 'Partial Degradation' : 'Service Outage'}
-                </span>
-              </div>
-            </div>
+      <div className={`border-b ${BANNER[overall]}`}>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center"><Activity size={20} className="text-white" /></div>
+            <div><h1 className="text-xl font-bold text-white">TRAVLR System Status</h1><p className="text-sm text-white/90">Live checks of every service, recorded every 5 minutes</p></div>
+          </div>
+          <div className="flex items-center gap-2 bg-white/20 rounded-lg px-3 py-2">
+            <div className={`w-2.5 h-2.5 rounded-full bg-white ${overall === 'operational' ? 'animate-pulse' : ''}`} />
+            <span className="text-sm font-semibold text-white">{BANNER_TEXT[overall]}</span>
           </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-
-        {/* Refresh bar */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Clock size={12} />
-            {lastRefresh && <span>Last updated {lastRefresh}</span>}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500"><Clock size={12} />{report ? `Last check ${ago(report.checkedAt)}` : 'Loading…'}</div>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer"><input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} />Auto-refresh (30s)</label>
+            <button type="button" onClick={() => void load()} disabled={refreshing} className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 disabled:opacity-50"><RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />Refresh</button>
+            {admin && <button type="button" onClick={() => void runNow()} disabled={running} className="flex items-center gap-1.5 text-xs font-medium text-white bg-slate-800 rounded-lg px-3 py-1.5 hover:bg-slate-700 disabled:opacity-50"><Play size={12} />{running ? 'Running checks…' : 'Run checks now'}</button>}
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-all disabled:opacity-50"
-          >
-            <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
-            Refresh
+        </div>
+
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-3">{error}</div>}
+
+        {ongoing.length > 0 && (
+          <button type="button" onClick={() => showIncidents('all')} className="w-full text-left bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 hover:bg-amber-100/60">
+            <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+            <div><p className="text-sm font-semibold text-amber-800">{ongoing.length} active incident{ongoing.length > 1 ? 's' : ''}: {ongoing.map(i => i.serviceName).join(', ')}</p><p className="text-xs text-amber-700 mt-0.5">Select to see when each started and how long it has lasted.</p></div>
+          </button>
+        )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {tile('operational', 'Operational', counts.operational, 'text-emerald-600', 'Select to filter')}
+          {tile('degraded', 'Degraded', counts.degraded, counts.degraded ? 'text-amber-600' : 'text-slate-400', 'Select to filter')}
+          {tile('outage', 'Outage', counts.outage, counts.outage ? 'text-red-600' : 'text-slate-400', 'Select to filter')}
+          <button type="button" onClick={() => showIncidents('all')} className="text-left bg-white border border-slate-200 rounded-xl p-4 hover:shadow-sm">
+            <p className={`text-2xl font-bold ${ongoing.length ? 'text-amber-600' : 'text-slate-700'}`}>{incidents.length}</p><p className="text-xs text-slate-500 mt-0.5">Incidents in 30 days</p>
+            <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-slate-500"><Shield size={10} />Select to view</p>
           </button>
         </div>
 
-        {/* Active incidents banner */}
-        {activeIncidents.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-            <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-amber-800">{activeIncidents.length} Active Incident{activeIncidents.length > 1 ? 's' : ''}</p>
-              <p className="text-xs text-amber-700 mt-0.5">Some services are experiencing issues. See incident details below.</p>
+        <div>
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Services</h2>
+            <div className="flex items-center gap-1 flex-wrap">
+              {GROUPS.map(g => <button key={g.id} type="button" onClick={() => setGroup(g.id)} className={`text-xs px-2.5 py-1 rounded-full border ${group === g.id ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}>{g.label}</button>)}
+              {statusFilter !== 'all' && <button type="button" onClick={() => setStatusFilter('all')} className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-amber-50 text-amber-800">{LABEL[statusFilter]} only ✕</button>}
             </div>
           </div>
-        )}
-
-        {/* SLA Summary Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: 'API Status', service: 'api' },
-            { label: 'Database Status', service: 'database' },
-            { label: 'SMS Configuration', service: 'sms' },
-            { label: 'Email Configuration', service: 'email' },
-          ].map((m) => {
-            const service = displayedServices.find((item) => item.id === m.service);
-            const ok = service?.status === 'operational';
-            const value = service ? statusLabel(service.status) : 'Checking…';
-            return (
-            <div key={m.label} className="bg-white border border-slate-200 rounded-xl p-4">
-              <p className={`text-lg font-bold ${ok ? 'text-emerald-600' : 'text-amber-600'}`}>{value}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{m.label}</p>
-              <div className={`mt-2 flex items-center gap-1 text-[10px] font-medium ${ok ? 'text-emerald-600' : 'text-amber-600'}`}>
-                <Shield size={10} />
-                {ok ? 'Current check passed' : 'Requires attention'}
-              </div>
-            </div>
-            );
-          })}
-        </div>
-
-        {/* Services */}
-        <div>
-          <h2 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wider">Services</h2>
           <div className="space-y-2">
-            {displayedServices.map(svc => <ServiceRow key={svc.id} svc={svc} />)}
+            {!report && !error && <p className="text-sm text-slate-400">Loading services…</p>}
+            {report && shown.length === 0 && <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-xl p-4">No services match these filters.</p>}
+            {shown.map(s => <ServiceRow key={s.id} svc={s} open={openId === s.id} onToggle={() => setOpenId(openId === s.id ? null : s.id)} admin={admin} incidentCount={incidents.filter(i => i.service === s.id).length} onShowIncidents={() => showIncidents(s.id)} />)}
           </div>
         </div>
 
-        {/* Active Incidents */}
-        {activeIncidents.length > 0 && (
-          <div>
-            <h2 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wider">Active Incidents</h2>
-            <div className="space-y-3">
-              {activeIncidents.map(inc => <IncidentCard key={inc.id} inc={inc} />)}
-            </div>
+        <div ref={incRef} className="scroll-mt-4">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Incidents (last 30 days)</h2>
+            <select value={incService} onChange={e => setIncService(e.target.value)} className="text-xs border border-slate-200 rounded-lg bg-white px-2 py-1.5" aria-label="Filter incidents by service">
+              <option value="all">All services</option>{services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
           </div>
-        )}
-
-        {/* Incident History */}
-        <div>
-          <h2 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wider">Incident History</h2>
-          {resolvedIncidents.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
-              <CheckCircle size={28} className="text-emerald-400 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">No resolved incidents in the past 90 days.</p>
-            </div>
+          {shownIncidents.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-8 text-center"><CheckCircle size={28} className="text-emerald-400 mx-auto mb-2" /><p className="text-sm text-slate-500">No incidents recorded{incService === 'all' ? '' : ' for this service'} in the last 30 days.</p></div>
           ) : (
-            <div className="space-y-3">
-              {resolvedIncidents.map(inc => <IncidentCard key={inc.id} inc={inc} />)}
+            <div className="space-y-2">
+              {shownIncidents.map(i => (
+                <div key={i.id} className="bg-white border border-slate-200 rounded-xl">
+                  <button type="button" onClick={() => setOpenInc(openInc === i.id ? null : i.id)} className="w-full text-left p-4 flex items-center gap-3">
+                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${i.severity === 'major' ? 'bg-red-500' : 'bg-amber-400'}`} />
+                    <span className="flex-1 min-w-0"><span className="block text-sm font-semibold text-slate-800">{i.serviceName}: {i.severity === 'major' ? 'outage' : 'degraded performance'}</span><span className="block text-xs text-slate-500">{when(i.startedAt)} · {i.status === 'ongoing' ? `ongoing for ${dur(i.durationMin)}` : `lasted ${dur(i.durationMin)}`}</span></span>
+                    <span className={`text-xs font-semibold ${i.status === 'ongoing' ? 'text-amber-600' : 'text-emerald-600'}`}>{i.status === 'ongoing' ? 'Ongoing' : 'Resolved'}</span>
+                    {openInc === i.id ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+                  </button>
+                  {openInc === i.id && (
+                    <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-600 space-y-1">
+                      <p><span className="font-semibold">Started:</span> {when(i.startedAt)}</p>
+                      <p><span className="font-semibold">{i.resolvedAt ? 'Resolved:' : 'Status:'}</span> {i.resolvedAt ? when(i.resolvedAt) : 'Still failing at the latest check'}</p>
+                      <p><span className="font-semibold">Failed checks:</span> {i.samples}</p>
+                      {admin && i.detail && <p><span className="font-semibold">Last reason:</span> {i.detail}</p>}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-slate-200 pt-6 flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-emerald-500" /><span>Operational</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-amber-400" /><span>Degraded</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-red-500" /><span>Outage</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-slate-400" /><span>Maintenance</span></div>
+        <div className="border-t border-slate-200 pt-6 flex items-center justify-between flex-wrap gap-3 text-xs text-slate-500">
+          <div className="flex items-center gap-4">
+            {(['operational', 'degraded', 'outage'] as Status[]).map(s => <div key={s} className="flex items-center gap-1.5"><div className={`w-3 h-3 rounded-sm ${DOT[s]}`} /><span>{LABEL[s]}</span></div>)}
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-slate-200" /><span>No checks recorded</span></div>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <Globe size={11} />
-            <span>status.travlr.com</span>
-          </div>
+          <span>Uptime counts every recorded check that was not an outage. History begins when checks started being recorded.</span>
         </div>
       </div>
     </div>
