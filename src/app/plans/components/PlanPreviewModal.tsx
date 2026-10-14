@@ -10,6 +10,7 @@ import {
   PLAN_ORDER,
   PROSPECT_FINDER_PLANS,
   conservativeAnnualFeePerProperty,
+  formatUsd,
   getDisplayMonthlyPrice,
   monthsCoveredByOneProperty,
   type BillingPeriod,
@@ -119,8 +120,8 @@ export default function PlanPreviewModal({
             </div>
             <div className="flex items-start gap-3 shrink-0">
               <div className="text-right">
-                <p className="text-2xl sm:text-3xl font-bold text-foreground leading-none">{price != null ? `$${price}` : 'Custom'}</p>
-                {price != null && <p className="text-[11px] text-muted-foreground mt-1">per month{billingPeriod === 'annual' ? ', billed annually' : ''}</p>}
+                <p className="text-2xl sm:text-3xl font-bold text-foreground leading-none">{price != null ? (billingPeriod === 'annual' ? formatUsd(price) : `$${price}`) : 'Custom'}</p>
+                {price != null && <p className="text-[11px] text-muted-foreground mt-1">per month{billingPeriod === 'annual' && plan.annualPrice != null ? `, ${formatUsd(plan.annualPrice)} billed annually` : ''}</p>}
               </div>
               <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className="w-10 h-10 -mt-1 -mr-2 flex items-center justify-center rounded-full hover:bg-muted text-foreground">
                 <X className="w-5 h-5" />

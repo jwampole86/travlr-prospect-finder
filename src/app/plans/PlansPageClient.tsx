@@ -18,6 +18,7 @@ import {
   conservativeAnnualFeePerProperty,
   monthsCoveredByOneProperty,
   getDisplayMonthlyPrice,
+  formatUsd,
   getAnnualSavingsPercent,
   type PlanId,
   type FeatureAvailability,
@@ -206,12 +207,12 @@ function PricingCard({
         ) : (
           <>
             <p className={`text-3xl font-bold ${isEnterprise ? 'text-background' : 'text-foreground'}`}>
-              ${displayPrice}
+              {billingPeriod === 'annual' ? formatUsd(displayPrice as number) : `$${displayPrice}`}
               <span className={`text-sm font-medium ${isEnterprise ? 'text-background/70' : 'text-muted-foreground'}`}>/month</span>
             </p>
             {billingPeriod === 'annual' && plan.annualPrice != null && (
               <p className={`text-xs mt-1 ${isEnterprise ? 'text-background/70' : 'text-muted-foreground'}`}>
-                ${plan.annualPrice} billed annually
+                {formatUsd(plan.annualPrice)} billed annually
                 {savingsPercent != null && (
                   <span className="ml-1.5 font-semibold text-primary">Save {savingsPercent}%</span>
                 )}

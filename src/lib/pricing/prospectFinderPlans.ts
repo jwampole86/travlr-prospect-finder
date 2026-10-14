@@ -172,7 +172,12 @@ export type BillingPeriod = 'monthly' | 'annual';
 export function getDisplayMonthlyPrice(plan: ProspectFinderPlan, period: BillingPeriod): number | null {
   if (period === 'monthly') return plan.monthlyPrice;
   if (plan.annualPrice == null) return null;
-  return Math.round(plan.annualPrice / 12);
+  return Math.round((plan.annualPrice / 12) * 100) / 100;
+}
+
+/** US dollars with cents, e.g. $1,490.00. */
+export function formatUsd(amount: number): string {
+  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** Percentage saved by paying annually instead of monthly (rounded), or null if not applicable. */
