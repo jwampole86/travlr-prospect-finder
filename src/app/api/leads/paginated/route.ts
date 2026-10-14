@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServerClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireApiActor } from '@/lib/auth/apiAuthorization';
 import { calculateProspectScore, leadRowToScoringInput } from '@/lib/scoring/prospectScoring';
 
@@ -42,15 +42,22 @@ interface LeadQueryParams {
   propertyReachEnriched?: boolean | null;
   needsEnrichment?: boolean | null;
   enrichmentReviewRequired?: boolean | null;
+  campaignStage?: string;
 }
+
+const CAMPAIGN_STAGES = ['prospect', 'queued', 'texted', 'engaged', 'hot', 'human', 'contract', 'live', 'unreachable', 'closed'];
 
 function applyLeadFilters(query: any, params: LeadQueryParams) {
   let filtered = query;
 
   if (params.stateCode && params.stateCode !== 'all' && params.stateCode !== 'ALL') filtered = filtered.eq('state', params.stateCode);
   if (params.search) {
-    const term = `%${params.search}%`;
-    filtered = filtered.or(`address.ilike.${term},city.ilike.${term},notes.ilike.${term},contact_name.ilike.${term},contact_phone.ilike.${term}`);
+    // Commas, parentheses and wildcards would be read as part of the filter syntax, so they are not searchable.
+    const clean = params.search.replace(/[,()%*\\"']/g, ' ').trim().slice(0, 80);
+    if (clean) {
+      const term = `%${clean}%`;
+      filtered = filtered.or(`address.ilike.${term},city.ilike.${term},zip.ilike.${term},notes.ilike.${term},contact_name.ilike.${term},owner_name.ilike.${term},contact_phone.ilike.${term}`);
+    }
   }
   if (params.cities.length > 0) filtered = filtered.in('city', params.cities);
   if (params.sources.length > 0) filtered = filtered.in('source', params.sources);
@@ -205,6 +212,7 @@ export async function GET(req: NextRequest) {
       propertyReachEnriched: parseBool('propertyReachEnriched'),
       needsEnrichment: parseBool('needsEnrichment'),
       enrichmentReviewRequired: parseBool('enrichmentReviewRequired'),
+      campaignStage: CAMPAIGN_STAGES.includes(searchParams.get('campaignStage') ?? '') ? searchParams.get('campaignStage')! : '',
     };
 
     if (!authorization.actor.isAdmin) {
@@ -214,10 +222,8 @@ export async function GET(req: NextRequest) {
       params.ownerAgentId = authorization.actor.user.id;
     }
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    // The caller was authorized above and agents are limited to their own leads, so the server reads with its own key.
+    const supabase = getSupabaseAdmin();
 
     // ── Build query ────────────────────────────────────────────────────────
     const selectCols = [
@@ -225,7 +231,7 @@ export async function GET(req: NextRequest) {
       'beds', 'baths', 'price', 'price_type', 'source', 'stage',
       'regulation_status', 'prospect_score', 'days_on_market',
       'last_checked', 'listing_url', 'notes',
-      'contact_name', 'contact_phone',
+      'contact_name', 'contact_phone', 'owner_name',
       'tags', 'estimated_adr', 'estimated_occupancy',
       'estimated_gross_monthly', 'estimated_net_monthly', 'estimated_monthly_rent_ai',
       'photos', 'created_at', 'updated_at',
@@ -270,9 +276,9 @@ export async function GET(req: NextRequest) {
     };
     const dbSortKey = SORT_KEY_MAP[params.sortKey] || params.sortKey;
 
-    let query = supabase
-      .from('leads')
-      .select(selectCols, { count: 'exact' });
+    let query = (params.campaignStage
+      ? supabase.rpc('leads_in_campaign_stage', { p_stage: params.campaignStage }, { count: 'exact' }).select(selectCols)
+      : supabase.from('leads').select(selectCols, { count: 'exact' })) as any;
     query = applyLeadFilters(query, params);
 
     // ── Sort + Pagination ──────────────────────────────────────────────────
@@ -318,7 +324,9 @@ export async function GET(req: NextRequest) {
     const bandCountParams: LeadQueryParams = { ...params, confidenceBands: [] };
     const countByBand = (minimum: number, maximum?: number) => {
       let bandQuery = applyLeadFilters(
-        supabase.from('leads').select('id', { count: 'exact', head: true }),
+        params.campaignStage
+          ? supabase.rpc('leads_in_campaign_stage', { p_stage: params.campaignStage }, { count: 'exact', head: true })
+          : supabase.from('leads').select('id', { count: 'exact', head: true }),
         bandCountParams
       ).gte('prospect_score', minimum);
       if (maximum !== undefined) bandQuery = bandQuery.lte('prospect_score', maximum);
@@ -357,6 +365,15 @@ export async function GET(req: NextRequest) {
     }
 
     const adjustedLeads = ((data || []) as unknown[]).map((row) => withAdjustedProspectScore(row as Record<string, unknown>));
+
+    // Where each lead on this page is in the text campaign, for the Campaign column.
+    const pageIds = (data as Array<{ id: string }> | null | undefined)?.map(r => r.id) ?? [];
+    const campaignById = new Map<string, Record<string, unknown>>();
+    if (pageIds.length) {
+      const { data: camp } = await supabase.from('pipeline_board_leads').select('id,board_stage,last_activity,last_activity_at,reply_text,reply_intent,batch,twilio_status,temperature,human_clicks,scheduled_for').in('id', pageIds);
+      for (const c of camp ?? []) campaignById.set(String(c.id), c as Record<string, unknown>);
+    }
+    for (const l of adjustedLeads) (l as Record<string, unknown>).campaign = campaignById.get(String((l as Record<string, unknown>).id)) ?? null;
     if (adjustsProspectScoreSort) {
       adjustedLeads.sort((a, b) => params.sortDir === 'asc'
         ? Number(a.prospect_score || 0) - Number(b.prospect_score || 0)

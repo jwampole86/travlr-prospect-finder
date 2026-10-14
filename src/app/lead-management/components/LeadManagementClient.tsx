@@ -12,6 +12,10 @@ import type { EnrichmentStatus } from './LeadTable';
 import BulkActionBar from './BulkActionBar';
 import FilterPresets from './FilterPresets';
 import SavedQueriesBar from './SavedQueriesBar';
+import LeadOverview, { VIEW_RESET } from './LeadOverview';
+import ModernLeadList, { campaignOf } from './ModernLeadList';
+import LeadDrawer from '@/app/pipeline/LeadDrawer';
+import { STAGE_LABEL, type Card as PipelineCard, type StageKey } from '@/app/pipeline/types';
 import RevenueEstimatorPanel from './RevenueEstimatorPanel';
 import CSVUploadModal from './CSVUploadModal';
 import TPSCSVImportModal from './TPSCSVImportModal';
@@ -36,7 +40,7 @@ import { trackLeadStageChanged, trackLeadConverted, trackLeadsExported, trackCSV
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
-import { Upload } from 'lucide-react';
+import { ChevronDown, LayoutList, Table2, ArrowDownUp } from 'lucide-react';
 import { recordCSVImported, recordScoreUpdated,  } from '@/lib/services/activityService';
 
 
@@ -92,6 +96,8 @@ export interface FilterState {
   fullyVerified?: boolean;
   // Admin-only testing toggle: include synthetic (generated) leads in the list
   includeSynthetic?: boolean;
+  // Where the lead is in the text campaign: prospect | queued | texted | engaged | hot | human | unreachable | closed
+  campaignStage?: string;
 }
 
 export const defaultFilters: FilterState = {
@@ -125,6 +131,7 @@ export const defaultFilters: FilterState = {
   luxury: false,
   fullyVerified: false,
   includeSynthetic: false,
+  campaignStage: '',
 };
 
 interface AgentOption {
@@ -308,6 +315,10 @@ export default function LeadManagementClient({
   const [activeQueryId, setActiveQueryId] = useState<string | null>(null);
   // Hot leads first toggle
   const [hotLeadsFirst, setHotLeadsFirst] = useState(true);
+  const [viewMode, setViewMode] = useState<'list' | 'table'>('list');
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [peekLead, setPeekLead] = useState<Lead | null>(null);
+  const [savedViewsOpen, setSavedViewsOpen] = useState(false);
   // Server-side pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [serverTotal, setServerTotal] = useState(totalLeads);
@@ -409,6 +420,7 @@ export default function LeadManagementClient({
       if (currentFilters.propertyReachEnriched) params.set('propertyReachEnriched', 'true');
       if (currentFilters.needsEnrichment) params.set('needsEnrichment', 'true');
       if (currentFilters.enrichmentReviewRequired) params.set('enrichmentReviewRequired', 'true');
+      if (currentFilters.campaignStage) params.set('campaignStage', currentFilters.campaignStage);
       // Dashboard KPI counts exclude synthetic leads, so the list must too or click-throughs
       // (e.g. Action Needed = 1) show extra rows. isSynthetic=false still includes NULL rows.
       if (!(currentFilters.includeSynthetic && role === 'admin')) params.set('isSynthetic', 'false');
@@ -482,6 +494,8 @@ export default function LeadManagementClient({
         fully_verified: Boolean(d.fully_verified),
         verified_number_source: d.verified_number_source || undefined,
         verified_owner_source: d.verified_owner_source || undefined,
+        owner_name: d.owner_name || undefined,
+        campaign: d.campaign ?? null,
       }));
 
       setAllLeads(mapped);
@@ -1205,6 +1219,51 @@ export default function LeadManagementClient({
     toast.success(`Exported ${filteredLeads.length} filtered leads as CSV`);
   }, [filteredLeads]);
 
+  // Remember the list or table choice.
+  useEffect(() => { try { const v = localStorage.getItem('lm_view_mode'); if (v === 'list' || v === 'table') setViewMode(v); } catch { /* storage unavailable */ } }, []);
+  const changeViewMode = (v: 'list' | 'table') => { setViewMode(v); try { localStorage.setItem('lm_view_mode', v); } catch { /* storage unavailable */ } };
+
+  const applySmartView = useCallback((patch: Partial<FilterState>) => {
+    setFilters(prev => ({ ...prev, ...patch } as FilterState));
+    setCurrentPage(1);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toPipelineCard = (l: Lead): PipelineCard => {
+    const c = campaignOf(l); const x = l as unknown as Record<string, any>;
+    return { id: l.id, address: l.address, city: l.city, state: l.state, zip: l.zip || null, beds: l.beds || null, baths: l.baths || null, score: l.prospectScore, netMonthly: l.estimatedNetMonthly || null,
+      owner: l.contactName || x.owner_name || null, hasPhone: !!(x.has_phone || x.verified_number || l.contactPhone), program: null, luxury: !!x.luxury, stage: (c?.board_stage ?? 'prospect') as StageKey, manual: false,
+      batch: c?.batch ?? null, temperature: null, summary: '', activityAt: c?.last_activity_at ?? null, activityAgo: null, replied: !!c?.reply_intent, assignedTo: null, located: !!(l.lat && l.lng), approximate: false };
+  };
+  const peekMove = async (card: PipelineCard, to: 'human' | 'contract' | 'live' | 'closed' | 'auto') => {
+    try {
+      const res = await fetch('/api/pipeline/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: card.id, to }) });
+      const j = await res.json(); if (!res.ok) throw new Error(j.error || 'The move failed.');
+      toast.success('Stage updated'); void loadLeads();
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'The move failed.'); }
+  };
+
+  // Keyboard: J/K or arrows move, X selects, P quick look, Enter opens the profile, / searches.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
+      if (peekLead) return;
+      const list = paginatedLeads; if (!list.length && e.key !== '/') return;
+      const idx = list.findIndex(l => l.id === focusedId);
+      const move = (to: number) => { const l = list[Math.max(0, Math.min(list.length - 1, to))]; if (!l) return; setFocusedId(l.id); document.getElementById(`lm-row-${l.id}`)?.scrollIntoView({ block: 'nearest' }); };
+      if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); move(idx + 1); }
+      else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); move(idx < 0 ? 0 : idx - 1); }
+      else if (e.key === 'x' && idx >= 0) { const l = list[idx]; if (canActOnLead(l)) handleSelectOne(l.id, !selectedIds.has(l.id)); }
+      else if (e.key === 'p' && idx >= 0) { setPeekLead(list[idx]); }
+      else if (e.key === 'Enter' && idx >= 0) { openDetailLead(list[idx]); }
+      else if (e.key === '/') { e.preventDefault(); document.querySelector<HTMLInputElement>('input[placeholder*="earch"]')?.focus(); }
+      else if (e.key === 'Escape') { setFocusedId(null); }
+    };
+    window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
+  }, [paginatedLeads, focusedId, peekLead, selectedIds, canActOnLead, handleSelectOne, openDetailLead]);
+
   return (
     <div className="flex h-full relative">
       <div className="flex-1 flex flex-col min-w-0 px-3 sm:px-6 py-4 sm:py-5 max-w-screen-2xl mx-auto w-full">
@@ -1221,6 +1280,17 @@ export default function LeadManagementClient({
           filteredCount={serverTotal}
           onOpenCSV={() => setCsvModalOpen(true)}
           onOpenMasterData={isAdminOrTeamLead ? () => setMasterDataModalOpen(true) : undefined}
+          tools={isAdminOrTeamLead ? [
+            { label: 'CSV bulk assign', hint: 'Assign many leads to agents from a CSV', onClick: () => setCsvAssignModalOpen(true) },
+            { label: 'Import phone leads (TPS)', hint: 'Bring in phone-verified leads', onClick: () => setTpsCsvModalOpen(true) },
+            ...(role === 'admin' ? [{ label: 'Import debug', hint: 'Inspect recent imports', onClick: () => setDebugPanelOpen(true) }] : []),
+          ] : undefined}
+          extraToolsContent={role === 'admin' ? (
+            <label className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground cursor-pointer select-none" title="Testing only: includes generated leads, which dashboard counts exclude">
+              <input type="checkbox" className="accent-primary" checked={!!filters.includeSynthetic} onChange={(e) => { setFilters(prev => ({ ...prev, includeSynthetic: e.target.checked })); setCurrentPage(1); }} />
+              Show synthetic test leads
+            </label>
+          ) : undefined}
           onLeadsRefreshed={loadLeads}
           onExportFiltered={() => {
             exportLeads(filteredLeads, 'csv');
@@ -1235,47 +1305,6 @@ export default function LeadManagementClient({
             <span>
               <strong>Synthetic data notice:</strong> Some leads in this dataset are deterministically generated for testing purposes and are labeled <code className="bg-amber-500/10 px-1 rounded text-[10px]">synthetic</code> in their tags. They are not real scraped listings. Real homeowner-submitted leads are not synthetic.
             </span>
-          </div>
-        )}
-
-        {/* Admin controls row */}
-        {isAdminOrTeamLead && (
-          <div className="mb-3 flex items-center justify-end gap-2">
-            {role === 'admin' && (
-              <label
-                className="mr-auto flex items-center gap-1.5 px-3 py-1.5 text-xs border border-amber-500/30 text-amber-700 bg-amber-500/10 rounded-lg cursor-pointer select-none"
-                title="Testing only: includes generated (synthetic) leads, which dashboard counts exclude"
-              >
-                <input
-                  type="checkbox"
-                  className="accent-amber-600"
-                  checked={!!filters.includeSynthetic}
-                  onChange={(e) => { setFilters(prev => ({ ...prev, includeSynthetic: e.target.checked })); setCurrentPage(1); }}
-                />
-                Show synthetic test leads
-              </label>
-            )}
-            <button
-              onClick={() => setCsvAssignModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors font-medium"
-            >
-              <Upload size={12} />
-              CSV Bulk Assign
-            </button>
-            <button
-              onClick={() => setTpsCsvModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors font-medium"
-            >
-              <Upload size={12} />
-              Import Phone Leads (TPS)
-            </button>
-            <button
-              onClick={() => setDebugPanelOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors font-medium"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-              Admin: Import Debug
-            </button>
           </div>
         )}
 
@@ -1295,6 +1324,8 @@ export default function LeadManagementClient({
           </div>
         )}
 
+        <LeadOverview stateCode={selectedPortfolio.stateCode || ''} filters={filters} refreshKey={serverTotal} onApply={applySmartView} />
+
         <LeadFiltersBar
           filters={filters}
           onChange={(f) => { setFilters(f); setCurrentPage(1); }}
@@ -1302,144 +1333,72 @@ export default function LeadManagementClient({
           agents={agents}
         />
 
-        {/* Source counts summary — shows live counts per ingestion source */}
-        {(sourceCounts.all > 0 || serverTotal > 0) && (
-          <div className="mb-2 flex flex-wrap items-center gap-2 px-1">
-            {[
-              { label: 'All Prospects', value: serverTotal, key: 'ALL', color: 'text-foreground bg-muted border-border' },
-              { label: 'Manual CSV', value: sourceCounts.csv, key: 'MANUAL_CSV', color: 'text-emerald-700 bg-emerald-500/8 border-emerald-500/20' },
-              { label: 'Link Sync', value: sourceCounts.linkSync, key: 'LINK_SYNC', color: 'text-blue-700 bg-blue-500/8 border-blue-500/20' },
-              { label: 'Multi-Source', value: sourceCounts.multiSource, key: 'MULTI_SOURCE', color: 'text-purple-700 bg-purple-500/8 border-purple-500/20' },
-            ].map(({ label, value, key, color }) => (
-              <button
-                key={key}
-                onClick={() => {
-                  setFilters(prev => ({ ...prev, ingestionSource: key } as FilterState));
-                  setCurrentPage(1);
-                }}
-                className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium border rounded-md transition-all ${color} ${
-                  ((filters as any).ingestionSource ?? 'ALL') === key ? 'ring-2 ring-offset-1 ring-primary/40' : 'opacity-80 hover:opacity-100'
-                }`}
-              >
-                <span>{label}:</span>
-                <span className="font-bold">{value.toLocaleString()}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Filter Presets + Select All Matching row */}
-        <div className="flex items-center justify-between mb-3 -mt-1">
+        {/* List toolbar: selection, score bands, sort and view */}
+        <div ref={leadListTopRef} className="mb-3 scroll-mt-24 flex flex-wrap items-center gap-2">
           <button
-            onClick={() => {
-              if (filteredLeads.length > 0) {
-                setSelectedIds(new Set(filteredLeads.map((l) => l.id)));
-                toast.success(`Selected all ${filteredLeads.length} leads on this page`);
-              }
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-all"
-            title="Select all leads matching current filters"
+            onClick={() => { if (filteredLeads.length > 0) { setSelectedIds(new Set(filteredLeads.map((l) => l.id))); toast.success(`Selected all ${filteredLeads.length} leads on this page`); } }}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-foreground hover:bg-muted transition"
+            title="Select every lead on this page"
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            Select Page ({filteredLeads.length.toLocaleString()})
+            Select page ({filteredLeads.length.toLocaleString()})
           </button>
-          <FilterPresets
-            currentFilters={filters}
-            onApply={(f) => { setFilters(f); setCurrentPage(1); }}
-            defaultFilters={defaultFilters}
-          />
-        </div>
-
-        {/* Saved Queries Bar — quick-access named queries with one-click apply */}
-        <div className="mb-3">
-          <SavedQueriesBar
-            currentFilters={filters}
-            defaultFilters={defaultFilters}
-            onApply={(f) => { setFilters(f); setCurrentPage(1); }}
-            activeQueryId={activeQueryId}
-            onActiveQueryChange={setActiveQueryId}
-          />
-        </div>
-
-        <div ref={leadListTopRef} className="mb-3 scroll-mt-24">
-          <PaginationControls
-            currentPage={currentPage}
-            totalPages={totalPages}
-            pageSize={PAGE_SIZE}
-            total={serverTotal}
-            loading={serverLoading}
-            onPageChange={goToPage}
-            compact
-          />
-        </div>
-
-        {/* ── Confidence Band Summary + Hot Leads Toggle ── */}
-        <div className="mb-3 flex items-center justify-between gap-3 px-3 py-2.5 bg-card border border-border rounded-xl">
-          <div className="flex items-center gap-3 flex-wrap">
-            {(['hot', 'warm', 'cold'] as const).map(band => {
-              const count = bandCounts[band];
+          <div className="flex items-center gap-1" role="group" aria-label="Filter by score band">
+            {([['hot', 'Hot', 'text-orange-600 border-orange-500/30 bg-orange-500/10', 'bg-orange-600 text-white border-orange-600'], ['warm', 'Warm', 'text-amber-600 border-amber-500/30 bg-amber-500/10', 'bg-amber-600 text-white border-amber-600'], ['cold', 'Cold', 'text-blue-500 border-blue-500/30 bg-blue-500/10', 'bg-blue-500 text-white border-blue-500']] as const).map(([band, label, idle, on]) => {
               const active = (filters.confidenceBands ?? []).includes(band);
-              const colors: Record<string, string> = {
-                hot: 'text-orange-600 bg-orange-500/10 border-orange-500/20',
-                warm: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
-                cold: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-              };
-              const activeColors: Record<string, string> = {
-                hot: 'text-white bg-orange-600 border-orange-600',
-                warm: 'text-white bg-amber-600 border-amber-600',
-                cold: 'text-white bg-blue-500 border-blue-500',
-              };
-              const icons: Record<string, React.ReactNode> = {
-                hot: <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2c0 0-4 4-4 8.5C8 14.5 9.5 16 12 16s4-1.5 4-5.5C16 6 12 2 12 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>,
-                warm: <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>,
-                cold: <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M22 11h-4.17l3.24-3.24-1.41-1.42L15 11h-2V9l4.66-4.66-1.42-1.41L13 6.17V2h-2v4.17L7.76 2.93 6.34 4.34 11 9v2H9L4.34 6.34 2.93 7.76 6.17 11H2v2h4.17l-3.24 3.24 1.41 1.42L9 13h2v2l-4.66 4.66 1.42 1.41L11 17.83V22h2v-4.17l3.24 3.24 1.42-1.41L13 15v-2h2l4.66 4.66 1.41-1.42L17.83 13H22v-2z"/></svg>,
-              };
               return (
-                <button
-                  key={band}
-                  type="button"
-                  onClick={() => {
-                    setFilters(prev => {
-                      const current = prev.confidenceBands ?? [];
-                      const next = current.includes(band)
-                        ? current.filter(b => b !== band)
-                        : [...current, band];
-                      return { ...prev, confidenceBands: next };
-                    });
-                    setCurrentPage(1);
-                  }}
-                  aria-pressed={active}
-                  title={`Show only ${band} leads (click again to clear)`}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-medium transition-colors ${active ? activeColors[band] : `${colors[band]} hover:opacity-80`}`}
-                >
-                  {icons[band]}
-                  <span className="capitalize">{band}</span>
-                  <span className="font-bold">{count}</span>
+                <button key={band} type="button" aria-pressed={active} title={`Show only ${band} leads (click again to clear)`}
+                  onClick={() => { setFilters(prev => { const cur = prev.confidenceBands ?? []; return { ...prev, confidenceBands: cur.includes(band) ? cur.filter(b => b !== band) : [...cur, band] }; }); setCurrentPage(1); }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition ${active ? on : `${idle} hover:opacity-80`}`}>
+                  {label}<span className="font-bold tabular-nums">{bandCounts[band].toLocaleString()}</span>
                 </button>
               );
             })}
-            {(filters.confidenceBands ?? []).length > 0 && (
-              <button
-                type="button"
-                onClick={() => { setFilters(prev => ({ ...prev, confidenceBands: [] })); setCurrentPage(1); }}
-                className="text-[11px] font-medium text-muted-foreground hover:text-foreground underline"
-              >
-                Clear
-              </button>
+          </div>
+          <button onClick={() => setHotLeadsFirst(v => !v)} aria-pressed={hotLeadsFirst} title="Show hot leads (80+) first on each page"
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${hotLeadsFirst ? 'bg-orange-500/10 text-orange-600 border-orange-500/30' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+            Hot first
+          </button>
+
+          <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center rounded-lg border border-border bg-card overflow-hidden">
+              <ArrowDownUp size={13} className="ml-2.5 text-muted-foreground" />
+              <select value={String(sortKey)} onChange={(e) => { setSortKey(e.target.value as keyof Lead); setSortDir('desc'); setCurrentPage(1); }} aria-label="Sort leads" className="bg-transparent text-xs text-foreground pl-1.5 pr-1 py-1.5 focus:outline-none">
+                <option value="prospectScore">Score</option><option value="estimatedNetMonthly">Est. net income</option><option value="createdAt">Newest</option><option value="price">Price</option><option value="daysOnMarket">Days on market</option><option value="lastChecked">Last checked</option>
+              </select>
+              <button onClick={() => setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))} className="px-2 text-xs text-muted-foreground hover:text-foreground border-l border-border h-full" title="Reverse the sort order">{sortDir === 'desc' ? '↓' : '↑'}</button>
+            </div>
+            <div className="flex rounded-lg border border-border overflow-hidden bg-card" role="group" aria-label="Layout">
+              <button onClick={() => changeViewMode('list')} aria-pressed={viewMode === 'list'} title="Modern list" className={`px-2.5 py-1.5 ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}><LayoutList size={14} /></button>
+              <button onClick={() => changeViewMode('table')} aria-pressed={viewMode === 'table'} title="Detailed table" className={`px-2.5 py-1.5 ${viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}><Table2 size={14} /></button>
+            </div>
+            <button onClick={() => setSavedViewsOpen(v => !v)} aria-expanded={savedViewsOpen} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-foreground hover:bg-muted transition">
+              Saved views<ChevronDown size={12} className={`transition-transform ${savedViewsOpen ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {savedViewsOpen && (
+          <div className="mb-3 p-3 bg-card border border-border rounded-xl space-y-3">
+            <SavedQueriesBar currentFilters={filters} defaultFilters={defaultFilters} onApply={(f) => { setFilters(f); setCurrentPage(1); }} activeQueryId={activeQueryId} onActiveQueryChange={setActiveQueryId} />
+            <FilterPresets currentFilters={filters} onApply={(f) => { setFilters(f); setCurrentPage(1); }} defaultFilters={defaultFilters} />
+            {(sourceCounts.all > 0 || serverTotal > 0) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-medium text-muted-foreground">Source</span>
+                {[
+                  { label: 'All', value: serverTotal, key: 'ALL' },
+                  { label: 'Manual CSV', value: sourceCounts.csv, key: 'MANUAL_CSV' },
+                  { label: 'Link sync', value: sourceCounts.linkSync, key: 'LINK_SYNC' },
+                  { label: 'Multi-source', value: sourceCounts.multiSource, key: 'MULTI_SOURCE' },
+                ].map(({ label, value, key }) => (
+                  <button key={key} onClick={() => { setFilters(prev => ({ ...prev, ingestionSource: key } as FilterState)); setCurrentPage(1); }}
+                    className={`px-2.5 py-1 text-xs rounded-full border transition ${((filters as any).ingestionSource ?? 'ALL') === key ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground'}`}>
+                    {label} <span className="font-bold">{value.toLocaleString()}</span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-          <button
-            onClick={() => setHotLeadsFirst(v => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium transition-all ${
-              hotLeadsFirst
-                ? 'bg-orange-500/10 text-orange-600 border-orange-500/30' :'bg-background border-border text-muted-foreground hover:bg-muted'
-            }`}
-            title="Surface hot leads (80+) first in the queue"
-          >
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2c0 0-4 4-4 8.5C8 14.5 9.5 16 12 16s4-1.5 4-5.5C16 6 12 2 12 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
-            Hot Leads First
-          </button>
-        </div>
+        )}
 
         {selectedIds.size > 0 && (
           <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -1525,6 +1484,22 @@ export default function LeadManagementClient({
           </div>
         ) : (
           <div>
+            {viewMode === 'list' ? (
+              <ModernLeadList
+                leads={paginatedLeads}
+                selectedIds={selectedIds}
+                focusedId={focusedId}
+                canActOnLead={canActOnLead}
+                assignmentMap={assignmentMap}
+                onSelectAll={handleSelectAll}
+                onSelectOne={handleSelectOne}
+                onOpen={openDetailLead}
+                onPeek={setPeekLead}
+                onStageChange={handleStageChange}
+                onSendSMS={handleSendSMS}
+                onFocus={setFocusedId}
+              />
+            ) : (
             <MobileScrollHint>
               <LeadTable
                 leads={paginatedLeads}
@@ -1546,6 +1521,8 @@ export default function LeadManagementClient({
                 onSendSMS={handleSendSMS}
               />
             </MobileScrollHint>
+            )}
+            <p className="mt-2 text-[11px] text-muted-foreground hidden md:block">Shortcuts: <kbd className="border border-border rounded px-1">J</kbd>/<kbd className="border border-border rounded px-1">K</kbd> move · <kbd className="border border-border rounded px-1">X</kbd> select · <kbd className="border border-border rounded px-1">P</kbd> quick look · <kbd className="border border-border rounded px-1">Enter</kbd> open · <kbd className="border border-border rounded px-1">/</kbd> search</p>
             {/* Pagination controls */}
             <div className="mt-4">
               <PaginationControls
@@ -1574,6 +1551,15 @@ export default function LeadManagementClient({
           onClose={() => openDetailLead(null)}
           onStageChange={handleStageChange}
           onDelete={(id) => { handleDelete(id); openDetailLead(null); }}
+        />
+      )}
+
+      {peekLead && (
+        <LeadDrawer
+          card={toPipelineCard(peekLead)}
+          stageLabel={STAGE_LABEL[toPipelineCard(peekLead).stage]}
+          onClose={() => setPeekLead(null)}
+          onMove={(c, to) => void peekMove(c, to)}
         />
       )}
 
