@@ -10,10 +10,16 @@ import { STAGE_HEX } from '@/app/pipeline/types';
 
 interface Props { points: MapPoint[]; colorBy: ColorBy; base: BaseLayer; selectedId: string | null; fitKey: number; onSelect: (id: string) => void }
 
-const TILES: Record<BaseLayer, { url: string; attribution: string; maxZoom: number }> = {
-  street: { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© OpenStreetMap contributors', maxZoom: 19 },
-  dark: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 19 },
-  satellite: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Imagery © Esri', maxZoom: 18 },
+// All three providers work without an API key. Esri's tiles stop at their native zoom, so deeper zooms are stretched.
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services';
+const TILES: Record<BaseLayer, { layers: Array<{ url: string; maxNativeZoom?: number }>; attribution: string; maxZoom: number }> = {
+  street: { layers: [{ url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' }], attribution: '© OpenStreetMap contributors', maxZoom: 19 },
+  dark: { layers: [{ url: `${ESRI}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`, maxNativeZoom: 16 }, { url: `${ESRI}/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, maxNativeZoom: 16 }], attribution: 'Tiles © Esri', maxZoom: 19 },
+  satellite: { layers: [{ url: `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`, maxNativeZoom: 18 }], attribution: 'Imagery © Esri', maxZoom: 19 },
+};
+const addBase = (Lf: any, map: any, base: BaseLayer) => {
+  const t = TILES[base];
+  return Lf.layerGroup(t.layers.map(l => Lf.tileLayer(l.url, { attribution: t.attribution, maxZoom: t.maxZoom, maxNativeZoom: l.maxNativeZoom }))).addTo(map);
 };
 
 const colorOf = (p: MapPoint, by: ColorBy) => (by === 'stage' ? STAGE_HEX[p.stage] : by === 'score' ? scoreHex(p.score) : REG_HEX[p.regulation] ?? REG_HEX.Unknown);
@@ -52,7 +58,7 @@ export default function LeafletMap({ points, colorBy, base, selectedId, fitKey, 
       if (dead || !el.current) return; L.current = (window as any).L;
       map.current = L.current.map(el.current, { center: [39.5, -98.35], zoom: 4, preferCanvas: true, zoomControl: false });
       L.current.control.zoom({ position: 'bottomright' }).addTo(map.current);
-      tiles.current = L.current.tileLayer(TILES[latest.current.base].url, { attribution: TILES[latest.current.base].attribution, maxZoom: TILES[latest.current.base].maxZoom }).addTo(map.current);
+      tiles.current = addBase(L.current, map.current, latest.current.base);
       cluster.current = (L.current as any).markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 50, spiderfyOnMaxZoom: true, showCoverageOnHover: false, disableClusteringAtZoom: 16 });
       map.current.addLayer(cluster.current); ready.current = true; draw(); fit();
       requestAnimationFrame(() => map.current?.invalidateSize());
@@ -63,7 +69,7 @@ export default function LeafletMap({ points, colorBy, base, selectedId, fitKey, 
 
   useEffect(draw, [points, colorBy]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(fit, [fitKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!ready.current) return; tiles.current.remove(); tiles.current = L.current.tileLayer(TILES[base].url, { attribution: TILES[base].attribution, maxZoom: TILES[base].maxZoom }).addTo(map.current); tiles.current.bringToBack(); }, [base]);
+  useEffect(() => { if (!ready.current) return; tiles.current.remove(); tiles.current = addBase(L.current, map.current, base); }, [base]);
 
   useEffect(() => {
     if (!ready.current) return; ring.current?.remove(); ring.current = null;
