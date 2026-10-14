@@ -226,7 +226,7 @@ export const FEATURE_COMPARISON: FeatureComparisonRow[] = [
   { key: 'dedicated_support', label: 'Dedicated Support', values: { starter: 'no', pro: 'no', business: 'no', enterprise: 'yes' } },
   { key: 'pipeline_board', label: 'Pipeline Board', values: { starter: 'limited', pro: 'yes', business: 'yes', enterprise: 'yes' } },
   { key: 'map_view', label: 'Map View', values: { starter: 'limited', pro: 'yes', business: 'yes', enterprise: 'yes' } },
-  { key: 'text_campaigns', label: 'Text Campaigns', values: { starter: 'no', pro: 'limited', business: 'yes', enterprise: 'yes' } },
+  { key: 'text_campaigns', label: 'Text Campaigns', values: { starter: 'limited', pro: 'limited', business: 'yes', enterprise: 'yes' } },
   { key: 'cohost_program', label: 'Co-Host Program', values: { starter: 'no', pro: 'limited', business: 'yes', enterprise: 'yes' } },
   { key: 'follow_up_tools', label: 'Follow-Up Tools', values: { starter: 'no', pro: 'yes', business: 'yes', enterprise: 'yes' } },
   { key: 'team_chat', label: 'Team Chat', values: { starter: 'no', pro: 'yes', business: 'yes', enterprise: 'yes' } },

@@ -106,7 +106,7 @@ export default function PlanPreviewModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="plan-preview-title"
-        className="relative flex flex-col w-full sm:max-w-4xl max-h-[92dvh] sm:max-h-[88vh] bg-background border border-border rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4"
+        className="relative flex flex-col w-full sm:max-w-5xl max-h-[92dvh] sm:max-h-[88vh] bg-background border border-border rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4"
       >
         <div className="shrink-0 px-5 sm:px-7 pt-5 pb-4 border-b border-border bg-card">
           <div className="flex items-start justify-between gap-4">
