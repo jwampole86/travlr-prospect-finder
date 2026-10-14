@@ -17,7 +17,13 @@ const TILES: Record<BaseLayer, { layers: Array<{ url: string; maxNativeZoom?: nu
   dark: { layers: [{ url: `${ESRI}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`, maxNativeZoom: 16 }, { url: `${ESRI}/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, maxNativeZoom: 16 }], attribution: 'Tiles © Esri', maxZoom: 19 },
   satellite: { layers: [{ url: `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`, maxNativeZoom: 18 }], attribution: 'Imagery © Esri', maxZoom: 19 },
 };
+// With NEXT_PUBLIC_MAPBOX_TOKEN set, all three styles come from Mapbox; without it the keyless tiles above are used.
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+const MAPBOX_STYLE: Record<BaseLayer, string> = { street: 'streets-v12', dark: 'dark-v11', satellite: 'satellite-streets-v12' };
 const addBase = (Lf: any, map: any, base: BaseLayer) => {
+  if (MAPBOX_TOKEN) {
+    return Lf.layerGroup([Lf.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/${MAPBOX_STYLE[base]}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`, { tileSize: 512, zoomOffset: -1, maxZoom: 20, attribution: '© Mapbox © OpenStreetMap contributors' })]).addTo(map);
+  }
   const t = TILES[base];
   return Lf.layerGroup(t.layers.map(l => Lf.tileLayer(l.url, { attribution: t.attribution, maxZoom: t.maxZoom, maxNativeZoom: l.maxNativeZoom }))).addTo(map);
 };
