@@ -219,20 +219,47 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
   return { batch, leads: out.length, final, temperatures: counts, crmUpdated, lastSend: new Date(lastSend).toISOString() };
 }
 
-/** Distinct campaign batch names that have texts logged. */
-export async function listBatches(db: Db): Promise<Array<{ batch: string; texts: number; firstSend: string; lastSend: string; audience: string | null; pending: number; canceled: number }>> {
-  const map = new Map<string, { texts: number; first: number; last: number; audience: string | null; pending: number; canceled: number }>();
+export interface BatchStats {
+  delivered: number; undelivered: number; errors: Record<string, number>; cancelReasons: Record<string, number>;
+  replies: number; yes: number; no: number; stop: number; other: number;
+}
+export interface BatchSummary { batch: string; texts: number; firstSend: string; lastSend: string; audience: string | null; pending: number; canceled: number; stats: BatchStats }
+
+/** Distinct campaign batch names that have texts logged, with how each one turned out. */
+export async function listBatches(db: Db): Promise<BatchSummary[]> {
+  type Entry = { texts: number; first: number; last: number; audience: string | null; pending: number; canceled: number; stats: BatchStats };
+  const map = new Map<string, Entry>();
+  const sends = new Map<string, Array<{ t: number; batch: string }>>();
   const nowMs = Date.now();
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await db.from('outreach_history').select('sent_at, metadata').eq('channel', 'sms').eq('metadata->>kind', 'estimate_outreach').range(from, from + 999);
+    const { data, error } = await db.from('outreach_history').select('lead_id, sent_at, metadata').eq('channel', 'sms').eq('metadata->>kind', 'estimate_outreach').range(from, from + 999);
     if (error) throw error;
     for (const r of data ?? []) {
       const m = (r.metadata ?? {}) as Meta; if (!m.batch) continue;
-      const t = Date.parse(m.scheduled_for ?? r.sent_at); const e = map.get(m.batch) ?? { texts: 0, first: t, last: t, audience: m.audience ?? null, pending: 0, canceled: 0 };
+      const t = Date.parse(m.scheduled_for ?? r.sent_at);
+      const e: Entry = map.get(m.batch) ?? { texts: 0, first: t, last: t, audience: m.audience ?? null, pending: 0, canceled: 0, stats: { delivered: 0, undelivered: 0, errors: {}, cancelReasons: {}, replies: 0, yes: 0, no: 0, stop: 0, other: 0 } };
       e.texts++; e.first = Math.min(e.first, t); e.last = Math.max(e.last, t); map.set(m.batch, e);
-      if (m.twilio_status === 'canceled') e.canceled++; else if (!wasSent(m.twilio_status ?? (t > nowMs ? 'scheduled' : 'sent'))) e.pending++;
+      if (m.twilio_status === 'canceled') { e.canceled++; const why = String(m.canceled_reason ?? 'Canceled before sending'); e.stats.cancelReasons[why] = (e.stats.cancelReasons[why] ?? 0) + 1; }
+      else if (!wasSent(m.twilio_status ?? (t > nowMs ? 'scheduled' : 'sent'))) e.pending++;
+      if (['delivered', 'read'].includes(m.twilio_status)) e.stats.delivered++;
+      else if (['undelivered', 'failed'].includes(m.twilio_status)) { e.stats.undelivered++; const c = String(m.twilio_error_code ?? m.error ?? 'unknown'); e.stats.errors[c] = (e.stats.errors[c] ?? 0) + 1; }
+      if (r.lead_id) (sends.get(r.lead_id) ?? sends.set(r.lead_id, []).get(r.lead_id)!).push({ t, batch: m.batch });
     }
     if ((data ?? []).length < 1000) break;
   }
-  return [...map.entries()].map(([batch, e]) => ({ batch, texts: e.texts, firstSend: new Date(e.first).toISOString(), lastSend: new Date(e.last).toISOString(), audience: e.audience, pending: e.pending, canceled: e.canceled })).sort((a, b) => a.firstSend.localeCompare(b.firstSend));
+  // A reply counts toward the campaign whose text the lead received most recently before replying.
+  const earliest = Math.min(...[...map.values()].map(e => e.first));
+  for (let from = 0; Number.isFinite(earliest); from += 1000) {
+    const { data, error } = await db.from('outreach_history').select('lead_id, sent_at, metadata').eq('channel', 'sms').eq('metadata->>direction', 'inbound').gte('sent_at', new Date(earliest).toISOString()).range(from, from + 999);
+    if (error) throw error;
+    for (const r of data ?? []) {
+      const at = Date.parse(r.sent_at);
+      const prior = (sends.get(r.lead_id) ?? []).filter(x => x.t <= at).sort((a, b) => b.t - a.t)[0];
+      const st = prior && map.get(prior.batch)?.stats; if (!st) continue;
+      const intent = String(((r.metadata ?? {}) as Meta).intent ?? 'other');
+      st.replies++; if (intent === 'yes') st.yes++; else if (intent === 'no') st.no++; else if (intent === 'stop') st.stop++; else st.other++;
+    }
+    if ((data ?? []).length < 1000) break;
+  }
+  return [...map.entries()].map(([batch, e]) => ({ batch, texts: e.texts, firstSend: new Date(e.first).toISOString(), lastSend: new Date(e.last).toISOString(), audience: e.audience, pending: e.pending, canceled: e.canceled, stats: e.stats })).sort((a, b) => a.firstSend.localeCompare(b.firstSend));
 }

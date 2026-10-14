@@ -25,6 +25,20 @@ function status(b: BatchInfo, now = Date.now()): { label: string; tone: 'blue' |
   return b.pending > 0 ? { label: 'Sending', tone: 'amber' } : { label: 'Complete', tone: 'green' };
 }
 
+/** A few plain-language lines on how a finished campaign went. */
+function batchNotes(b: BatchInfo): string[] {
+  const s = b.stats; if (!s) return [];
+  const out: string[] = []; const final = s.delivered + s.undelivered;
+  if (final) {
+    const top = Object.entries(s.errors).sort((x, y) => y[1] - x[1])[0];
+    out.push(`${pct(s.delivered, final)}% delivered (${s.delivered} of ${final}).${s.undelivered ? ` ${s.undelivered} failed${top ? `, mostly ${ERROR_MEANING[top[0]]?.[0] ?? `error ${top[0]}`}` : ''}.` : ''}`);
+  }
+  out.push(s.replies ? `${s.replies} repl${s.replies === 1 ? 'y' : 'ies'}: ${s.yes} YES, ${s.no} NO${s.stop ? `, ${s.stop} STOP` : ''}${s.other ? `, ${s.other} other` : ''}.` : 'No replies.');
+  const why = Object.entries(s.cancelReasons).sort((x, y) => y[1] - x[1])[0];
+  if (b.canceled && why) out.push(`${b.canceled} canceled before sending: ${why[0].replace(/^Zillow shows the listing as /, 'listing ').toLowerCase()}.`);
+  return out;
+}
+
 function countdown(ms: number) {
   const t = Math.max(0, Math.floor(ms / 1000)); const d = Math.floor(t / 86400); const h = Math.floor((t % 86400) / 3600); const m = Math.floor((t % 3600) / 60); const sec = t % 60;
   return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m ${sec}s` : `${m}m ${sec}s`;
@@ -74,6 +88,9 @@ function CampaignStrip({ batches, selected, onSelect, onCancelled, onDrill }: { 
                 <button onClick={() => onDrill({ title: `Texts in ${b.batch}`, metric: 'texts', batch: b.batch })} className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-primary hover:bg-primary/5">View every text</button>
                 {b.pending > 0 && confirm !== b.batch && <button onClick={() => setConfirm(b.batch)} className="h-8 px-3 rounded-lg border border-rose-500 text-rose-600 text-xs font-medium hover:bg-rose-50 dark:hover:bg-rose-500/10 inline-flex items-center gap-1"><X size={12} /> Cancel unsent</button>}
               </div>
+              {st.label === 'Complete' && batchNotes(b).length > 0 && (
+                <ul className="mt-2 space-y-1 text-[11px] leading-snug text-muted-foreground list-disc pl-4">{batchNotes(b).map(n => <li key={n}>{n}</li>)}</ul>
+              )}
               {b.pending > 0 && confirm === b.batch && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs rounded-lg border border-rose-500 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-2"><span className="text-rose-700 dark:text-rose-300 font-medium">Cancel {b.pending} unsent?</span>
                   <button disabled={busy === b.batch} onClick={() => cancel(b.batch)} className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-semibold disabled:opacity-60">{busy === b.batch ? <Loader2 size={12} className="animate-spin" /> : 'Yes, cancel'}</button>

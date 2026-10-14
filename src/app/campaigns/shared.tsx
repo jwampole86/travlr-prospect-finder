@@ -2,7 +2,8 @@
 
 import React from 'react';
 
-export interface BatchInfo { batch: string; texts: number; firstSend: string; lastSend: string; audience: string | null; pending: number; canceled: number }
+export interface BatchStats { delivered: number; undelivered: number; errors: Record<string, number>; cancelReasons: Record<string, number>; replies: number; yes: number; no: number; stop: number; other: number }
+export interface BatchInfo { batch: string; texts: number; firstSend: string; lastSend: string; audience: string | null; pending: number; canceled: number; stats?: BatchStats }
 export interface Bucket { texts: number; delivered: number; clicked: number; viewed: number; submitted: number; replied: number; yes: number; optOut: number; hot: number; cost: number; deliveredPct: number; clickPct: number; viewPct: number; submitPct: number; replyPct: number; optOutPct: number; hotPct: number }
 export interface Hot { leadId: string; batch: string; temperature: string; score: number; address: string; owner: string | null; stage: string | null; phone: string | null; why: string; lastActivityAt: string | null; lastActivity: string | null }
 export interface Overview {
