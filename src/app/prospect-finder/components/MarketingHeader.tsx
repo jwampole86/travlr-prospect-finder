@@ -1,14 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Menu, X } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 
 export default function MarketingHeader() {
   const pathname = usePathname();
   const isPlans = pathname === '/plans';
   const isHome = pathname === '/welcome';
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => setMenuOpen(false), [pathname]);
 
   // Always land at the top of the destination page when navigating between marketing
   // pages (Home/Plans) — only skip this when a hash is present (e.g. #plan-enterprise),
@@ -20,8 +24,8 @@ export default function MarketingHeader() {
 
   return (
     <header className="border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-20">
-      <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-        <Link href="/welcome" className="flex items-center gap-2.5">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-3 sm:gap-4">
+        <Link href="/welcome" className="flex items-center gap-2.5 min-h-[44px]">
           <AppLogo size={26} />
           <span className="text-sm font-bold text-foreground">AVYRO AI</span>
         </Link>
@@ -42,18 +46,42 @@ export default function MarketingHeader() {
           </Link>
           <Link href="/plans#plan-enterprise" className="text-muted-foreground hover:text-foreground transition-colors">Enterprise</Link>
         </nav>
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <div className="flex items-center gap-1 sm:gap-3">
+          <Link href="/login" className="px-2.5 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             Sign In
           </Link>
           <Link
             href="/plans"
-            className="px-3 py-1.5 text-xs sm:text-sm bg-foreground text-background rounded-lg hover:opacity-90 transition-opacity font-medium"
+            className="px-3.5 py-2.5 text-sm bg-foreground text-background rounded-lg hover:opacity-90 transition-opacity font-medium"
           >
             Plans
           </Link>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="marketing-mobile-menu"
+            className="md:hidden w-11 h-11 -mr-1 flex items-center justify-center rounded-lg text-foreground hover:bg-muted transition-colors"
+          >
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+      {menuOpen && (
+        <nav id="marketing-mobile-menu" className="md:hidden border-t border-border bg-card px-4 py-2 flex flex-col">
+          {[
+            { href: '/welcome', label: 'Home' },
+            { href: '/plans', label: 'Plans' },
+            { href: '/plans#plan-enterprise', label: 'Enterprise' },
+            { href: '/prospect-finder/contact-sales', label: 'Contact Sales' },
+          ].map((item) => (
+            <Link key={item.href} href={item.href} className="min-h-[48px] flex items-center text-base font-medium text-foreground border-b border-border/60 last:border-0">
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }

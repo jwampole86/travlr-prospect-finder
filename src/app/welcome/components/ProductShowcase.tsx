@@ -77,14 +77,23 @@ export default function ProductShowcase({ presentation = 'standard' }: ProductSh
   const isHero = presentation === 'hero';
 
   return (
-    <div className={isHero ? 'rounded-[1.35rem] border border-border bg-card/95 p-2 shadow-2xl shadow-primary/15 backdrop-blur' : undefined}>
+    <div className={isHero ? 'rounded-2xl sm:rounded-[1.35rem] border border-border bg-card/95 p-1.5 sm:p-2 shadow-2xl shadow-primary/15 backdrop-blur' : undefined}>
       {/* Category selector */}
-      <div className={`flex items-center justify-center gap-1.5 flex-wrap ${isHero ? 'mb-4 px-2 pt-2' : 'mb-6'}`}>
+      <div
+        role="tablist"
+        aria-label="Product areas"
+        className={`flex items-center gap-1.5 overflow-x-auto snap-x snap-mandatory sm:flex-wrap sm:justify-center sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isHero ? 'mb-4 px-2 pt-2' : 'mb-6 px-1'}`}
+      >
         {TABS.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActive(tab.id)}
-            className={`flex items-center gap-1.5 rounded-full text-xs font-semibold transition-all ${isHero ? 'px-3 py-1.5' : 'px-3.5 py-2'} ${
+            role="tab"
+            aria-selected={active === tab.id}
+            onClick={(e) => {
+              setActive(tab.id);
+              e.currentTarget.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+            }}
+            className={`shrink-0 snap-center flex items-center gap-1.5 rounded-full text-xs font-semibold transition-all min-h-[40px] sm:min-h-0 ${isHero ? 'px-3.5 sm:px-3 py-2 sm:py-1.5' : 'px-4 sm:px-3.5 py-2'} ${
               active === tab.id ? 'bg-foreground text-background shadow-md scale-[1.03]' : 'bg-muted text-muted-foreground hover:bg-muted/70'
             }`}
           >
@@ -102,13 +111,13 @@ export default function ProductShowcase({ presentation = 'standard' }: ProductSh
 
       {/* Browser-frame showcase */}
       <div className={`rounded-2xl border border-border bg-card shadow-2xl shadow-primary/5 overflow-hidden ${isHero ? 'shadow-none' : ''}`}>
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
+        <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 border-b border-border bg-muted/40">
           <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
           <span className="ml-3 text-[11px] text-muted-foreground truncate">app.avyro.ai</span>
         </div>
-        <div className={`${isHero ? 'p-3 sm:p-4' : 'p-4 sm:p-5'} bg-background`}>
+        <div className={`${isHero ? 'p-2.5 sm:p-4' : 'p-3 sm:p-5'} bg-background min-w-0`}>
           <div className={isHero ? 'relative max-h-[540px] overflow-hidden sm:max-h-none' : undefined}>
             <ActiveBody />
             {isHero && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent sm:hidden" />}

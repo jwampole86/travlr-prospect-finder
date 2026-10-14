@@ -52,7 +52,7 @@ const WHO_ITS_FOR = [
 
 export default function WelcomePage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-clip">
       <MarketingHeader />
 
       {/* Hero */}
@@ -68,14 +68,14 @@ export default function WelcomePage() {
             <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0 leading-relaxed">
               AVYRO AI is the AI-powered growth and operations platform for vacation rental and property management companies — from prospecting and enrichment to outreach, automation, analytics, and hiring.
             </p>
-            <div className="mt-8 flex items-center justify-center lg:justify-start gap-3 flex-wrap">
-              <Link href="/plans" className="px-6 py-3 rounded-xl text-sm font-semibold bg-foreground text-background hover:opacity-90 transition-opacity">
+            <div className="mt-8 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-center lg:justify-start gap-3">
+              <Link href="/plans" className="px-6 py-3.5 min-h-[48px] text-center justify-center inline-flex items-center rounded-xl text-sm font-semibold bg-foreground text-background hover:opacity-90 transition-opacity">
                 View Plans
               </Link>
-              <a href="#how-it-works" className="px-6 py-3 rounded-xl text-sm font-semibold border border-border hover:bg-muted transition-colors inline-flex items-center gap-1.5">
+              <a href="#how-it-works" className="px-6 py-3.5 min-h-[48px] text-center justify-center inline-flex items-center rounded-xl text-sm font-semibold border border-border hover:bg-muted transition-colors inline-flex items-center gap-1.5">
                 <PlayCircle className="w-4 h-4" /> See how it works
               </a>
-              <Link href="/login" className="px-6 py-3 rounded-xl text-sm font-semibold border border-border hover:bg-muted transition-colors">
+              <Link href="/login" className="px-6 py-3.5 min-h-[48px] text-center justify-center inline-flex items-center rounded-xl text-sm font-semibold border border-border hover:bg-muted transition-colors">
                 Sign In
               </Link>
             </div>
@@ -93,7 +93,7 @@ export default function WelcomePage() {
       </section>
 
       {/* Proof points */}
-      <section className="max-w-6xl mx-auto px-6 py-12">
+      <section className="max-w-6xl mx-auto px-5 sm:px-6 py-12">
         <div className="grid md:grid-cols-[0.8fr_1.2fr] gap-6 items-start">
           <div>
             <p className="text-xs font-bold tracking-[0.18em] text-primary uppercase mb-3">Proof in the product</p>
@@ -113,7 +113,7 @@ export default function WelcomePage() {
       </section>
 
       {/* Product Showcase */}
-      <section id="how-it-works" className="max-w-6xl mx-auto px-6 pb-16">
+      <section id="how-it-works" className="max-w-6xl mx-auto px-5 sm:px-6 pb-16">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">One Platform. Your Entire Growth Operation.</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">From discovering high-value homeowner opportunities to outreach, automation, team operations, and performance intelligence, AVYRO AI brings your growth workflow together in one platform.</p>
@@ -122,7 +122,7 @@ export default function WelcomePage() {
       </section>
 
       {/* Platform Workflow */}
-      <section className="max-w-5xl mx-auto px-6 pb-16">
+      <section className="max-w-5xl mx-auto px-5 sm:px-6 pb-16">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">The Homeowner Acquisition Workflow</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">AVYRO AI connects the entire homeowner acquisition workflow so information doesn&apos;t disappear between disconnected tools.</p>
@@ -137,7 +137,7 @@ export default function WelcomePage() {
             { step: 'Automate', body: 'Follow-up + workflows' },
             { step: 'Analyze', body: 'Performance intelligence' },
           ].map((s, i) => (
-            <div key={s.step} className="bg-card border border-border rounded-xl p-4 text-center flex flex-col items-center gap-1.5">
+            <div key={s.step} className="bg-card border border-border rounded-xl p-4 text-center flex flex-col items-center gap-1.5 last:col-span-2 sm:last:col-span-1">
               <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
               <p className="text-xs font-bold text-foreground uppercase tracking-wide">{s.step}</p>
               <p className="text-[11px] text-muted-foreground leading-snug">{s.body}</p>
@@ -147,7 +147,7 @@ export default function WelcomePage() {
       </section>
 
       {/* Talent Workflow */}
-      <section className="max-w-5xl mx-auto px-6 pb-16">
+      <section className="max-w-5xl mx-auto px-5 sm:px-6 pb-16">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Build the Team Behind Your Growth</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">AVYRO AI doesn&apos;t just help you acquire homeowners — it can also help you build the team responsible for growth.</p>
@@ -170,7 +170,7 @@ export default function WelcomePage() {
       </section>
 
       {/* Modules */}
-      <section className="max-w-6xl mx-auto px-6 pb-16">
+      <section className="max-w-6xl mx-auto px-5 sm:px-6 pb-16">
         <div className="text-center mb-10">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">What's Inside AVYRO AI</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">AVYRO AI organizes everything your team needs into one coherent platform.</p>
@@ -198,13 +198,13 @@ export default function WelcomePage() {
       </section>
 
       {/* Who it's for */}
-      <section className="max-w-5xl mx-auto px-6 pb-16">
+      <section className="max-w-5xl mx-auto px-5 sm:px-6 pb-16">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Built for Growing Vacation Rental Teams</h2>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
           {WHO_ITS_FOR.map((label) => (
-            <span key={label} className="px-4 py-2 rounded-full text-sm font-medium bg-muted text-foreground border border-border">
+            <span key={label} className="px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium bg-muted text-foreground border border-border text-center">
               {label}
             </span>
           ))}
@@ -212,8 +212,8 @@ export default function WelcomePage() {
       </section>
 
       {/* Why AVYRO AI */}
-      <section className="max-w-4xl mx-auto px-6 pb-16">
-        <div className="bg-card border border-border rounded-2xl p-8 sm:p-10">
+      <section className="max-w-4xl mx-auto px-5 sm:px-6 pb-16">
+        <div className="bg-card border border-border rounded-2xl p-5 sm:p-10">
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-5 text-center">Why Teams Choose AVYRO AI</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
@@ -235,8 +235,8 @@ export default function WelcomePage() {
       </section>
 
       {/* Responsible Data & Compliance */}
-      <section className="max-w-4xl mx-auto px-6 pb-16">
-        <div className="bg-card border border-border rounded-2xl p-8 sm:p-10">
+      <section className="max-w-4xl mx-auto px-5 sm:px-6 pb-16">
+        <div className="bg-card border border-border rounded-2xl p-5 sm:p-10">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
               <ShieldCheck className="w-5 h-5 text-primary" />
@@ -260,7 +260,7 @@ export default function WelcomePage() {
       </section>
 
       {/* FAQ */}
-      <section className="max-w-6xl mx-auto px-6 pb-16">
+      <section className="max-w-6xl mx-auto px-5 sm:px-6 pb-16">
         <div className="text-center mb-6">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Frequently Asked Questions</h2>
         </div>
@@ -268,17 +268,17 @@ export default function WelcomePage() {
       </section>
 
       {/* CTA banner */}
-      <section className="max-w-6xl mx-auto px-6 pb-20">
-        <div className="rounded-3xl bg-foreground text-background p-8 sm:p-12 text-center">
+      <section className="max-w-6xl mx-auto px-5 sm:px-6 pb-20">
+        <div className="rounded-3xl bg-foreground text-background p-6 sm:p-12 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold">Ready to Grow Smarter?</h2>
           <p className="mt-3 text-sm sm:text-base text-background/75 max-w-xl mx-auto">
             Compare Starter, Pro, Business, and Enterprise plans, or sign in if you're already part of an AVYRO AI team.
           </p>
-          <div className="mt-7 flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/plans" className="px-6 py-3 rounded-xl text-sm font-semibold bg-background text-foreground hover:opacity-90 transition-opacity flex items-center gap-1.5">
+          <div className="mt-7 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+            <Link href="/plans" className="px-6 py-3.5 min-h-[48px] justify-center rounded-xl text-sm font-semibold bg-background text-foreground hover:opacity-90 transition-opacity flex items-center gap-1.5">
               View Plans <ArrowRight className="w-4 h-4" />
             </Link>
-            <Link href="/login" className="px-6 py-3 rounded-xl text-sm font-semibold border border-background/30 hover:bg-background/10 transition-colors">
+            <Link href="/login" className="px-6 py-3.5 min-h-[48px] flex items-center justify-center rounded-xl text-sm font-semibold border border-background/30 hover:bg-background/10 transition-colors">
               Sign In
             </Link>
           </div>
