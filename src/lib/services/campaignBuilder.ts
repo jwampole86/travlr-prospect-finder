@@ -196,6 +196,7 @@ export async function scheduleChunk(db: Db, p: CampaignParams, ids: string[], bu
     const d = await draftOutreach(db, lead, { site: SITE, tone: toneFor(p, lead.id), now: sendAt });
     if (d.blockers.length || !d.to) return skip(d.blockers[0] ?? 'no_phone');
     const look = await lookupPhoneNumber(d.to);
+    if (look.twilioConfigured && look.error) return skip('lookup_failed'); // a failed lookup says nothing about the number, so the lead is not tagged
     const blocked = smsBlockReason(look);
     if (blocked) {
       const reason = blocked;

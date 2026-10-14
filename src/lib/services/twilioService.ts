@@ -210,14 +210,21 @@ export async function dispatchSMS(payload: SMSDispatchPayload): Promise<SMSDispa
   }
 }
 
+// Non-fixed VoIP numbers that received texts on 2026-10-12/13 were all on SMS platforms; those on telephone-company carriers failed with 30006.
+const SMS_CAPABLE_VOIP = /SVR|Vonage|Google|Infobip|Twilio|Telnyx|Sinch/i;
+
 /**
  * Why a campaign must not text this number, or null when it may. Landlines and fixed VoIP lines cannot receive texts (every fixed-VoIP
- * text in the 2026-10-12 campaigns failed with 30006); mobile and non-fixed VoIP numbers delivered.
+ * text in the 2026-10-12 campaigns failed with 30006), and neither can the wireline numbers Lookup reports as non-fixed VoIP
+ * (Frontier, Windstream, Bandwidth CLEC and similar), or numbers with no line type at all.
  */
 export function smsBlockReason(look: PhoneLookupResult): 'invalid' | 'landline' | null {
   if (!look.twilioConfigured) return null;
-  if (look.valid === false) return 'invalid';
+  // Vonage VoIP numbers report inactive yet deliver, so the status is only trusted for mobile lines.
+  if (look.valid === false || (look.lineType === 'mobile' && look.lineStatus === 'inactive')) return 'invalid';
   if (look.lineType === 'landline' || look.lineType === 'fixedVoip') return 'landline';
+  if (look.lineType === 'nonFixedVoip' && !SMS_CAPABLE_VOIP.test(look.carrierName ?? '')) return 'landline';
+  if (!look.lineType || look.lineType === 'unknown') return 'landline';
   return null;
 }
 

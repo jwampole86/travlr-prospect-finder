@@ -1,5 +1,6 @@
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { cancelScheduled } from '@/lib/services/twilioSchedule';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
 export interface ListingStatus { /** Do not text: sold, pending, off market, or not confirmed live. */ blocked: boolean; status: string | null; reason: 'sold' | 'pending' | 'off_market' | 'unverified' | null }
@@ -42,7 +43,7 @@ async function fetchStatuses(urls: string[]): Promise<Map<string, string> | null
  * A text that says "we saw your home on Zillow" must not go to a home that has sold, gone pending or come off the market.
  * Leads without a Zillow listing page are not checked, since the text does not refer to a listing.
  */
-export async function checkListingStatuses(db: Db, leads: Array<{ id: string; listing_url?: string | null }>): Promise<Map<string, ListingStatus>> {
+export async function checkListingStatuses(db: Db, leads: Array<{ id: string; listing_url?: string | null }>, maxAgeMs = FRESH_MS): Promise<Map<string, ListingStatus>> {
   const out = new Map<string, ListingStatus>();
   const ids = leads.filter(l => isZillow(l.listing_url)).map(l => l.id);
   if (!ids.length) return out;
@@ -50,7 +51,7 @@ export async function checkListingStatuses(db: Db, leads: Array<{ id: string; li
   const need: Array<{ id: string; url: string }> = [];
   for (const r of rows ?? []) {
     const age = r.link_last_checked_at ? Date.now() - Date.parse(r.link_last_checked_at) : Infinity;
-    if (age < FRESH_MS && r.listing_status) out.set(r.id, classify(String(r.listing_status))); else need.push({ id: r.id, url: String(r.listing_url) });
+    if (age < maxAgeMs && r.listing_status) out.set(r.id, classify(String(r.listing_status))); else need.push({ id: r.id, url: String(r.listing_url) });
   }
   for (let i = 0; i < need.length; i += 20) {
     const group = need.slice(i, i + 20);
@@ -63,4 +64,28 @@ export async function checkListingStatuses(db: Db, leads: Array<{ id: string; li
     }
   }
   return out;
+}
+
+/**
+ * Rechecks the listing behind every text due to go out in the next hour and cancels those whose home has since sold, gone pending
+ * or come off the market. A status that could not be confirmed leaves the text alone, since it was verified when scheduled.
+ */
+export async function cancelQueuedForDeadListings(db: Db, withinMinutes = 65): Promise<{ queued: number; checked: number; canceled: number; failed: number }> {
+  const now = Date.now(); const until = now + withinMinutes * 60_000;
+  const { data: rows } = await db.from('outreach_history').select('id,lead_id,metadata').eq('channel', 'sms').eq('metadata->>twilio_status', 'scheduled').eq('metadata->>kind', 'estimate_outreach').gt('sent_at', new Date(now + 3 * 60_000).toISOString()).lte('sent_at', new Date(until).toISOString()).limit(1000);
+  const due = (rows ?? []).filter(r => r.lead_id && (r.metadata as { message_sid?: string })?.message_sid);
+  const ids = [...new Set(due.map(r => String(r.lead_id)))];
+  const { data: leads } = ids.length ? await db.from('leads').select('id,listing_url').in('id', ids) : { data: [] };
+  const status = await checkListingStatuses(db, leads ?? [], 0);
+  let canceled = 0; let failed = 0;
+  for (const r of due) {
+    const s = status.get(String(r.lead_id));
+    if (!s?.blocked || s.reason === 'unverified') continue;
+    const m = r.metadata as Record<string, unknown>;
+    const c = await cancelScheduled(String(m.message_sid));
+    if (!c.ok) { failed++; continue; }
+    canceled++;
+    await db.from('outreach_history').update({ metadata: { ...m, twilio_status: 'canceled', twilio_status_at: new Date().toISOString(), canceled_reason: `Zillow shows the listing as ${s.status}` } }).eq('id', r.id);
+  }
+  return { queued: due.length, checked: status.size, canceled, failed };
 }

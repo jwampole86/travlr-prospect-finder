@@ -26,6 +26,10 @@
       "schedule": "0 */12 * * *"
     },
     {
+      "path": "/api/cron/listing-recheck",
+      "schedule": "5 * * * *"
+    },
+    {
       "path": "/api/cron/lead-rescore",
       "schedule": "*/15 * * * *"
     },
