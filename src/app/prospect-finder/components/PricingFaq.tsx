@@ -22,7 +22,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'What happens if I reach my plan limit?',
-    a: "You'll be notified as you approach your plan's monthly allowance (users, portfolios, leads, or enrichments). Allowances refresh each month, and you can upgrade at any time to raise them. Existing data and workflows are never interrupted.",
+    a: "You'll be notified as you approach your plan's monthly allowance (users, portfolios, leads, or enrichments). Allowances refresh each month. If you need more before then, extra leads and texts are available at the per-unit rates shown on each plan (extra leads cost less on higher plans), or you can upgrade at any time to raise them. Existing data and workflows are never interrupted.",
   },
   {
     q: 'How do text campaigns work?',

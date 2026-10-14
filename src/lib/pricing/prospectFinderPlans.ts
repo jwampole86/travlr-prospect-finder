@@ -29,7 +29,10 @@ export interface ProspectFinderPlan {
     portfolios: string;
     leads: string;
     enrichments: string;
+    texts: string;
     aiInterviews: string;
+    /** What extra volume costs once the monthly allowance is used. */
+    overage: string;
   };
   features: string[];
   /** Name of the env var that will hold this plan's Stripe Price ID once configured server-side. */
@@ -52,7 +55,9 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       portfolios: '1 portfolio',
       leads: 'Up to 50 leads/mo',
       enrichments: 'Up to 75 enrichments/mo',
+      texts: 'Up to 50 texts/mo',
       aiInterviews: 'Not included',
+      overage: 'Extra leads $3.50 each · extra texts $0.05 each',
     },
     features: [
       'Lead Management with overview tiles & quick views',
@@ -60,6 +65,7 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       'Basic search & filtering',
       'Pipeline Board with live campaign stages (view only)',
       'Map View with street layer',
+      'Text campaigns to your own leads with carrier checks and opt-out handling (up to 50 texts a month)',
       'Up to 50 leads and 75 enrichments per month',
       'Basic lead notes',
     ],    stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_STARTER',
@@ -78,14 +84,16 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       portfolios: 'Up to 5 portfolios',
       leads: 'Up to 150 leads/mo',
       enrichments: 'Up to 225 enrichments/mo',
+      texts: 'Up to 300 texts/mo',
       aiInterviews: 'Up to 25 AI interviews/mo',
+      overage: 'Extra leads $3.00 each · extra texts $0.05 each',
     },
     features: [
       'Everything in Starter',
       'Advanced filtering, saved views & priority lists',
       'Pipeline Board with drag-and-drop stages',
       'Map View with stage colors, dark and satellite styles',
-      'Text campaigns with carrier checks, quiet hours & opt-out handling (limited volume)',
+      'Text campaigns with carrier checks, quiet hours & opt-out handling (up to 300 texts a month)',
       'Co-Host pipeline: browse listings and owner matches',
       'Verified contact workflows & lead assignment',
       'Team Chat, personal alerts & working hours',
@@ -108,14 +116,16 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       portfolios: 'Up to 25 portfolios',
       leads: 'Up to 400 leads/mo',
       enrichments: 'Up to 600 enrichments/mo',
+      texts: 'Up to 1,500 texts/mo',
       aiInterviews: 'Included',
+      overage: 'Extra leads $2.75 each · extra texts $0.04 each',
     },
     features: [
       'Everything in Pro',
       'Luxury lead access with market-aware tiers (up to 40 luxury leads a month)',
       'Full Co-Host program: owner matching from license records, verification, audit offers, email & text outreach (up to 25 verified-owner matches a month)',
       'Executive Overview with drill-down on every panel',
-      'Full-volume text campaigns with delivery and reply insights',
+      'High-volume text campaigns with delivery and reply insights (up to 1,500 texts a month)',
       'AI Interview Assistant & automated, bulk scheduling',
       'Advanced analytics & API access',
       'Up to 400 leads and 600 enrichments per month',
@@ -138,7 +148,9 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
       portfolios: 'Custom',
       leads: 'Custom',
       enrichments: 'Custom',
+      texts: 'Custom',
       aiInterviews: 'Custom',
+      overage: 'Volume pricing',
     },
     features: [
       'Everything in Business',
@@ -276,4 +288,27 @@ export function getFeatureGateMessage(featureLabel: string, minimumPlan: PlanId)
     title: featureLabel,
     body: `Available on ${planName} and higher plans. Upgrade your plan to unlock ${featureLabel.toLowerCase()}.`,
   };
+}
+
+
+/**
+ * The numbers behind the "pays for itself" section. The revenue figure is the median estimated annual gross
+ * rent of leads in VAYO's own database (about $4,600 a month); the section applies a typical management fee
+ * and then halves the estimate so the claim stays conservative.
+ */
+export const BREAK_EVEN_ASSUMPTIONS = {
+  medianAnnualRent: 55_000,
+  managementFeePercent: 20,
+  conservativeFactor: 0.5,
+} as const;
+
+/** What one signed management agreement is worth per year at the conservative setting. */
+export function conservativeAnnualFeePerProperty(): number {
+  const a = BREAK_EVEN_ASSUMPTIONS;
+  return Math.round(a.medianAnnualRent * (a.managementFeePercent / 100) * a.conservativeFactor);
+}
+
+/** How many months of a plan one signed property covers, or null for custom plans. */
+export function monthsCoveredByOneProperty(plan: ProspectFinderPlan): number | null {
+  return plan.monthlyPrice ? Math.round((conservativeAnnualFeePerProperty() / plan.monthlyPrice) * 10) / 10 : null;
 }

@@ -13,6 +13,9 @@ import {
   PROSPECT_FINDER_PLANS,
   FEATURE_CATEGORIES,
   LEAD_SUPPLY_FACTS,
+  BREAK_EVEN_ASSUMPTIONS,
+  conservativeAnnualFeePerProperty,
+  monthsCoveredByOneProperty,
   getDisplayMonthlyPrice,
   getAnnualSavingsPercent,
   type PlanId,
@@ -166,6 +169,9 @@ function PricingCard({
           <p>Leads / mo</p>
         </div>
       </div>
+      <p className={`-mt-3 mb-6 text-center text-[11px] ${isEnterprise ? 'text-background/70' : 'text-muted-foreground'}`}>
+        {isEnterprise ? 'Volume pricing and custom allowances' : `${plan.limits.texts} · ${plan.limits.overage}`}
+      </p>
 
       <Link
         href={ctaHref}
@@ -487,6 +493,34 @@ export default function PlansPageClient() {
             ))}
           </div>
           <p className="mt-4 text-[11px] text-muted-foreground">Approximate platform averages from real lead data. Results vary by market.</p>
+        </div>
+      </section>
+
+      {/* Pays for itself */}
+      <section id="pays-for-itself" className="max-w-5xl mx-auto px-6 pb-16 scroll-mt-20">
+        <div className="rounded-3xl border border-border bg-card p-6 sm:p-8">
+          <p className="text-xs font-bold tracking-[0.16em] text-primary uppercase mb-3">Does it pay for itself?</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">One Signed Property Covers {Math.floor(monthsCoveredByOneProperty(PROSPECT_FINDER_PLANS.business) ?? 0)}+ Months of Business</h2>
+          <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-3xl">
+            The median lead in VAYO is a home earning about ${BREAK_EVEN_ASSUMPTIONS.medianAnnualRent.toLocaleString()} a year in estimated gross rent. At a typical {BREAK_EVEN_ASSUMPTIONS.managementFeePercent}% management fee, and counting only half of that estimate to stay conservative, one signed property is worth about ${conservativeAnnualFeePerProperty().toLocaleString()} a year to you.
+          </p>
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {(['starter', 'pro', 'business'] as const).map((id) => {
+              const plan = PROSPECT_FINDER_PLANS[id];
+              const months = monthsCoveredByOneProperty(plan);
+              const breakEven = plan.monthlyPrice ? (plan.monthlyPrice * 12) / conservativeAnnualFeePerProperty() : null;
+              return (
+                <div key={id} className="rounded-2xl bg-muted/40 border border-border p-4">
+                  <p className="text-xs font-semibold text-muted-foreground">{plan.name} · ${plan.monthlyPrice}/mo</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">{months != null ? Math.floor(months) : 0}+ months covered</p>
+                  <p className="mt-1 text-xs text-muted-foreground leading-snug">
+                    by one signed property. Break-even is about {breakEven != null ? (breakEven < 1 ? `${Math.round(breakEven * 100)}% of a property` : `${breakEven.toFixed(1)} properties`) : '—'} a year.
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-4 text-[11px] text-muted-foreground">Illustrative math from VAYO lead data, not a guarantee. Your fee, market, and close rate will differ.</p>
         </div>
       </section>
 

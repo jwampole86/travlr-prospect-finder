@@ -68,7 +68,7 @@ const PLANS: Plan[] = PLAN_ORDER.map((id) => {
     price: plan.monthlyPrice,
     interval: 'month' as const,
     seats: PLAN_SEATS[id],
-    features: [plan.limits.users, plan.limits.leads, plan.limits.enrichments, ...plan.features.filter((f) => f !== 'Everything in Starter' && !f.startsWith('Everything in ')).slice(0, 4)],
+    features: [plan.limits.users, plan.limits.leads, plan.limits.enrichments, plan.limits.texts, ...plan.features.filter((f) => f !== 'Everything in Starter' && !f.startsWith('Everything in ')).slice(0, 4)],
     ...PLAN_STYLES[id],
     popular: plan.highlighted === true,
   };
