@@ -1,5 +1,5 @@
 /**
- * VAYO "Future of Property Turnovers" newsletter sender. Dry run unless --go. Nothing can send until
+ * AVYRO AI "Future of Property Turnovers" newsletter sender. Dry run unless --go. Nothing can send until
  * FUTURE_STR_SENDING_ENABLED=true and the FUTURE_STR_* sender, reply-to, postal and site settings exist.
  *
  *   npx tsx scripts/future-str-send.ts --status

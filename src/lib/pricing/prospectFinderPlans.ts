@@ -1,5 +1,5 @@
 /**
- * Single source of truth for VAYO subscription plans.
+ * Single source of truth for AVYRO AI subscription plans.
  * Both the pricing cards and the comparison table render from this config.
  *
  * Internal plan identifiers (starter | pro | business | enterprise) are stable
@@ -135,7 +135,7 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
-    tagline: 'For multi-market operators and larger organizations. Unlock the complete VAYO platform with the full AI suite, custom limits, advanced automation, and dedicated support.',
+    tagline: 'For multi-market operators and larger organizations. Unlock the complete AVYRO AI platform with the full AI suite, custom limits, advanced automation, and dedicated support.',
     monthlyPrice: null,
     annualPrice: null,
     contactSales: true,
@@ -193,7 +193,7 @@ export interface FeatureComparisonRow {
 }
 
 // Enterprise is intentionally 'yes' on every single row — it is the only plan
-// with complete access to every VAYO feature.
+// with complete access to every AVYRO AI feature.
 export const FEATURE_COMPARISON: FeatureComparisonRow[] = [
   { key: 'lead_management', label: 'Lead Management', values: { starter: 'yes', pro: 'yes', business: 'yes', enterprise: 'yes' } },
   { key: 'dashboard', label: 'Dashboard', values: { starter: 'limited', pro: 'yes', business: 'yes', enterprise: 'yes' } },
@@ -263,7 +263,7 @@ export const FEATURE_CATEGORIES: FeatureCategoryGroup[] = [
 ];
 
 /**
- * Why the monthly lead allowances are small. They are sized to what VAYO can actually supply at full potential:
+ * Why the monthly lead allowances are small. They are sized to what AVYRO AI can actually supply at full potential:
  * roughly 15,000 owner lookups a month across the platform, and the rates below measured on real leads.
  * Rounded on purpose; refresh them from the lead data when they drift.
  */
@@ -280,7 +280,7 @@ export function getFeatureGateMessage(featureLabel: string, minimumPlan: PlanId)
   if (minimumPlan === 'enterprise') {
     return {
       title: 'Enterprise Feature',
-      body: `${featureLabel} is available with VAYO Enterprise. Contact Sales to unlock full platform access.`,
+      body: `${featureLabel} is available with AVYRO AI Enterprise. Contact Sales to unlock full platform access.`,
     };
   }
   const planName = PROSPECT_FINDER_PLANS[minimumPlan].name;
@@ -293,7 +293,7 @@ export function getFeatureGateMessage(featureLabel: string, minimumPlan: PlanId)
 
 /**
  * The numbers behind the "pays for itself" section. The revenue figure is the median estimated annual gross
- * rent of leads in VAYO's own database (about $4,600 a month); the section applies a typical management fee
+ * rent of leads in AVYRO AI's own database (about $4,600 a month); the section applies a typical management fee
  * and then halves the estimate so the claim stays conservative.
  */
 export const BREAK_EVEN_ASSUMPTIONS = {

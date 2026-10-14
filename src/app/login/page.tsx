@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import AppLogo from '@/components/ui/AppLogo';
-import VayoLoader from '@/components/ui/VayoLoader';
+import AvyroLoader from '@/components/ui/AvyroLoader';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 
 function GoogleIcon() {
@@ -88,7 +88,7 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <VayoLoader label="Loading…" />
+        <AvyroLoader label="Loading…" />
       </div>
     );
   }
@@ -101,7 +101,7 @@ export default function LoginPage() {
           <div className="flex items-center gap-3">
             <AppLogo size={36} />
             <div>
-              <p className="text-base font-bold text-foreground tracking-tight">VAYO</p>
+              <p className="text-base font-bold text-foreground tracking-tight">AVYRO AI</p>
               <p className="text-xs text-muted-foreground">Growth & Operations Platform</p>
             </div>
           </div>
@@ -136,7 +136,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">© 2026 VAYO. All rights reserved.</p>
+        <p className="text-xs text-muted-foreground">© 2026 AVYRO AI. All rights reserved.</p>
       </div>
 
       {/* Right panel — form */}
@@ -147,7 +147,7 @@ export default function LoginPage() {
             <div className="flex items-center gap-3">
               <AppLogo size={32} />
               <div>
-                <p className="text-sm font-bold text-foreground">VAYO</p>
+                <p className="text-sm font-bold text-foreground">AVYRO AI</p>
                 <p className="text-xs text-muted-foreground">Growth & Operations Platform</p>
               </div>
             </div>
@@ -161,7 +161,7 @@ export default function LoginPage() {
               {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {mode === 'login' ? 'Sign in to VAYO to access your workspace.' : 'Create your VAYO account to get started.'}
+              {mode === 'login' ? 'Sign in to AVYRO AI to access your workspace.' : 'Create your AVYRO AI account to get started.'}
             </p>
             {intendedPlan && (
               <p className="mt-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 capitalize">

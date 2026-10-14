@@ -3,7 +3,7 @@
 import { Mic, Zap, BriefcaseBusiness, ThumbsUp, ThumbsDown, User, Home, CheckCircle2, Circle } from 'lucide-react';
 
 const TRANSCRIPT = [
-  { speaker: 'Agent', text: 'Hi, is this Dana? This is Alex with VAYO Property Group — I help homeowners in the Vail area explore vacation rental management.' },
+  { speaker: 'Agent', text: 'Hi, is this Dana? This is Alex with AVYRO AI Property Group — I help homeowners in the Vail area explore vacation rental management.' },
   { speaker: 'Homeowner', text: "Oh, hi. I've actually looked into short-term rentals before but wasn't sure about the local rules." },
   { speaker: 'Agent', text: "Totally fair question — Vail allows short-term rentals with a registered permit, which we handle for owners we manage." },
   { speaker: 'Homeowner', text: 'That actually sounds easier than I expected. What would managing it actually look like day to day?' },

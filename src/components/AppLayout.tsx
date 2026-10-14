@@ -16,7 +16,7 @@ import ProfileMenu from './ProfileMenu';
 import FirstLoginPlatformGuide from './FirstLoginPlatformGuide';
 import TimeClockWidget from './TimeClockWidget';
 import TimeClockIdleMonitor from './TimeClockIdleMonitor';
-import VayoLoader from './ui/VayoLoader';
+import AvyroLoader from './ui/AvyroLoader';
 
 // ── Lazy-load FloatingDialer — Twilio Voice SDK is heavy and should only
 //    initialize when the agent actually opens the dialer, not on every page load.
@@ -38,7 +38,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   useEffect(() => {
     if (!loading && !user) {
-      // Anonymous visitors hitting the dashboard root see the public VAYO landing page first,
+      // Anonymous visitors hitting the dashboard root see the public AVYRO AI landing page first,
       // rather than being dropped straight onto the sign-in form.
       router.replace(pathname === '/' ? '/welcome' : '/login');
       return;
@@ -56,7 +56,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <VayoLoader label="Loading…" />
+        <AvyroLoader label="Loading…" />
       </div>
     );
   }
@@ -109,7 +109,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <ArrowLeft size={20} />
             </button>
           )}
-          <span className="text-sm font-semibold text-foreground flex-1">VAYO</span>
+          <span className="text-sm font-semibold text-foreground flex-1">AVYRO AI</span>
           <TimeClockWidget />
           <BellButton />
           <InboxButton />
@@ -142,7 +142,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {/* Compliance footer */}
         <footer className="border-t border-border bg-card px-6 py-4 mt-auto">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-            <span className="text-foreground/60">© 2026 VAYO Inc.</span>
+            <span className="text-foreground/60">© 2026 AVYRO AI Inc.</span>
             <Link href="/terms-of-service" className="hover:text-foreground transition-colors">Terms of Service</Link>
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
             <Link href="/tcpa-compliance" className="hover:text-foreground transition-colors">TCPA Compliance</Link>

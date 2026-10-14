@@ -25,7 +25,7 @@ const ISSUES: Record<number, Record<Audience, Issue>> = {
         { t: 'img', file: 'turnover-concept-grid.jpg', alt: 'Concept images of a humanoid robot helping prepare a vacation rental: vacuuming, making a bed, wiping a vanity, carrying towels and supplies, and running laundry', caption: 'Concept imagery created to illustrate the vision. Not a product available today.' },
         { t: 'p', text: 'Imagine a future where vacation rental properties could be prepared for the next guest with the assistance of intelligent technology.' },
         { t: 'p', text: 'Cleaning teams could work alongside advanced robotics, while AI-powered software helps coordinate inspections, supplies, maintenance, and property turnovers.' },
-        { t: 'p', text: "At **VAYO AI**, we're exploring how technology could make vacation rental operations more efficient, consistent, and reliable." },
+        { t: 'p', text: "At **AVYRO AI**, we're exploring how technology could make vacation rental operations more efficient, consistent, and reliable." },
         { t: 'p', text: "We're especially interested in what this future could mean for homeowners." },
         { t: 'label', text: 'Imagine a property where:' },
         { t: 'ul', items: [
@@ -42,7 +42,7 @@ const ISSUES: Record<number, Record<Audience, Issue>> = {
         { t: 'cta', text: 'Share Your Thoughts' },
         { t: 'p', text: 'Your perspective could help shape the next generation of vacation rental management technology.' },
       ],
-      sign: ['VAYO AI', 'Exploring the future of smarter vacation rental operations.'],
+      sign: ['AVYRO AI', 'Exploring the future of smarter vacation rental operations.'],
     },
     operator: {
       subject: 'Help shape how vacation rental turnovers get done',
@@ -52,7 +52,7 @@ const ISSUES: Record<number, Record<Audience, Issue>> = {
         { t: 'sub', text: "We'd love to learn from the people who run them." },
         { t: 'img', file: 'turnover-concept-grid.jpg', alt: 'Concept images of a humanoid robot assisting with turnover tasks: vacuuming, bedding, bathroom, towels, supplies, laundry and a turnover checklist', caption: 'Concept imagery created to illustrate the vision. Not a product available today.' },
         { t: 'p', text: 'Turnovers are where reliability is won or lost: late checkouts, missed tasks, supply gaps, callbacks and guest-ready approvals.' },
-        { t: 'p', text: "At **VAYO AI**, we're developing software to coordinate crews, checklists, photo inspections and supplies in one place. We're also researching, carefully and at an early stage, whether supervised robotic help could one day assist with selected tasks." },
+        { t: 'p', text: "At **AVYRO AI**, we're developing software to coordinate crews, checklists, photo inspections and supplies in one place. We're also researching, carefully and at an early stage, whether supervised robotic help could one day assist with selected tasks." },
         { t: 'note', text: '**Nothing here is available today, and no robotics service is being announced.** We want to understand real turnover work before we build further.' },
         { t: 'label', text: 'We would like to hear:' },
         { t: 'ul', items: [
@@ -65,7 +65,7 @@ const ISSUES: Record<number, Record<Audience, Issue>> = {
         { t: 'cta', text: 'Share Your Perspective' },
         { t: 'p', text: 'We are looking for a small number of early design partners, and your answers help us decide who to talk to first.' },
       ],
-      sign: ['VAYO AI', 'Exploring the future of smarter vacation rental operations.'],
+      sign: ['AVYRO AI', 'Exploring the future of smarter vacation rental operations.'],
     },
   },
 };
@@ -82,7 +82,7 @@ export function renderIssue(issue: number, audience: Audience, o: RenderOpts) {
   const def = ISSUES[issue]?.[audience];
   if (!def) throw new Error(`No issue ${issue} for ${audience}`);
   const surveyUrl = `${o.siteUrl}/future-of-str?a=${audience}&src=issue${issue}`;
-  const reason = o.reason ?? 'You are receiving this because you asked for updates from VAYO AI about the future of vacation rental operations.';
+  const reason = o.reason ?? 'You are receiving this because you asked for updates from AVYRO AI about the future of vacation rental operations.';
   const brand = o.brandSite ? `<br>${esc(o.brandSite)}` : '';
   const imageBase = (o.imageBase ?? `${o.siteUrl}/assets/future-str`).replace(/\/$/, '');
 
@@ -105,13 +105,13 @@ export function renderIssue(issue: number, audience: Audience, o: RenderOpts) {
 <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(def.preheader)}</span>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5f9;"><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">
-<tr><td style="background:#12263f;padding:18px 32px;font:700 14px Arial,sans-serif;letter-spacing:1px;color:#ffffff;">VAYO AI <span style="font-weight:400;color:#8fb9ee;">&nbsp;/&nbsp; THE FUTURE OF PROPERTY TURNOVERS</span></td></tr>
+<tr><td style="background:#12263f;padding:18px 32px;font:700 14px Arial,sans-serif;letter-spacing:1px;color:#ffffff;">AVYRO AI <span style="font-weight:400;color:#8fb9ee;">&nbsp;/&nbsp; THE FUTURE OF PROPERTY TURNOVERS</span></td></tr>
 <tr><td style="padding:32px 32px 8px;font:16px/1.6 Georgia,serif;color:#1a2230;">
 ${body}
 <p style="margin:26px 0 0;font:700 16px Georgia,serif;color:#12263f;">${esc(def.sign[0])}</p>
 <p style="margin:2px 0 24px;font:italic 15px Georgia,serif;color:#5b677a;">${esc(def.sign[1])}${brand}</p>
 </td></tr>
-<tr><td style="padding:18px 32px 28px;border-top:1px solid #e5e9f0;font:12px/1.55 Arial,sans-serif;color:#6b7686;">${esc(reason)}<br>VAYO AI, ${esc(o.postal)}.<br><a href="${esc(o.unsubscribeUrl)}" style="color:#6b7686;">Unsubscribe</a> at any time and we will stop emailing you.</td></tr>
+<tr><td style="padding:18px 32px 28px;border-top:1px solid #e5e9f0;font:12px/1.55 Arial,sans-serif;color:#6b7686;">${esc(reason)}<br>AVYRO AI, ${esc(o.postal)}.<br><a href="${esc(o.unsubscribeUrl)}" style="color:#6b7686;">Unsubscribe</a> at any time and we will stop emailing you.</td></tr>
 </table></td></tr></table></body></html>`;
 
   const text = def.blocks.filter(b => b.t !== 'img').map(b => {
@@ -121,7 +121,7 @@ ${body}
       case 'cta': return `${plain(b.text)}: ${surveyUrl}`;
       default: return plain(b.text);
     }
-  }).join('\n\n') + `\n\n${def.sign[0]}\n${def.sign[1]}\n\n--\n${reason}\nVAYO AI, ${o.postal}.\nUnsubscribe: ${o.unsubscribeUrl}\n`;
+  }).join('\n\n') + `\n\n${def.sign[0]}\n${def.sign[1]}\n\n--\n${reason}\nAVYRO AI, ${o.postal}.\nUnsubscribe: ${o.unsubscribeUrl}\n`;
 
   return { subject: def.subject, preheader: def.preheader, html, text };
 }

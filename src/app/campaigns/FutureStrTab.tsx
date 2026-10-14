@@ -51,7 +51,7 @@ export default function FutureStrTab() {
 
   return (
     <div className="space-y-6">
-      <Notice tone="blue"><Newspaper size={15} className="mt-0.5 shrink-0" /> <span><b>The Future of Property Turnovers</b> is a VAYO-only research newsletter. It is prepared but dormant: nothing is emailed, and the public survey page stays hidden, until you switch them on. Homeowner interest shows whether people accept new technology in a property. It does not show whether managers will buy turnover software; that needs separate conversations.</span></Notice>
+      <Notice tone="blue"><Newspaper size={15} className="mt-0.5 shrink-0" /> <span><b>The Future of Property Turnovers</b> is an AVYRO AI-only research newsletter. It is prepared but dormant: nothing is emailed, and the public survey page stays hidden, until you switch them on. Homeowner interest shows whether people accept new technology in a property. It does not show whether managers will buy turnover software; that needs separate conversations.</span></Notice>
       {error && <Notice tone="red"><AlertTriangle size={15} className="mt-0.5 shrink-0" /> {error}</Notice>}
       {loading && !r && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24" />)}</div>}
 

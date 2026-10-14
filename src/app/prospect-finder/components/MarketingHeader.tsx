@@ -23,7 +23,7 @@ export default function MarketingHeader() {
       <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
         <Link href="/welcome" className="flex items-center gap-2.5">
           <AppLogo size={26} />
-          <span className="text-sm font-bold text-foreground">VAYO</span>
+          <span className="text-sm font-bold text-foreground">AVYRO AI</span>
         </Link>
         <nav className="hidden md:flex items-center gap-5 text-sm font-medium shrink-0">
           <Link

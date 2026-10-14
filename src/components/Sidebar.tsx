@@ -444,7 +444,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         <AppLogo size={28} />
         {!collapsed && (
           <div className="flex flex-col leading-none min-w-0 flex-1">
-            <span className="text-sm font-semibold text-foreground truncate">VAYO</span>
+            <span className="text-sm font-semibold text-foreground truncate">AVYRO AI</span>
             <span className="text-xs text-muted-foreground truncate">Growth & Operations</span>
           </div>
         )}

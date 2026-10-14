@@ -50,7 +50,7 @@ export const PAY = [
   { id: 'no', label: 'No' },
 ] as const;
 
-export const CONSENT_TEXT = 'Yes, add me to the VAYO AI research list. We will email once to confirm my address before sending anything else, and I can unsubscribe at any time.';
+export const CONSENT_TEXT = 'Yes, add me to the AVYRO AI research list. We will email once to confirm my address before sending anything else, and I can unsubscribe at any time.';
 
 export const ids = (list: ReadonlyArray<{ id: string }>) => list.map(x => x.id);
 export const labelOf = (list: ReadonlyArray<{ id: string; label: string }>, id: string | null | undefined) => list.find(x => x.id === id)?.label ?? id ?? '';

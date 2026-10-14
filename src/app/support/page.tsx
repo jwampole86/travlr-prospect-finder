@@ -380,7 +380,7 @@ export default function SupportPage() {
                   Help &amp; Documentation
                 </h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Browse guides, FAQs, and how-to articles for VAYO.
+                  Browse guides, FAQs, and how-to articles for AVYRO AI.
                 </p>
                 <a
                   href="https://docs.travlr.com"

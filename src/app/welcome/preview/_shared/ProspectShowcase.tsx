@@ -13,7 +13,7 @@ const FILTERS = [
   { id: 'luxury', label: 'Luxury', icon: Gem },
 ] as const;
 
-// Sanitized mock of VAYO Prospect — discovery/filtering, contact readiness, and lead scoring.
+// Sanitized mock of AVYRO AI Prospect — discovery/filtering, contact readiness, and lead scoring.
 export default function ProspectShowcase() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('all');
 

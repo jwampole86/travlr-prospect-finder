@@ -47,7 +47,7 @@ const TABS = [
   {
     id: 'talent', label: 'Talent', icon: Brain, body: InterviewShowcase,
     headline: 'Let AI Handle the First Interview',
-    copy: 'VAYO can run structured AI candidate interviews, capture interview intelligence, and help your team identify candidates who deserve the next human conversation.',
+    copy: 'AVYRO AI can run structured AI candidate interviews, capture interview intelligence, and help your team identify candidates who deserve the next human conversation.',
     featured: true,
   },
   {
@@ -106,7 +106,7 @@ export default function ProductShowcase({ presentation = 'standard' }: ProductSh
           <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-          <span className="ml-3 text-[11px] text-muted-foreground truncate">app.vayoai.io</span>
+          <span className="ml-3 text-[11px] text-muted-foreground truncate">app.avyro.ai</span>
         </div>
         <div className={`${isHero ? 'p-3 sm:p-4' : 'p-4 sm:p-5'} bg-background`}>
           <div className={isHero ? 'relative max-h-[540px] overflow-hidden sm:max-h-none' : undefined}>

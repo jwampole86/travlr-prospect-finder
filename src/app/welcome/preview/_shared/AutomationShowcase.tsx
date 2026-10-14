@@ -11,7 +11,7 @@ const RULES: { trigger: string; action: string; icon: typeof Bell; on: boolean }
   { trigger: 'Data source sync completes', action: 'Refresh regulation + owner verification flags', icon: RefreshCw, on: true },
 ];
 
-// Sanitized mock of VAYO Automate — trigger → action workflow rules, reflecting real
+// Sanitized mock of AVYRO AI Automate — trigger → action workflow rules, reflecting real
 // automation concepts already in the app (lead routing, notification rules, cadences)
 // without implying a drag-and-drop workflow builder that doesn't exist.
 export default function AutomationShowcase() {

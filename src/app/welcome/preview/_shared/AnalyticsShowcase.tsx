@@ -23,7 +23,7 @@ const FUNNEL = [
   { stage: 'Under Contract', count: 94, pct: 8 },
 ];
 
-// Sanitized mock of VAYO Analytics — process/activity metrics only (no fabricated revenue,
+// Sanitized mock of AVYRO AI Analytics — process/activity metrics only (no fabricated revenue,
 // ARR, or customer-outcome claims), matching the kind of conversion/performance reporting
 // already present in the app (call-analytics, conversion-analytics, team-performance).
 export default function AnalyticsShowcase() {

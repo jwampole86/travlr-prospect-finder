@@ -9,7 +9,7 @@ type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
 
 /*
- * VAYO-only. Nothing here may borrow another brand's sender, domain or postal address, so every
+ * AVYRO AI-only. Nothing here may borrow another brand's sender, domain or postal address, so every
  * setting comes from its own FUTURE_STR_* variable. The public page and form are off until
  * FUTURE_STR_ENABLED=true, and no email of any kind is sent until FUTURE_STR_SENDING_ENABLED=true
  * and the sender, reply-to, postal address and site URL are all configured.
@@ -18,9 +18,9 @@ const cfg = () => ({
   site: (process.env.FUTURE_STR_SITE_URL ?? '').replace(/\/$/, ''),
   postal: (process.env.FUTURE_STR_POSTAL_ADDRESS ?? '').trim(),
   fromEmail: (process.env.FUTURE_STR_FROM_EMAIL ?? '').trim(),
-  fromName: (process.env.FUTURE_STR_FROM_NAME ?? 'VAYO AI').trim(),
+  fromName: (process.env.FUTURE_STR_FROM_NAME ?? 'AVYRO AI').trim(),
   replyTo: (process.env.FUTURE_STR_REPLY_TO ?? '').trim(),
-  brandSite: (process.env.FUTURE_STR_BRAND_SITE ?? 'vayoai.io').trim(),
+  brandSite: (process.env.FUTURE_STR_BRAND_SITE ?? '').trim(),
 });
 
 export const publicPageEnabled = () => process.env.FUTURE_STR_ENABLED === 'true';
@@ -133,7 +133,7 @@ function assertReady() {
 
 export async function previewIssue(issue: number, audience: Audience) {
   const c = cfg();
-  return renderIssue(issue, audience, { siteUrl: c.site || 'https://example.invalid', unsubscribeUrl: '#unsubscribe', postal: c.postal || '[VAYO postal address]', brandSite: c.brandSite });
+  return renderIssue(issue, audience, { siteUrl: c.site || 'https://example.invalid', unsubscribeUrl: '#unsubscribe', postal: c.postal || '[AVYRO AI postal address]', brandSite: c.brandSite });
 }
 
 /** Asks pending sign-ups to confirm. Dry run unless `go`. Each person is asked once. */
@@ -146,10 +146,10 @@ export async function sendConfirmations(db: Db, opts: { go: boolean; limit?: num
   for (const s of list) {
     const c = cfg();
     const hi = s.first_name ? `Hi ${s.first_name},` : 'Hello,';
-    const text = `${hi}\n\nYou asked to hear from VAYO AI about our research into the future of vacation rental operations. Please confirm your email address so we know it is really you:\n\n${confirmUrl(s.id)}\n\nIf you did not ask for this, ignore this email and we will not contact you again.\n\nVAYO AI, ${c.postal}\n`;
-    const html = `<p style="font:16px/1.6 Georgia,serif;color:#1a2230;">${hi}</p><p style="font:16px/1.6 Georgia,serif;color:#1a2230;">You asked to hear from VAYO AI about our research into the future of vacation rental operations. Please confirm your email address so we know it is really you.</p><p><a href="${confirmUrl(s.id)}" style="display:inline-block;padding:12px 24px;background:#1f7ae0;color:#fff;font:700 15px Arial,sans-serif;text-decoration:none;border-radius:8px;">Confirm my email</a></p><p style="font:13px/1.5 Arial,sans-serif;color:#6b7686;">If you did not ask for this, ignore this email and we will not contact you again.<br>VAYO AI, ${c.postal}</p>`;
+    const text = `${hi}\n\nYou asked to hear from AVYRO AI about our research into the future of vacation rental operations. Please confirm your email address so we know it is really you:\n\n${confirmUrl(s.id)}\n\nIf you did not ask for this, ignore this email and we will not contact you again.\n\nAVYRO AI, ${c.postal}\n`;
+    const html = `<p style="font:16px/1.6 Georgia,serif;color:#1a2230;">${hi}</p><p style="font:16px/1.6 Georgia,serif;color:#1a2230;">You asked to hear from AVYRO AI about our research into the future of vacation rental operations. Please confirm your email address so we know it is really you.</p><p><a href="${confirmUrl(s.id)}" style="display:inline-block;padding:12px 24px;background:#1f7ae0;color:#fff;font:700 15px Arial,sans-serif;text-decoration:none;border-radius:8px;">Confirm my email</a></p><p style="font:13px/1.5 Arial,sans-serif;color:#6b7686;">If you did not ask for this, ignore this email and we will not contact you again.<br>AVYRO AI, ${c.postal}</p>`;
     try {
-      const { error } = await deliver(s.email, 'Please confirm your email: VAYO AI research updates', html, text, unsubscribeUrl(s.id));
+      const { error } = await deliver(s.email, 'Please confirm your email: AVYRO AI research updates', html, text, unsubscribeUrl(s.id));
       if (error) throw new Error(error.message);
       await db.from('future_str_subscribers').update({ confirmation_sent_at: new Date().toISOString() }).eq('id', s.id); sent++;
     } catch { failed++; }

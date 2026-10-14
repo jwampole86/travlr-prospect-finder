@@ -49,7 +49,7 @@ export default function FutureStrForm({ initialAudience, source }: { initialAudi
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-16">
         <div className="mx-auto max-w-xl rounded-2xl bg-white p-8 shadow-sm border border-slate-200 text-center">
-          <p className="text-xs font-bold tracking-widest text-blue-600">VAYO AI</p>
+          <p className="text-xs font-bold tracking-widest text-blue-600">AVYRO AI</p>
           <h1 className="mt-2 text-2xl font-bold text-slate-900">Thank you.</h1>
           <p className="mt-3 text-slate-600">Your answers will help shape how we approach the future of vacation rental operations.</p>
           {done.subscribed && <p className="mt-3 text-slate-600">We will send one short email to confirm your address before sending anything else. You can unsubscribe at any time.</p>}
@@ -63,7 +63,7 @@ export default function FutureStrForm({ initialAudience, source }: { initialAudi
     <main className="min-h-screen bg-slate-50 px-4 py-10 sm:py-14">
       <form onSubmit={submit} className="mx-auto max-w-2xl space-y-8">
         <header>
-          <p className="text-xs font-bold tracking-widest text-blue-600">VAYO AI &nbsp;/&nbsp; THE FUTURE OF PROPERTY TURNOVERS</p>
+          <p className="text-xs font-bold tracking-widest text-blue-600">AVYRO AI &nbsp;/&nbsp; THE FUTURE OF PROPERTY TURNOVERS</p>
           <h1 className="mt-3 text-3xl font-bold leading-tight text-slate-900">Help shape the future of vacation rental operations.</h1>
           <p className="mt-3 text-slate-600">We are researching how technology could make vacation rental turnovers more reliable: smarter coordination, inspections and supplies, and possibly, one day, supervised robotic assistance with selected tasks.</p>
           <p className="mt-3 rounded-xl border-l-4 border-blue-500 bg-blue-50 px-4 py-3 text-slate-800"><strong>This is research, not an announcement.</strong> No robotic service is available today. We want to hear from you before we build further. It takes about two minutes, and every question is optional.</p>

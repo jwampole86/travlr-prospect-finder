@@ -5,7 +5,7 @@ import RegulationBadge from '@/components/ui/RegulationBadge';
 import ProspectScoreBar from '@/components/ui/ProspectScoreBar';
 import RegulationShowcase from './RegulationShowcase';
 
-// Sanitized mock of VAYO Intelligence — property + owner + revenue + STR intelligence
+// Sanitized mock of AVYRO AI Intelligence — property + owner + revenue + STR intelligence
 // brought together in one profile view, using real UI primitives (RegulationBadge,
 // ProspectScoreBar) for visual accuracy.
 export default function IntelligenceShowcase() {

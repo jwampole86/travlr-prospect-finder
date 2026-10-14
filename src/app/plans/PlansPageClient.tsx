@@ -35,7 +35,7 @@ const CAPABILITIES = [
 ];
 
 const PRICING_REASSURANCE = [
-  'Monthly lead allowances are sized to what VAYO can actually supply, not inflated stored-lead counts',
+  'Monthly lead allowances are sized to what AVYRO AI can actually supply, not inflated stored-lead counts',
   'Limits are shown upfront across users, portfolios, monthly leads, enrichments, and AI interviews',
   'Business unlocks the operating layer; Enterprise unlocks the complete platform',
 ];
@@ -376,14 +376,14 @@ export default function PlansPageClient() {
 
       {/* Hero */}
       <section className="max-w-4xl mx-auto px-6 pt-14 pb-8 text-center">
-        <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">VAYO</p>
+        <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">AVYRO AI</p>
         <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">
-          Choose the Right VAYO Plan for Your Growth
+          Choose the Right AVYRO AI Plan for Your Growth
         </h1>
         <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          From building your homeowner pipeline to automating outreach, enrichment, team workflows, and AI-powered operations, choose the VAYO plan that fits your business today and scale as you grow.
+          From building your homeowner pipeline to automating outreach, enrichment, team workflows, and AI-powered operations, choose the AVYRO AI plan that fits your business today and scale as you grow.
         </p>
-        <span className="mt-5 inline-block text-xs font-semibold text-foreground bg-muted px-3.5 py-1.5 rounded-full">Enterprise unlocks the complete VAYO platform</span>
+        <span className="mt-5 inline-block text-xs font-semibold text-foreground bg-muted px-3.5 py-1.5 rounded-full">Enterprise unlocks the complete AVYRO AI platform</span>
       </section>
 
       {/* Plan Selector */}
@@ -452,7 +452,7 @@ export default function PlansPageClient() {
                 <p className="text-xs font-bold tracking-[0.16em] text-primary uppercase mb-3">Enterprise</p>
                 <h2 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">Full Platform Access for Multi-Market Teams</h2>
                 <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                  Enterprise unlocks the complete VAYO platform for operators who need scale, control, and dedicated support across markets.
+                  Enterprise unlocks the complete AVYRO AI platform for operators who need scale, control, and dedicated support across markets.
                 </p>
                 <Link href="/prospect-finder/contact-sales" className="mt-5 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-foreground text-background hover:opacity-90 motion-safe:transition-opacity">
                   Contact Sales <ArrowRight className="w-4 h-4" />
@@ -482,7 +482,7 @@ export default function PlansPageClient() {
           <p className="text-xs font-bold tracking-[0.16em] text-primary uppercase mb-3">Honest lead numbers</p>
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">Why Monthly Lead Allowances Are Smaller Than You Might Expect</h2>
           <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-3xl">
-            A VAYO lead is a researched homeowner opportunity, not a row from a bulk list. Finding the right owner, getting a working mobile number, and confirming the address and the listing takes real data work, and the best opportunities are rare. We size every plan to what we can supply at quality, and we fill your allowance with the highest-scoring leads available in your markets.
+            An AVYRO AI lead is a researched homeowner opportunity, not a row from a bulk list. Finding the right owner, getting a working mobile number, and confirming the address and the listing takes real data work, and the best opportunities are rare. We size every plan to what we can supply at quality, and we fill your allowance with the highest-scoring leads available in your markets.
           </p>
           <div className="mt-6 grid grid-cols-2 lg:grid-cols-5 gap-3">
             {LEAD_SUPPLY_FACTS.map((fact) => (
@@ -502,7 +502,7 @@ export default function PlansPageClient() {
           <p className="text-xs font-bold tracking-[0.16em] text-primary uppercase mb-3">Does it pay for itself?</p>
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">One Signed Property Covers {Math.floor(monthsCoveredByOneProperty(PROSPECT_FINDER_PLANS.business) ?? 0)}+ Months of Business</h2>
           <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-3xl">
-            The median lead in VAYO is a home earning about ${BREAK_EVEN_ASSUMPTIONS.medianAnnualRent.toLocaleString()} a year in estimated gross rent. At a typical {BREAK_EVEN_ASSUMPTIONS.managementFeePercent}% management fee, and counting only half of that estimate to stay conservative, one signed property is worth about ${conservativeAnnualFeePerProperty().toLocaleString()} a year to you.
+            The median lead in AVYRO AI is a home earning about ${BREAK_EVEN_ASSUMPTIONS.medianAnnualRent.toLocaleString()} a year in estimated gross rent. At a typical {BREAK_EVEN_ASSUMPTIONS.managementFeePercent}% management fee, and counting only half of that estimate to stay conservative, one signed property is worth about ${conservativeAnnualFeePerProperty().toLocaleString()} a year to you.
           </p>
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {(['starter', 'pro', 'business'] as const).map((id) => {
@@ -520,7 +520,7 @@ export default function PlansPageClient() {
               );
             })}
           </div>
-          <p className="mt-4 text-[11px] text-muted-foreground">Illustrative math from VAYO lead data, not a guarantee. Your fee, market, and close rate will differ.</p>
+          <p className="mt-4 text-[11px] text-muted-foreground">Illustrative math from AVYRO AI lead data, not a guarantee. Your fee, market, and close rate will differ.</p>
         </div>
       </section>
 
@@ -554,7 +554,7 @@ export default function PlansPageClient() {
       <section id="compare" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Compare Plans</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Enterprise is the only plan with full access to every VAYO feature category.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Enterprise is the only plan with full access to every AVYRO AI feature category.</p>
           <div className="mt-5 grid gap-2 sm:grid-cols-3 text-left">
             {COMPLETENESS_SIGNALS.map((signal) => (
               <div key={signal} className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs font-medium text-foreground leading-relaxed">
@@ -590,9 +590,9 @@ export default function PlansPageClient() {
           <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-background text-foreground mb-5">
             Full Platform Access
           </span>
-          <h2 className="text-2xl sm:text-3xl font-bold">Need the Complete VAYO Platform?</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold">Need the Complete AVYRO AI Platform?</h2>
           <p className="mt-4 text-sm sm:text-base text-background/75 max-w-2xl mx-auto leading-relaxed">
-            Enterprise gives larger teams full access to VAYO with custom usage limits, advanced integrations, security controls, onboarding, and priority support.
+            Enterprise gives larger teams full access to AVYRO AI with custom usage limits, advanced integrations, security controls, onboarding, and priority support.
           </p>
           <div className="mt-7 flex items-center justify-center gap-3 flex-wrap">
             <Link href="/prospect-finder/contact-sales" className="px-6 py-3 rounded-xl text-sm font-semibold bg-background text-foreground hover:opacity-90 motion-safe:transition-opacity">

@@ -2,10 +2,10 @@
 
 import React, { memo, useMemo } from 'react';
 import AppImage from './AppImage';
-import VayoMark from './VayoMark';
+import AvyroMark from './AvyroMark';
 
 interface AppLogoProps {
-  src?: string; // Legacy raster image source (optional) — omit to use the official VAYO mark
+  src?: string; // Legacy raster image source (optional) — omit to use the official AVYRO AI mark
   size?: number; // Size for icon/image
   className?: string; // Additional classes
   onClick?: () => void; // Click handler
@@ -38,7 +38,7 @@ const AppLogo = memo(function AppLogo({
           unoptimized={src.endsWith('.svg')}
         />
       ) : (
-        <VayoMark size={size} className="flex-shrink-0 rounded-lg" />
+        <AvyroMark size={size} className="flex-shrink-0 rounded-lg" />
       )}
     </div>
   );
