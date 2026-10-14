@@ -42,7 +42,13 @@ export function verifyOwner(i: VerifyInput): OwnerVerification {
   // From here the match is unique.
   add('registry', 'Public STR registry', 'pass', `Matched to permit ${o?.permit ?? c?.permit ?? ''}${c ? ` ${c.distanceM} m from the listing's blurred location` : ''}.`);
   if (c) {
-    if (c.beds != null && i.bedrooms != null) add('beds', 'Bedrooms agree', c.beds === i.bedrooms ? 'pass' : 'fail', `Listing ${i.bedrooms} bd, record ${c.beds} bd.`);
+    if (c.beds != null && i.bedrooms != null) {
+      // County counts and listing counts often differ by a guest room; research that finds the home marketed with the listing's count settles it.
+      const ev = o?.research?.bedrooms as { beds?: number; source?: string; note?: string; url?: string } | undefined;
+      if (c.beds === i.bedrooms) add('beds', 'Bedrooms agree', 'pass', `Listing ${i.bedrooms} bd, record ${c.beds} bd.`);
+      else if (ev?.beds === i.bedrooms) add('beds', 'Bedrooms agree', 'pass', `Listing ${i.bedrooms} bd, county record ${c.beds} bd. ${ev.source ?? 'A public listing'} markets this home with ${ev.beds} bd${ev.note ? `: ${ev.note}` : ''}${ev.url ? ` (${ev.url})` : ''}.`);
+      else add('beds', 'Bedrooms agree', 'fail', `Listing ${i.bedrooms} bd, record ${c.beds} bd.`);
+    }
     if (c.baths != null && i.bathrooms != null) add('baths', 'Bathrooms agree', Math.abs(c.baths - i.bathrooms) <= 0.5 ? 'pass' : 'fail', `Listing ${i.bathrooms} ba, record ${c.baths} ba.`);
     if (c.distanceM != null) add('distance', 'Location', c.distanceM <= 150 ? 'pass' : 'info', c.distanceM <= 150 ? 'Within 150 m of the listing pin.' : `${c.distanceM} m from the listing pin. Airbnb blurs locations, so this is normal for ${i.address_match_confidence ?? 'low'}-confidence pins.`);
   }
