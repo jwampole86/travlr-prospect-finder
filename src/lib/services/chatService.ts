@@ -111,17 +111,66 @@ export async function createGroup(name: string, description: string, memberIds: 
   return data as string;
 }
 
-export async function sendMessage(channelId: string, body: string): Promise<void> {
+export interface ChatReaction { message_id: string; user_id: string; emoji: string }
+export interface ChatSearchHit { id: string; channel_id: string; sender_id: string; sender_name: string | null; body: string; created_at: string }
+
+/** Sends a message and returns the saved row so the caller can replace its optimistic copy. */
+export async function sendMessage(channelId: string, body: string, metadata?: Record<string, unknown>): Promise<ChatMessage | null> {
   const supabase = createClient();
   const { data: userRes } = await supabase.auth.getUser();
   if (!userRes.user) throw new Error('Not signed in');
   const trimmed = body.trim();
-  if (!trimmed) return;
-  const { error } = await supabase.from('chat_messages').insert({
+  if (!trimmed) return null;
+  const { data, error } = await supabase.from('chat_messages').insert({
     channel_id: channelId,
     sender_id: userRes.user.id,
     body: trimmed,
-  });
+    ...(metadata ? { metadata } : {}),
+  }).select('id,channel_id,sender_id,body,metadata,edited_at,deleted_at,created_at').single();
+  if (error) throw error;
+  return { ...(data as Omit<ChatMessage, 'sender_name' | 'sender_avatar'>), sender_name: null, sender_avatar: null };
+}
+
+export async function listReactions(channelId: string): Promise<ChatReaction[]> {
+  const { data, error } = await createClient().from('chat_message_reactions').select('message_id,user_id,emoji').eq('channel_id', channelId).limit(2000);
+  if (error) throw error;
+  return (data || []) as ChatReaction[];
+}
+
+export async function toggleReaction(channelId: string, messageId: string, emoji: string, on: boolean): Promise<void> {
+  const supabase = createClient();
+  const { data: userRes } = await supabase.auth.getUser();
+  if (!userRes.user) throw new Error('Not signed in');
+  if (on) {
+    const { error } = await supabase.from('chat_message_reactions').insert({ channel_id: channelId, message_id: messageId, user_id: userRes.user.id, emoji });
+    if (error && error.code !== '23505') throw error;
+  } else {
+    const { error } = await supabase.from('chat_message_reactions').delete().eq('message_id', messageId).eq('user_id', userRes.user.id).eq('emoji', emoji);
+    if (error) throw error;
+  }
+}
+
+export async function searchMessages(query: string): Promise<ChatSearchHit[]> {
+  const { data, error } = await createClient().rpc('search_chat_messages', { p_query: query, p_limit: 25 });
+  if (error) throw error;
+  return (data || []) as ChatSearchHit[];
+}
+
+/** My per-channel state: when I last read it and whether it is muted. */
+export async function listMyMemberStates(): Promise<Array<{ channel_id: string; last_read_at: string | null; muted: boolean }>> {
+  const supabase = createClient();
+  const { data: userRes } = await supabase.auth.getUser();
+  if (!userRes.user) return [];
+  const { data, error } = await supabase.from('chat_channel_members').select('channel_id,last_read_at,muted').eq('user_id', userRes.user.id);
+  if (error) throw error;
+  return (data || []) as Array<{ channel_id: string; last_read_at: string | null; muted: boolean }>;
+}
+
+export async function setChannelMuted(channelId: string, muted: boolean): Promise<void> {
+  const supabase = createClient();
+  const { data: userRes } = await supabase.auth.getUser();
+  if (!userRes.user) throw new Error('Not signed in');
+  const { error } = await supabase.from('chat_channel_members').update({ muted }).eq('channel_id', channelId).eq('user_id', userRes.user.id);
   if (error) throw error;
 }
 

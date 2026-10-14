@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { MessageCircle, Send, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { listMyChannels, sendMessage, ChatChannelSummary } from '@/lib/services/chatService';
+import { listMyChannels, listMyMemberStates, sendMessage, ChatChannelSummary } from '@/lib/services/chatService';
 
 function ChatReplyToast({
   toastId,
@@ -88,6 +88,7 @@ export default function ChatToastEmitter() {
   const pathname = usePathname();
   const supabase = createClient();
   const channelsRef = useRef<Map<string, ChatChannelSummary>>(new Map());
+  const mutedRef = useRef<Set<string>>(new Set());
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
 
@@ -95,12 +96,21 @@ export default function ChatToastEmitter() {
     try {
       const chans = await listMyChannels();
       channelsRef.current = new Map(chans.map((c) => [c.channel_id, c]));
+      mutedRef.current = new Set((await listMyMemberStates()).filter((s) => s.muted).map((s) => s.channel_id));
     } catch { /* silent */ }
   }, []);
 
   useEffect(() => {
     if (user) refreshChannels();
   }, [user, refreshChannels]);
+
+  // Picks up mute changes made on the Team Chat page once the person leaves it.
+  const wasChat = useRef(false);
+  useEffect(() => {
+    const inChat = !!pathname?.startsWith('/team-chat');
+    if (wasChat.current && !inChat && user) refreshChannels();
+    wasChat.current = inChat;
+  }, [pathname, user, refreshChannels]);
 
   useEffect(() => {
     if (!user) return;
@@ -121,6 +131,8 @@ export default function ChatToastEmitter() {
             chanInfo = channelsRef.current.get(msg.channel_id);
             if (!chanInfo) return; // not a member of this channel
           }
+
+          if (mutedRef.current.has(msg.channel_id)) return;
 
           const displayName = chanInfo.type === 'group' ? (chanInfo.name || 'Group') : (chanInfo.other_user_name || 'New message');
 
