@@ -107,7 +107,7 @@ export default function MapViewClient({ points, total }: { points: MapPoint[]; t
           </aside>
         )}
 
-        <div className="flex-1 relative min-w-0 min-h-[420px]">
+        <div className="flex-1 relative min-w-0 min-h-[480px] h-[calc(100vh-14rem)]">
           <LeafletMap points={shown} colorBy={colorBy} base={base} selectedId={selectedId} fitKey={fitKey} onSelect={id => { setSelectedId(id); }} />
           {!list && <button onClick={() => setList(true)} className="absolute top-3 left-3 z-[400] flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-card border border-border rounded-lg shadow hover:bg-muted"><List size={13} />Show list<span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">{shown.length.toLocaleString()}</span></button>}
 

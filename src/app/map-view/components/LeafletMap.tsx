@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import type { BaseLayer, ColorBy, MapPoint } from './types';
 import { REG_HEX, scoreHex } from './types';
 import { STAGE_HEX } from '@/app/pipeline/types';
@@ -22,6 +25,7 @@ export default function LeafletMap({ points, colorBy, base, selectedId, fitKey, 
   const L = useRef<any>(null); const map = useRef<any>(null); const cluster = useRef<any>(null); const tiles = useRef<any>(null); const ring = useRef<any>(null);
   const markers = useRef<Map<string, any>>(new Map()); const latest = useRef({ points, colorBy, onSelect, base }); latest.current = { points, colorBy, onSelect, base };
   const ready = useRef(false);
+  const [failed, setFailed] = useState<string | null>(null);
 
   const draw = () => {
     if (!ready.current) return; const { points: pts, colorBy: by } = latest.current;
@@ -41,15 +45,19 @@ export default function LeafletMap({ points, colorBy, base, selectedId, fitKey, 
 
   useEffect(() => {
     let dead = false;
-    Promise.all([import('leaflet'), import('leaflet.markercluster')]).then(([mod]) => {
-      if (dead || !el.current) return; L.current = (mod as any).default ?? mod;
+    // The cluster plugin attaches itself to the global L, so Leaflet must finish loading first.
+    import('leaflet').then(async mod => {
+      if (dead) return; (window as any).L = (mod as any).default ?? mod;
+      await import('leaflet.markercluster');
+      if (dead || !el.current) return; L.current = (window as any).L;
       map.current = L.current.map(el.current, { center: [39.5, -98.35], zoom: 4, preferCanvas: true, zoomControl: false });
       L.current.control.zoom({ position: 'bottomright' }).addTo(map.current);
       tiles.current = L.current.tileLayer(TILES[latest.current.base].url, { attribution: TILES[latest.current.base].attribution, maxZoom: TILES[latest.current.base].maxZoom }).addTo(map.current);
       cluster.current = (L.current as any).markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 50, spiderfyOnMaxZoom: true, showCoverageOnHover: false, disableClusteringAtZoom: 16 });
       map.current.addLayer(cluster.current); ready.current = true; draw(); fit();
       requestAnimationFrame(() => map.current?.invalidateSize());
-    });
+      setTimeout(() => map.current?.invalidateSize(), 300);
+    }).catch(e => { console.error('Map failed to start', e); if (!dead) setFailed(e instanceof Error ? e.message : 'The map could not start.'); });
     return () => { dead = true; ready.current = false; map.current?.remove(); map.current = null; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -70,13 +78,11 @@ export default function LeafletMap({ points, colorBy, base, selectedId, fitKey, 
   return (
     <>
       <style>{`
-        @import url('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
-        @import url('https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css');
-        @import url('https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css');
         .leaflet-container { font-family: var(--font-sans); height: 100%; width: 100%; z-index: 1; }
         .leaflet-tooltip { border-radius: 8px; font-size: 11px; }
       `}</style>
-      <div ref={el} className="h-full w-full" aria-label="Map of leads" />
+      <div ref={el} className="absolute inset-0" aria-label="Map of leads" />
+      {failed && <div className="absolute inset-0 z-[500] flex items-center justify-center bg-card/90 text-sm text-red-600 p-6 text-center">The map could not start ({failed}). Reload the page to try again.</div>}
     </>
   );
 }
