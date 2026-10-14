@@ -8,6 +8,8 @@ type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
 
 const kRound = (n: number) => Math.round(n / 1000);
+/** Texts written before this quoted about 1.85x what the corrected estimate page shows, so they are reported apart. */
+export const ESTIMATE_CORRECTED_AT = Date.parse('2026-10-13T09:25:00Z');
 const parseRange = (t: string | null | undefined) => { const m = String(t ?? '').match(/\$(\d+)K\s*-\s*\$(\d+)K/i); return m ? { lowK: Number(m[1]), highK: Number(m[2]) } : null; };
 const addressOf = (l: Row) => [l.address, l.city, l.state, l.zip].filter(Boolean).join(', ');
 
@@ -23,7 +25,7 @@ async function pool<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): P
 }
 
 /** What the page computes for this lead right now, plus the checks that say whether it can be trusted. */
-function checks(report: HomeownerReport, sent: { lowK: number; highK: number } | null, shownNet: number | null, lead: Row) {
+function checks(report: HomeownerReport, sent: { lowK: number; highK: number } | null, shownNet: number | null, lead: Row, legacy = false) {
   const cons = report.scenarios[0].annualNet; const exp = report.scenarios[1].annualNet; const opt = report.scenarios[2].annualNet;
   const pageLowK = kRound(cons); const pageHighK = kRound(opt);
   const textMatchesPage = sent ? Math.abs(sent.lowK - pageLowK) <= 1 && Math.abs(sent.highK - pageHighK) <= 1 : null;
@@ -36,7 +38,7 @@ function checks(report: HomeownerReport, sent: { lowK: number; highK: number } |
   if (/,\s*[A-Za-z]{2}\s+\d{5}\s*$/.test(String(lead.address ?? ''))) flags.push('Address text still contains city, state and ZIP');
   if (report.regulation.tone === 'bad') flags.push('Short-term rentals are restricted or prohibited here');
   else if (!report.regulation.found) flags.push('Local rules not yet documented');
-  if (textMatchesPage === false) flags.push(`The text said $${sent!.lowK}K-$${sent!.highK}K but the page now shows $${pageLowK}K-$${pageHighK}K`);
+  if (textMatchesPage === false) flags.push(`${legacy ? 'Texted before the estimate was corrected: the' : 'The'} text said $${sent!.lowK}K-$${sent!.highK}K but the page now shows $${pageLowK}K-$${pageHighK}K`);
   if (shownMatchesNow === false) flags.push('The net the page recorded showing differs from today\'s calculation');
   return { pageLowK, pageHighK, textMatchesPage, shownMatchesNow, flags };
 }
@@ -51,23 +53,28 @@ export async function auditList(db: Db, batch: string, scope: 'engaged' | 'all')
 
   const leads = new Map<string, Row>();
   for (let i = 0; i < ids.length; i += 100) { const { data } = await db.from('leads').select(LEAD_COLS).in('id', ids.slice(i, i + 100)); for (const l of data ?? []) leads.set(l.id, l); }
-  const shown = new Map<string, number>(); const seen = new Map<string, Set<string>>();
+  const shown = new Map<string, { net: number; at: number }>(); const seen = new Map<string, Set<string>>();
+  const drafted = new Map<string, number>();
+  for (let i = 0; i < ids.length; i += 100) { const { data } = await db.from('outreach_history').select('lead_id,created_at,metadata').eq('channel', 'sms').eq('metadata->>kind', 'estimate_outreach').in('lead_id', ids.slice(i, i + 100)); for (const o of data ?? []) drafted.set(`${o.lead_id}|${(o.metadata as Row)?.batch}`, Date.parse(o.created_at)); }
   for (let i = 0; i < ids.length; i += 100) {
     const { data } = await db.from('estimate_journey_events').select('lead_id,event,data,created_at').in('lead_id', ids.slice(i, i + 100)).order('created_at', { ascending: true }).limit(5000);
-    for (const e of data ?? []) { const s = seen.get(e.lead_id) ?? new Set<string>(); s.add(e.event); seen.set(e.lead_id, s); if (e.event === 'estimate_shown' && typeof (e.data as Row)?.net === 'number') shown.set(e.lead_id, (e.data as Row).net); }
+    for (const e of data ?? []) { const s = seen.get(e.lead_id) ?? new Set<string>(); s.add(e.event); seen.set(e.lead_id, s); if (e.event === 'estimate_shown' && typeof (e.data as Row)?.net === 'number') shown.set(e.lead_id, { net: (e.data as Row).net, at: Date.parse(e.created_at) }); }
   }
 
   const out = await pool(picked, 8, async r => {
     const l = leads.get(r.lead_id); if (!l) return null;
     const report = await buildHomeownerReport(addressOf(l)).catch(() => null);
     const sent = parseRange(r.range_text);
-    const c = report ? checks(report, sent, shown.get(r.lead_id) ?? null, l) : null;
+    const legacy = (drafted.get(`${r.lead_id}|${r.batch}`) ?? Infinity) < ESTIMATE_CORRECTED_AT;
+    const ev = shown.get(r.lead_id);
+    const c = report ? checks(report, sent, ev?.net ?? null, l, legacy) : null;
     return {
       leadId: r.lead_id as string, batch: r.batch as string, address: addressOf(l), sentRange: r.range_text as string | null,
       pageRange: c ? `$${c.pageLowK}K-$${c.pageHighK}K` : null, textMatchesPage: c?.textMatchesPage ?? null, shownMatchesNow: c?.shownMatchesNow ?? null,
       basis: report?.basis ?? null, assumedBeds: report?.property.assumedBeds ?? null, flags: c?.flags ?? ['Could not compute the estimate'],
       clicked: r.human_clicks > 0, viewed: !!r.estimate_viewed, timeOnPage: r.time_on_page_s as number | null, deepest: r.deepest_step as string | null, submitted: !!r.estimate_submitted_at,
       device: r.device as string | null, hadPageEvents: seen.has(r.lead_id), temperature: r.temperature as string,
+      legacy, shownLegacy: !!ev && ev.at < ESTIMATE_CORRECTED_AT,
     };
   });
   const list = out.filter((x): x is NonNullable<typeof x> => !!x);
@@ -75,8 +82,9 @@ export async function auditList(db: Db, batch: string, scope: 'engaged' | 'all')
   const n = list.length; const opened = list.filter(x => x.clicked);
   const times = list.map(x => x.timeOnPage).filter((t): t is number => t != null).sort((a, b) => a - b);
   const summary = {
-    checked: n, textMatchesPage: list.filter(x => x.textMatchesPage === true).length, textMismatch: list.filter(x => x.textMatchesPage === false).length,
-    shownMismatch: list.filter(x => x.shownMatchesNow === false).length,
+    checked: n, textChecked: list.filter(x => !x.legacy && x.textMatchesPage !== null).length, legacyTexts: list.filter(x => x.legacy).length,
+    textMatchesPage: list.filter(x => !x.legacy && x.textMatchesPage === true).length, textMismatch: list.filter(x => !x.legacy && x.textMatchesPage === false).length,
+    shownMismatch: list.filter(x => !x.shownLegacy && x.shownMatchesNow === false).length, shownBeforeCorrection: list.filter(x => x.shownLegacy).length,
     basis: { PROPERTY: list.filter(x => x.basis === 'PROPERTY').length, MARKET: list.filter(x => x.basis === 'MARKET').length, STATE: list.filter(x => x.basis === 'STATE').length },
     assumedBeds: list.filter(x => x.assumedBeds).length,
     funnel: { texted: rows.length, opened: rows.filter(r => r.human_clicks > 0).length, viewedEstimate: rows.filter(r => r.estimate_viewed).length, startedForm: rows.filter(r => ['contact', 'questionnaire', 'submitted'].includes(r.deepest_step)).length, submitted: rows.filter(r => r.estimate_submitted_at).length },
@@ -92,14 +100,14 @@ export async function auditDetail(db: Db, leadId: string, withBenchmark: boolean
   if (!lead) return { error: 'Unknown lead' as const };
   const [{ data: eng }, { data: sentRow }, { data: ev }] = await Promise.all([
     db.from('sms_lead_engagement').select('*').eq('lead_id', leadId).order('scheduled_for', { ascending: false }).limit(1).maybeSingle(),
-    db.from('outreach_history').select('metadata,sent_at').eq('lead_id', leadId).eq('channel', 'sms').eq('metadata->>kind', 'estimate_outreach').order('sent_at', { ascending: false }).limit(1).maybeSingle(),
+    db.from('outreach_history').select('metadata,sent_at,created_at').eq('lead_id', leadId).eq('channel', 'sms').eq('metadata->>kind', 'estimate_outreach').order('sent_at', { ascending: false }).limit(1).maybeSingle(),
     db.from('estimate_journey_events').select('event,data,created_at,session_id').eq('lead_id', leadId).order('created_at', { ascending: true }).limit(200),
   ]);
   const address = addressOf(lead);
   const report = await buildHomeownerReport(address);
   const shownNet = [...(ev ?? [])].reverse().find(e => e.event === 'estimate_shown' && typeof (e.data as Row)?.net === 'number')?.data as Row | undefined;
   const sent = parseRange(eng?.range_text ?? (sentRow?.metadata as Row)?.range);
-  const c = checks(report, sent, shownNet ? (shownNet.net as number) : null, lead);
+  const c = checks(report, sent, shownNet ? (shownNet.net as number) : null, lead, !!sentRow?.created_at && Date.parse(sentRow.created_at) < ESTIMATE_CORRECTED_AT);
 
   let benchmark: Record<string, unknown> | { error: string } | null = null;
   if (withBenchmark) {

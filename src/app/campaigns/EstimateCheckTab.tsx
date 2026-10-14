@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowLeft, CheckCircle2, ExternalLink, Loader2, Scale, S
 import { Card, Chip, Notice, SectionTitle, Skeleton, cx, fmtDate } from './shared';
 
 interface AuditRow { leadId: string; batch: string; address: string; sentRange: string | null; pageRange: string | null; textMatchesPage: boolean | null; shownMatchesNow: boolean | null; basis: string | null; assumedBeds: boolean | null; flags: string[]; clicked: boolean; viewed: boolean; timeOnPage: number | null; deepest: string | null; submitted: boolean; device: string | null; hadPageEvents: boolean }
-interface Summary { checked: number; textMatchesPage: number; textMismatch: number; shownMismatch: number; basis: Record<string, number>; assumedBeds: number; funnel: { texted: number; opened: number; viewedEstimate: number; startedForm: number; submitted: number }; openedWithoutPageEvents: number; medianSeconds: number | null; mobileShare: number | null }
+interface Summary { checked: number; textChecked: number; legacyTexts: number; textMatchesPage: number; textMismatch: number; shownMismatch: number; shownBeforeCorrection: number; basis: Record<string, number>; assumedBeds: number; funnel: { texted: number; opened: number; viewedEstimate: number; startedForm: number; submitted: number }; openedWithoutPageEvents: number; medianSeconds: number | null; mobileShare: number | null }
 interface Scenario { key: string; label: string; occupancy: number; adr: number; grossMonthly: number; netMonthly: number; annualNet: number }
 interface Bench { error?: string; market?: string | null; submarket?: string | null; adr?: number | null; occupancyPct?: number | null; annualGross?: number | null; ours?: { adr: number; occupancyPct: number; annualGross: number }; grossRatio?: number | null }
 interface Detail {
@@ -142,12 +142,13 @@ export default function EstimateCheckTab({ batch }: { batch: string }) {
             <Stat label="Submitted" value={f.submitted} />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Stat label="Text matches page" value={`${summary.textMatchesPage} of ${summary.checked}`} tone={summary.textMismatch === 0 ? 'good' : 'warn'} sub={summary.textMismatch ? `${summary.textMismatch} differ` : 'every range agrees'} />
-            <Stat label="Recorded vs today" value={summary.shownMismatch === 0 ? 'All agree' : `${summary.shownMismatch} differ`} tone={summary.shownMismatch === 0 ? 'good' : 'warn'} sub="what the page logged when shown" />
+            <Stat label="Text matches page" value={summary.textChecked ? `${summary.textMatchesPage} of ${summary.textChecked}` : 'None yet'} tone={summary.textChecked === 0 ? undefined : summary.textMismatch === 0 ? 'good' : 'warn'} sub={summary.textChecked === 0 ? 'only counts texts written after the correction' : summary.textMismatch ? `${summary.textMismatch} differ` : 'every range agrees'} />
+            <Stat label="Recorded vs today" value={summary.shownMismatch === 0 ? 'All agree' : `${summary.shownMismatch} differ`} tone={summary.shownMismatch === 0 ? 'good' : 'warn'} sub={summary.shownBeforeCorrection ? `${summary.shownBeforeCorrection} seen before the correction not counted` : 'what the page logged when shown'} />
             <Stat label="Built from" value={`${summary.basis.PROPERTY} home details`} sub={`${summary.basis.MARKET} ZIP rent, ${summary.basis.STATE} regional`} />
             <Stat label="Bedrooms assumed" value={summary.assumedBeds} tone={summary.assumedBeds ? 'warn' : 'good'} sub="not on file, page assumes 3" />
           </div>
-          {summary.openedWithoutPageEvents > 0 && <Notice tone="amber"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><span>{summary.openedWithoutPageEvents} homeowners opened the link but the estimate page never reported back. They may have left before it loaded, or their browser blocked tracking.</span></Notice>}
+          {summary.legacyTexts > 0 && <Notice tone="blue"><Scale size={15} className="mt-0.5 shrink-0" /><span>{summary.legacyTexts} of these texts were written before the estimate was corrected on Oct 13, so they quoted about twice what the page shows now. They are left out of the match count above; texts written since then use the same numbers as the page.</span></Notice>}
+          {summary.openedWithoutPageEvents > 0 && <Notice tone="amber"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><span>{summary.openedWithoutPageEvents} homeowners opened the link but the estimate page never reported back. They may have left before it loaded, or their browser blocked tracking. Link scanners that look like people are screened out automatically, so these are likely real.</span></Notice>}
         </>
       )}
 

@@ -17,6 +17,8 @@ export function classifyClick(userAgent: string | null, headers: { get(name: str
   if (!ua) botReason = 'no_user_agent';
   else if (BOT_UA.test(ua)) botReason = 'bot_user_agent';
   else if (/prefetch|preview/.test(purpose)) botReason = 'prefetch';
+  // Chrome on desktop Linux and the bare "Mozilla/5.0" agent were 106 of 123 "human" clicks on 2026-10-12/13, all from cloud data-center cities, none ever ran the estimate page.
+  else if (/\(X11;\s*Linux x86_64\)/.test(ua) || ua === 'Mozilla/5.0') botReason = 'scanner_user_agent';
 
   const device = /iPad|Tablet|Android(?!.*Mobile)/i.test(ua) ? 'tablet'
     : /iPhone|iPod|Android.*Mobile|Mobile/i.test(ua) ? 'mobile'
