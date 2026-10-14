@@ -431,7 +431,7 @@ export default React.memo(function KPIBentoGrid({
               <DollarSign size={13} className="text-success" />
             </div>
             <div>
-              <p className="font-mono-data text-xl sm:text-2xl font-bold text-success leading-none">
+              <p className="font-mono-data text-xl sm:text-2xl font-bold text-success leading-none whitespace-nowrap">
                 {estimatedMonthlyRevenue === null ? '—' : estimatedMonthlyRevenue > 0 ? formatCurrency(estimatedMonthlyRevenue) : '$0'}
               </p>
               <p className="text-[10px] sm:text-[11px] text-success/95 mt-1">

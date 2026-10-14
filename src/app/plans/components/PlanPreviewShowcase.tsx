@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, Clock, Crown, FileText, Lock, Menu, MessageSquare, RefreshCw, UserCheck, ArrowRight, Building2 } from 'lucide-react';
 import KPIBentoGrid from '@/app/components/KPIBentoGrid';
 import TopLeadsTable from '@/app/components/TopLeadsTable';
@@ -42,6 +42,41 @@ const ACTIVITY_COLOR = { reply: 'text-emerald-500', assign: 'text-primary', stag
 // Preview data is illustrative; swallow clicks so tiles, charts and rows never navigate away from the plans page.
 function Frozen({ children }: { children: ReactNode }) {
   return <div onClickCapture={(e) => { e.preventDefault(); e.stopPropagation(); }}>{children}</div>;
+}
+
+// The dashboard is laid out for a desktop-width page. When the preview is narrower than that but on a
+// tablet/desktop screen, scale the whole layout down instead of letting columns squeeze; phones keep the
+// real stacked mobile layout.
+function FitStage({ children, designWidth = 880 }: { children: ReactNode; designWidth?: number }) {
+  const outer = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [height, setHeight] = useState(0);
+  const [wideScreen, setWideScreen] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)');
+    const onChange = () => setWideScreen(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    const ro = new ResizeObserver(() => {
+      setWidth(outer.current?.clientWidth ?? 0);
+      setHeight(inner.current?.offsetHeight ?? 0);
+    });
+    if (outer.current) ro.observe(outer.current);
+    if (inner.current) ro.observe(inner.current);
+    return () => { mq.removeEventListener('change', onChange); ro.disconnect(); };
+  }, []);
+
+  const scale = wideScreen && width > 0 && width < designWidth ? width / designWidth : 1;
+  const scaled = scale < 1;
+  return (
+    <div ref={outer} style={scaled ? { height: height * scale } : undefined} className={scaled ? 'overflow-hidden' : undefined}>
+      <div ref={inner} className="space-y-4 sm:space-y-5" style={scaled ? { width: designWidth, transform: `scale(${scale})`, transformOrigin: 'top left' } : undefined}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
@@ -99,7 +134,7 @@ function PreviewSidebar({ planId }: { planId: PlanId }) {
   const stats = PLAN_PREVIEW_STATS[planId];
 
   return (
-    <aside className="flex flex-col bg-card md:w-60 md:shrink-0 md:border-r border-border">
+    <aside className="flex flex-col bg-card lg:w-60 lg:shrink-0 lg:border-r border-border">
       <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
         <AppLogo size={26} />
         <div className="flex flex-col leading-none min-w-0">
@@ -183,7 +218,7 @@ export default function PlanPreviewShowcase({ planId }: { planId: PlanId }) {
             onClick={() => setNavOpen((v) => !v)}
             aria-expanded={navOpen}
             aria-label="Toggle navigation preview"
-            className="md:hidden w-8 h-8 -ml-1 flex items-center justify-center rounded-md hover:bg-muted"
+            className="lg:hidden w-8 h-8 -ml-1 flex items-center justify-center rounded-md hover:bg-muted"
           >
             <Menu size={16} />
           </button>
@@ -195,12 +230,13 @@ export default function PlanPreviewShowcase({ planId }: { planId: PlanId }) {
         </div>
       </div>
 
-      <div className="md:flex">
-        <div className={`${navOpen ? 'block' : 'hidden'} md:block border-b md:border-b-0 border-border`}>
+      <div className="lg:flex">
+        <div className={`${navOpen ? 'block' : 'hidden'} lg:block border-b lg:border-b-0 border-border`}>
           <PreviewSidebar planId={planId} />
         </div>
 
-        <div className="flex-1 min-w-0 p-3 sm:p-5 space-y-4 sm:space-y-5 bg-background">
+        <div className="flex-1 min-w-0 p-3 sm:p-5 bg-background">
+         <FitStage>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-2xl font-semibold text-foreground">Dashboard</h3>
@@ -343,6 +379,7 @@ export default function PlanPreviewShowcase({ planId }: { planId: PlanId }) {
               ))}
             </div>
           </CollapsibleRow>
+         </FitStage>
         </div>
       </div>
       <p className="px-5 py-3 border-t border-border text-[10px] text-muted-foreground">

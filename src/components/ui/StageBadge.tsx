@@ -24,7 +24,7 @@ export default function StageBadge({ stage: rawStage, size = 'md' }: StageBadgeP
   const padding = size === 'sm' ? 'px-1.5 py-0.5' : 'px-2 py-0.5';
 
   return (
-    <span className={`inline-flex items-center rounded-full font-medium ${textSize} ${padding} ${className}`}>
+    <span className={`inline-flex items-center whitespace-nowrap rounded-full font-medium ${textSize} ${padding} ${className}`}>
       {stage}
     </span>
   );
