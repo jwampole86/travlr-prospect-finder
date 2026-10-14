@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
@@ -310,15 +310,17 @@ function NavGroupSection({
   collapsed,
   pathname,
   onNavClick,
-  defaultOpen,
 }: {
   group: NavGroup;
   collapsed: boolean;
   pathname: string;
   onNavClick: () => void;
-  defaultOpen: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  // Every category starts closed; one the person opened stays open as they move between pages.
+  const storageKey = `travlr_nav_open:${group.key}`;
+  const [open, setOpen] = useState(false);
+  useEffect(() => { try { if (sessionStorage.getItem(storageKey) === '1') setOpen(true); } catch { /* storage unavailable */ } }, [storageKey]);
+  const toggle = () => setOpen((v) => { const next = !v; try { sessionStorage.setItem(storageKey, next ? '1' : '0'); } catch { /* storage unavailable */ } return next; });
   const GroupIcon = group.icon;
   const hasActive = group.items.some((item) => pathname === item.href);
   const chatUnread = useChatUnreadCount();
@@ -355,7 +357,7 @@ function NavGroupSection({
   return (
     <div className="mb-1">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-semibold transition-all duration-150 group ${
           hasActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
         }`}
@@ -413,11 +415,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const { selectedPortfolio, setSelectedPortfolio, visiblePortfolios } = usePortfolio();
 
   const navGroups = role === 'agent' ? agentNavGroups : adminNavGroups;
-
-  // Determine which group should be open by default (the one containing the active path)
-  function isGroupDefaultOpen(group: NavGroup): boolean {
-    return group.items.some((item) => pathname === item.href);
-  }
 
   const userInitials = user?.user_metadata?.full_name
     ? user.user_metadata.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -523,7 +520,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
             collapsed={collapsed}
             pathname={pathname}
             onNavClick={handleNavClick}
-            defaultOpen={isGroupDefaultOpen(group) || group.key === 'core'}
           />
         ))}
       </nav>
