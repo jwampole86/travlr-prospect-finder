@@ -61,13 +61,13 @@ function ResponseChart({ points }: { points: Point[] }) {
         {h && <line x1={x(h.t)} x2={x(h.t)} y1={0} y2={H} className="stroke-slate-400" strokeDasharray="3 3" />}
         {h && h.ms != null && <circle cx={x(h.t)} cy={y(h.ms)} r={4} className={h.status === 'operational' ? 'fill-emerald-600' : h.status === 'outage' ? 'fill-red-600' : 'fill-amber-500'} />}
       </svg>
-      <div className="flex justify-between text-[10px] text-slate-400"><span>{when(points[0].t)}</span><span>{h ? `${when(h.t)} · ${h.ms != null ? `${h.ms} ms` : 'no timing'} · ${LABEL[h.status]}` : `Peak ${max} ms · hover for detail`}</span><span>{when(points[points.length - 1].t)}</span></div>
+      <div className="flex justify-between text-[10px] text-slate-400 chart-label"><span>{when(points[0].t)}</span><span>{h ? `${when(h.t)} · ${h.ms != null ? `${h.ms} ms` : 'no timing'} · ${LABEL[h.status]}` : `Peak ${max} ms · hover for detail`}</span><span>{when(points[points.length - 1].t)}</span></div>
     </div>
   );
 }
 
 function Stat({ label, value, tone = 'text-slate-800' }: { label: string; value: string; tone?: string }) {
-  return <div className="bg-white border border-slate-200 rounded-lg p-3"><p className="text-[11px] text-slate-500">{label}</p><p className={`text-base font-bold ${tone}`}>{value}</p></div>;
+  return <div className="bg-white border border-slate-200 rounded-lg p-3"><p className="text-[11px] text-slate-500 chart-label">{label}</p><p className={`text-base font-bold ${tone}`}>{value}</p></div>;
 }
 
 function ServiceRow({ svc, open, onToggle, admin, onShowIncidents, incidentCount }: { svc: Service; open: boolean; onToggle: () => void; admin: boolean; onShowIncidents: () => void; incidentCount: number }) {
@@ -118,7 +118,7 @@ function ServiceRow({ svc, open, onToggle, admin, onShowIncidents, incidentCount
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1.5"><p className="text-xs font-semibold text-slate-600">Last 90 days (select a day for its checks)</p><p className="text-[10px] text-slate-400">{withData} day{withData === 1 ? '' : 's'} with recorded checks</p></div>
+            <div className="flex items-center justify-between mb-1.5"><p className="text-xs font-semibold text-slate-600">Last 90 days (select a day for its checks)</p><p className="text-[10px] text-slate-400 chart-label">{withData} day{withData === 1 ? '' : 's'} with recorded checks</p></div>
             <div className="flex gap-[2px]">
               {svc.days.map(d => (
                 <button type="button" key={d.date} disabled={d.status === 'none'} onClick={() => setDay(day === d.date ? null : d.date)} aria-label={d.date}
@@ -150,7 +150,7 @@ function ServiceRow({ svc, open, onToggle, admin, onShowIncidents, incidentCount
               <>
                 <ResponseChart points={points} />
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-2 text-xs">
-                  {([['Checks', String(stats.n)], ['Not healthy', String(stats.bad)], ['Fastest', stats.min != null ? `${stats.min} ms` : '—'], ['Median', stats.p50 != null ? `${stats.p50} ms` : '—'], ['95th pct', stats.p95 != null ? `${stats.p95} ms` : '—'], ['Slowest', stats.max != null ? `${stats.max} ms` : '—']] as const).map(([l, v]) => <div key={l} className="bg-white border border-slate-200 rounded-md px-2 py-1.5"><p className="text-[10px] text-slate-500">{l}</p><p className="font-semibold text-slate-800">{v}</p></div>)}
+                  {([['Checks', String(stats.n)], ['Not healthy', String(stats.bad)], ['Fastest', stats.min != null ? `${stats.min} ms` : '—'], ['Median', stats.p50 != null ? `${stats.p50} ms` : '—'], ['95th pct', stats.p95 != null ? `${stats.p95} ms` : '—'], ['Slowest', stats.max != null ? `${stats.max} ms` : '—']] as const).map(([l, v]) => <div key={l} className="bg-white border border-slate-200 rounded-md px-2 py-1.5"><p className="text-[10px] text-slate-500 chart-label">{l}</p><p className="font-semibold text-slate-800">{v}</p></div>)}
                 </div>
                 {points.length > 0 && (
                   <details className="mt-3 bg-white border border-slate-200 rounded-lg">
@@ -306,7 +306,7 @@ export default function SystemHealthPage() {
                     <span className="flex gap-[2px] flex-1">{s.hours.map(h => <span key={h.t} title={h.status === 'none' ? `${when(h.t)}: no checks` : `${when(h.t)}: ${LABEL[h.status as Status]} · ${h.checks} checks${h.avgMs != null ? ` · avg ${h.avgMs} ms` : ''}`} className={`h-5 flex-1 rounded-[2px] ${h.status === 'none' ? 'bg-slate-200' : DOT[h.status as Status]}`} />)}</span>
                   </button>
                 ))}
-                <div className="flex justify-between text-[10px] text-slate-400 pl-[172px] pt-1"><span>24 hours ago</span><span>Now</span></div>
+                <div className="flex justify-between text-[10px] text-slate-400 chart-label pl-[172px] pt-1"><span>24 hours ago</span><span>Now</span></div>
               </div>
             </div>
           </div>
@@ -327,7 +327,7 @@ export default function SystemHealthPage() {
             {GROUPS.map(g => <button key={g.id} type="button" onClick={() => setGroup(g.id)} className={`text-xs px-2.5 py-1 rounded-full border ${group === g.id ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}>{g.label}</button>)}
             {statusFilter !== 'all' && <button type="button" onClick={() => setStatusFilter('all')} className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-amber-50 text-amber-800">{LABEL[statusFilter]} only ✕</button>}
           </div>
-          <div className="hidden sm:flex items-center gap-3 px-4 pb-1 text-[10px] uppercase tracking-wider text-slate-400"><span className="w-2.5" /><span className="flex-1">Service</span><span className="w-24">Last 12 hours</span><span className="w-16 text-right">Speed</span><span className="w-20 text-right">30-day</span><span className="w-28 text-right">Status</span><span className="w-3.5" /></div>
+          <div className="hidden sm:flex items-center gap-3 px-4 pb-1 text-[10px] uppercase tracking-wider text-slate-400 chart-label"><span className="w-2.5" /><span className="flex-1">Service</span><span className="w-24">Last 12 hours</span><span className="w-16 text-right">Speed</span><span className="w-20 text-right">30-day</span><span className="w-28 text-right">Status</span><span className="w-3.5" /></div>
           <div className="space-y-2">
             {!report && !error && <p className="text-sm text-slate-400">Loading services…</p>}
             {report && shown.length === 0 && <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-xl p-4">No services match these filters.</p>}

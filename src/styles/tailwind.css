@@ -198,6 +198,20 @@
   color: var(--foreground);
 }
 
+/* Chart numbers (axis ticks, labels, legends) are small, so use pure white on dark backgrounds. */
+.dark .recharts-cartesian-axis-tick-value,
+.dark .recharts-polar-angle-axis-tick-value,
+.dark .recharts-polar-radius-axis-tick-value,
+.dark .recharts-label,
+.dark .recharts-pie-label-text,
+.dark .recharts-text {
+  fill: #ffffff !important;
+}
+.dark .recharts-legend-item-text,
+.dark .chart-label {
+  color: #ffffff !important;
+}
+
 /* Pale colored status badges/pills built from raw Tailwind color families
  * (not the semantic success/warning/danger tokens) otherwise look like
  * light-mode islands in dark mode. Darker text shades (600-900) swap to
