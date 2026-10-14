@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Clock, Download, Link2, Play, RefreshCw, Search, Shield, Wrench } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Activity, AlertTriangle, ArrowLeft, CheckCircle, ChevronDown, ChevronUp, Clock, Download, Link2, Play, RefreshCw, Search, Shield, Wrench } from 'lucide-react';
 
 type Status = 'operational' | 'degraded' | 'outage' | 'maintenance';
 type Group = 'core' | 'messaging' | 'data' | 'jobs';
@@ -179,6 +180,8 @@ function ServiceRow({ svc, open, onToggle, admin, onShowIncidents, incidentCount
 }
 
 export default function SystemHealthPage() {
+  const router = useRouter();
+  const goBack = () => (window.history.length > 1 ? router.back() : router.push('/'));
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -245,7 +248,16 @@ export default function SystemHealthPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className={`border-b ${BANNER[overall]}`}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex items-center justify-between flex-wrap gap-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4">
+          <button
+            type="button"
+            onClick={goBack}
+            className="inline-flex items-center gap-1.5 min-h-[44px] pr-3 -ml-1 pl-1 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <ArrowLeft size={18} /> Back
+          </button>
+        </div>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-2 pb-8 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center"><Activity size={20} className="text-white" /></div>
             <div><h1 className="text-xl font-bold text-white">AVYRO System Status</h1><p className="text-sm text-white/90">Live checks of every service, recorded every 5 minutes</p></div>
