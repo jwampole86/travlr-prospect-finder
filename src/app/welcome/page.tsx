@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, ArrowRight, CheckCircle2, ShieldCheck, PlayCircle } from 'lucide-react';
+import { Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, Home, ArrowRight, CheckCircle2, ShieldCheck, PlayCircle } from 'lucide-react';
 import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 import PricingFaq from '@/app/prospect-finder/components/PricingFaq';
@@ -14,29 +14,30 @@ export const metadata: Metadata = {
 const MODULES = [
   { icon: Search, name: 'Prospect', outcome: 'Know who to call first.', body: 'Discover homeowner opportunities, verify owner and contact data, and score every lead.', points: ['Property discovery & lead generation', 'Owner/contact intelligence & data enrichment', 'Verification workflows & lead scoring'] },
   { icon: Database, name: 'Intelligence', outcome: 'Walk into every call prepared.', body: 'Revenue estimates, market intelligence, and STR regulations at your fingertips.', points: ['Property & revenue intelligence', 'Market intelligence & opportunity scoring', 'STR regulation lookups by city/state'] },
-  { icon: Users, name: 'CRM', outcome: 'Keep follow-up from slipping.', body: 'Manage your pipeline, assignments, notes, and follow-up in one place.', points: ['Pipeline & assignment management', 'Notes, tasks & activity history', 'Owner and property profiles'] },
-  { icon: Zap, name: 'Engage', outcome: 'Turn research into conversations.', body: 'Voice, SMS, email, and AI-assisted outreach — including a live call teleprompter.', points: ['Voice, SMS & email outreach', 'Live call teleprompter with AI suggestions', 'Campaigns & appointment scheduling'] },
-  { icon: TrendingUp, name: 'Automate', outcome: 'Reduce manual busywork.', body: 'Workflow automation, lead routing, and AI agents that handle the busywork.', points: ['Workflow triggers & actions', 'AI agents & lead routing', 'Automated follow-up & notifications'] },
+  { icon: Users, name: 'Pipeline', outcome: 'See every lead move.', body: 'A live board and map built on your real campaign stages, with assignments, notes, and follow-up in one place.', points: ['Drag-and-drop pipeline board & map view', 'Quick views and overview tiles in Lead Management', 'Notes, assignments & activity history'] },
+  { icon: Zap, name: 'Engage', outcome: 'Turn research into conversations.', body: 'Text campaigns, email, and calling with AI-assisted guidance.', points: ['Text campaigns with carrier checks, quiet hours & opt-outs', 'Voice, email & a live call teleprompter', 'Campaigns & appointment scheduling'] },
+  { icon: Home, name: 'Co-Host', outcome: 'Turn listings into owners.', body: 'Match Airbnb and Vrbo listings to verified owners through public license records.', points: ['Owner matching & verification', 'Audit offers by email and text', 'Numbered pages and market filters'] },
+  { icon: TrendingUp, name: 'Automate', outcome: 'Reduce manual busywork.', body: 'Workflow automation, lead routing, and alerts that handle the busywork.', points: ['Personal alerts & working hours', 'AI agents & lead routing', 'Automated follow-up & notifications'] },
   { icon: Brain, name: 'Talent', outcome: 'Hire the team that can grow.', body: 'AI voice interviews, scorecards, and a full hiring pipeline for your team.', points: ['AI voice interviews & scheduling', 'Candidate scorecards & role plays', 'Interview calendar & Zoom integration'] },
-  { icon: BarChart2, name: 'Analytics', outcome: 'See what is actually converting.', body: 'Acquisition funnel, agent performance, and revenue opportunity reporting.', points: ['Acquisition funnel & lead conversion', 'Agent & team performance', 'Market and portfolio reporting'] },
+  { icon: BarChart2, name: 'Analytics', outcome: 'See what is actually converting.', body: 'Acquisition funnel, agent performance, and an Executive Overview where every number drills into the people behind it.', points: ['Executive Overview with drill-down', 'Agent & team performance', 'Live System Status & Team Chat'] },
 ];
 
 const PROOF_POINTS = [
-  'Live voice, SMS, email, AI, and data stack',
-  'Homeowner acquisition workflows',
+  'Live text, voice, email, AI, and data stack',
+  'Pipeline board, map, and Co-Host program',
   'Operator-shaped call and hiring tools',
 ];
 
 const FIELD_PROOF = [
   {
     label: 'Operational Proof',
-    stat: 'Calling, SMS, email, AI',
-    body: 'Twilio, Resend, Anthropic, Supabase, and Vercel power real calling, messaging, AI assistance, auth, and deployment workflows.',
+    stat: 'Texting, calling, email, AI',
+    body: 'Twilio, Resend, Anthropic, Supabase, and Vercel power real texting, calling, AI assistance, auth, and deployment, watched by a live System Status page.',
   },
   {
     label: 'Workflow Proof',
     stat: 'End-to-end agent loop',
-    body: 'Candidate intake, AI interview routing, follow-up teleprompters, lead scoring, assignments, and outreach history are wired into one operating path.',
+    body: 'Lead scoring, verified-number texting, a live pipeline board, Co-Host owner matching, assignments, and interviews are wired into one operating path.',
   },
 ];
 
@@ -131,8 +132,8 @@ export default function WelcomePage() {
             { step: 'Discover', body: 'Property opportunities' },
             { step: 'Enrich', body: 'Property + owner intelligence' },
             { step: 'Prioritize', body: 'Lead scoring + verification' },
-            { step: 'Engage', body: 'Calling + AI-assisted teleprompter' },
-            { step: 'Convert', body: 'CRM + pipeline' },
+            { step: 'Engage', body: 'Texts, calls + AI teleprompter' },
+            { step: 'Convert', body: 'Pipeline board + map' },
             { step: 'Automate', body: 'Follow-up + workflows' },
             { step: 'Analyze', body: 'Performance intelligence' },
           ].map((s, i) => (
@@ -218,7 +219,8 @@ export default function WelcomePage() {
             {[
               'Discover and prioritize high-value homeowner opportunities, with luxury lead access on Business and Enterprise plans',
               'Access available property and contact intelligence',
-              'Manage your pipeline from first contact to signed contract',
+              'Watch every lead move on a live pipeline board and map, from first text to signed contract',
+              'Partner with hosts through the Co-Host program, matched to verified owners',
               'Automate outreach and follow-up without losing the personal touch',
               'AI-assisted hiring tools to help you build your team',
               'Analytics that show what is actually converting',
@@ -245,7 +247,7 @@ export default function WelcomePage() {
             {[
               'Access available property and contact intelligence based on your enabled data sources and plan allowances',
               'Verified contact workflows help you prioritize outreach with confidence',
-              'Channel-specific consent and opt-out controls for SMS, email, and voice outreach',
+              'Texts only between 9am and 8pm in the owner\'s time zone, never twice, with every opt-out honored',
               'No guaranteed owner identity, phone number, or outcome on every lead',
             ].map((point) => (
               <div key={point} className="flex items-start gap-2.5">

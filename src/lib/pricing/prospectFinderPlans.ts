@@ -50,18 +50,19 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
     limits: {
       users: '1 user',
       portfolios: '1 portfolio',
-      leads: 'Up to 1,000 leads',
-      enrichments: 'Up to 100 enrichments/mo',
+      leads: 'Up to 50 leads/mo',
+      enrichments: 'Up to 75 enrichments/mo',
       aiInterviews: 'Not included',
     },
     features: [
-      'Lead management & basic dashboard',
+      'Lead Management with overview tiles & quick views',
       'Property profiles & CSV import',
       'Basic search & filtering',
-      'Up to 100 contact/property enrichments per month',
+      'Pipeline Board with live campaign stages (view only)',
+      'Map View with street layer',
+      'Up to 50 leads and 75 enrichments per month',
       'Basic lead notes',
-    ],
-    stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_STARTER',
+    ],    stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_STARTER',
     annualStripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_STARTER_ANNUAL',
   },
   pro: {
@@ -75,20 +76,21 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
     limits: {
       users: 'Up to 5 users',
       portfolios: 'Up to 5 portfolios',
-      leads: 'Up to 10,000 leads',
-      enrichments: 'Up to 1,000 enrichments/mo',
+      leads: 'Up to 150 leads/mo',
+      enrichments: 'Up to 225 enrichments/mo',
       aiInterviews: 'Up to 25 AI interviews/mo',
     },
     features: [
       'Everything in Starter',
-      'Advanced lead filtering & priority views',
-      'Verified contact workflows',
-      'Lead assignment',
-      'Enhanced property profiles',
-      'Advanced pipeline management',
-      'Higher enrichment limits',
-    ],
-    stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_PRO',
+      'Advanced filtering, saved views & priority lists',
+      'Pipeline Board with drag-and-drop stages',
+      'Map View with stage colors, dark and satellite styles',
+      'Text campaigns with carrier checks, quiet hours & opt-out handling (limited volume)',
+      'Co-Host pipeline: browse listings and owner matches',
+      'Verified contact workflows & lead assignment',
+      'Team Chat, personal alerts & working hours',
+      'Up to 150 leads and 225 enrichments per month',
+    ],    stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_PRO',
     annualStripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_PRO_ANNUAL',
   },
   business: {
@@ -104,22 +106,20 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
     limits: {
       users: 'Up to 15 users',
       portfolios: 'Up to 25 portfolios',
-      leads: 'Up to 50,000 leads',
-      enrichments: 'Up to 5,000 enrichments/mo',
+      leads: 'Up to 400 leads/mo',
+      enrichments: 'Up to 600 enrichments/mo',
       aiInterviews: 'Included',
     },
     features: [
       'Everything in Pro',
-      'Higher user, portfolio, and lead limits',
-      'Luxury lead access with market-aware luxury tiers',
-      'AI Interview Assistant',
-      'Automated & bulk interview scheduling',
-      'Candidate interview calendar',
-      'Zoom interview integration',
-      'Advanced analytics',
-      'Stronger enrichment volume',
-    ],
-    stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_BUSINESS',
+      'Luxury lead access with market-aware tiers (up to 40 luxury leads a month)',
+      'Full Co-Host program: owner matching from license records, verification, audit offers, email & text outreach (up to 25 verified-owner matches a month)',
+      'Executive Overview with drill-down on every panel',
+      'Full-volume text campaigns with delivery and reply insights',
+      'AI Interview Assistant & automated, bulk scheduling',
+      'Advanced analytics & API access',
+      'Up to 400 leads and 600 enrichments per month',
+    ],    stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_BUSINESS',
     annualStripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_BUSINESS_ANNUAL',
   },
   enterprise: {
@@ -142,13 +142,12 @@ export const PROSPECT_FINDER_PLANS: Record<PlanId, ProspectFinderPlan> = {
     },
     features: [
       'Everything in Business',
+      'Custom lead, luxury and Co-Host allowances scoped to the supply in your markets',
+      'Multi-market executive rollups & custom roles',
       'Full AI suite & automated bulk AI interviews',
-      'Custom lead, enrichment, user, and portfolio limits',
-      'Advanced automation & workflow controls',
-      'Priority support & onboarding',
-      'Custom integrations available',
-    ],
-    stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_ENTERPRISE',
+      'Audit logs, SSO & advanced automation controls',
+      'Priority support, onboarding & custom integrations',
+    ],    stripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_ENTERPRISE',
     annualStripePriceEnvVar: 'STRIPE_PRICE_PROSPECT_FINDER_ENTERPRISE_ANNUAL',
   },
 };
@@ -213,6 +212,15 @@ export const FEATURE_COMPARISON: FeatureComparisonRow[] = [
   { key: 'custom_roles', label: 'Custom Roles', values: { starter: 'no', pro: 'no', business: 'yes', enterprise: 'yes' } },
   { key: 'priority_support', label: 'Priority Support', values: { starter: 'no', pro: 'yes', business: 'yes', enterprise: 'yes' } },
   { key: 'dedicated_support', label: 'Dedicated Support', values: { starter: 'no', pro: 'no', business: 'no', enterprise: 'yes' } },
+  { key: 'pipeline_board', label: 'Pipeline Board', values: { starter: 'limited', pro: 'yes', business: 'yes', enterprise: 'yes' } },
+  { key: 'map_view', label: 'Map View', values: { starter: 'limited', pro: 'yes', business: 'yes', enterprise: 'yes' } },
+  { key: 'text_campaigns', label: 'Text Campaigns', values: { starter: 'no', pro: 'limited', business: 'yes', enterprise: 'yes' } },
+  { key: 'cohost_program', label: 'Co-Host Program', values: { starter: 'no', pro: 'limited', business: 'yes', enterprise: 'yes' } },
+  { key: 'follow_up_tools', label: 'Follow-Up Tools', values: { starter: 'no', pro: 'yes', business: 'yes', enterprise: 'yes' } },
+  { key: 'team_chat', label: 'Team Chat', values: { starter: 'no', pro: 'yes', business: 'yes', enterprise: 'yes' } },
+  { key: 'personal_alerts', label: 'Personal Alerts & Working Hours', values: { starter: 'limited', pro: 'yes', business: 'yes', enterprise: 'yes' } },
+  { key: 'executive_overview', label: 'Executive Overview', values: { starter: 'no', pro: 'no', business: 'yes', enterprise: 'yes' } },
+  { key: 'system_status', label: 'Live System Status', values: { starter: 'yes', pro: 'yes', business: 'yes', enterprise: 'yes' } },
   { key: 'custom_limits', label: 'Custom Limits', values: { starter: 'no', pro: 'no', business: 'no', enterprise: 'yes' } },
 ];
 
@@ -229,15 +237,30 @@ function rowsFor(keys: string[]): FeatureComparisonRow[] {
 // table and the collapsible-category view on /plans both read from this single
 // source of truth, so marketing copy can never drift from the underlying data.
 export const FEATURE_CATEGORIES: FeatureCategoryGroup[] = [
-  { category: 'Core Platform', rows: rowsFor(['lead_management', 'dashboard', 'property_profiles', 'csv_imports']) },
-  { category: 'Lead Management', rows: rowsFor(['lead_search', 'lead_filtering', 'lead_assignment', 'pipeline_management', 'multiple_portfolios', 'team_members']) },
+  { category: 'Core Platform', rows: rowsFor(['lead_management', 'dashboard', 'property_profiles', 'csv_imports', 'system_status']) },
+  { category: 'Lead Management', rows: rowsFor(['lead_search', 'lead_filtering', 'lead_assignment', 'pipeline_management', 'pipeline_board', 'map_view', 'multiple_portfolios']) },
   { category: 'Property & Contact Intelligence', rows: rowsFor(['verified_contact_workflows', 'property_enrichment', 'luxury_leads']) },
+  { category: 'Outreach & Co-Host', rows: rowsFor(['text_campaigns', 'cohost_program', 'follow_up_tools']) },
+  { category: 'Team & Collaboration', rows: rowsFor(['team_members', 'team_chat', 'personal_alerts']) },
   { category: 'AI & Automation', rows: rowsFor(['ai_assisted_workflows', 'automation_rules', 'bulk_workflows']) },
   { category: 'Interviews & Team Tools', rows: rowsFor(['ai_interview_assistant', 'automated_interview_scheduling', 'bulk_interview_scheduling', 'interview_calendar', 'zoom_integration']) },
-  { category: 'Analytics', rows: rowsFor(['advanced_analytics']) },
+  { category: 'Analytics', rows: rowsFor(['advanced_analytics', 'executive_overview']) },
   { category: 'Integrations', rows: rowsFor(['api_access', 'custom_integrations']) },
   { category: 'Security & Admin', rows: rowsFor(['audit_logs', 'sso', 'custom_roles', 'custom_limits']) },
   { category: 'Support', rows: rowsFor(['priority_support', 'dedicated_support']) },
+];
+
+/**
+ * Why the monthly lead allowances are small. They are sized to what VAYO can actually supply at full potential:
+ * roughly 15,000 owner lookups a month across the platform, and the rates below measured on real leads.
+ * Rounded on purpose; refresh them from the lead data when they drift.
+ */
+export const LEAD_SUPPLY_FACTS: Array<{ stat: string; label: string }> = [
+  { stat: '7 in 10', label: 'owner lookups return a phone number' },
+  { stat: '8 in 10', label: 'of those numbers are live mobiles we can text' },
+  { stat: '1 in 15', label: 'properties qualify as luxury' },
+  { stat: '1 in 30', label: 'leads end up fully verified: owner, phone and address' },
+  { stat: '1 in 1,000', label: 'Airbnb and Vrbo listings match to a verified owner' },
 ];
 
 /** Reusable upgrade-gate messaging for logged-in users who hit a feature outside their plan. */

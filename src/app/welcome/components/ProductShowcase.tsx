@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Database, GitBranch, Mic, Zap, Brain, BarChart2 } from 'lucide-react';
+import { Search, Database, GitBranch, Mic, Zap, Brain, BarChart2, Home, Activity } from 'lucide-react';
 import ProspectShowcase from '../preview/_shared/ProspectShowcase';
 import IntelligenceShowcase from '../preview/_shared/IntelligenceShowcase';
 import PipelineWidgets from '../preview/_shared/PipelineWidgets';
@@ -9,6 +9,8 @@ import TeleprompterShowcase from '../preview/_shared/TeleprompterShowcase';
 import AutomationShowcase from '../preview/_shared/AutomationShowcase';
 import InterviewShowcase from '../preview/_shared/InterviewShowcase';
 import AnalyticsShowcase from '../preview/_shared/AnalyticsShowcase';
+import CoHostShowcase from '../preview/_shared/CoHostShowcase';
+import OperateShowcase from '../preview/_shared/OperateShowcase';
 
 const TABS = [
   {
@@ -22,14 +24,19 @@ const TABS = [
     copy: 'Property, owner, revenue, and STR regulation intelligence together in one profile — before your team ever picks up the phone.', featured: false,
   },
   {
-    id: 'crm', label: 'CRM', icon: GitBranch, body: PipelineWidgets,
-    headline: 'Keep Every Opportunity Moving',
-    copy: 'Manage homeowner opportunities from discovery through outreach, follow-up, and conversion without losing the context behind the lead.', featured: false,
+    id: 'crm', label: 'Pipeline', icon: GitBranch, body: PipelineWidgets,
+    headline: 'Watch Every Opportunity Move',
+    copy: 'A live pipeline board built on your real campaign stages, from scored prospect to texted, engaged, hot, and under contract. Drag leads between stages or switch to the map.', featured: true,
+  },
+  {
+    id: 'cohost', label: 'Co-Host', icon: Home, body: CoHostShowcase,
+    headline: 'Turn Listings Into Verified Owners',
+    copy: 'Match Airbnb and Vrbo listings to their real owners through public license records, then send audit offers and follow up, all in a pipeline of its own.', featured: true,
   },
   {
     id: 'engage', label: 'Engage', icon: Mic, body: TeleprompterShowcase,
     headline: 'Turn Intelligence Into Better Conversations',
-    copy: 'VAYO brings property context, homeowner information, and live conversation guidance directly into the outreach workflow.',
+    copy: 'Text campaigns that respect quiet hours and opt-outs, plus live call guidance with property context, directly in the outreach workflow.',
     featured: true,
   },
   {
@@ -47,6 +54,11 @@ const TABS = [
     id: 'analytics', label: 'Analytics', icon: BarChart2, body: AnalyticsShowcase,
     headline: "Know What's Actually Driving Growth",
     copy: 'Measure pipeline activity, opportunity quality, and team performance from one connected system.', featured: false,
+  },
+  {
+    id: 'operate', label: 'Operate', icon: Activity, body: OperateShowcase,
+    headline: 'Run the Whole Operation From One Place',
+    copy: 'An Executive Overview where every number opens the people behind it, a live System Status page, and Team Chat so nothing slips between teammates.', featured: false,
   },
 ] as const;
 

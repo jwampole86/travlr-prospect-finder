@@ -86,6 +86,26 @@ function TextComposer({ propertyId, sms, phones, thread, blocked, onSent }: { pr
   );
 }
 
+/** Numbered pages with first, last and neighbours; collapses long runs into ellipses. */
+function Pager({ page, pageCount, pageSize, total, onPage, onSize }: { page: number; pageCount: number; pageSize: number; total: number; onPage: (p: number) => void; onSize: (n: number) => void }) {
+  if (total <= 25) return null;
+  const start = (page - 1) * pageSize + 1; const end = Math.min(total, page * pageSize);
+  const nums: Array<number | 'gap-a' | 'gap-b'> = [];
+  for (let n = 1; n <= pageCount; n++) { if (n === 1 || n === pageCount || Math.abs(n - page) <= 1 || (page <= 3 && n <= 4) || (page >= pageCount - 2 && n >= pageCount - 3)) nums.push(n); else if (nums[nums.length - 1] !== 'gap-a' && n < page) nums.push('gap-a'); else if (nums[nums.length - 1] !== 'gap-b' && n > page) nums.push('gap-b'); }
+  const btn = 'h-8 min-w-8 px-2 rounded-lg border text-xs font-medium inline-flex items-center justify-center transition';
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2">
+      <p className="text-xs text-muted-foreground">Showing <span className="font-semibold text-foreground">{start.toLocaleString()}-{end.toLocaleString()}</span> of <span className="font-semibold text-foreground">{total.toLocaleString()}</span></p>
+      <nav className="flex items-center gap-1" aria-label="Pages">
+        <button onClick={() => onPage(page - 1)} disabled={page === 1} className={`${btn} border-border bg-card hover:bg-muted disabled:opacity-40`}>Prev</button>
+        {nums.map(n => typeof n === 'string' ? <span key={n} className="px-1 text-xs text-muted-foreground">…</span> : <button key={n} onClick={() => onPage(n)} aria-current={n === page ? 'page' : undefined} className={`${btn} ${n === page ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-card hover:bg-muted'}`}>{n}</button>)}
+        <button onClick={() => onPage(page + 1)} disabled={page === pageCount} className={`${btn} border-border bg-card hover:bg-muted disabled:opacity-40`}>Next</button>
+      </nav>
+      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">Per page<select value={pageSize} onChange={e => onSize(Number(e.target.value))} className="h-8 rounded-lg border border-border bg-card px-1.5 text-xs text-foreground">{[25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
+    </div>
+  );
+}
+
 export default function CoHostView() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [crm, setCrm] = useState<CrmLead[]>([]);
@@ -208,6 +228,14 @@ export default function CoHostView() {
     };
     return listings.filter(l => passes(l)).sort(cmp[sort]);
   }, [listings, passes, sort]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const pageCount = Math.max(1, Math.ceil(shown.length / pageSize));
+  const pageItems = useMemo(() => shown.slice((Math.min(page, pageCount) - 1) * pageSize, Math.min(page, pageCount) * pageSize), [shown, page, pageSize, pageCount]);
+  // A new search starts back on page one.
+  useEffect(() => { setPage(1); }, [market, usState, stage, view, luxuryOnly, eliteOnly, sort, verifiedOnly, contactOnly, niches, pageSize]);
+  const listTop = useRef<HTMLDivElement>(null);
+  const goPage = (p: number) => { setPage(Math.max(1, Math.min(pageCount, p))); window.requestAnimationFrame(() => listTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
   const counts = useMemo(() => stages.map(s => [s, listings.filter(l => passes(l, 'stage') && l.pipeline_stage === s).length] as const), [stages, listings, passes]);
 
   // /cohost?open=<property id> (from the Co-Host email tab) scrolls to that home, clearing filters first if they hide it.
@@ -218,11 +246,13 @@ export default function CoHostView() {
     if (!target || loading || !listings.length) return;
     if (!listings.some(l => l.property_id === target)) { setTarget(null); return; }
     if (!shown.some(l => l.property_id === target)) { if (clearedFor.current !== target) { clearedFor.current = target; clearFilters(); setView('all'); } return; }
+    const idx = shown.findIndex(l => l.property_id === target);
+    if (idx >= 0 && !pageItems.some(l => l.property_id === target)) { setPage(Math.floor(idx / pageSize) + 1); return; }
     const el = document.getElementById(`listing-${target}`); if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     const t = setTimeout(() => setTarget(null), 6000); return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, loading, listings, shown]);
+  }, [target, loading, listings, shown, pageItems, pageSize]);
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
@@ -285,7 +315,8 @@ export default function CoHostView() {
       )}
 
       {!loading && view !== 'crm' && (
-        <div className="space-y-3">
+        <div ref={listTop} className="space-y-3 scroll-mt-4">
+          <Pager page={Math.min(page, pageCount)} pageCount={pageCount} pageSize={pageSize} total={shown.length} onPage={goPage} onSize={setPageSize} />
           {shown.length === 0 && (
             <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground space-y-3">
               <p>No listings match these filters.</p>
@@ -293,7 +324,7 @@ export default function CoHostView() {
               {activeFilters.length > 0 && <button onClick={clearFilters} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold">Clear filters</button>}
             </div>
           )}
-          {shown.slice(0, 150).map(l => {
+          {pageItems.map(l => {
             const m = MATCH_LABEL[l.match_status ?? ''] ?? null; const o = l.matched_owner; const url = l.airbnb_url ?? l.vrbo_url ?? l.booking_url;
             return (
               <div key={l.property_id} id={`listing-${l.property_id}`} className={`bg-card border rounded-xl p-4 transition-shadow ${target === l.property_id ? 'border-primary ring-2 ring-primary/40' : 'border-border'}`}>
@@ -430,7 +461,7 @@ export default function CoHostView() {
               </div>
             );
           })}
-          {shown.length > 150 && <p className="text-xs text-muted-foreground">Showing the first 150 of {shown.length}. Narrow by state, market or stage to see the rest.</p>}
+          <Pager page={Math.min(page, pageCount)} pageCount={pageCount} pageSize={pageSize} total={shown.length} onPage={goPage} onSize={setPageSize} />
         </div>
       )}
     </div>

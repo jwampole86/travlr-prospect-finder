@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Check, Minus, ChevronDown, ChevronRight, ArrowRight, Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, Link2 } from 'lucide-react';
+import { Check, Minus, ChevronDown, ChevronRight, ArrowRight, Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, Link2, Send, Home } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
@@ -12,6 +12,7 @@ import {
   PLAN_ORDER,
   PROSPECT_FINDER_PLANS,
   FEATURE_CATEGORIES,
+  LEAD_SUPPLY_FACTS,
   getDisplayMonthlyPrice,
   getAnnualSavingsPercent,
   type PlanId,
@@ -20,34 +21,34 @@ import {
 } from '@/lib/pricing/prospectFinderPlans';
 
 const CAPABILITIES = [
-  { icon: Search, title: 'Find Opportunities', body: 'Discover and organize potential homeowner prospects across your target markets.' },
-  { icon: Database, title: 'Enrich Property & Owner Intelligence', body: 'Build stronger property and contact profiles from your enabled data sources.' },
-  { icon: TrendingUp, title: 'Prioritize High-Value Leads', body: 'Surface the opportunities most likely to convert, faster.' },
-  { icon: Users, title: 'Manage Your Pipeline', body: 'Assign, track, and move homeowner opportunities through every stage.' },
-  { icon: Zap, title: 'Automate Workflows', body: 'Cut repetitive lead-management and follow-up work with automation.' },
-  { icon: Brain, title: 'Build Your Team', body: 'Use AI-assisted and live interview workflows to support hiring and growth.' },
-  { icon: BarChart2, title: 'Analyze Performance', body: 'Understand pipeline activity, conversion, and team performance at a glance.' },
-  { icon: Link2, title: 'Connect Your Systems', body: 'Integrate VAYO with the tools your team already relies on.' },
+  { icon: Search, title: 'Find Opportunities', body: 'Discover homeowner prospects across your markets and see them on a map, in a pipeline board and in a fast, filterable list.' },
+  { icon: Database, title: 'Enrich Property & Owner Intelligence', body: 'Owner, phone and address checks, revenue estimates and STR regulations on every profile, from your enabled data sources.' },
+  { icon: TrendingUp, title: 'Prioritize High-Value Leads', body: 'Scores, luxury tiers and quick views surface who to contact first, and who is ready to text right now.' },
+  { icon: Send, title: 'Reach Owners the Right Way', body: 'Text campaigns that check the carrier and the listing first, respect quiet hours and honor every opt-out.' },
+  { icon: Home, title: 'Partner With Hosts', body: 'The Co-Host program matches Airbnb and Vrbo listings to owners using license records, with verification and audit offers.' },
+  { icon: Zap, title: 'Automate & Stay Informed', body: 'Personal alerts, working hours, follow-up templates and workflows keep your team moving without busywork.' },
+  { icon: Brain, title: 'Build Your Team', body: 'AI-assisted and live interview workflows, plus Team Chat to keep everyone on the same page.' },
+  { icon: BarChart2, title: 'See the Whole Operation', body: 'An Executive Overview where every panel drills into the people behind the numbers, and a live System Status page.' },
 ];
 
 const PRICING_REASSURANCE = [
-  'Built for operators building homeowner pipelines across vacation rental markets',
-  'Plan limits are shown upfront across users, portfolios, leads, enrichment, and AI interviews',
+  'Monthly lead allowances are sized to what VAYO can actually supply, not inflated stored-lead counts',
+  'Limits are shown upfront across users, portfolios, monthly leads, enrichments, and AI interviews',
   'Business unlocks the operating layer; Enterprise unlocks the complete platform',
 ];
 
 const COMPLETENESS_SIGNALS = [
-  'Luxury leads: market-aware luxury tiers, views, and KPIs included on Business and Enterprise',
-  'AI interviews: limited on Pro, included on Business, complete on Enterprise',
-  'Automation: basic on Pro, advanced on Business, custom workflow controls on Enterprise',
-  'Analytics: Business adds advanced analytics; Enterprise includes the full analytics suite',
+  'Text campaigns: limited volume on Pro, full volume with delivery and reply insights on Business',
+  'Co-Host program: browse listings on Pro, full owner matching, verification and outreach on Business',
+  'Luxury leads: market-aware luxury tiers, views, and KPIs on Business and Enterprise',
+  'Executive Overview and advanced analytics start on Business; Enterprise adds multi-market rollups',
 ];
 
 const ENTERPRISE_PANEL_FEATURES = [
-  { title: 'Unlimited scale', body: 'Custom limits for users, portfolios, leads, and enrichments' },
-  { title: 'Full AI suite', body: 'Automated bulk AI interviews, advanced workflows, and priority model access' },
-  { title: 'Advanced automation & integrations', body: 'Deeper workflow control and custom integrations available' },
-  { title: 'Dedicated support', body: 'Priority onboarding, guided setup, and a direct success path' },
+  { title: 'Allowances built around your markets', body: 'Lead, luxury, enrichment, and Co-Host volumes scoped to the supply that actually exists where you operate' },
+  { title: 'Multi-market command center', body: 'Executive rollups, custom roles, audit logs, and SSO across every portfolio and team' },
+  { title: 'Full AI suite & automation', body: 'Automated bulk AI interviews, advanced workflows, and priority model access' },
+  { title: 'Dedicated support', body: 'Priority onboarding, guided setup, custom integrations, and a direct success path' },
 ];
 
 function AvailabilityCell({ value }: { value: FeatureAvailability }) {
@@ -73,7 +74,7 @@ function PlanPill({ id, active, onSelect }: { id: PlanId; active: boolean; onSel
 
 // Limit-related bullets (e.g. "1 User", "Up to 5 portfolios") are already surfaced in the
 // compact stat row above the feature list, so we drop them here to avoid repeating the same number twice.
-const REDUNDANT_LIMIT_PATTERN = /^(up to )?[\d,]+\s+(users?|portfolios?|leads?)$/i;
+const REDUNDANT_LIMIT_PATTERN = /^(up to )?[\d,]+\s+(users?|portfolios?|leads?(\/mo)?)$/i;
 
 function PricingCard({
   id,
@@ -161,8 +162,8 @@ function PricingCard({
           <p>Portfolios</p>
         </div>
         <div className={`rounded-lg py-2 ${isEnterprise ? 'bg-background/10' : 'bg-muted/60'}`}>
-          <p className={`font-bold text-sm ${isEnterprise ? 'text-background' : 'text-foreground'}`}>{plan.limits.leads.replace(/^Up to /, '').replace(/\s+leads?$/i, '')}</p>
-          <p>Leads</p>
+          <p className={`font-bold text-sm ${isEnterprise ? 'text-background' : 'text-foreground'}`}>{plan.limits.leads.replace(/^Up to /, '').replace(/\s+leads?\/mo$/i, '')}</p>
+          <p>Leads / mo</p>
         </div>
       </div>
 
@@ -469,11 +470,31 @@ export default function PlansPageClient() {
         )}
       </section>
 
+      {/* Why allowances are what they are */}
+      <section id="lead-supply" className="max-w-5xl mx-auto px-6 pb-16 scroll-mt-20">
+        <div className="rounded-3xl border border-border bg-card p-6 sm:p-8">
+          <p className="text-xs font-bold tracking-[0.16em] text-primary uppercase mb-3">Honest lead numbers</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">Why Monthly Lead Allowances Are Smaller Than You Might Expect</h2>
+          <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-3xl">
+            A VAYO lead is a researched homeowner opportunity, not a row from a bulk list. Finding the right owner, getting a working mobile number, and confirming the address and the listing takes real data work, and the best opportunities are rare. We size every plan to what we can supply at quality, and we fill your allowance with the highest-scoring leads available in your markets.
+          </p>
+          <div className="mt-6 grid grid-cols-2 lg:grid-cols-5 gap-3">
+            {LEAD_SUPPLY_FACTS.map((fact) => (
+              <div key={fact.label} className="rounded-2xl bg-muted/40 border border-border p-4">
+                <p className="text-xl font-bold text-foreground">{fact.stat}</p>
+                <p className="mt-1 text-xs text-muted-foreground leading-snug">{fact.label}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-[11px] text-muted-foreground">Approximate platform averages from real lead data. Results vary by market.</p>
+        </div>
+      </section>
+
       {/* Plan Preview Showcase — shown below actual pricing, not above it */}
       <section className="max-w-4xl mx-auto px-6 pb-16">
         <div className="text-center mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-foreground">See What {selectedPlanConfig.name} Looks Like</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Switch plans above to preview how scale changes as you grow.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Switch plans above to preview roughly three months of leads on each plan.</p>
         </div>
         <PlanPreviewShowcase planId={selectedPlan} />
       </section>

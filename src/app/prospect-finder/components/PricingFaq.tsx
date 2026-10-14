@@ -6,15 +6,31 @@ import { ChevronDown } from 'lucide-react';
 const FAQS: Array<{ q: string; a: string }> = [
   {
     q: 'What is VAYO?',
-    a: 'VAYO is the AI-powered growth and operations platform for vacation rental operators and property management teams — covering lead discovery, enrichment, pipeline management, outreach, and (on higher plans) AI-assisted interview tools for hiring.',
+    a: 'VAYO is the AI-powered growth and operations platform for vacation rental operators and property management teams — covering lead discovery, enrichment, a live pipeline board and map, text campaigns, the Co-Host program, team tools, and (on higher plans) AI-assisted interview tools for hiring.',
   },
   {
     q: 'Can I change plans later?',
     a: 'Yes. You can upgrade or downgrade your VAYO plan at any time from your account billing settings. Changes apply to your next billing cycle.',
   },
   {
+    q: 'What counts as a lead?',
+    a: 'A lead is a researched homeowner opportunity: a property with an identified owner and the data needed to act on it, such as a working phone number and a confirmed address. Leads you have already received stay in your account and do not count against future months.',
+  },
+  {
+    q: 'Why are the monthly lead allowances limited?',
+    a: 'Because good leads are hard to find. Matching a listing to its real owner, getting a live mobile number, and verifying the address takes real data work, and only a small share of properties qualify, especially luxury homes and Co-Host-ready listings. We size each plan to what we can supply at quality, and we fill your allowance with the highest-scoring leads in your markets.',
+  },
+  {
     q: 'What happens if I reach my plan limit?',
-    a: "You'll be notified as you approach your plan's usage allowance (users, portfolios, leads, or enrichments). You can upgrade at any time to raise your limits — existing data and workflows are never interrupted.",
+    a: "You'll be notified as you approach your plan's monthly allowance (users, portfolios, leads, or enrichments). Allowances refresh each month, and you can upgrade at any time to raise them. Existing data and workflows are never interrupted.",
+  },
+  {
+    q: 'How do text campaigns work?',
+    a: 'Texts go out only to leads with a verified mobile number, only between 9am and 8pm in the owner\'s local time, and never twice to the same owner. Listings are checked first so we only contact active hosts, and every opt-out is honored immediately. Pro includes text campaigns at limited volume; Business includes full volume with delivery and reply insights.',
+  },
+  {
+    q: 'What is the Co-Host program?',
+    a: 'Co-Host is a separate pipeline for Airbnb and Vrbo listings that we match to the real owner using public license records. Matches are verified, and you can review listings, send audit offers, and follow up by email or text. Pro can browse the pipeline; the full program with owner matching and outreach is on Business and Enterprise. Because only a very small share of listings can be matched to a verified owner, Co-Host volume is limited each month.',
   },
   {
     q: 'Does every plan include AI tools?',
@@ -22,7 +38,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Which plans include luxury leads?',
-    a: 'Luxury lead access is included on the Business and Enterprise plans. It identifies luxury properties relative to each local market, so a high-end home in a lower-cost state is not overlooked, and adds luxury views and dashboard metrics. Starter and Pro do not include it.',
+    a: 'Luxury lead access is included on the Business and Enterprise plans, with up to 40 luxury leads a month on Business. It identifies luxury properties relative to each local market, so a high-end home in a lower-cost state is not overlooked, and adds luxury views and dashboard metrics. Starter and Pro do not include it.',
   },
   {
     q: 'Which plan includes the complete platform?',
@@ -46,7 +62,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'How does Enterprise pricing work?',
-    a: "Enterprise pricing is custom and based on your team size, portfolio volume, and feature requirements. Contact sales and we'll put together a plan that fits your organization.",
+    a: "Enterprise pricing is custom and based on your team size, markets, lead and Co-Host volume, and feature requirements. Contact sales and we'll put together a plan that fits your organization.",
   },
 ];
 

@@ -4,13 +4,14 @@ import React, { useState, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { CreditCard, Users, CheckCircle, Download, Plus, Trash2, X, ArrowRight, Shield, Zap, Crown, RefreshCw, TrendingUp } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
+import { PROSPECT_FINDER_PLANS, PLAN_ORDER, type PlanId } from '@/lib/pricing/prospectFinderPlans';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Plan {
   id: string;
   name: string;
-  price: number;
+  price: number | null;
   interval: 'month' | 'year';
   seats: number;
   features: string[];
@@ -49,42 +50,29 @@ interface PaymentMethod {
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
-const PLANS: Plan[] = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: 99,
-    interval: 'month',
-    seats: 3,
-    features: ['Up to 3 seats', '1,000 leads/mo', 'Basic cadence', 'Email support'],
-    icon: Zap,
-    iconColor: 'text-blue-400',
-    iconBg: 'bg-blue-500/10',
-  },
-  {
-    id: 'growth',
-    name: 'Growth',
-    price: 299,
-    interval: 'month',
-    seats: 10,
-    features: ['Up to 10 seats', '10,000 leads/mo', 'Advanced cadence + SMS', 'ML scoring', 'Priority support'],
-    icon: TrendingUp,
-    iconColor: 'text-violet-400',
-    iconBg: 'bg-violet-500/10',
-    popular: true,
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: 799,
-    interval: 'month',
-    seats: 999,
-    features: ['Unlimited seats', 'Unlimited leads', 'Custom integrations', 'Dedicated CSM', 'SLA guarantee', 'SSO/SAML'],
-    icon: Crown,
-    iconColor: 'text-amber-400',
-    iconBg: 'bg-amber-500/10',
-  },
-];
+// Plans come from the shared pricing config so billing always matches the public Plans page.
+const PLAN_STYLES: Record<PlanId, { icon: React.ElementType; iconColor: string; iconBg: string }> = {
+  starter: { icon: Zap, iconColor: 'text-blue-400', iconBg: 'bg-blue-500/10' },
+  pro: { icon: TrendingUp, iconColor: 'text-violet-400', iconBg: 'bg-violet-500/10' },
+  business: { icon: Shield, iconColor: 'text-emerald-400', iconBg: 'bg-emerald-500/10' },
+  enterprise: { icon: Crown, iconColor: 'text-amber-400', iconBg: 'bg-amber-500/10' },
+};
+
+const PLAN_SEATS: Record<PlanId, number> = { starter: 1, pro: 5, business: 15, enterprise: 999 };
+
+const PLANS: Plan[] = PLAN_ORDER.map((id) => {
+  const plan = PROSPECT_FINDER_PLANS[id];
+  return {
+    id,
+    name: plan.name,
+    price: plan.monthlyPrice,
+    interval: 'month' as const,
+    seats: PLAN_SEATS[id],
+    features: [plan.limits.users, plan.limits.leads, plan.limits.enrichments, ...plan.features.filter((f) => f !== 'Everything in Starter' && !f.startsWith('Everything in ')).slice(0, 4)],
+    ...PLAN_STYLES[id],
+    popular: plan.highlighted === true,
+  };
+});
 
 const mockSeats: Seat[] = [
   { id: 's1', name: 'Sarah Mitchell', email: 'sarah@travlrpro.com', role: 'admin', status: 'active', joinedAt: '2026-07-01' },
@@ -95,11 +83,11 @@ const mockSeats: Seat[] = [
 ];
 
 const mockInvoices: Invoice[] = [
-  { id: 'inv-001', date: '2026-08-01', amount: 299, status: 'paid', description: 'Growth Plan — August 2026', downloadUrl: '#' },
-  { id: 'inv-002', date: '2026-07-01', amount: 299, status: 'paid', description: 'Growth Plan — July 2026', downloadUrl: '#' },
-  { id: 'inv-003', date: '2026-06-01', amount: 299, status: 'paid', description: 'Growth Plan — June 2026', downloadUrl: '#' },
-  { id: 'inv-004', date: '2026-05-01', amount: 99, status: 'paid', description: 'Starter Plan — May 2026', downloadUrl: '#' },
-  { id: 'inv-005', date: '2026-09-01', amount: 299, status: 'pending', description: 'Growth Plan — September 2026', downloadUrl: '#' },
+  { id: 'inv-001', date: '2026-08-01', amount: 399, status: 'paid', description: 'Pro Plan — August 2026', downloadUrl: '#' },
+  { id: 'inv-002', date: '2026-07-01', amount: 399, status: 'paid', description: 'Pro Plan — July 2026', downloadUrl: '#' },
+  { id: 'inv-003', date: '2026-06-01', amount: 399, status: 'paid', description: 'Pro Plan — June 2026', downloadUrl: '#' },
+  { id: 'inv-004', date: '2026-05-01', amount: 149, status: 'paid', description: 'Starter Plan — May 2026', downloadUrl: '#' },
+  { id: 'inv-005', date: '2026-09-01', amount: 399, status: 'pending', description: 'Pro Plan — September 2026', downloadUrl: '#' },
 ];
 
 const mockPaymentMethods: PaymentMethod[] = [
@@ -136,7 +124,7 @@ function InvoiceStatusBadge({ status }: { status: Invoice['status'] }) {
 
 export default function BillingPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'seats' | 'invoices' | 'payment'>('overview');
-  const [currentPlanId, setCurrentPlanId] = useState('growth');
+  const [currentPlanId, setCurrentPlanId] = useState<string>('pro');
   const [seats, setSeats] = useState<Seat[]>(mockSeats);
   const [invoices] = useState<Invoice[]>(mockInvoices);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(mockPaymentMethods);
@@ -212,7 +200,7 @@ export default function BillingPage() {
           <div className="bg-[#1a1f2e] border border-[#2a3142] rounded-xl p-4">
             <p className="text-xs text-gray-500 mb-1">Current Plan</p>
             <p className="text-lg font-bold text-white">{currentPlan.name}</p>
-            <p className="text-xs text-gray-400">${currentPlan.price}/mo</p>
+            <p className="text-xs text-gray-400">{currentPlan.price == null ? 'Custom pricing' : `$${currentPlan.price}/mo`}</p>
           </div>
           <div className="bg-[#1a1f2e] border border-[#2a3142] rounded-xl p-4">
             <p className="text-xs text-gray-500 mb-1">Team Seats</p>
@@ -221,7 +209,7 @@ export default function BillingPage() {
           </div>
           <div className="bg-[#1a1f2e] border border-[#2a3142] rounded-xl p-4">
             <p className="text-xs text-gray-500 mb-1">Next Invoice</p>
-            <p className="text-lg font-bold text-white">${currentPlan.price}</p>
+            <p className="text-lg font-bold text-white">{currentPlan.price == null ? 'Custom' : `$${currentPlan.price}`}</p>
             <p className="text-xs text-gray-400">Due Sep 1, 2026</p>
           </div>
           <div className="bg-[#1a1f2e] border border-[#2a3142] rounded-xl p-4">
@@ -243,7 +231,7 @@ export default function BillingPage() {
 
         {/* ── Plan Overview ── */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
             {PLANS.map(plan => {
               const isCurrent = plan.id === currentPlanId;
               const isSwitching = switchingPlan === plan.id;
@@ -262,8 +250,8 @@ export default function BillingPage() {
                   </div>
                   <h3 className="text-lg font-bold text-white">{plan.name}</h3>
                   <div className="flex items-baseline gap-1 mt-1 mb-4">
-                    <span className="text-3xl font-bold text-white">${plan.price}</span>
-                    <span className="text-gray-400 text-sm">/month</span>
+                    <span className="text-3xl font-bold text-white">{plan.price == null ? 'Custom' : `$${plan.price}`}</span>
+                    {plan.price != null && <span className="text-gray-400 text-sm">/month</span>}
                   </div>
                   <ul className="space-y-2 mb-6">
                     {plan.features.map(f => (
@@ -436,11 +424,11 @@ export default function BillingPage() {
               <div className="bg-[#0d1117] border border-[#2a3142] rounded-lg p-4 mb-4">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-400">Current plan</span>
-                  <span className="text-white">{currentPlan.name} — ${currentPlan.price}/mo</span>
+                  <span className="text-white">{currentPlan.name} — {currentPlan.price == null ? 'Custom' : `$${currentPlan.price}/mo`}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">New plan</span>
-                  <span className="text-violet-400 font-semibold">{confirmPlan.name} — ${confirmPlan.price}/mo</span>
+                  <span className="text-violet-400 font-semibold">{confirmPlan.name} — {confirmPlan.price == null ? 'Custom' : `$${confirmPlan.price}/mo`}</span>
                 </div>
               </div>
               <p className="text-sm text-gray-400 mb-5">Changes take effect immediately. You'll be billed the prorated difference on your next invoice.</p>

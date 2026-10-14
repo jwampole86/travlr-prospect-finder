@@ -19,7 +19,7 @@ export default function ContactSalesPage() {
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Talk to Sales About Enterprise</h1>
           <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-            Enterprise is the only VAYO plan with full access to every feature — custom usage limits, full AI suite, API access, custom integrations, SSO, audit logs, and dedicated support.
+            Enterprise is the only VAYO plan with full access to every feature: multi-market rollups, the full Co-Host program, full AI suite, API access, custom integrations, SSO, audit logs, and dedicated support. Lead and Co-Host allowances are scoped to the supply available in your markets, so tell us where you operate.
           </p>
         </div>
         <EnterpriseInquiryForm />

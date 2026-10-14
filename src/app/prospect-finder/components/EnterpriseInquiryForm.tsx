@@ -97,7 +97,7 @@ export default function EnterpriseInquiryForm() {
       </div>
       <Field label="Current Vacation Rental Software / PMS"><input className={inputClass} value={form.currentSoftware} onChange={set('currentSoftware')} /></Field>
       <Field label="Primary Use Case"><input className={inputClass} value={form.primaryUseCase} onChange={set('primaryUseCase')} /></Field>
-      <Field label="Estimated Lead Volume"><input className={inputClass} value={form.estimatedLeadVolume} onChange={set('estimatedLeadVolume')} /></Field>
+      <Field label="Estimated Lead Volume (per month) and Markets"><input placeholder="e.g. 1,500 leads a month across 10 markets" className={inputClass} value={form.estimatedLeadVolume} onChange={set('estimatedLeadVolume')} /></Field>
       <Field label="Message"><textarea rows={4} className={`${inputClass} resize-none`} value={form.message} onChange={set('message')} /></Field>
 
       <button
