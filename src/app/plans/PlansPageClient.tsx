@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Check, Minus, ChevronDown, ChevronRight, ArrowRight, Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, Link2, Send, Home } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +8,7 @@ import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 import PricingFaq from '@/app/prospect-finder/components/PricingFaq';
 import PlanPreviewShowcase from '@/app/plans/components/PlanPreviewShowcase';
+import PlanPreviewModal from '@/app/plans/components/PlanPreviewModal';
 import {
   PLAN_ORDER,
   PROSPECT_FINDER_PLANS,
@@ -66,6 +67,7 @@ function PlanPill({ id, active, onSelect }: { id: PlanId; active: boolean; onSel
     <button
       onClick={() => onSelect(id)}
       aria-pressed={active}
+      aria-haspopup="dialog"
       className={`px-4 py-2 rounded-full text-sm font-semibold transition-all motion-safe:duration-200 ${
         active ? 'bg-foreground text-background shadow-md scale-[1.03]' : 'bg-muted text-muted-foreground hover:bg-muted/70'
       }`}
@@ -332,6 +334,8 @@ export default function PlansPageClient() {
     return 'business';
   });
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
+  const [previewPlan, setPreviewPlan] = useState<PlanId | null>(null);
+  const closePreview = useCallback(() => setPreviewPlan(null), []);
   const cardRefs = useRef<Partial<Record<PlanId, HTMLDivElement | null>>>({});
 
   useEffect(() => {
@@ -365,7 +369,7 @@ export default function PlansPageClient() {
 
   const handleSelectPlan = (id: PlanId) => {
     setSelectedPlan(id);
-    cardRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    setPreviewPlan(id);
   };
 
   const selectedPlanConfig = useMemo(() => PROSPECT_FINDER_PLANS[selectedPlan], [selectedPlan]);
@@ -388,7 +392,7 @@ export default function PlansPageClient() {
 
       {/* Plan Selector */}
       <section className="max-w-4xl mx-auto px-6 pb-6">
-        <div className="flex items-center justify-center gap-2 flex-wrap" role="tablist" aria-label="Select a plan to preview">
+        <div className="flex items-center justify-center gap-2 flex-wrap" role="tablist" aria-label="Select a plan to open its preview">
           {PLAN_ORDER.map((id) => (
             <PlanPill key={id} id={id} active={selectedPlan === id} onSelect={handleSelectPlan} />
           ))}
@@ -612,6 +616,16 @@ export default function PlansPageClient() {
         </div>
         <PricingFaq />
       </section>
+
+      {previewPlan && (
+        <PlanPreviewModal
+          planId={previewPlan}
+          isLoggedIn={isLoggedIn}
+          billingPeriod={billingPeriod}
+          onChangePlan={(id) => { setSelectedPlan(id); setPreviewPlan(id); }}
+          onClose={closePreview}
+        />
+      )}
 
       <MarketingFooter />
     </div>
