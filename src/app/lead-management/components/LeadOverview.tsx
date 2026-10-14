@@ -21,7 +21,7 @@ const makeViews = (): View[] => [
   { id: 'queued', label: 'Queued', hint: 'A text is scheduled and has not gone out', patch: { campaignStage: 'queued' }, count: o => o.stages.queued ?? 0, tile: { icon: Clock, tone: 'text-sky-500' } },
   { id: 'texted', label: 'Texted', hint: 'Text sent, no reaction yet', patch: { campaignStage: 'texted' }, count: o => o.stages.texted ?? 0, tile: { icon: Send, tone: 'text-blue-500' } },
   { id: 'engaged', label: 'Engaged', hint: 'Opened the link or viewed the estimate', patch: { campaignStage: 'engaged' }, count: o => o.stages.engaged ?? 0, tile: { icon: MousePointerClick, tone: 'text-amber-500' } },
-  { id: 'human', label: 'With a person', hint: 'Replied YES or needs a human follow-up', patch: { campaignStage: 'human' }, count: o => (o.stages.human ?? 0) + (o.stages.hot ?? 0), tile: { icon: UserCheck, tone: 'text-violet-500' } },
+  { id: 'human', label: 'Assigned to agent', hint: 'Replied YES or handed to an agent for follow-up', patch: { campaignStage: 'human' }, count: o => (o.stages.human ?? 0) + (o.stages.hot ?? 0), tile: { icon: UserCheck, tone: 'text-violet-500' } },
   { id: 'unreachable', label: 'Unreachable', hint: 'The text could not be delivered', patch: { campaignStage: 'unreachable' }, count: o => o.stages.unreachable ?? 0 },
   { id: 'verified', label: 'Fully verified', hint: 'Owner, phone and address all verified', patch: { fullyVerified: true }, count: o => o.fullyVerified },
   { id: 'luxury', label: 'Luxury', hint: 'Luxury-tier properties', patch: { luxury: true }, count: o => o.luxury },
