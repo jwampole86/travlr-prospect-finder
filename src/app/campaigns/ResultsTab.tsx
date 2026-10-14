@@ -44,13 +44,17 @@ function CampaignStrip({ batches, selected, onSelect, onCancelled, onDrill }: { 
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(null); }
   }
   const all = batches.reduce((s, b) => s + b.texts, 0);
+  const ordered = useMemo(() => {
+    const rank = (b: BatchInfo) => { const l = status(b, now).label; return l === 'Sending' ? 0 : l === 'Scheduled' ? 1 : l === 'Complete' ? 2 : 3; };
+    return [...batches].sort((a, b) => rank(a) - rank(b) || (rank(a) === 1 ? a.firstSend.localeCompare(b.firstSend) : b.firstSend.localeCompare(a.firstSend)));
+  }, [batches, now]);
   return (
     <div className="space-y-2">
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
         <button onClick={() => onSelect('all')} className={cx('snap-start shrink-0 w-44 text-left rounded-2xl border p-4 transition-all', selected === 'all' ? 'border-primary ring-2 ring-primary/30 bg-primary/5' : 'border-border bg-card hover:border-primary/50 hover:shadow-sm')}>
           <p className="text-xs text-muted-foreground">Everything</p><p className="font-semibold mt-0.5">All campaigns</p><p className="text-xs text-muted-foreground mt-2">{all} texts · {batches.length} campaign{batches.length === 1 ? '' : 's'}</p>
         </button>
-        {batches.map(b => {
+        {ordered.map(b => {
           const st = status(b, now); const sent = Math.max(0, b.texts - b.pending - b.canceled);
           return (
             <div key={b.batch} className={cx('snap-start shrink-0 w-64 rounded-2xl border p-4 transition-all', selected === b.batch ? 'border-primary ring-2 ring-primary/30 bg-primary/5' : 'border-border bg-card hover:border-primary/50 hover:shadow-sm')}>

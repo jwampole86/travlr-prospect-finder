@@ -229,8 +229,8 @@ export async function applyResendEvent(db: Db, messageId: string, type: string, 
     const t = await cohostAlertTarget(db, m.property_id);
     await sendTeamAlert({ key: `cohost-open:${m.id}`, text: `Co-Host email ${type === 'email.clicked' ? 'link clicked' : 'opened'} by ${t.who}. Some opens are mail apps pre-loading.`, url: t.url });
   }
-  // A dead address is not the end: try the owner's next address on file.
-  if ((u.status === 'bounced' && u.bounce_type === 'hard') || u.status === 'failed') await retryNextAddress(db, m.id).catch(e => console.warn('[cohost email retry]', e instanceof Error ? e.message : e));
+  // A dead address is not the end: try the owner's next address on file (a soft bounce counts too, since the provider could not deliver it either).
+  if (u.status === 'bounced' || u.status === 'failed') await retryNextAddress(db, m.id).catch(e => console.warn('[cohost email retry]', e instanceof Error ? e.message : e));
   return true;
 }
 
