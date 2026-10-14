@@ -9,6 +9,8 @@ import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 import PricingFaq from '@/app/prospect-finder/components/PricingFaq';
 import PlanPreviewShowcase from '@/app/plans/components/PlanPreviewShowcase';
 import PlanPreviewModal from '@/app/plans/components/PlanPreviewModal';
+import SocialProof from '@/components/marketing/SocialProof';
+import StickyPlanCta from '@/components/marketing/StickyPlanCta';
 import {
   PLAN_ORDER,
   PROSPECT_FINDER_PLANS,
@@ -87,7 +89,7 @@ const JOURNEY_STAGES: Array<{
     items: [
       { text: 'Live pipeline board and map from first text to contract', status: 'live' },
       { text: 'AI-assisted calling, follow-up and routing', status: 'live' },
-      { text: 'Owner onboarding and agreement workflows', status: 'building' },
+      { text: 'Owner onboarding checklists and e-signed management agreements', status: 'live' },
     ],
   },
   {
@@ -96,8 +98,8 @@ const JOURNEY_STAGES: Array<{
     headline: 'Run the properties you win without adding headcount.',
     items: [
       { text: 'Automation rules, alerts and team workflows', status: 'live' },
-      { text: 'Managed-property records and owner reporting', status: 'building' },
-      { text: 'Turnover and cleaning coordination', status: 'building' },
+      { text: 'Managed-property records and monthly owner statements', status: 'live' },
+      { text: 'Turnover scheduling and cleaner check-in with photos', status: 'live' },
     ],
   },
   {
@@ -117,7 +119,7 @@ const PRICING_DRIVERS = [
   { title: 'AI usage', body: 'Text volume, AI interviews and AI-assisted workflows.', live: true },
   { title: 'Team workflows', body: 'Users, portfolios, assignments and shared pipeline tools.', live: true },
   { title: 'Advanced automation', body: 'Rules, routing, bulk workflows and integrations on higher plans.', live: true },
-  { title: 'Managed properties', body: 'Pricing for properties you operate on AVYRO AI arrives with property operations.', live: false },
+  { title: 'Managed properties', body: 'Property operations are included with your plan today. There is no separate per-property charge yet.', live: true },
 ];
 
 function AvailabilityCell({ value }: { value: FeatureAvailability }) {
@@ -301,7 +303,7 @@ function CategoryAccordion() {
             <button
               onClick={() => toggle(group.category)}
               aria-expanded={isOpen}
-              className="w-full flex items-center justify-between gap-3 px-5 py-3.5 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
+              className="w-full flex items-center justify-between gap-3 px-5 py-4 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
             >
               <span className="text-sm font-bold text-foreground uppercase tracking-wide">{group.category}</span>
               <ChevronDown className={`w-4 h-4 text-muted-foreground motion-safe:transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -321,7 +323,7 @@ function CategoryAccordion() {
                     <tbody>
                       {group.rows.map((row, idx) => (
                         <tr key={row.key} className={idx % 2 === 1 ? 'bg-muted/10' : ''}>
-                          <td className="px-5 py-3 text-foreground font-medium w-full sm:w-auto">{row.label}</td>
+                          <td className="px-5 py-3.5 text-foreground font-medium w-full sm:w-auto">{row.label}</td>
                           {PLAN_ORDER.map((id) => (
                             <td key={id} className="px-3 py-3 text-center w-[110px] min-w-[110px]">
                               <AvailabilityCell value={row.values[id]} />
@@ -358,12 +360,23 @@ function MobileComparePicker() {
           {PLAN_ORDER.map((id) => <option key={id} value={id}>{PROSPECT_FINDER_PLANS[id].name}</option>)}
         </select>
       </div>
-      <div className="rounded-2xl border border-border divide-y divide-border overflow-hidden">
-        {allRows.map((row) => (
-          <div key={row.key} className="grid grid-cols-3 items-center px-4 py-3 text-sm">
-            <span className="text-foreground font-medium col-span-1">{row.label}</span>
-            <span className="text-center"><AvailabilityCell value={row.values[left]} /></span>
-            <span className="text-center"><AvailabilityCell value={row.values[right]} /></span>
+      <div className="space-y-5">
+        {FEATURE_CATEGORIES.map((group) => (
+          <div key={group.category} className="rounded-2xl border border-border overflow-hidden">
+            <div className="grid grid-cols-3 items-center px-4 py-2.5 bg-muted/40 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              <span>{group.category}</span>
+              <span className="text-center">{PROSPECT_FINDER_PLANS[left].name}</span>
+              <span className="text-center">{PROSPECT_FINDER_PLANS[right].name}</span>
+            </div>
+            <div className="divide-y divide-border">
+              {group.rows.map((row) => (
+                <div key={row.key} className="grid grid-cols-3 items-center px-4 py-3.5 text-sm gap-2">
+                  <span className="text-foreground font-medium leading-snug">{row.label}</span>
+                  <span className="text-center"><AvailabilityCell value={row.values[left]} /></span>
+                  <span className="text-center"><AvailabilityCell value={row.values[right]} /></span>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -548,6 +561,23 @@ export default function PlansPageClient() {
         )}
       </section>
 
+      {/* Mid-page conversion */}
+      <section className="max-w-4xl mx-auto px-5 sm:px-6 pb-14 sm:pb-20">
+        <div className="rounded-3xl bg-foreground text-background p-6 sm:p-9 text-center">
+          <h2 className="text-xl sm:text-2xl font-bold">Not sure which plan fits? Start with {selectedPlanConfig.name}.</h2>
+          <p className="mt-2 text-sm text-background/75 max-w-xl mx-auto">You can change plans any time. Compare every feature, or talk to our team about your markets and volume.</p>
+          <div className="mt-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+            <Link href={selectedPlanConfig.id === 'enterprise' ? selectedPlanConfig.ctaHref : isLoggedIn ? `/billing?plan=${selectedPlan}&billing=${billingPeriod}` : `${selectedPlanConfig.ctaHref}&billing=${billingPeriod}`} className="min-h-[48px] inline-flex items-center justify-center px-6 rounded-xl text-sm font-semibold bg-background text-foreground hover:opacity-90 transition-opacity">
+              {selectedPlanConfig.id === 'enterprise' ? selectedPlanConfig.ctaLabel : isLoggedIn ? `Upgrade to ${selectedPlanConfig.name}` : `Get ${selectedPlanConfig.name}`}
+            </Link>
+            <a href="#compare" className="min-h-[48px] inline-flex items-center justify-center px-6 rounded-xl text-sm font-semibold border border-background/30 hover:bg-background/10 transition-colors">Compare plans</a>
+            <Link href="/prospect-finder/contact-sales" className="min-h-[48px] inline-flex items-center justify-center px-6 rounded-xl text-sm font-semibold border border-background/30 hover:bg-background/10 transition-colors">Talk to our team</Link>
+          </div>
+        </div>
+      </section>
+
+      <SocialProof id="proof" />
+
       {/* Platform journey */}
       <section id="journey" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">
         <div className="text-center mb-8">
@@ -673,7 +703,7 @@ export default function PlansPageClient() {
       </section>
 
       {/* Comparison */}
-      <section id="compare" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">
+      <section id="compare" className="max-w-6xl mx-auto px-5 sm:px-6 pb-20 sm:pb-28 scroll-mt-20">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Compare Plans</h2>
           <p className="mt-2 text-sm text-muted-foreground">Enterprise is the only plan with full access to every AVYRO AI feature category.</p>
@@ -728,12 +758,20 @@ export default function PlansPageClient() {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="max-w-6xl mx-auto px-6 pb-20 scroll-mt-20">
+      <section id="faq" className="max-w-6xl mx-auto px-5 sm:px-6 pb-28 sm:pb-32 scroll-mt-20">
         <div className="text-center mb-6">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Frequently Asked Questions</h2>
         </div>
         <PricingFaq />
       </section>
+
+      <StickyPlanCta
+        watchId="pricing"
+        label={`${selectedPlanConfig.name} plan`}
+        price={selectedPlanConfig.contactSales ? 'Custom pricing' : `${billingPeriod === 'annual' ? formatUsd(getDisplayMonthlyPrice(selectedPlanConfig, 'annual') as number) : `$${selectedPlanConfig.monthlyPrice}`} per month`}
+        href={selectedPlanConfig.id === 'enterprise' ? selectedPlanConfig.ctaHref : isLoggedIn ? `/billing?plan=${selectedPlan}&billing=${billingPeriod}` : `${selectedPlanConfig.ctaHref}&billing=${billingPeriod}`}
+        ctaLabel={selectedPlanConfig.id === 'enterprise' ? selectedPlanConfig.ctaLabel : isLoggedIn ? 'Upgrade' : 'Get started'}
+      />
 
       {previewPlan && (
         <PlanPreviewModal

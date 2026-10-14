@@ -71,6 +71,15 @@ const adminNavGroups: NavGroup[] = [
     ],
   },
   {
+    key: 'property-ops',
+    label: 'Property Operations',
+    icon: Building2,
+    items: [
+      { key: 'nav-managed-properties', label: 'Managed Properties', href: '/managed-properties', icon: Building2, badge: 'New' },
+      { key: 'nav-turnovers', label: 'Turnovers & Cleaning', href: '/cleaner/jobs', icon: CheckCircle, badge: 'New' },
+    ],
+  },
+  {
     key: 'data',
     label: 'Data & Sync',
     icon: RefreshCw,
@@ -91,7 +100,6 @@ const adminNavGroups: NavGroup[] = [
       { key: 'nav-integration-health', label: 'Integration Health', href: '/integration-health', icon: HeartPulse, badge: null },
       { key: 'nav-csv-preflight', label: 'CSV Pre-Flight', href: '/csv-preflight', icon: CheckSquare, badge: null },
       { key: 'nav-rescore-events', label: 'Re-Score Events', href: '/rescore-events', icon: TrendingDown, badge: null },
-      { key: 'nav-cleaner-jobs', label: 'Cleaner Jobs', href: '/cleaner/jobs', icon: CheckCircle, badge: null },
       { key: 'nav-lead-data-quality', label: 'Lead Data Quality', href: '/lead-data-quality', icon: DatabaseZap, badge: null },
       { key: 'nav-data-quality-monitor', label: 'Data Quality Monitor', href: '/data-quality-monitor', icon: ShieldCheck, badge: 'New' },
       { key: 'nav-property-verification-debug', label: 'Verification Debug', href: '/property-verification-debug', icon: Shield, badge: 'New' },

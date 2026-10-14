@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getEnvelopeStatus, type EnvelopeSignerStatus } from '@/lib/services/docusignService';
 import { activityService } from '@/lib/services/activityService';
 import { advancePipeline } from '@/lib/services/leadPipeline';
+import { ensureManagedProperty } from '@/lib/services/propertyOps';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
 import { BRAND } from '@/config/brand';
 
@@ -128,6 +129,10 @@ async function onCompleted(db: SupabaseClient, session: Session, envelopeId: str
     await db.from('leads').update({ stage: 'Under Contract' }).eq('id', session.lead_id);
     await advancePipeline(db, session.lead_id, 'signed');
     await log(session, 'stage_changed', 'Partnership Agreement signed — lead moved to Under Contract', `DocuSign envelope ${envelopeId} completed`, { envelopeId }, 'Under Contract');
+  });
+
+  await step('create managed property record', async () => {
+    await ensureManagedProperty(db, session.lead_id, { sessionId: session.id });
   });
 
   await step('start homeowner onboarding', async () => {

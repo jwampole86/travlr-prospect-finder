@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Admin-only route prefixes — agents will be redirected to /agent-workspace
 const ADMIN_ONLY_ROUTES = [
+  '/managed-properties',
+  '/cleaner/jobs',
   '/data-sync',
   '/sync-health',
   '/sync-ops-dashboard',

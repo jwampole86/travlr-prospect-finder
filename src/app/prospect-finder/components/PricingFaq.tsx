@@ -72,19 +72,19 @@ function FaqItem({ q, a }: { q: string; a: string }) {
     <div className="border-b border-border">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-4 py-5 text-left"
+        className="w-full flex items-center justify-between gap-4 py-6 text-left min-h-[56px]"
       >
         <span className="text-sm sm:text-base font-semibold text-foreground">{q}</span>
         <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && <p className="text-sm text-muted-foreground leading-relaxed pb-5 pr-8">{a}</p>}
+      {open && <p className="text-sm text-muted-foreground leading-relaxed pb-6 pr-8">{a}</p>}
     </div>
   );
 }
 
 export default function PricingFaq() {
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto space-y-1">
       {FAQS.map((item) => (
         <FaqItem key={item.q} q={item.q} a={item.a} />
       ))}
