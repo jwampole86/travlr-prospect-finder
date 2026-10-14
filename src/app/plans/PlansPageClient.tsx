@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Check, Minus, ChevronDown, ChevronRight, ArrowRight, Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, Link2, Send, Home } from 'lucide-react';
+import { Check, Minus, ChevronDown, ChevronRight, ArrowRight, Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, Link2, Send, Home, Bot } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
@@ -53,6 +53,70 @@ const ENTERPRISE_PANEL_FEATURES = [
   { title: 'Multi-market command center', body: 'Executive rollups, custom roles, audit logs, and SSO across every portfolio and team' },
   { title: 'Full AI suite & automation', body: 'Automated bulk AI interviews, advanced workflows, and priority model access' },
   { title: 'Dedicated support', body: 'Priority onboarding, guided setup, custom integrations, and a direct success path' },
+];
+
+type JourneyStatus = 'live' | 'building' | 'exploring';
+
+const JOURNEY_STATUS: Record<JourneyStatus, { label: string; className: string }> = {
+  live: { label: 'Available now', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+  building: { label: 'Planned', className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+  exploring: { label: 'Exploring', className: 'bg-muted text-muted-foreground' },
+};
+
+const JOURNEY_STAGES: Array<{
+  icon: typeof Search;
+  stage: string;
+  headline: string;
+  items: Array<{ text: string; status: JourneyStatus }>;
+}> = [
+  {
+    icon: Search,
+    stage: 'Acquire properties',
+    headline: 'Find the homeowner before anyone else does.',
+    items: [
+      { text: 'Scored homeowner leads with verified owners and phones', status: 'live' },
+      { text: 'Co-Host owner matching from Airbnb and Vrbo listings', status: 'live' },
+      { text: 'Text campaigns with quiet hours and opt-out handling', status: 'live' },
+    ],
+  },
+  {
+    icon: TrendingUp,
+    stage: 'Grow your portfolio',
+    headline: 'Turn conversations into signed management agreements.',
+    items: [
+      { text: 'Live pipeline board and map from first text to contract', status: 'live' },
+      { text: 'AI-assisted calling, follow-up and routing', status: 'live' },
+      { text: 'Owner onboarding and agreement workflows', status: 'building' },
+    ],
+  },
+  {
+    icon: Zap,
+    stage: 'Automate operations',
+    headline: 'Run the properties you win without adding headcount.',
+    items: [
+      { text: 'Automation rules, alerts and team workflows', status: 'live' },
+      { text: 'Managed-property records and owner reporting', status: 'building' },
+      { text: 'Turnover and cleaning coordination', status: 'building' },
+    ],
+  },
+  {
+    icon: Bot,
+    stage: 'Scale your business',
+    headline: 'Operate many markets from one platform.',
+    items: [
+      { text: 'Executive Overview, agent performance and AI hiring tools', status: 'live' },
+      { text: 'Multi-market, multi-team rollups', status: 'live' },
+      { text: 'Robotic assistance for on-site tasks', status: 'exploring' },
+    ],
+  },
+];
+
+const PRICING_DRIVERS = [
+  { title: 'Prospecting data', body: 'Leads and enrichments each month, filled with the highest-scoring opportunities.', live: true },
+  { title: 'AI usage', body: 'Text volume, AI interviews and AI-assisted workflows.', live: true },
+  { title: 'Team workflows', body: 'Users, portfolios, assignments and shared pipeline tools.', live: true },
+  { title: 'Advanced automation', body: 'Rules, routing, bulk workflows and integrations on higher plans.', live: true },
+  { title: 'Managed properties', body: 'Pricing for properties you operate on AVYRO AI arrives with property operations.', live: false },
 ];
 
 function AvailabilityCell({ value }: { value: FeatureAvailability }) {
@@ -382,10 +446,13 @@ export default function PlansPageClient() {
       <section className="max-w-4xl mx-auto px-6 pt-14 pb-8 text-center">
         <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">AVYRO AI</p>
         <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">
-          Choose the Right AVYRO AI Plan for Your Growth
+          One Platform. Every Stage of Growth.
         </h1>
         <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          From building your homeowner pipeline to automating outreach, enrichment, team workflows, and AI-powered operations, choose the AVYRO AI plan that fits your business today and scale as you grow.
+          From your first homeowner lead to a nationwide vacation rental portfolio.
+        </p>
+        <p className="mt-3 text-sm sm:text-base font-semibold text-foreground">
+          Acquire properties. Grow your portfolio. Automate operations. Scale your business.
         </p>
         <span className="mt-5 inline-block text-xs font-semibold text-foreground bg-muted px-3.5 py-1.5 rounded-full">Enterprise unlocks the complete AVYRO AI platform</span>
       </section>
@@ -478,6 +545,56 @@ export default function PlansPageClient() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* Platform journey */}
+      <section id="journey" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">
+        <div className="text-center mb-8">
+          <p className="text-xs font-bold tracking-[0.16em] text-primary uppercase mb-3">Where AVYRO AI is going</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">More Than a Homeowner CRM</h2>
+          <p className="mt-3 text-sm text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            AVYRO AI is growing into an AI-powered operating platform for vacation rental businesses, covering the whole journey from finding a homeowner to managing the property. Plans you choose today carry forward as new stages ship.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+          {JOURNEY_STAGES.map(({ icon: Icon, stage, headline, items }, i) => (
+            <div key={stage} className="rounded-2xl border border-border bg-card p-5 sm:p-6 flex flex-col">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Stage {i + 1}</p>
+              </div>
+              <h3 className="text-base font-bold text-foreground">{stage}</h3>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{headline}</p>
+              <ul className="mt-4 space-y-3 flex-1">
+                {items.map((item) => (
+                  <li key={item.text} className="text-sm text-foreground leading-snug">
+                    <span>{item.text}</span>
+                    <span className={`ml-2 inline-block align-middle text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${JOURNEY_STATUS[item.status].className}`}>
+                      {JOURNEY_STATUS[item.status].label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 rounded-2xl border border-border bg-muted/30 p-5 sm:p-6">
+          <h3 className="text-base font-bold text-foreground">What your price is built on</h3>
+          <p className="mt-1 text-xs text-muted-foreground">Plans scale with the value you use, not just seats.</p>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            {PRICING_DRIVERS.map((d) => (
+              <div key={d.title} className="rounded-xl bg-card border border-border p-4">
+                <p className="text-sm font-bold text-foreground">{d.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground leading-snug">{d.body}</p>
+                {!d.live && <span className="mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">Planned</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="mt-4 text-[11px] text-muted-foreground text-center">Roadmap items are plans, not commitments, and may change. Only features marked Available now are included in today&apos;s plans.</p>
       </section>
 
       {/* Why allowances are what they are */}
