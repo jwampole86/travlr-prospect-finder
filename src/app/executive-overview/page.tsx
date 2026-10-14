@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/AppLayout';
+import DetailDrawer, { type Drill } from './DetailDrawer';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
@@ -20,7 +21,7 @@ interface DayPoint { date: string; sent: number; delivered: number; replies: num
 interface Campaign { batch: string; audience: string | null; texts: number; sent: number; delivered: number; deliveredPct: number; undelivered: number; replies: number; yes: number; no: number; stop: number; opened: number; viewed: number; submitted: number; hot: number; queued: number; firstSend: string | null; lastSend: string | null; status: 'scheduled' | 'sending' | 'complete' }
 interface StateRow { state: string; leads: number; texted: number; delivered: number; replies: number; yes: number; hot: number; queued: number }
 interface HotLead { leadId: string; temperature: string; score: number; address: string; owner: string | null; why: string; at: string | null; pipeline: string | null; batch: string }
-interface Attention { level: 'high' | 'medium' | 'info'; title: string; detail: string; href: string }
+interface Attention { level: 'high' | 'medium' | 'info'; title: string; detail: string; href: string; drill: Drill }
 interface Overview {
   params: { days: number; state: string | null }; kpis: Kpi[]; funnel: FunnelStep[]; daily: DayPoint[]; campaigns: Campaign[]; states: StateRow[];
   pipeline: Array<{ key: string; label: string; count: number }>; tiers: { total: number; untouched: number; luxury: number; highScore: number };
@@ -62,10 +63,14 @@ function Delta({ kpi }: { kpi: Kpi }) {
   );
 }
 
-function Panel({ title, icon, right, children, className }: { title: string; icon?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
+// Clicking anywhere on a panel that is not itself a control opens its details.
+const INTERACTIVE = 'a,button,input,select,label,th,[data-no-panel]';
+function Panel({ title, icon, right, children, className, onOpen }: { title: string; icon?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string; onOpen?: () => void }) {
   return (
-    <section className={cx('rounded-xl border border-border bg-card p-5', className)}>
-      <div className="flex items-center gap-2 mb-4 flex-wrap">{icon}<h2 className="text-sm font-semibold text-foreground">{title}</h2><div className="ml-auto flex items-center gap-2">{right}</div></div>
+    <section onClick={onOpen ? e => { if (!(e.target as HTMLElement).closest(INTERACTIVE)) onOpen(); } : undefined}
+      className={cx('rounded-xl border border-border bg-card p-5 transition-colors', onOpen && 'cursor-pointer hover:border-primary/40', className)}>
+      <div className="flex items-center gap-2 mb-4 flex-wrap">{icon}<h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <div className="ml-auto flex items-center gap-2">{right}{onOpen && <button onClick={onOpen} aria-label={`Details: ${title}`} className="text-[11px] text-primary hover:underline inline-flex items-center gap-0.5">Details<ChevronRight size={11} /></button>}</div></div>
       {children}
     </section>
   );
@@ -110,7 +115,7 @@ export default function ExecutiveOverviewPage() {
   const [chart, setChart] = useState<'area' | 'bar'>('area');
   const [campSort, setCampSort] = useState<{ key: keyof Campaign; dir: 1 | -1 }>({ key: 'firstSend', dir: -1 });
   const [stateSort, setStateSort] = useState<{ key: keyof StateRow; dir: 1 | -1 }>({ key: 'leads', dir: -1 });
-  const [openCamp, setOpenCamp] = useState<string | null>(null);
+  const [drill, setDrill] = useState<Drill | null>(null);
   const [stateSearch, setStateSearch] = useState('');
   const abortRef = useRef<AbortController | null>(null);
   const [allStates, setAllStates] = useState<string[]>([]);
@@ -176,6 +181,7 @@ export default function ExecutiveOverviewPage() {
   const visibleChart = chartData.slice(-(days === 1 || days === 7 ? 14 : chartData.length));
   const funnelMax = Math.max(1, ...(data?.funnel ?? []).map(f => f.count));
   const shown = METRICS.filter(m => metrics.includes(m.key));
+  const dayClick = (s: unknown) => { const date = (s as { activePayload?: Array<{ payload?: { date?: string } }> } | null)?.activePayload?.[0]?.payload?.date; if (date) setDrill({ kind: 'day', id: date }); };
 
   return (
     <AppLayout>
@@ -211,11 +217,11 @@ export default function ExecutiveOverviewPage() {
             {data.attention.length > 0 && (
               <div className="grid gap-2 md:grid-cols-2">
                 {data.attention.map((a, i) => (
-                  <Link key={i} href={a.href} className={cx('rounded-xl border px-4 py-3 flex items-start gap-2.5 hover:shadow-sm transition-shadow', levelStyle(a.level))}>
+                  <div key={i} role="button" tabIndex={0} onClick={() => setDrill(a.drill)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrill(a.drill); } }} className={cx('rounded-xl border px-4 py-3 flex items-start gap-2.5 cursor-pointer hover:shadow-sm transition-shadow', levelStyle(a.level))}>
                     {a.level === 'info' ? <Info size={15} className="mt-0.5 shrink-0" /> : <AlertTriangle size={15} className="mt-0.5 shrink-0" />}
                     <div className="min-w-0"><p className="text-sm font-medium">{a.title}</p><p className="text-xs opacity-80 mt-0.5">{a.detail}</p></div>
-                    <ChevronRight size={14} className="ml-auto mt-1 shrink-0 opacity-60" />
-                  </Link>
+                    <Link href={a.href} onClick={e => e.stopPropagation()} className="ml-auto mt-0.5 shrink-0 text-[11px] underline opacity-80 hover:opacity-100">Open page</Link>
+                  </div>
                 ))}
               </div>
             )}
@@ -225,7 +231,7 @@ export default function ExecutiveOverviewPage() {
               {data.kpis.map(k => {
                 const active = !!k.metric && metrics.length === 1 && metrics[0] === k.metric;
                 return (
-                  <div key={k.key} className={cx('rounded-xl border bg-card p-4 flex flex-col gap-1.5 transition-all', active ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/40')}>
+                  <div key={k.key} onClick={e => { if (!(e.target as HTMLElement).closest(INTERACTIVE)) setDrill({ kind: 'kpi', id: k.key }); }} className={cx('rounded-xl border bg-card p-4 flex flex-col gap-1.5 transition-all cursor-pointer', active ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/40')}>
                     <div className="flex items-center justify-between gap-2">
                       <button onClick={() => focusMetric(k.metric)} disabled={!k.metric} title={k.metric ? 'Show this on the trend chart' : undefined} className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide text-left disabled:cursor-default hover:text-foreground">{k.label}</button>
                       <Link href={k.href} aria-label={`Open ${k.label}`} className="text-muted-foreground hover:text-primary"><ChevronRight size={14} /></Link>
@@ -233,6 +239,7 @@ export default function ExecutiveOverviewPage() {
                     <p className="text-2xl font-bold text-foreground tabular-nums">{fmtValue(k.value, k.format)}</p>
                     <Delta kpi={k} />
                     <p className="text-[11px] text-muted-foreground leading-snug">{k.hint}</p>
+                    <button onClick={() => setDrill({ kind: 'kpi', id: k.key })} className="mt-auto pt-1 text-left text-[11px] text-primary hover:underline">See who and why</button>
                   </div>
                 );
               })}
@@ -240,21 +247,21 @@ export default function ExecutiveOverviewPage() {
 
             {/* Trend and funnel */}
             <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-              <Panel className="xl:col-span-3" title="Daily activity" icon={<MessageSquare size={15} className="text-primary" />}
+              <Panel className="xl:col-span-3" title="Daily activity" icon={<MessageSquare size={15} className="text-primary" />} onOpen={() => setDrill({ kind: 'days', id: '' })}
                 right={<div className="inline-flex rounded-lg border border-border p-0.5 text-[11px]">{(['area', 'bar'] as const).map(c => <button key={c} onClick={() => setChart(c)} aria-pressed={chart === c} className={cx('px-2 py-0.5 rounded-md', chart === c ? 'bg-muted text-foreground' : 'text-muted-foreground')}>{c === 'area' ? 'Area' : 'Bars'}</button>)}</div>}>
                 <div className="flex flex-wrap gap-1.5 mb-3">
                   {METRICS.map(m => { const on = metrics.includes(m.key); return <button key={m.key} onClick={() => toggleMetric(m.key)} aria-pressed={on} className={cx('px-2 py-0.5 rounded-full border text-[11px]', on ? 'border-transparent text-white' : 'border-border text-muted-foreground')} style={on ? { background: m.color } : undefined}>{m.label}</button>; })}
                 </div>
                 <ResponsiveContainer width="100%" height={260}>
                   {chart === 'area' ? (
-                    <AreaChart data={visibleChart} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                    <AreaChart data={visibleChart} margin={{ top: 4, right: 8, left: -16, bottom: 0 }} onClick={dayClick} style={{ cursor: 'pointer' }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" interval="preserveStartEnd" /><YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
                       <Tooltip contentStyle={TOOLTIP_STYLE} /><Legend wrapperStyle={{ fontSize: 11 }} />
                       {shown.map(m => <Area key={m.key} type="monotone" dataKey={m.key} name={m.label} stroke={m.color} fill={m.color} fillOpacity={0.12} strokeWidth={2} />)}
                     </AreaChart>
                   ) : (
-                    <BarChart data={visibleChart} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                    <BarChart data={visibleChart} margin={{ top: 4, right: 8, left: -16, bottom: 0 }} onClick={dayClick} style={{ cursor: 'pointer' }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" interval="preserveStartEnd" /><YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
                       <Tooltip contentStyle={TOOLTIP_STYLE} /><Legend wrapperStyle={{ fontSize: 11 }} />
@@ -262,16 +269,16 @@ export default function ExecutiveOverviewPage() {
                     </BarChart>
                   )}
                 </ResponsiveContainer>
-                <p className="text-[11px] text-muted-foreground mt-2">Days are Mountain time. Texts and replies are counted on the day they happened.</p>
+                <p className="text-[11px] text-muted-foreground mt-2">Days are Mountain time. Click a day to see what happened.</p>
               </Panel>
 
-              <Panel className="xl:col-span-2" title="Conversion funnel" icon={<Send size={15} className="text-blue-500" />} right={<span className="text-[11px] text-muted-foreground">Texts sent in this period</span>}>
+              <Panel className="xl:col-span-2" title="Conversion funnel" icon={<Send size={15} className="text-blue-500" />} onOpen={() => setDrill({ kind: 'funnel', id: '' })} right={<span className="text-[11px] text-muted-foreground">Texts sent in this period</span>}>
                 <div className="space-y-2.5">
                   {data.funnel.map((f, i) => (
-                    <Link key={f.key} href="/campaigns" className="block group">
+                    <button key={f.key} onClick={() => setDrill({ kind: 'funnel', id: f.key })} className="block group w-full text-left">
                       <div className="flex items-baseline justify-between text-xs mb-1"><span className="font-medium text-foreground">{f.label}</span><span className="tabular-nums text-muted-foreground"><b className="text-foreground">{int(f.count)}</b>{i > 0 && <> · {f.pctOfPrevious}% of previous · {f.pctOfTexted}% of texted</>}</span></div>
                       <div className="h-2.5 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-primary/80 group-hover:bg-primary transition-all" style={{ width: `${Math.max((f.count / funnelMax) * 100, f.count ? 2 : 0)}%` }} /></div>
-                    </Link>
+                    </button>
                   ))}
                 </div>
                 {data.funnel[3].count > 0 && data.funnel[4].count === 0 && (
@@ -281,7 +288,7 @@ export default function ExecutiveOverviewPage() {
             </div>
 
             {/* Campaigns */}
-            <Panel title="Campaigns" icon={<Send size={15} className="text-primary" />} right={<Link href="/campaigns" className="text-xs text-primary hover:underline">Open Campaigns</Link>}>
+            <Panel title="Campaigns" icon={<Send size={15} className="text-primary" />} onOpen={() => setDrill({ kind: 'campaigns', id: '' })} right={<Link href="/campaigns" className="text-xs text-primary hover:underline">Open Campaigns</Link>}>
               {campaigns.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">No campaigns for this filter.</p> : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs"><thead><tr className="text-left text-[10px] uppercase tracking-wide text-muted-foreground border-b border-border">
@@ -293,8 +300,8 @@ export default function ExecutiveOverviewPage() {
                   </tr></thead>
                     <tbody>{campaigns.map(c => (
                       <React.Fragment key={c.batch}>
-                        <tr onClick={() => setOpenCamp(o => (o === c.batch ? null : c.batch))} className="border-b border-border/60 hover:bg-muted/40 cursor-pointer">
-                          <td className="py-2 px-2 font-medium text-foreground max-w-[260px]"><span className="inline-flex items-center gap-1">{openCamp === c.batch ? <ChevronDown size={12} /> : <ChevronRight size={12} />}<span className="truncate" title={c.batch}>{c.batch}</span></span>{c.audience && <span className="block text-[10px] text-muted-foreground ml-4">{c.audience}</span>}</td>
+                        <tr data-no-panel onClick={() => setDrill({ kind: 'campaign', id: c.batch })} className="border-b border-border/60 hover:bg-muted/40 cursor-pointer">
+                          <td className="py-2 px-2 font-medium text-foreground max-w-[260px]"><span className="inline-flex items-center gap-1"><ChevronRight size={12} /><span className="truncate" title={c.batch}>{c.batch}</span></span>{c.audience && <span className="block text-[10px] text-muted-foreground ml-4">{c.audience}</span>}</td>
                           <td className="px-2"><span className={cx('px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize', statusChip(c.status))}>{c.status}</span></td>
                           <td className="px-2 text-right tabular-nums">{int(c.texts)}</td>
                           <td className={cx('px-2 text-right tabular-nums', c.sent > 0 && c.deliveredPct < 75 && 'text-amber-600')}>{c.sent ? `${c.deliveredPct}%` : '-'}</td>
@@ -302,17 +309,6 @@ export default function ExecutiveOverviewPage() {
                           <td className="px-2 text-right tabular-nums">{c.opened}</td><td className="px-2 text-right tabular-nums">{c.viewed}</td>
                           <td className="px-2 text-right tabular-nums">{c.hot}</td><td className="px-2 text-right tabular-nums">{c.queued || '-'}</td>
                         </tr>
-                        {openCamp === c.batch && (
-                          <tr className="bg-muted/30"><td colSpan={10} className="px-4 py-3">
-                            <div className="grid sm:grid-cols-3 gap-4 text-[11px]">
-                              <div><p className="font-semibold text-foreground mb-1">Timing</p><p className="text-muted-foreground">First text {when(c.firstSend)}<br />Last text {when(c.lastSend)}</p></div>
-                              <div><p className="font-semibold text-foreground mb-1">What happened to the texts</p>
-                                {c.sent ? <p className="text-muted-foreground">{c.delivered} delivered, {c.undelivered} failed, {c.sent - c.delivered - c.undelivered} awaiting a result.<br />Replies: {c.yes} YES, {c.no} NO, {c.stop} STOP{c.replies - c.yes - c.no - c.stop > 0 ? `, ${c.replies - c.yes - c.no - c.stop} other` : ''}.</p> : <p className="text-muted-foreground">Nothing sent yet. {c.queued} queued.</p>}</div>
-                              <div><p className="font-semibold text-foreground mb-1">Engagement</p><p className="text-muted-foreground">{c.opened} opened the link ({pct(c.opened, c.delivered)}% of delivered), {c.viewed} saw the estimate, {c.submitted} submitted or asked for a call.</p>
-                                <Link href="/campaigns" className="inline-flex items-center gap-1 text-primary hover:underline mt-1">Open in Campaigns <ChevronRight size={11} /></Link></div>
-                            </div>
-                          </td></tr>
-                        )}
                       </React.Fragment>))}</tbody></table>
                 </div>
               )}
@@ -321,7 +317,7 @@ export default function ExecutiveOverviewPage() {
             {/* States and who to call */}
             <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
               <Panel className="xl:col-span-3" title="By state" icon={<MapPin size={15} className="text-primary" />}
-                right={<input value={stateSearch} onChange={e => setStateSearch(e.target.value)} placeholder="Find a state" aria-label="Find a state" className="h-7 w-28 rounded-lg border border-border bg-background px-2 text-xs" />}>
+                onOpen={() => setDrill({ kind: 'states', id: '' })} right={<input value={stateSearch} onChange={e => setStateSearch(e.target.value)} placeholder="Find a state" aria-label="Find a state" className="h-7 w-28 rounded-lg border border-border bg-background px-2 text-xs" />}>
                 <div className="overflow-auto max-h-[420px]">
                   <table className="w-full text-xs"><thead className="sticky top-0 bg-card"><tr className="text-left text-[10px] uppercase tracking-wide text-muted-foreground border-b border-border">
                     <SortHead label="State" k="state" sort={stateSort} onSort={sortState} /><SortHead label="Leads" k="leads" sort={stateSort} onSort={sortState} right /><SortHead label="Texted" k="texted" sort={stateSort} onSort={sortState} right />
@@ -329,25 +325,25 @@ export default function ExecutiveOverviewPage() {
                     <SortHead label="Hot" k="hot" sort={stateSort} onSort={sortState} right /><SortHead label="Queued" k="queued" sort={stateSort} onSort={sortState} right />
                   </tr></thead>
                     <tbody>{stateRows.map(s => (
-                      <tr key={s.state} onClick={() => s.state !== '??' && setState(s.state === state ? '' : s.state)} className={cx('border-b border-border/60 hover:bg-muted/40', s.state !== '??' && 'cursor-pointer', s.state === state && 'bg-primary/5')}>
+                      <tr key={s.state} data-no-panel onClick={() => s.state !== '??' && setDrill({ kind: 'state', id: s.state })} className={cx('border-b border-border/60 hover:bg-muted/40', s.state !== '??' && 'cursor-pointer', s.state === state && 'bg-primary/5')}>
                         <td className="py-1.5 px-2 font-medium text-foreground w-40"><div className="flex items-center gap-2"><span className="w-7">{s.state}</span><div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden"><div className="h-full bg-indigo-400" style={{ width: `${(s.leads / maxLeads) * 100}%` }} /></div></div></td>
                         <td className="px-2 text-right tabular-nums">{int(s.leads)}</td><td className="px-2 text-right tabular-nums">{s.texted || '-'}</td><td className="px-2 text-right tabular-nums">{s.delivered || '-'}</td>
                         <td className="px-2 text-right tabular-nums">{s.replies || '-'}</td><td className="px-2 text-right tabular-nums">{s.yes || '-'}</td><td className="px-2 text-right tabular-nums">{s.hot || '-'}</td><td className="px-2 text-right tabular-nums">{s.queued || '-'}</td>
                       </tr>))}</tbody></table>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-2">Click a state to filter the whole page. Lead counts exclude the Co-Host program.</p>
+                <p className="text-[11px] text-muted-foreground mt-2">Click a state for its details, where you can also filter the whole page to it. Lead counts exclude the Co-Host program.</p>
               </Panel>
 
-              <Panel className="xl:col-span-2" title="Who to call first" icon={<Flame size={15} className="text-orange-500" />} right={<span className="text-[11px] text-muted-foreground">Hot and warm homeowners</span>}>
+              <Panel className="xl:col-span-2" title="Who to call first" icon={<Flame size={15} className="text-orange-500" />} onOpen={() => setDrill({ kind: 'hot', id: '' })} right={<span className="text-[11px] text-muted-foreground">Hot and warm homeowners</span>}>
                 {data.hot.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">No engaged homeowners yet for this filter.</p> : (
                   <ul className="divide-y divide-border">
                     {data.hot.map(h => (
                       <li key={`${h.leadId}-${h.batch}`}>
-                        <Link href={`/lead-profile?id=${h.leadId}`} className="flex items-start gap-2.5 py-2.5 hover:bg-muted/40 -mx-2 px-2 rounded-lg">
+                        <button onClick={() => setDrill({ kind: 'lead', id: h.leadId })} className="w-full text-left flex items-start gap-2.5 py-2.5 hover:bg-muted/40 -mx-2 px-2 rounded-lg">
                           <span className={cx('mt-1 w-2 h-2 rounded-full shrink-0', h.temperature === 'hot' ? 'bg-red-500' : 'bg-amber-400')} aria-label={h.temperature} />
                           <div className="min-w-0 flex-1"><p className="text-sm font-medium text-foreground truncate">{h.address}</p><p className="text-[11px] text-muted-foreground truncate">{h.owner ? `${h.owner} · ` : ''}{h.why}{h.at ? ` · ${ago(h.at)}` : ''}</p></div>
                           <ChevronRight size={14} className="text-muted-foreground mt-1 shrink-0" />
-                        </Link>
+                        </button>
                       </li>))}
                   </ul>
                 )}
@@ -356,29 +352,29 @@ export default function ExecutiveOverviewPage() {
 
             {/* Queue, pipeline, Co-Host */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Panel title="Send queue" icon={<CalendarClock size={15} className="text-sky-500" />} right={<span className="text-[11px] text-muted-foreground">{int(data.queue.total)} queued</span>}>
+              <Panel title="Send queue" icon={<CalendarClock size={15} className="text-sky-500" />} onOpen={() => setDrill({ kind: 'queue', id: '' })} right={<span className="text-[11px] text-muted-foreground">{int(data.queue.total)} queued</span>}>
                 {data.queue.byDay.length === 0 ? <p className="text-sm text-muted-foreground py-4 text-center">Nothing scheduled.</p> : (
                   <div className="space-y-3">{data.queue.byDay.map(d => (
-                    <div key={d.date}><div className="flex justify-between text-xs"><span className="font-medium text-foreground">{shortDay(d.date)}</span><span className="tabular-nums text-muted-foreground">{int(d.count)} texts</span></div>
+                    <div key={d.date} data-no-panel onClick={() => setDrill({ kind: 'queueday', id: d.date })} className="cursor-pointer rounded-lg -mx-2 px-2 py-1 hover:bg-muted/40"><div className="flex justify-between text-xs"><span className="font-medium text-foreground">{shortDay(d.date)}</span><span className="tabular-nums text-muted-foreground">{int(d.count)} texts</span></div>
                       <ul className="mt-1 space-y-0.5">{Object.entries(d.batches).map(([b, n]) => <li key={b} className="flex justify-between text-[11px] text-muted-foreground"><span className="truncate pr-2" title={b}>{b}</span><span className="tabular-nums">{n}</span></li>)}</ul></div>))}</div>
                 )}
                 <p className="text-[11px] text-muted-foreground mt-3">Listings are rechecked every hour and texts to sold or pending homes are cancelled.</p>
               </Panel>
 
-              <Panel title="Lead pipeline" icon={<Users size={15} className="text-indigo-500" />} right={<Link href="/lead-management" className="text-xs text-primary hover:underline">Open leads</Link>}>
+              <Panel title="Lead pipeline" icon={<Users size={15} className="text-indigo-500" />} onOpen={() => setDrill({ kind: 'pipeline', id: '' })} right={<Link href="/lead-management" className="text-xs text-primary hover:underline">Open leads</Link>}>
                 <dl className="grid grid-cols-2 gap-2 text-xs mb-3">
-                  {([['Leads in scope', data.tiers.total], ['Not yet contacted', data.tiers.untouched], ['Luxury', data.tiers.luxury], ['Score 70+', data.tiers.highScore]] as Array<[string, number]>).map(([l, n]) => <div key={l} className="rounded-lg bg-muted/50 px-2.5 py-2"><dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{l}</dt><dd className="text-base font-bold tabular-nums">{int(n)}</dd></div>)}
+                  {([['Leads in scope', data.tiers.total], ['Not yet contacted', data.tiers.untouched], ['Luxury', data.tiers.luxury], ['Score 70+', data.tiers.highScore]] as Array<[string, number]>).map(([l, n]) => <div key={l} data-no-panel onClick={() => setDrill({ kind: 'pipeline', id: l === 'Not yet contacted' ? 'untouched' : l === 'Luxury' ? 'luxury' : l === 'Score 70+' ? 'highscore' : '' })} className="rounded-lg bg-muted/50 px-2.5 py-2 cursor-pointer hover:bg-muted"><dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{l}</dt><dd className="text-base font-bold tabular-nums">{int(n)}</dd></div>)}
                 </dl>
                 <div className="space-y-2">{data.pipeline.map(p => (
-                  <div key={p.key}><div className="flex justify-between text-xs"><span>{p.label}</span><span className="tabular-nums text-muted-foreground">{int(p.count)} · {pct(p.count, data.tiers.total)}%</span></div>
+                  <div key={p.key} data-no-panel onClick={() => setDrill({ kind: 'pipeline', id: p.key })} className="cursor-pointer rounded-lg -mx-2 px-2 py-1 hover:bg-muted/40"><div className="flex justify-between text-xs"><span>{p.label}</span><span className="tabular-nums text-muted-foreground">{int(p.count)} · {pct(p.count, data.tiers.total)}%</span></div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-1"><div className={cx('h-full', p.key === 'rejected' ? 'bg-red-400' : p.key === 'callback_scheduled' ? 'bg-emerald-500' : 'bg-indigo-400')} style={{ width: `${Math.max(pct(p.count, data.tiers.total), p.count ? 1.5 : 0)}%` }} /></div></div>))}</div>
               </Panel>
 
-              <Panel title="Co-Host program" icon={<Building2 size={15} className="text-purple-500" />} right={<Link href="/cohost" className="text-xs text-primary hover:underline">Open Co-Host</Link>}>
+              <Panel title="Co-Host program" icon={<Building2 size={15} className="text-purple-500" />} onOpen={() => setDrill({ kind: 'cohost', id: '' })} right={<Link href="/cohost" className="text-xs text-primary hover:underline">Open Co-Host</Link>}>
                 <p className="text-xs text-muted-foreground mb-2">{int(data.cohost.listings)} Airbnb and Vrbo listings tracked. Kept separate from the homeowner numbers above.</p>
-                <ul className="space-y-1 text-xs mb-3">{data.cohost.stages.slice(0, 6).map(s => <li key={s.stage} className="flex justify-between"><span className="capitalize">{s.stage.replace(/_/g, ' ')}</span><span className="tabular-nums text-muted-foreground">{int(s.count)}</span></li>)}</ul>
+                <ul className="space-y-1 text-xs mb-3">{data.cohost.stages.slice(0, 6).map(s => <li key={s.stage} data-no-panel onClick={() => setDrill({ kind: 'cohost', id: s.stage })} className="flex justify-between cursor-pointer rounded px-1 -mx-1 hover:bg-muted/40"><span className="capitalize">{s.stage.replace(/_/g, ' ')}</span><span className="tabular-nums text-muted-foreground">{int(s.count)}</span></li>)}</ul>
                 <div className="grid grid-cols-4 gap-2 text-center">
-                  {([['Emails', data.cohost.emails.sent], ['Opened', data.cohost.emails.opened], ['Replied', data.cohost.emails.replied], ['Bounced', data.cohost.emails.bounced]] as Array<[string, number]>).map(([l, n]) => <div key={l} className="rounded-lg bg-muted/50 py-2"><p className="text-base font-bold tabular-nums">{n}</p><p className="text-[10px] uppercase tracking-wide text-muted-foreground">{l}</p></div>)}
+                  {([['Emails', data.cohost.emails.sent], ['Opened', data.cohost.emails.opened], ['Replied', data.cohost.emails.replied], ['Bounced', data.cohost.emails.bounced]] as Array<[string, number]>).map(([l, n]) => <div key={l} data-no-panel onClick={() => setDrill({ kind: 'cohost', id: 'emails' })} className="rounded-lg bg-muted/50 py-2 cursor-pointer hover:bg-muted"><p className="text-base font-bold tabular-nums">{n}</p><p className="text-[10px] uppercase tracking-wide text-muted-foreground">{l}</p></div>)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-2">{data.cohost.offerPages.viewed} offer pages viewed, {data.cohost.offerPages.requested} audits requested.</p>
               </Panel>
@@ -390,6 +386,7 @@ export default function ExecutiveOverviewPage() {
           </div>
         )}
       </div>
+      {drill && <DetailDrawer drill={drill} days={days} state={state} onClose={() => setDrill(null)} onFilterState={s => setState(s)} />}
     </AppLayout>
   );
 }

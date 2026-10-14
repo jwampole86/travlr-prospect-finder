@@ -174,14 +174,14 @@ async function compute(db: Db, p: OverviewParams) {
   };
 
   // Things that need a person.
-  const attention: Array<{ level: 'high' | 'medium' | 'info'; title: string; detail: string; href: string }> = [];
+  const attention: Array<{ level: 'high' | 'medium' | 'info'; title: string; detail: string; href: string; drill: { kind: string; id: string } }> = [];
   const waiting = hot.filter(h => h.temperature === 'hot' && h.pipeline !== 'callback_scheduled').length;
-  if (waiting) attention.push({ level: 'high', title: `${waiting} hot lead${waiting === 1 ? '' : 's'} not yet scheduled for a callback`, detail: 'They replied YES, submitted the form or asked for a call. Call them first.', href: '/campaigns' });
-  if (cur.sent >= 50 && pct(cur.undelivered, cur.sent) > 15) attention.push({ level: 'medium', title: `${pct(cur.undelivered, cur.sent)}% of texts failed to deliver`, detail: 'Most failures are landlines or unreachable phones. Check the phone-quality breakdown in Campaigns.', href: '/campaigns' });
-  if (cur.sent >= 50 && pct(cur.optOuts, cur.sent) > 3) attention.push({ level: 'medium', title: `Opt-outs are ${pct(cur.optOuts, cur.sent)}% of texts sent`, detail: 'Review the wording and the audience before the next campaign.', href: '/campaigns' });
-  if (cohost.emails.bounced) attention.push({ level: 'medium', title: `${cohost.emails.bounced} Co-Host email${cohost.emails.bounced === 1 ? '' : 's'} bounced`, detail: 'Alternate addresses are tried automatically; any with none left need another way to reach the owner.', href: '/cohost' });
-  if (queue.length) { const next = queueByDay[0]; attention.push({ level: 'info', title: `${queue.length} texts queued, next send ${next?.date ?? ''}`, detail: Object.entries(next?.batches ?? {}).map(([b, n]) => `${b}: ${n}`).join(' · '), href: '/campaigns' }); }
-  if (!cur.sent && p.days > 0) attention.push({ level: 'info', title: 'No texts were sent in this period', detail: 'Pick a longer range to see earlier campaigns.', href: '/campaigns' });
+  if (waiting) attention.push({ level: 'high', title: `${waiting} hot lead${waiting === 1 ? '' : 's'} not yet scheduled for a callback`, detail: 'They replied YES, submitted the form or asked for a call. Call them first.', href: '/campaigns', drill: { kind: 'hot', id: '' } });
+  if (cur.sent >= 50 && pct(cur.undelivered, cur.sent) > 15) attention.push({ level: 'medium', title: `${pct(cur.undelivered, cur.sent)}% of texts failed to deliver`, detail: 'Most failures are landlines or unreachable phones. Check the phone-quality breakdown in Campaigns.', href: '/campaigns', drill: { kind: 'kpi', id: 'failed' } });
+  if (cur.sent >= 50 && pct(cur.optOuts, cur.sent) > 3) attention.push({ level: 'medium', title: `Opt-outs are ${pct(cur.optOuts, cur.sent)}% of texts sent`, detail: 'Review the wording and the audience before the next campaign.', href: '/campaigns', drill: { kind: 'kpi', id: 'optOuts' } });
+  if (cohost.emails.bounced) attention.push({ level: 'medium', title: `${cohost.emails.bounced} Co-Host email${cohost.emails.bounced === 1 ? '' : 's'} bounced`, detail: 'Alternate addresses are tried automatically; any with none left need another way to reach the owner.', href: '/cohost', drill: { kind: 'cohost', id: 'emails' } });
+  if (queue.length) { const next = queueByDay[0]; attention.push({ level: 'info', title: `${queue.length} texts queued, next send ${next?.date ?? ''}`, detail: Object.entries(next?.batches ?? {}).map(([b, n]) => `${b}: ${n}`).join(' · '), href: '/campaigns', drill: { kind: 'queue', id: '' } }); }
+  if (!cur.sent && p.days > 0) attention.push({ level: 'info', title: 'No texts were sent in this period', detail: 'Pick a longer range to see earlier campaigns.', href: '/campaigns', drill: { kind: 'campaigns', id: '' } });
 
   return {
     params: { days: p.days, state }, from: p.days > 0 ? new Date(from).toISOString() : null, to: new Date(now).toISOString(),
