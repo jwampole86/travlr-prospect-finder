@@ -214,8 +214,10 @@ export async function optOutOwner(db: Db, propertyId: string, reason: string) {
 
 /** Resend delivery events for a campaign email. Returns false when the message id is not one of ours. */
 export async function applyResendEvent(db: Db, messageId: string, type: string, at: string, bounce?: { type?: string; message?: string }, reason?: string): Promise<boolean> {
-  const { data: m } = await db.from('cohost_email_messages').select('id,status,property_id').eq('resend_message_id', messageId).maybeSingle();
+  const { data: m } = await db.from('cohost_email_messages').select('id,status,property_id,delivered_at').eq('resend_message_id', messageId).maybeSingle();
   if (!m) return false;
+  // Mail security scanners click every link within seconds of delivery; a person takes longer.
+  if (type === 'email.clicked' && m.delivered_at && Date.parse(at) - Date.parse(m.delivered_at) < 30_000) return true;
   const rank: Record<string, number> = { sent: 1, delivered: 2, opened: 3 };
   const u: Row = { updated_at: new Date().toISOString() };
   if (type === 'email.delivered' && (rank[m.status] ?? 0) < 2) Object.assign(u, { status: 'delivered', delivered_at: at });
