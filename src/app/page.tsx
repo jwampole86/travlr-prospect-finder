@@ -13,6 +13,9 @@ import type { DashboardLead } from '@/lib/hooks/useDashboardLeads';
 import { useLiveRevenue } from '@/lib/hooks/useLiveRevenue';
 import { useRealtime } from '@/components/RealtimeProvider';
 import { ChevronDown, ChevronUp, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useAgentPrefs } from '@/lib/hooks/useAgentPrefs';
+import { DEFAULT_DASH, LANDING_VIEWS } from '@/lib/agentPrefs';
 
 // ─── Lazy-load ALL heavy/non-critical components ──────────────────────────────
 const DashboardHeader = dynamic(() => import('./components/DashboardHeader'), {
@@ -234,6 +237,18 @@ export default function DashboardPage() {
   const { role, user, loading: authLoading } = useAuth();
   const isAgentRole = role === 'agent';
   const isAdmin = role === 'admin' || role === 'owner';
+  const router = useRouter();
+  const agentPrefs = useAgentPrefs();
+  const dash = agentPrefs?.dash ?? DEFAULT_DASH;
+
+  // Open the person's chosen landing screen once per browser session.
+  useEffect(() => {
+    if (!agentPrefs || typeof window === 'undefined') return;
+    if (sessionStorage.getItem('travlr_landing_applied')) return;
+    sessionStorage.setItem('travlr_landing_applied', '1');
+    const view = LANDING_VIEWS.find(v => v.value === agentPrefs.dash.defaultView);
+    if (view && view.href !== '/' && (!view.adminOnly || isAdmin)) router.replace(view.href);
+  }, [agentPrefs, isAdmin, router]);
 
   // ── Performance trace (admin only) ──────────────────────────────────────
   const traceRef = useRef<Record<string, number>>({});
@@ -375,7 +390,7 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="px-3 sm:px-6 py-4 sm:py-5 max-w-screen-2xl mx-auto space-y-4 sm:space-y-6">
+      <div className={`px-3 sm:px-6 max-w-screen-2xl mx-auto ${dash.compact ? 'py-2 sm:py-3 space-y-2 sm:space-y-3' : 'py-4 sm:py-5 space-y-4 sm:space-y-6'}`}>
         <DashboardHeader onLeadsRefreshed={refresh} />
 
         {/* Real-time live indicator */}
@@ -417,7 +432,7 @@ export default function DashboardPage() {
           aria-label="Dashboard sections"
           className="flex flex-wrap items-center gap-1 sm:gap-2 px-1"
         >
-          {ANCHORS.map((anchor) => (
+          {ANCHORS.filter((a) => (a.id !== 'section-overview' || dash.showKPIs) && (a.id !== 'section-pipeline' || dash.showFunnel) && (a.id !== 'section-top-leads' || dash.showTopLeads) && (a.id !== 'section-activity' || dash.showActivityFeed)).map((anchor) => (
             <button
               key={anchor.id}
               onClick={() => scrollTo(anchor.id)}
@@ -429,7 +444,7 @@ export default function DashboardPage() {
         </nav>
 
         {/* ── 1. KPI SUMMARY CARDS ──────────────────────────────────────── */}
-        <div id="section-overview" className="scroll-mt-20">
+        {dash.showKPIs && <div id="section-overview" className="scroll-mt-20">
           {statsLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -465,7 +480,7 @@ export default function DashboardPage() {
               commissionPayout={commissionPayout}
             />
           )}
-        </div>
+        </div>}
 
         {/* ── 2. STATE REGULATIONS ──────────────────────────────────────── */}
         <CollapsibleSection
@@ -485,7 +500,7 @@ export default function DashboardPage() {
         </CollapsibleSection>
 
         {/* ── 4. PIPELINE BY STAGE ──────────────────────────────────────── */}
-        <div id="section-pipeline" className="scroll-mt-20">
+        {dash.showFunnel && <div id="section-pipeline" className="scroll-mt-20">
           <div className="px-1 mb-2">
             <span className="text-sm font-semibold text-foreground">Pipeline by Stage</span>
             <span className="ml-2 text-xs text-muted-foreground">Lead distribution across funnel</span>
@@ -498,10 +513,10 @@ export default function DashboardPage() {
           ) : (
             <StageFunnelChart stageBreakdown={stageBreakdown} />
           )}
-        </div>
+        </div>}
 
         {/* ── 5. TOP SCORED LEADS ───────────────────────────────────────── */}
-        <div id="section-top-leads" className="scroll-mt-20">
+        {dash.showTopLeads && <div id="section-top-leads" className="scroll-mt-20">
           <div className="px-1 mb-2">
             <span className="text-sm font-semibold text-foreground">Top Scored Leads</span>
             <span className="ml-2 text-xs text-muted-foreground">Highest priority properties for outreach</span>
@@ -526,7 +541,7 @@ export default function DashboardPage() {
           ) : (
             <TopLeadsTable leads={topLeads} />
           )}
-        </div>
+        </div>}
 
         {/* ── 6. CITY REGULATIONS ───────────────────────────────────────── */}
         <CollapsibleSection
@@ -544,7 +559,7 @@ export default function DashboardPage() {
         </CollapsibleSection>
 
         {/* ── 7. RECENT ACTIVITY ────────────────────────────────────────── */}
-        <div id="section-activity" className="scroll-mt-20">
+        {dash.showActivityFeed && <div id="section-activity" className="scroll-mt-20">
           <div className="px-1 mb-2">
             <span className="text-sm font-semibold text-foreground">Recent Activity</span>
             <span className="ml-2 text-xs text-muted-foreground">Latest changes across all leads</span>
@@ -559,7 +574,7 @@ export default function DashboardPage() {
               <Base44WarmLeadBadge />
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* ── 8. DATA SOURCE SYNC ───────────────────────────────────────── */}
         <CollapsibleSection

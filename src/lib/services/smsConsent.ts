@@ -90,10 +90,10 @@ export async function recordOptIn(db: Db, input: { leadId: string; phone: string
   await db.from('leads').update({ sms_opt_in: true, sms_opt_in_at: now, opt_in_source: 'sms_reply_yes', sms_opted_out_at: null }).eq('id', input.leadId);
 }
 
-/** app_notifications rows need a user_id, so alert each admin/owner. */
-export async function notifyAdmins(db: Db, n: { title: string; message: string; metadata: Record<string, unknown> }) {
+/** Alerts each admin and owner through the channels and alert types they chose on My Profile & Prefs. */
+export async function notifyAdmins(db: Db, n: { title: string; message: string; metadata: Record<string, unknown>; kind?: 'escalation' | 'deliveryFailure' }) {
   try {
-    const { data: admins } = await db.from('user_profiles').select('id').in('app_role', ['admin', 'owner']).limit(10);
-    if (admins?.length) await db.from('app_notifications').insert(admins.map(a => ({ user_id: a.id, type: 'homeowner_inquiry', severity: 'warning', category: 'leads', ...n })));
+    const { notifyAdminUsers } = await import('@/lib/services/userNotify');
+    await notifyAdminUsers(db, { ...n, kind: n.kind ?? 'escalation' });
   } catch { /* the lead is already escalated; the alert is a convenience */ }
 }

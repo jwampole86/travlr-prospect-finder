@@ -194,7 +194,7 @@ export async function retryNextAddress(db: Db, id: string): Promise<{ ok: true; 
     } catch { /* try the next address */ }
   }
   await db.from('cohost_email_messages').update({ tried_emails: [...tried].filter(e => e !== m.to_email), retry_at: null, updated_at: new Date().toISOString() }).eq('id', id);
-  await notifyAdmins(db, { title: 'Co-host email could not be delivered', message: `Every address on file for ${l.title ?? 'a co-host prospect'} bounced. Find another way to reach the owner.`, metadata: { kind: 'cohost_email_undeliverable', property_id: m.property_id } }).catch(() => {});
+  await notifyAdmins(db, { kind: 'deliveryFailure', title: 'Co-host email could not be delivered', message: `Every address on file for ${l.title ?? 'a co-host prospect'} bounced. Find another way to reach the owner.`, metadata: { kind: 'cohost_email_undeliverable', property_id: m.property_id } }).catch(() => {});
   await sendTeamAlert({ key: `cohost-undeliverable:${id}`, text: `Co-Host email could not be delivered to ${l.title ?? 'a prospect'}${l.market ? ` (${l.market})` : ''}: every address bounced.`, url: `${OFFER_SITE}/cohost?open=${encodeURIComponent(m.property_id)}` });
   return { ok: false, reason: 'No other address on file.' };
 }

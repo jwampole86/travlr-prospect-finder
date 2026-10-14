@@ -7,6 +7,9 @@ import { toE164 } from '@/lib/services/smsConsent';
 const ALERT_PHONE = toE164(process.env.REPLY_ALERT_PHONE ?? '+19498758622');
 const ALERT_EMAIL = process.env.REPLY_ALERT_EMAIL ?? 'info@staytrvlr.com';
 
+/** The shared alert address and number, so per-user alerts do not repeat them. */
+export const teamAlertTargets = () => ({ phone: ALERT_PHONE, email: ALERT_EMAIL });
+
 export interface ReplyAlert {
   kind: 'yes' | 'question';
   from: string;
