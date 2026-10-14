@@ -8,20 +8,31 @@ type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
 
 export type HealthStatus = 'operational' | 'degraded' | 'outage' | 'maintenance';
-export interface ServiceDef { id: string; name: string; description: string; group: 'core' | 'messaging' | 'data' | 'jobs'; slaTarget: number }
+export interface ServiceDef { id: string; name: string; description: string; group: 'core' | 'messaging' | 'data' | 'jobs'; slaTarget: number; checks: string; impact: string; fix: string }
 
 export const SERVICES: ServiceDef[] = [
-  { id: 'api', name: 'Application', description: 'The TRAVLR web app and its API', group: 'core', slaTarget: 99.9 },
-  { id: 'database', name: 'Database', description: 'Supabase Postgres reads', group: 'core', slaTarget: 99.9 },
-  { id: 'sms_provider', name: 'Text messaging provider', description: 'Twilio account and API', group: 'messaging', slaTarget: 99.5 },
-  { id: 'sms_delivery', name: 'Text delivery', description: 'Scheduled texts reach homeowners and are confirmed', group: 'messaging', slaTarget: 99.0 },
-  { id: 'webhooks', name: 'Webhook endpoints', description: 'Delivery receipts and inbound replies', group: 'messaging', slaTarget: 99.5 },
-  { id: 'email', name: 'Email provider', description: 'Resend email delivery', group: 'messaging', slaTarget: 99.5 },
-  { id: 'ai', name: 'AI assistant', description: 'Anthropic API used for drafting and research', group: 'data', slaTarget: 99.0 },
-  { id: 'enrichment', name: 'Skip tracing', description: 'Owner and phone lookups', group: 'data', slaTarget: 99.0 },
-  { id: 'scoring', name: 'Lead scoring', description: 'Prospect scores refresh every 15 minutes', group: 'jobs', slaTarget: 99.0 },
-  { id: 'campaign_sync', name: 'Campaign reporting', description: 'Replies, opens and delivery are pulled into Campaigns', group: 'jobs', slaTarget: 99.0 },
-  { id: 'cohost_refresh', name: 'Co-Host listing refresh', description: 'Airbnb and Vrbo listings refresh every 12 hours', group: 'jobs', slaTarget: 99.0 },
+  { id: 'api', name: 'Application', description: 'The TRAVLR web app and its API', group: 'core', slaTarget: 99.9,
+    checks: 'Recorded by the health job itself every 5 minutes. A gap in checks means the app or its scheduler stopped.', impact: 'If this is down nobody can sign in and no texts or reports can be processed.', fix: 'Check the latest Vercel deployment and function logs for errors, then redeploy or roll back.' },
+  { id: 'database', name: 'Database', description: 'Supabase Postgres reads', group: 'core', slaTarget: 99.9,
+    checks: 'Reads one lead row. Degraded above 1.5 seconds, outage if the query fails.', impact: 'Every page, campaign and report depends on the database.', fix: 'Open the Supabase dashboard: check project status, connection count and slow queries. Heavy scripts running at the same time can cause slowness.' },
+  { id: 'sms_provider', name: 'Text messaging provider', description: 'Twilio account and API', group: 'messaging', slaTarget: 99.5,
+    checks: 'Lists one message through the Twilio API with our credentials. Degraded above 3 seconds, outage if Twilio is unreachable or rejects the credentials.', impact: 'Texts cannot be scheduled or sent.', fix: 'Verify TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and the Twilio account balance and status in the Twilio console.' },
+  { id: 'sms_delivery', name: 'Text delivery', description: 'Scheduled texts reach homeowners and are confirmed', group: 'messaging', slaTarget: 99.0,
+    checks: 'Looks at campaign texts due in the last 24 hours (needs at least 5). Degraded if over 5% are still unsent, outage if over 25%.', impact: 'Homeowners are not being reached on schedule.', fix: 'Open Campaigns, find the batch with stuck texts, and check the Twilio messaging service and sender registration.' },
+  { id: 'webhooks', name: 'Webhook endpoints', description: 'Delivery receipts and inbound replies', group: 'messaging', slaTarget: 99.5,
+    checks: 'Calls the delivery-receipt and inbound-reply endpoints. They must be reachable and reject unsigned requests. Also warns when too few recent texts have delivery receipts.', impact: 'Replies, opt-outs and delivery results would not be recorded.', fix: 'Confirm the Twilio webhook URLs point at this site and that the signature check is enabled.' },
+  { id: 'email', name: 'Email provider', description: 'Resend email delivery', group: 'messaging', slaTarget: 99.5,
+    checks: 'Reaches Resend with our key and confirms the sending domain is verified. Degraded above 3 seconds or on the sandbox sender.', impact: 'Co-Host and follow-up emails would not send.', fix: 'Check the RESEND_API_KEY and the sending domain DNS records in Resend.' },
+  { id: 'ai', name: 'AI assistant', description: 'Anthropic API used for drafting and research', group: 'data', slaTarget: 99.0,
+    checks: 'Reaches the Anthropic API with our key. Degraded when slow, outage when the key is rejected or the service is down.', impact: 'AI drafting, replies and research would stop. Texts already scheduled are not affected.', fix: 'Check ANTHROPIC_API_KEY, the Anthropic usage limits and their status page.' },
+  { id: 'enrichment', name: 'Skip tracing', description: 'Owner and phone lookups', group: 'data', slaTarget: 99.0,
+    checks: 'Reads the remaining RapidAPI skip-trace quota. Degraded when it nears the reserve, outage when exhausted.', impact: 'New owner and phone lookups stop, so fewer leads become textable.', fix: 'Upgrade or wait for the RapidAPI quota to renew, then confirm the key.' },
+  { id: 'scoring', name: 'Lead scoring', description: 'Prospect scores refresh every 15 minutes', group: 'jobs', slaTarget: 99.0,
+    checks: 'Age of the newest score written. Degraded after 45 minutes without a new score.', impact: 'Lead rankings and campaign selection use stale scores.', fix: 'Check the lead-rescore cron run in Vercel and its function logs.' },
+  { id: 'campaign_sync', name: 'Campaign reporting', description: 'Replies, opens and delivery are pulled into Campaigns', group: 'jobs', slaTarget: 99.0,
+    checks: 'Age of the newest report update while texts are going out. Degraded when updates fall behind.', impact: 'Campaign numbers on the Results tab lag behind reality.', fix: 'Check the campaign report cron in Vercel and the Twilio status callbacks.' },
+  { id: 'cohost_refresh', name: 'Co-Host listing refresh', description: 'Airbnb and Vrbo listings refresh every 12 hours', group: 'jobs', slaTarget: 99.0,
+    checks: 'Age and result of the last Co-Host listing refresh. Degraded when it is overdue or failed.', impact: 'Co-Host listings and estimates may be out of date.', fix: 'Check the Co-Host refresh cron in Vercel and its last error.' },
 ];
 
 export interface CheckResult { status: HealthStatus; responseMs: number | null; detail: string }
@@ -184,7 +195,8 @@ const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', ye
 
 export interface ServiceReport {
   id: string; name: string; description: string; group: ServiceDef['group']; slaTarget: number;
-  status: HealthStatus; responseMs: number | null; lastChecked: string | null; stale: boolean; detail?: string;
+  status: HealthStatus; responseMs: number | null; lastChecked: string | null; stale: boolean; detail?: string; fix?: string; lastFailureAt: string | null;
+  hours: Array<{ t: string; status: HealthStatus | 'none'; avgMs: number | null; checks: number }>;
   uptime30d: number | null; uptime90d: number | null; healthy30d: number | null; avgMs30d: number | null;
   days: Array<{ date: string; status: HealthStatus | 'none'; uptime: number | null; checks: number }>;
 }
@@ -194,14 +206,18 @@ export interface Incident {
 }
 
 export async function healthReport(db: Db, opts: { detail: boolean }) {
-  const [{ data: latest }, { data: daily }, { data: bad }] = await Promise.all([
+  const [{ data: latest }, { data: daily }, { data: bad }, { data: hourly }] = await Promise.all([
     db.from('system_health_checks').select('service,status,response_ms,detail,checked_at').gte('checked_at', new Date(Date.now() - 36 * 3_600_000).toISOString()).order('checked_at', { ascending: false }).limit(2000),
     db.rpc('system_health_daily', { p_days: 90 }),
     db.from('system_health_checks').select('service,status,detail,checked_at').in('status', ['degraded', 'outage']).gte('checked_at', new Date(Date.now() - 30 * 86_400_000).toISOString()).order('checked_at', { ascending: true }).limit(5000),
+    db.rpc('system_health_hourly', { p_hours: 24 }),
   ]);
   const newest = new Map<string, Row>(); for (const r of latest ?? []) if (!newest.has(r.service)) newest.set(r.service, r);
   const byService = new Map<string, Row[]>(); for (const d of (daily ?? []) as Row[]) { const a = byService.get(d.service) ?? []; a.push(d); byService.set(d.service, a); }
-  const today = dayFmt.format(Date.now());
+  const hourRows = new Map<string, Row>(); for (const h of (hourly ?? []) as Row[]) hourRows.set(`${h.service}|${new Date(h.hour).getTime()}`, h);
+  const thisHour = Math.floor(Date.now() / 3_600_000) * 3_600_000;
+  const hourList = Array.from({ length: 24 }, (_, i) => thisHour - (23 - i) * 3_600_000);
+  const lastBad = new Map<string, string>(); for (const r of bad ?? []) lastBad.set(r.service, r.checked_at);
   const dayList = Array.from({ length: 90 }, (_, i) => dayFmt.format(Date.now() - (89 - i) * 86_400_000));
 
   const sum = (rows: Row[], days: number) => {
@@ -215,16 +231,18 @@ export async function healthReport(db: Db, opts: { detail: boolean }) {
   const services: ServiceReport[] = SERVICES.map(def => {
     const n = newest.get(def.id); const rows = byService.get(def.id) ?? []; const byDay = new Map(rows.map(r => [String(r.day), r]));
     const s30 = sum(rows, 30), s90 = sum(rows, 90);
+    const { fix: _fix, ...pub } = def; void _fix;
     return {
-      ...def, status: (n?.status as HealthStatus) ?? 'maintenance', responseMs: n?.response_ms ?? null, lastChecked: n?.checked_at ?? null, stale: n ? minutesAgo(n.checked_at) > 15 : true,
-      ...(opts.detail ? { detail: n?.detail ?? 'No check has been recorded yet.' } : {}),
+      ...pub, status: (n?.status as HealthStatus) ?? 'maintenance', responseMs: n?.response_ms ?? null, lastChecked: n?.checked_at ?? null, stale: n ? minutesAgo(n.checked_at) > 15 : true,
+      ...(opts.detail ? { detail: n?.detail ?? 'No check has been recorded yet.', fix: def.fix } : {}), lastFailureAt: lastBad.get(def.id) ?? null,
+      hours: hourList.map(t => { const h = hourRows.get(`${def.id}|${t}`); if (!h) return { t: new Date(t).toISOString(), status: 'none' as const, avgMs: null, checks: 0 };
+        return { t: new Date(t).toISOString(), status: (Number(h.outage) > 0 ? 'outage' : Number(h.degraded) > 0 ? 'degraded' : 'operational') as HealthStatus, avgMs: h.avg_ms != null ? Number(h.avg_ms) : null, checks: Number(h.checks) }; }),
       uptime30d: s30.uptime, uptime90d: s90.uptime, healthy30d: s30.healthy, avgMs30d: s30.ms,
       days: dayList.map(date => { const d = byDay.get(date); if (!d) return { date, status: 'none' as const, uptime: null, checks: 0 };
         const checks = Number(d.checks); const status: HealthStatus = Number(d.outage) > 0 ? 'outage' : Number(d.degraded) > 0 ? 'degraded' : 'operational';
         return { date, status, uptime: Math.round(((checks - Number(d.outage)) / checks) * 10000) / 100, checks }; }),
     };
   });
-  void today;
 
   // An incident is a run of non-healthy checks with no more than 20 minutes between them.
   const names = new Map(SERVICES.map(s => [s.id, s.name])); const incidents: Incident[] = [];
@@ -246,11 +264,29 @@ export async function healthReport(db: Db, opts: { detail: boolean }) {
 
   const lastChecked = services.map(s => s.lastChecked).filter(Boolean).sort().pop() ?? null;
   const overall: HealthStatus = services.some(s => s.status === 'outage') ? 'outage' : services.some(s => s.status === 'degraded') ? 'degraded' : services.every(s => s.status === 'maintenance') ? 'maintenance' : 'operational';
-  return { checkedAt: lastChecked, overall, services, incidents };
+  const dayRows = (daily ?? []) as Row[]; const total30 = services.map(x => x.uptime30d).filter((v): v is number => v != null);
+  const summary = {
+    uptime30d: total30.length ? Math.round((total30.reduce((a, b) => a + b, 0) / total30.length) * 100) / 100 : null,
+    avgMs24h: (() => { const v = (hourly ?? []).filter((h: Row) => h.avg_ms != null); const c = v.reduce((a: number, h: Row) => a + Number(h.checks), 0); return c ? Math.round(v.reduce((a: number, h: Row) => a + Number(h.avg_ms) * Number(h.checks), 0) / c) : null; })(),
+    checksRecorded: dayRows.reduce((a, d) => a + Number(d.checks), 0),
+    since: dayRows.length ? dayRows.map(d => String(d.day)).sort()[0] : null,
+    incidents30d: incidents.length, ongoing: incidents.filter(i => i.status === 'ongoing').length,
+  };
+  return { checkedAt: lastChecked, overall, services, incidents, summary };
 }
 
-export async function serviceHistory(db: Db, service: string, hours: number) {
-  const since = new Date(Date.now() - hours * 3_600_000).toISOString();
-  const { data } = await db.from('system_health_checks').select('checked_at,status,response_ms').eq('service', service).gte('checked_at', since).order('checked_at', { ascending: true }).limit(2000);
-  return (data ?? []).map(r => ({ t: r.checked_at as string, status: r.status as HealthStatus, ms: r.response_ms as number | null }));
+/** Checks for one service: the last `hours` hours, or one Mountain-time `date` (YYYY-MM-DD) when given. */
+export async function serviceHistory(db: Db, service: string, hours: number, opts: { detail: boolean; date?: string | null } = { detail: false }) {
+  let from = new Date(Date.now() - hours * 3_600_000).toISOString(); let to: string | null = null;
+  if (opts.date) {
+    const base = Date.parse(`${opts.date}T00:00:00Z`);
+    const start = [6, 7].map(h => base + h * 3_600_000).find(t => dayFmt.format(t) === opts.date && dayFmt.format(t - 1) !== opts.date);
+    if (start != null) { from = new Date(start).toISOString(); to = new Date(start + 25 * 3_600_000).toISOString(); }
+    const end = start != null ? [23, 24, 25].map(h => start + h * 3_600_000).find(t => dayFmt.format(t) !== opts.date) : null;
+    if (end != null) to = new Date(end).toISOString();
+  }
+  let q = db.from('system_health_checks').select('checked_at,status,response_ms,detail').eq('service', service).gte('checked_at', from).order('checked_at', { ascending: true }).limit(1000);
+  if (to) q = q.lt('checked_at', to);
+  const { data } = await q;
+  return (data ?? []).map(r => ({ t: r.checked_at as string, status: r.status as HealthStatus, ms: r.response_ms as number | null, ...(opts.detail ? { detail: r.detail as string | null } : {}) }));
 }
