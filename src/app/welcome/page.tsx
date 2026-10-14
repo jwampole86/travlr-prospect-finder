@@ -5,7 +5,6 @@ import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 import PricingFaq from '@/app/prospect-finder/components/PricingFaq';
 import ProductShowcase from '@/app/welcome/components/ProductShowcase';
-import SocialProof from '@/components/marketing/SocialProof';
 
 export const metadata: Metadata = {
   title: 'AVYRO AI | AI-Powered Growth for Property Managers',
@@ -93,7 +92,6 @@ export default function WelcomePage() {
         </div>
       </section>
 
-      <div className="pt-12 sm:pt-16"><SocialProof id="proof" /></div>
 
       {/* Proof points */}
       <section className="max-w-6xl mx-auto px-5 sm:px-6 py-12">

@@ -9,7 +9,6 @@ import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 import PricingFaq from '@/app/prospect-finder/components/PricingFaq';
 import PlanPreviewShowcase from '@/app/plans/components/PlanPreviewShowcase';
 import PlanPreviewModal from '@/app/plans/components/PlanPreviewModal';
-import SocialProof from '@/components/marketing/SocialProof';
 import StickyPlanCta from '@/components/marketing/StickyPlanCta';
 import {
   PLAN_ORDER,
@@ -576,7 +575,6 @@ export default function PlansPageClient() {
         </div>
       </section>
 
-      <SocialProof id="proof" />
 
       {/* Platform journey */}
       <section id="journey" className="max-w-6xl mx-auto px-6 pb-16 scroll-mt-20">

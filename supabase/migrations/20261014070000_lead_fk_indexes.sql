@@ -1,0 +1,10 @@
+create index if not exists idx_str_listings_lead_id on public.str_listings(lead_id);
+create index if not exists idx_commissions_lead_id on public.commissions(lead_id);
+create index if not exists idx_dedup_log_primary_lead_id on public.dedup_log(primary_lead_id);
+create index if not exists idx_email_unsub_tokens_lead_id on public.email_unsubscribe_tokens(lead_id);
+create index if not exists idx_enrichment_benchmark_details_lead_id on public.enrichment_benchmark_details(lead_id);
+create index if not exists idx_enrichment_validation_events_lead_id on public.enrichment_validation_events(lead_id);
+create index if not exists idx_import_review_queue_possible_match on public.import_review_queue(possible_match_lead_id);
+create index if not exists idx_missing_blurb_flags_lead_id on public.missing_blurb_flags(lead_id);
+create index if not exists idx_payouts_lead_id on public.payouts(lead_id);
+create index if not exists idx_sync_regression_events_lead_id on public.sync_regression_events(lead_id);

@@ -15,16 +15,24 @@ export async function GET() {
   try {
     const db = getSupabaseAdmin();
     const real = () => db.from('leads').select('id', { count: 'exact', head: true }).eq('is_synthetic', false);
-    const [leads, phones, listings, stateRows] = await Promise.all([
+    const [leads, phones, verified, texts, replies, optOuts] = await Promise.all([
       real(),
       real().eq('has_phone', true),
-      db.from('str_listings').select('property_id', { count: 'exact', head: true }),
-      db.from('leads').select('state').eq('is_synthetic', false).not('state', 'is', null).range(0, 19_999),
+      db.from('dashboard_lead_facts').select('lead_id', { count: 'exact', head: true }).eq('is_synthetic', false).eq('verified_owner', true).eq('verified_address', true).eq('verified_number', true),
+      db.from('outreach_history').select('id', { count: 'exact', head: true }).ilike('channel', 'sms%'),
+      db.from('sms_thread_messages').select('id', { count: 'exact', head: true }).ilike('direction', 'in%'),
+      db.from('sms_suppressions').select('*', { count: 'exact', head: true }),
     ]);
-    const states = new Set((stateRows.data ?? []).map((r) => String(r.state).toUpperCase()).filter((s) => /^[A-Z]{2}$/.test(s))).size;
 
     return NextResponse.json(
-      { leads: floorRound(leads.count ?? 0), phones: floorRound(phones.count ?? 0), listings: floorRound(listings.count ?? 0), states },
+      {
+        leads: floorRound(leads.count ?? 0),
+        phones: floorRound(phones.count ?? 0),
+        verified: floorRound(verified.count ?? 0),
+        texts: floorRound(texts.count ?? 0),
+        replies: replies.count ?? 0,
+        optOuts: optOuts.count ?? 0,
+      },
       { headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' } }
     );
   } catch {
