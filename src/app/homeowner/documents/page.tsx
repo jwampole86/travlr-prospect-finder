@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Download, CheckCircle, Plus, X, Send, Shield, Eye, Clock, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
-import type { SignerInfo } from '@/lib/services/docusignService';
+import { authFetch } from '@/lib/authFetch';
 
 // Lazy-load EmbeddedSigningModal — the DocuSign iframe should only be fetched
 // when the homeowner actually opens the signing flow, not on every page load.
@@ -18,7 +18,8 @@ interface SigningSigner {
   id: string;
   signer_name: string;
   signer_email: string;
-  client_user_id: string;
+  can_sign_now: boolean;
+  signer_role: 'homeowner' | 'counter_signer';
   recipient_id: string;
   signer_order: number;
   signer_status: 'pending' | 'sent' | 'viewed' | 'signed' | 'declined' | 'voided';
@@ -29,8 +30,6 @@ interface SigningSession {
   id: string;
   envelope_id?: string;
   session_status: 'draft' | 'sent' | 'voided' | 'completed' | 'declined' | 'expired';
-  signed_pdf_url?: string;
-  certificate_url?: string;
   docusign_completed_at?: string;
   created_at: string;
   signing_signers: SigningSigner[];
@@ -81,7 +80,7 @@ export default function HomeownerDocumentsPage() {
   const [newDesc, setNewDesc] = useState('');
   const [signingSessions, setSigningSessions] = useState<SigningSession[]>([]);
   const [signingLoading, setSigningLoading] = useState(true);
-  const [signingModal, setSigningModal] = useState<{ envelopeId: string; signer: SignerInfo } | null>(null);
+  const [signingModal, setSigningModal] = useState<{ sessionId: string; signer: { name: string; email: string; recipientId: string } } | null>(null);
   const [documents, setDocuments] = useState<HomeownerDocument[]>([]);
   const [requests, setRequests] = useState<SpecialRequest[]>([]);
   const [leadId, setLeadId] = useState<string | null>(null);
@@ -133,7 +132,7 @@ export default function HomeownerDocumentsPage() {
     if (!leadId) return;
     setSigningLoading(true);
     try {
-      const res = await fetch(`/api/docusign/sessions?leadId=${leadId}`);
+      const res = await authFetch(`/api/docusign/sessions?leadId=${encodeURIComponent(leadId)}&sync=1`);
       const data = await res.json() as { sessions?: SigningSession[] };
       setSigningSessions(data.sessions ?? []);
     } catch {
@@ -144,17 +143,18 @@ export default function HomeownerDocumentsPage() {
   }
 
   function openSigningForSigner(session: SigningSession, signer: SigningSigner) {
-    if (!session.envelope_id) return;
-    setSigningModal({
-      envelopeId: session.envelope_id,
-      signer: {
-        name: signer.signer_name,
-        email: signer.signer_email,
-        clientUserId: signer.client_user_id,
-        recipientId: signer.recipient_id,
-        order: signer.signer_order,
-      },
-    });
+    setSigningModal({ sessionId: session.id, signer: { name: signer.signer_name, email: signer.signer_email, recipientId: signer.recipient_id } });
+  }
+
+  async function downloadSigned(sessionId: string, kind: 'signed' | 'certificate') {
+    const res = await authFetch(`/api/docusign/documents?sessionId=${encodeURIComponent(sessionId)}&kind=${kind}`);
+    if (!res.ok) return;
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = kind === 'signed' ? 'Partnership_Agreement_Signed.pdf' : 'Certificate_of_Completion.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function handleSubmitRequest() {
@@ -262,22 +262,21 @@ export default function HomeownerDocumentsPage() {
                           </div>
                         </div>
                       </div>
-                      {agreementSigned && agreementDoc.signed_pdf_url && (
-                        <a
-                          href={agreementDoc.signed_pdf_url}
-                          download="TRAVLR_Partnership_Agreement_Signed.pdf"
+                      {agreementSigned && (
+                        <button
+                          onClick={() => downloadSigned(agreementDoc.id, 'signed')}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg hover:bg-muted transition-all"
                         >
                           <Download size={12} />
                           Download
-                        </a>
+                        </button>
                       )}
                     </div>
 
                     {/* Per-signer status */}
                     <div className="space-y-2 pl-12">
-                      {agreementDoc.signing_signers.map((signer) => {
-                        const canSign = ['sent', 'viewed'].includes(signer.signer_status) && agreementDoc.session_status === 'sent';
+                      {agreementDoc.signing_signers.filter((signer) => signer.signer_role !== 'counter_signer').map((signer) => {
+                        const canSign = signer.can_sign_now && ['sent', 'viewed'].includes(signer.signer_status) && agreementDoc.session_status === 'sent';
                         return (
                           <div key={signer.id} className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -305,16 +304,15 @@ export default function HomeownerDocumentsPage() {
                     </div>
 
                     {/* Certificate download */}
-                    {agreementSigned && agreementDoc.certificate_url && (
+                    {agreementSigned && (
                       <div className="mt-3 pl-12">
-                        <a
-                          href={agreementDoc.certificate_url}
-                          download="TRAVLR_Certificate_of_Completion.pdf"
+                        <button
+                          onClick={() => downloadSigned(agreementDoc.id, 'certificate')}
                           className="flex items-center gap-1.5 text-xs text-primary hover:underline"
                         >
                           <Shield size={11} />
                           Download Certificate of Completion
-                        </a>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -437,7 +435,7 @@ export default function HomeownerDocumentsPage() {
       {/* Embedded signing modal */}
       {signingModal && (
         <EmbeddedSigningModal
-          envelopeId={signingModal.envelopeId}
+          sessionId={signingModal.sessionId}
           signer={signingModal.signer}
           onComplete={() => { setSigningModal(null); fetchSigningSessions(); }}
           onDecline={() => { setSigningModal(null); fetchSigningSessions(); }}

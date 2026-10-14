@@ -1,5 +1,6 @@
 'use client';
 
+import { authFetch } from '@/lib/authFetch';
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { createClient } from '@/lib/supabase/client';
@@ -81,8 +82,8 @@ function APICredentialCard({ service }: { service: typeof API_SERVICES[0] }) {
           .then(r => setStatus(r.ok ? 'ok' : 'missing'))
           .catch(() => setStatus('missing'));
       } else if (service.key === 'docusign') {
-        fetch('/api/docusign/sessions', { method: 'GET' })
-          .then(r => setStatus(r.status !== 500 ? 'ok' : 'missing'))
+        authFetch('/api/docusign/status')
+          .then(r => setStatus(r.ok ? 'ok' : 'missing'))
           .catch(() => setStatus('missing'));
       } else {
         // Stripe — check if publishable key looks real

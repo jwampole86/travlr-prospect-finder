@@ -9,6 +9,7 @@ import {
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { authFetch } from '@/lib/authFetch';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,7 +201,7 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
 // ─── DocuSign Send ────────────────────────────────────────────────────────────
 
 async function sendViaDocuSign(form: OfferLetterForm, letterHtml: string): Promise<{ envelopeId: string }> {
-  const res = await fetch('/api/docusign/create-offer-envelope', {
+  const res = await authFetch('/api/docusign/create-offer-envelope', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

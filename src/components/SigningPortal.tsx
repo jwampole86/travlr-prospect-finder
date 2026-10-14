@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, User, Plus, Trash2, ChevronDown, AlertCircle, Send, Shield, X, Info, DollarSign, Home, Calendar, Loader2 } from 'lucide-react';
 import type { Lead } from '@/data/mockLeads';
-import type { PrefillData, SignerInfo } from '@/lib/services/docusignService';
+import type { DeliveryMode, PrefillData } from '@/lib/services/docusignService';
+import { authFetch } from '@/lib/authFetch';
 
 interface SigningPortalProps {
   lead: Lead;
@@ -54,6 +55,7 @@ export default function SigningPortal({ lead, onClose, onEnvelopeCreated }: Sign
     governingState: lead.state ?? '',
   });
   const [agentNotes, setAgentNotes] = useState('');
+  const [delivery, setDelivery] = useState<DeliveryMode>('email');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [missingTerms, setMissingTerms] = useState<string[]>([]);
@@ -88,24 +90,15 @@ export default function SigningPortal({ lead, onClose, onEnvelopeCreated }: Sign
     setError(null);
 
     try {
-      const signerPayload: SignerInfo[] = signers.map((s, i) => ({
-        name: s.name,
-        email: s.email,
-        clientUserId: `${lead.id}_signer_${s.id}_${Date.now()}`,
-        recipientId: String(i + 1),
-        order: i + 1,
-      }));
-
-      const res = await fetch('/api/docusign/create-envelope', {
+      const res = await authFetch('/api/docusign/create-envelope', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           leadId: lead.id,
-          leadAddress: lead.address,
-          leadState: lead.state,
-          signers: signerPayload,
+          signers: signers.map((s) => ({ name: s.name.trim(), email: s.email.trim() })),
           prefill,
           agentNotes,
+          delivery,
         }),
       });
 
@@ -372,11 +365,24 @@ export default function SigningPortal({ lead, onClose, onEnvelopeCreated }: Sign
                 ))}
               </div>
 
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-foreground">How will the homeowner sign?</h3>
+                {([
+                  ['email', 'Email them a signing link', 'DocuSign emails each signer. Best when the homeowner is not with you.'],
+                  ['embedded', 'Sign now, together', 'Open the agreement on this screen for the homeowner to sign in person.'],
+                ] as const).map(([value, label, hint]) => (
+                  <label key={value} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${delivery === value ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'}`}>
+                    <input type="radio" name="delivery" value={value} checked={delivery === value} onChange={() => setDelivery(value)} className="mt-1" />
+                    <span><span className="block text-sm font-medium text-foreground">{label}</span><span className="block text-xs text-muted-foreground">{hint}</span></span>
+                  </label>
+                ))}
+              </div>
+
               <div className="flex items-start gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
                 <Shield size={14} className="text-emerald-600 mt-0.5 shrink-0" />
                 <p className="text-xs text-emerald-700">
-                  DocuSign handles all legal e-signature infrastructure — consent capture, tamper-evident sealing,
-                  audit trail, and certificate of completion. The homeowner will sign within TRAVLR's UI.
+                  DocuSign handles the legal e-signature: consent capture, tamper-evident sealing, audit trail and a certificate of completion.
+                  After the homeowner signs, TRAVLR&apos;s representative counter-signs by email and the lead moves to Under Contract.
                 </p>
               </div>
 

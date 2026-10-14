@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Loader2, CheckCircle, AlertCircle, RefreshCw, Shield } from 'lucide-react';
-import type { SignerInfo } from '@/lib/services/docusignService';
+import { authFetch } from '@/lib/authFetch';
 
 interface EmbeddedSigningModalProps {
-  envelopeId: string;
-  signer: SignerInfo;
+  sessionId: string;
+  signer: { name: string; email: string; recipientId: string };
   onComplete: () => void;
   onDecline: () => void;
   onClose: () => void;
@@ -15,7 +15,7 @@ interface EmbeddedSigningModalProps {
 type SigningState = 'loading' | 'ready' | 'completed' | 'declined' | 'error';
 
 export default function EmbeddedSigningModal({
-  envelopeId,
+  sessionId,
   signer,
   onComplete,
   onDecline,
@@ -28,37 +28,39 @@ export default function EmbeddedSigningModal({
 
   useEffect(() => {
     fetchSigningUrl();
-  }, [envelopeId, signer.clientUserId]);
+  }, [sessionId, signer.recipientId]);
 
-  // Listen for DocuSign return URL navigation (postMessage or URL change)
+  // DocuSign sends the signer back to /signing-complete inside the frame, which reports how signing ended.
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      // DocuSign sends postMessage events from the signing iframe
-      if (typeof event.data === 'string') {
-        if (event.data.includes('signing_complete') || event.data.includes('completed')) {
-          setState('completed');
-          setTimeout(onComplete, 1500);
-        } else if (event.data.includes('decline') || event.data.includes('declined')) {
-          setState('declined');
-          setTimeout(onDecline, 1500);
-        }
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; event?: string } | null;
+      if (data?.type !== 'docusign-return') return;
+      if (data.event === 'signing_complete') {
+        setState('completed');
+        setTimeout(onComplete, 1500);
+      } else if (data.event === 'decline') {
+        setState('declined');
+        setTimeout(onDecline, 1500);
+      } else {
+        onClose();
       }
     }
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [onComplete, onDecline]);
+  }, [onComplete, onDecline, onClose]);
 
   async function fetchSigningUrl() {
     setState('loading');
     setError(null);
     try {
       const baseUrl = window.location.origin;
-      const returnUrl = `${baseUrl}/homeowner/documents?signing=complete&envelopeId=${envelopeId}`;
+      const returnUrl = `${baseUrl}/signing-complete`;
 
-      const res = await fetch('/api/docusign/signing-url', {
+      const res = await authFetch('/api/docusign/signing-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ envelopeId, signer, returnUrl }),
+        body: JSON.stringify({ sessionId, recipientId: signer.recipientId, returnUrl }),
       });
 
       const data = await res.json() as { url?: string; error?: string };
@@ -72,22 +74,6 @@ export default function EmbeddedSigningModal({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       setState('error');
-    }
-  }
-
-  // Poll for completion via URL change detection on the iframe
-  function handleIframeLoad() {
-    try {
-      const iframeUrl = iframeRef.current?.contentWindow?.location?.href ?? '';
-      if (iframeUrl.includes('signing=complete') || iframeUrl.includes('event=signing_complete')) {
-        setState('completed');
-        setTimeout(onComplete, 1500);
-      } else if (iframeUrl.includes('event=decline') || iframeUrl.includes('event=cancel')) {
-        setState('declined');
-        setTimeout(onDecline, 1500);
-      }
-    } catch {
-      // Cross-origin iframe — can't read URL, rely on postMessage
     }
   }
 
@@ -182,9 +168,8 @@ export default function EmbeddedSigningModal({
               src={signingUrl}
               className="w-full h-full border-0"
               title="TRAVLR Partnership Agreement — DocuSign Signing"
-              onLoad={handleIframeLoad}
               allow="camera; microphone"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads"
             />
           )}
         </div>

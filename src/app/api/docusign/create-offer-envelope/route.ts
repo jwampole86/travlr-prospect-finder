@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServerClient } from '@supabase/supabase-js';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { createOfferLetterEnvelope, type OfferLetterSigner } from '@/lib/services/docusignService';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAdminActor(req);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const body = await req.json() as {
       candidateId?: string;
@@ -41,17 +44,8 @@ export async function POST(req: NextRequest) {
       `TRAVLR Offer Letter — ${body.roleTitle}`
     );
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
-    const authHeader = req.headers.get('authorization');
-    let userId: string | null = null;
-    if (authHeader) {
-      const { data } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-      userId = data.user?.id ?? null;
-    }
+    const supabase = getSupabaseAdmin();
+    const userId = auth.actor.user.id;
 
     const { data: session, error: sessionError } = await supabase
       .from('signing_sessions')
@@ -85,7 +79,7 @@ export async function POST(req: NextRequest) {
       signer_order: signer.order,
       signer_name: signer.name,
       signer_email: signer.email,
-      client_user_id: `candidate-offer-${body.candidateId ?? Date.now()}`,
+      client_user_id: null,
       recipient_id: signer.recipientId,
       signer_status: 'sent',
     });

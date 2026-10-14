@@ -1,34 +1,20 @@
-import { NextResponse } from 'next/server';
-import { getDocuSignConfigStatus, getDocuSignAccessToken } from '@/lib/services/docusignService';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
+import { getDocuSignConfigStatus, getDocuSignAccessToken, docusignWebhookUrl } from '@/lib/services/docusignService';
 
-export async function GET() {
+// GET /api/docusign/status — admins only: is DocuSign connected, and what still needs attention.
+export async function GET(req: NextRequest) {
+  const auth = await requireAdminActor(req);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
   const config = getDocuSignConfigStatus();
-
-  if (!config.configured) {
-    return NextResponse.json({
-      ok: false,
-      configured: false,
-      missing: config.missing,
-      basePath: config.basePath,
-      oauthBase: config.oauthBase,
-    }, { status: 503 });
-  }
+  const webhookReachable = Boolean(docusignWebhookUrl());
+  if (!config.configured) return NextResponse.json({ ok: false, ...config, webhookReachable }, { status: 503 });
 
   try {
     await getDocuSignAccessToken();
-    return NextResponse.json({
-      ok: true,
-      configured: true,
-      basePath: config.basePath,
-      oauthBase: config.oauthBase,
-    });
+    return NextResponse.json({ ok: true, ...getDocuSignConfigStatus(), webhookReachable });
   } catch (err) {
-    return NextResponse.json({
-      ok: false,
-      configured: true,
-      error: err instanceof Error ? err.message : 'DocuSign connection failed',
-      basePath: config.basePath,
-      oauthBase: config.oauthBase,
-    }, { status: 502 });
+    return NextResponse.json({ ok: false, ...config, webhookReachable, error: err instanceof Error ? err.message : 'DocuSign connection failed' }, { status: 502 });
   }
 }

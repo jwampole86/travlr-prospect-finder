@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FileText, User, CheckCircle, Clock, Eye, Send, XCircle, AlertCircle, Download, RefreshCw, ChevronDown, ChevronUp, Shield, Loader2, Trash2 } from 'lucide-react';
+import { FileText, User, CheckCircle, Clock, Eye, Send, XCircle, AlertCircle, Download, RefreshCw, ChevronDown, ChevronUp, Shield, Loader2, Trash2, Bell, RotateCcw } from 'lucide-react';
 import EmbeddedSigningModal from './EmbeddedSigningModal';
-import type { SignerInfo } from '@/lib/services/docusignService';
+import { authFetch } from '@/lib/authFetch';
 
 interface SigningSigner {
   id: string;
@@ -11,7 +11,8 @@ interface SigningSigner {
   signer_order: number;
   signer_name: string;
   signer_email: string;
-  client_user_id: string;
+  signer_role: 'homeowner' | 'counter_signer';
+  can_sign_now: boolean;
   recipient_id: string;
   signer_status: 'pending' | 'sent' | 'viewed' | 'signed' | 'declined' | 'voided';
   viewed_at?: string;
@@ -25,9 +26,9 @@ interface SigningSession {
   lead_id: string;
   envelope_id?: string;
   session_status: 'draft' | 'sent' | 'voided' | 'completed' | 'declined' | 'expired';
+  delivery_mode?: 'email' | 'embedded';
+  docusign_env?: 'demo' | 'production';
   prefill_data?: Record<string, string>;
-  signed_pdf_url?: string;
-  certificate_url?: string;
   docusign_completed_at?: string;
   voided_at?: string;
   voided_reason?: string;
@@ -69,20 +70,23 @@ export default function SigningStatusPanel({
   const [sessions, setSessions] = useState<SigningSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
-  const [voidModal, setVoidModal] = useState<{ sessionId: string; envelopeId: string } | null>(null);
+  const [voidModal, setVoidModal] = useState<{ sessionId: string } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [voidReason, setVoidReason] = useState('');
   const [voidLoading, setVoidLoading] = useState(false);
   const [signingModal, setSigningModal] = useState<{
-    envelopeId: string;
-    signer: SignerInfo;
+    sessionId: string;
+    signer: { name: string; email: string; recipientId: string };
   } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const fetchSessions = useCallback(async () => {
+  const fetchSessions = useCallback(async (sync = false) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/docusign/sessions?leadId=${encodeURIComponent(leadId)}`);
+      const res = await authFetch(`/api/docusign/sessions?leadId=${encodeURIComponent(leadId)}${sync ? '&sync=1' : ''}`);
       const data = await res.json() as { sessions?: SigningSession[]; error?: string };
+      if (!res.ok) setActionError(data.error ?? 'Could not load signing status');
       setSessions(data.sessions ?? []);
     } catch {
       setSessions([]);
@@ -92,15 +96,51 @@ export default function SigningStatusPanel({
   }, [leadId]);
 
   useEffect(() => {
-    fetchSessions();
+    fetchSessions(true);
   }, [fetchSessions]);
+
+  async function sessionAction(sessionId: string, action: 'remind' | 'reissue') {
+    setBusy(`${action}:${sessionId}`);
+    setActionError(null);
+    setNotice(null);
+    try {
+      const res = await authFetch('/api/docusign/resend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, action }) });
+      const data = await res.json() as { error?: string; reminded?: number };
+      if (!res.ok) throw new Error(data.error ?? 'Request failed');
+      setNotice(action === 'remind' ? 'Reminder sent.' : 'A new signing link was sent.');
+      await fetchSessions();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Request failed');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function downloadDocument(sessionId: string, kind: 'signed' | 'certificate') {
+    setBusy(`doc:${sessionId}:${kind}`);
+    setActionError(null);
+    try {
+      const res = await authFetch(`/api/docusign/documents?sessionId=${encodeURIComponent(sessionId)}&kind=${kind}`);
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = kind === 'signed' ? 'Partnership_Agreement_Signed.pdf' : 'Certificate_of_Completion.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Download failed');
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function handleVoid() {
     if (!voidModal || !voidReason.trim()) return;
     setVoidLoading(true);
     setActionError(null);
     try {
-      const res = await fetch('/api/docusign/void', {
+      const res = await authFetch('/api/docusign/void', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...voidModal, reason: voidReason }),
@@ -118,17 +158,7 @@ export default function SigningStatusPanel({
   }
 
   function openSigningForSigner(session: SigningSession, signer: SigningSigner) {
-    if (!session.envelope_id) return;
-    setSigningModal({
-      envelopeId: session.envelope_id,
-      signer: {
-        name: signer.signer_name,
-        email: signer.signer_email,
-        clientUserId: signer.client_user_id,
-        recipientId: signer.recipient_id,
-        order: signer.signer_order,
-      },
-    });
+    setSigningModal({ sessionId: session.id, signer: { name: signer.signer_name, email: signer.signer_email, recipientId: signer.recipient_id } });
   }
 
   if (loading) {
@@ -148,7 +178,7 @@ export default function SigningStatusPanel({
           <span className="text-sm font-semibold text-foreground">Partnership Agreement</span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={fetchSessions} className="p-1.5 rounded-lg hover:bg-muted transition-all">
+          <button onClick={() => fetchSessions(true)} title="Check DocuSign for the latest status" className="p-1.5 rounded-lg hover:bg-muted transition-all">
             <RefreshCw size={13} className="text-muted-foreground" />
           </button>
           {isAgentView && onInitiateSigning && (
@@ -181,8 +211,10 @@ export default function SigningStatusPanel({
       {sessions.map((session) => {
         const statusCfg = SESSION_STATUS_CONFIG[session.session_status] ?? SESSION_STATUS_CONFIG.draft;
         const isExpanded = expandedSession === session.id;
-        const allSigned = session.signing_signers.every(s => s.signer_status === 'signed');
         const canVoid = isAgentView && ['sent', 'draft'].includes(session.session_status);
+        const isOpen = session.session_status === 'sent';
+        const canReissue = isAgentView && ['sent', 'declined', 'voided'].includes(session.session_status);
+        const sandbox = session.docusign_env === 'demo';
 
         return (
           <div key={session.id} className="bg-card border border-border rounded-xl overflow-hidden">
@@ -200,10 +232,12 @@ export default function SigningStatusPanel({
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {new Date(session.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     {session.resend_count ? ` · Resent ${session.resend_count}×` : ''}
+                    {session.delivery_mode === 'embedded' ? ' · In person' : ' · Emailed'}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {sandbox && <span title="Sandbox test: this signing is not legally binding" className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600">TEST</span>}
                 <span className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${statusCfg.color}`}>
                   {statusCfg.icon}
                   {statusCfg.label}
@@ -220,14 +254,14 @@ export default function SigningStatusPanel({
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Signers</p>
                   {session.signing_signers.map((signer) => {
                     const signerCfg = SIGNER_STATUS_CONFIG[signer.signer_status] ?? SIGNER_STATUS_CONFIG.pending;
-                    const canSign = !isAgentView && ['sent', 'viewed'].includes(signer.signer_status) && session.session_status === 'sent';
+                    const canSign = signer.signer_role !== 'counter_signer' && signer.can_sign_now && ['sent', 'viewed'].includes(signer.signer_status) && isOpen;
 
                     return (
                       <div key={signer.id} className="flex items-center justify-between">
                         <div className="flex items-center gap-2 min-w-0">
                           <User size={12} className="text-muted-foreground shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-xs font-medium text-foreground truncate">{signer.signer_name}</p>
+                            <p className="text-xs font-medium text-foreground truncate">{signer.signer_name}{signer.signer_role === 'counter_signer' ? ' (TRAVLR counter-signature)' : ''}</p>
                             <p className="text-xs text-muted-foreground truncate">{signer.signer_email}</p>
                           </div>
                         </div>
@@ -261,26 +295,22 @@ export default function SigningStatusPanel({
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Documents</p>
                     <div className="flex items-center gap-2">
-                      {session.signed_pdf_url && (
-                        <a
-                          href={session.signed_pdf_url}
-                          download="TRAVLR_Partnership_Agreement_Signed.pdf"
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground border border-border rounded-lg hover:bg-muted transition-all"
-                        >
-                          <Download size={12} />
-                          Signed Agreement
-                        </a>
-                      )}
-                      {session.certificate_url && (
-                        <a
-                          href={session.certificate_url}
-                          download="TRAVLR_Certificate_of_Completion.pdf"
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground border border-border rounded-lg hover:bg-muted transition-all"
-                        >
-                          <Shield size={12} />
-                          Certificate
-                        </a>
-                      )}
+                      <button
+                        onClick={() => downloadDocument(session.id, 'signed')}
+                        disabled={busy === `doc:${session.id}:signed`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground border border-border rounded-lg hover:bg-muted transition-all disabled:opacity-50"
+                      >
+                        {busy === `doc:${session.id}:signed` ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                        Signed Agreement
+                      </button>
+                      <button
+                        onClick={() => downloadDocument(session.id, 'certificate')}
+                        disabled={busy === `doc:${session.id}:certificate`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground border border-border rounded-lg hover:bg-muted transition-all disabled:opacity-50"
+                      >
+                        {busy === `doc:${session.id}:certificate` ? <Loader2 size={12} className="animate-spin" /> : <Shield size={12} />}
+                        Certificate
+                      </button>
                     </div>
                     {session.docusign_completed_at && (
                       <p className="text-xs text-emerald-600 flex items-center gap-1">
@@ -305,18 +335,42 @@ export default function SigningStatusPanel({
                 )}
 
                 {/* Agent actions */}
-                {isAgentView && canVoid && (
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      onClick={() => setVoidModal({ sessionId: session.id, envelopeId: session.envelope_id! })}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-danger border border-danger/30 rounded-lg hover:bg-danger/5 transition-all"
-                    >
-                      <Trash2 size={12} />
-                      Void Session
-                    </button>
+                {isAgentView && (canVoid || canReissue) && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {isOpen && session.delivery_mode !== 'embedded' && (
+                      <button
+                        onClick={() => sessionAction(session.id, 'remind')}
+                        disabled={busy === `remind:${session.id}`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground border border-border rounded-lg hover:bg-muted transition-all disabled:opacity-50"
+                      >
+                        {busy === `remind:${session.id}` ? <Loader2 size={12} className="animate-spin" /> : <Bell size={12} />}
+                        Send Reminder
+                      </button>
+                    )}
+                    {canReissue && (
+                      <button
+                        onClick={() => sessionAction(session.id, 'reissue')}
+                        disabled={busy === `reissue:${session.id}`}
+                        title="Voids the current link and sends a fresh agreement to the same signers"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground border border-border rounded-lg hover:bg-muted transition-all disabled:opacity-50"
+                      >
+                        {busy === `reissue:${session.id}` ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+                        Resend New Link
+                      </button>
+                    )}
+                    {canVoid && (
+                      <button
+                        onClick={() => setVoidModal({ sessionId: session.id })}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-danger border border-danger/30 rounded-lg hover:bg-danger/5 transition-all"
+                      >
+                        <Trash2 size={12} />
+                        Void Session
+                      </button>
+                    )}
                   </div>
                 )}
 
+                {notice && <p className="text-xs text-emerald-600">{notice}</p>}
                 {actionError && (
                   <p className="text-xs text-danger">{actionError}</p>
                 )}
@@ -373,10 +427,10 @@ export default function SigningStatusPanel({
       {/* Embedded signing modal */}
       {signingModal && (
         <EmbeddedSigningModal
-          envelopeId={signingModal.envelopeId}
+          sessionId={signingModal.sessionId}
           signer={signingModal.signer}
-          onComplete={() => { setSigningModal(null); fetchSessions(); }}
-          onDecline={() => { setSigningModal(null); fetchSessions(); }}
+          onComplete={() => { setSigningModal(null); fetchSessions(true); }}
+          onDecline={() => { setSigningModal(null); fetchSessions(true); }}
           onClose={() => setSigningModal(null)}
         />
       )}
