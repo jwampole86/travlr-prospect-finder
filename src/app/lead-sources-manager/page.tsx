@@ -1,586 +1,316 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import AppLayout from '@/components/AppLayout';
-import { Radio, CheckCircle2, XCircle, AlertCircle, RefreshCw, Shield, Zap, Database, AlertTriangle, ChevronDown, ChevronUp, Search, Activity, CheckSquare, Square, Play, Pause, Plus,  } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
+import { AlertTriangle, ChevronDown, Download, Info, LayoutGrid, List, Loader2, Lightbulb, Pause, Play, Plus, Radio, RefreshCw, Search, X } from 'lucide-react';
+import AppLayout from '@/components/AppLayout';
+import { authFetch } from '@/lib/authFetch';
+import type { LeadSourceOverview, SourceItem, SourceStatus } from '@/lib/leadSourceTypes';
+import KpiStrip from './components/KpiStrip';
+import SourceCard from './components/SourceCard';
+import SourceTable, { type SortKey } from './components/SourceTable';
+import SourceDrawer, { type ConfigPatch } from './components/SourceDrawer';
+import AddMarketModal, { type NewMarket } from './components/AddMarketModal';
+import { GrowthChart, LeadsBySourceChart } from './components/Charts';
+import { fmtNum, patchConfigs, relTime, sourceKeyOf, STATUS_META, toCsv } from './utils';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface LeadSource {
-  id: string;
-  name: string;
-  key: string;
-  type: 'scraper' | 'csv' | 'api';
-  status: 'active' | 'paused' | 'error' | 'pending';
-  lastSync: string | null;
-  recordsTotal: number;
-  recordsReal: number;
-  recordsSynthetic: number;
-  verificationScore: number; // 0-100
-  markets: string[];
-  isSelected: boolean;
-  errorMessage?: string;
-}
-
-interface SyncLog {
-  id: string;
-  sourceId: string;
-  sourceName: string;
-  timestamp: string;
-  recordsFetched: number;
-  recordsVerified: number;
-  recordsRejected: number;
-  status: 'success' | 'partial' | 'failed';
-  notes: string;
-}
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const INITIAL_SOURCES: LeadSource[] = [
-  {
-    id: 'zillow-md',
-    name: 'Zillow',
-    key: 'zillow',
-    type: 'scraper',
-    status: 'active',
-    lastSync: '2026-09-01T14:30:00Z',
-    recordsTotal: 1842,
-    recordsReal: 1791,
-    recordsSynthetic: 51,
-    verificationScore: 97,
-    markets: ['MD', 'MA', 'VA'],
-    isSelected: false,
-  },
-  {
-    id: 'hotpads-ma',
-    name: 'HotPads',
-    key: 'hotpads',
-    type: 'scraper',
-    status: 'active',
-    lastSync: '2026-09-01T13:15:00Z',
-    recordsTotal: 934,
-    recordsReal: 901,
-    recordsSynthetic: 33,
-    verificationScore: 96,
-    markets: ['MA', 'CT'],
-    isSelected: false,
-  },
-  {
-    id: 'csv-import-1',
-    name: 'CSV Import — Baltimore Q3',
-    key: 'csv_import',
-    type: 'csv',
-    status: 'active',
-    lastSync: '2026-08-28T09:00:00Z',
-    recordsTotal: 412,
-    recordsReal: 412,
-    recordsSynthetic: 0,
-    verificationScore: 100,
-    markets: ['MD'],
-    isSelected: false,
-  },
-  {
-    id: 'trulia-va',
-    name: 'Trulia',
-    key: 'trulia',
-    type: 'scraper',
-    status: 'paused',
-    lastSync: '2026-08-25T11:00:00Z',
-    recordsTotal: 287,
-    recordsReal: 241,
-    recordsSynthetic: 46,
-    verificationScore: 84,
-    markets: ['VA'],
-    isSelected: false,
-  },
-  {
-    id: 'rentcom-ct',
-    name: 'Rent.com',
-    key: 'rentcom',
-    type: 'scraper',
-    status: 'error',
-    lastSync: '2026-08-30T08:45:00Z',
-    recordsTotal: 156,
-    recordsReal: 98,
-    recordsSynthetic: 58,
-    verificationScore: 63,
-    errorMessage: 'Rate limit exceeded — retry in 2h',
-    markets: ['CT', 'MA'],
-    isSelected: false,
-  },
+type StatusFilter = 'all' | SourceStatus;
+const SORTS: Array<{ id: SortKey; label: string }> = [
+  { id: 'leads', label: 'Most leads' }, { id: 'added', label: 'Newest activity' }, { id: 'contact', label: 'Best contact coverage' },
+  { id: 'attention', label: 'Needs attention first' }, { id: 'recent', label: 'Last synced' }, { id: 'name', label: 'Name A to Z' },
+];
+const STATUS_CHIPS: Array<{ id: StatusFilter; label: string }> = [
+  { id: 'all', label: 'All' }, { id: 'healthy', label: 'Healthy' }, { id: 'attention', label: 'Needs attention' }, { id: 'pending', label: 'Waiting' }, { id: 'paused', label: 'Paused' }, { id: 'unmanaged', label: 'No config' },
 ];
 
-const SYNC_LOGS: SyncLog[] = [
-  {
-    id: 'log-1',
-    sourceId: 'zillow-md',
-    sourceName: 'Zillow',
-    timestamp: '2026-09-01T14:30:00Z',
-    recordsFetched: 312,
-    recordsVerified: 304,
-    recordsRejected: 8,
-    status: 'success',
-    notes: '8 records rejected: missing address fingerprint',
-  },
-  {
-    id: 'log-2',
-    sourceId: 'hotpads-ma',
-    sourceName: 'HotPads',
-    timestamp: '2026-09-01T13:15:00Z',
-    recordsFetched: 187,
-    recordsVerified: 180,
-    recordsRejected: 7,
-    status: 'success',
-    notes: '7 records flagged as duplicates',
-  },
-  {
-    id: 'log-3',
-    sourceId: 'rentcom-ct',
-    sourceName: 'Rent.com',
-    timestamp: '2026-08-30T08:45:00Z',
-    recordsFetched: 0,
-    recordsVerified: 0,
-    recordsRejected: 0,
-    status: 'failed',
-    notes: 'Rate limit exceeded — HTTP 429',
-  },
-  {
-    id: 'log-4',
-    sourceId: 'trulia-va',
-    sourceName: 'Trulia',
-    timestamp: '2026-08-25T11:00:00Z',
-    recordsFetched: 95,
-    recordsVerified: 79,
-    recordsRejected: 16,
-    status: 'partial',
-    notes: '16 records lacked valid listing URLs',
-  },
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function statusColor(status: LeadSource['status']) {
-  switch (status) {
-    case 'active': return 'text-emerald-600 bg-emerald-50 border-emerald-200';
-    case 'paused': return 'text-amber-600 bg-amber-50 border-amber-200';
-    case 'error': return 'text-red-600 bg-red-50 border-red-200';
-    case 'pending': return 'text-blue-600 bg-blue-50 border-blue-200';
-  }
+function sorter(sort: SortKey) {
+  return (a: SourceItem, b: SourceItem) => {
+    switch (sort) {
+      case 'name': return a.name.localeCompare(b.name);
+      case 'added': return b.stats.added7d - a.stats.added7d || b.stats.total - a.stats.total;
+      case 'contact': return (b.stats.quality ?? -1) - (a.stats.quality ?? -1);
+      case 'attention': return b.attentionCount - a.attentionCount || b.stats.total - a.stats.total;
+      case 'recent': return (b.lastSuccess ?? '').localeCompare(a.lastSuccess ?? '');
+      default: return b.stats.total - a.stats.total || a.name.localeCompare(b.name);
+    }
+  };
 }
 
-function statusIcon(status: LeadSource['status']) {
-  switch (status) {
-    case 'active': return <CheckCircle2 className="w-3.5 h-3.5" />;
-    case 'paused': return <Pause className="w-3.5 h-3.5" />;
-    case 'error': return <XCircle className="w-3.5 h-3.5" />;
-    case 'pending': return <AlertCircle className="w-3.5 h-3.5" />;
-  }
-}
-
-function scoreColor(score: number) {
-  if (score >= 90) return 'text-emerald-600';
-  if (score >= 70) return 'text-amber-600';
-  return 'text-red-600';
-}
-
-function logStatusBadge(status: SyncLog['status']) {
-  switch (status) {
-    case 'success': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    case 'partial': return 'bg-amber-50 text-amber-700 border-amber-200';
-    case 'failed': return 'bg-red-50 text-red-700 border-red-200';
-  }
-}
-
-function formatRelative(iso: string | null) {
-  if (!iso) return 'Never';
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
-
-// ─── Source Card ──────────────────────────────────────────────────────────────
-
-function SourceCard({
-  source,
-  onToggleSelect,
-  onToggleStatus,
-  onSync,
-}: {
-  source: LeadSource;
-  onToggleSelect: (id: string) => void;
-  onToggleStatus: (id: string) => void;
-  onSync: (id: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const realPct = source.recordsTotal > 0
-    ? Math.round((source.recordsReal / source.recordsTotal) * 100)
-    : 0;
-
-  return (
-    <div className={`rounded-2xl border bg-white dark:bg-gray-900 transition-all ${
-      source.isSelected ? 'border-gray-900 dark:border-white shadow-md' : 'border-gray-200 dark:border-gray-700'
-    }`}>
-      <div className="p-4">
-        <div className="flex items-start gap-3">
-          {/* Checkbox */}
-          <button
-            onClick={() => onToggleSelect(source.id)}
-            className="mt-0.5 flex-shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-          >
-            {source.isSelected
-              ? <CheckSquare className="w-4 h-4 text-gray-900 dark:text-white" />
-              : <Square className="w-4 h-4" />}
-          </button>
-
-          {/* Source info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-sm text-gray-900 dark:text-white">{source.name}</span>
-              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusColor(source.status)}`}>
-                {statusIcon(source.status)}
-                {source.status.charAt(0).toUpperCase() + source.status.slice(1)}
-              </span>
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
-                {source.type.toUpperCase()}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-4 mt-2 flex-wrap">
-              <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                <Activity className="w-3 h-3" />
-                Last sync: {formatRelative(source.lastSync)}
-              </div>
-              <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                <Database className="w-3 h-3" />
-                {source.recordsTotal.toLocaleString()} total
-              </div>
-              <div className="flex items-center gap-1 text-xs">
-                <Shield className="w-3 h-3 text-emerald-500" />
-                <span className={`font-semibold ${scoreColor(source.verificationScore)}`}>
-                  {source.verificationScore}% verified
-                </span>
-              </div>
-            </div>
-
-            {/* Real vs Synthetic bar */}
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-[11px] mb-1">
-                <span className="text-gray-500 dark:text-gray-400">Real listings</span>
-                <span className="font-semibold text-gray-700 dark:text-gray-300">
-                  {source.recordsReal.toLocaleString()} / {source.recordsTotal.toLocaleString()} ({realPct}%)
-                </span>
-              </div>
-              <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-emerald-500 transition-all"
-                  style={{ width: `${realPct}%` }}
-                />
-              </div>
-              {source.recordsSynthetic > 0 && (
-                <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  {source.recordsSynthetic} synthetic records will be excluded from sync
-                </p>
-              )}
-            </div>
-
-            {source.errorMessage && (
-              <div className="mt-2 flex items-center gap-1.5 text-xs text-red-600 bg-red-50 dark:bg-red-900/20 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-800">
-                <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                {source.errorMessage}
-              </div>
-            )}
-
-            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              {source.markets.map(m => (
-                <span key={m} className="text-[11px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-medium">
-                  {m}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button
-              onClick={() => onSync(source.id)}
-              disabled={source.status === 'error'}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Sync now"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => onToggleStatus(source.id)}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-              title={source.status === 'active' ? 'Pause source' : 'Activate source'}
-            >
-              {source.status === 'active' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            </button>
-            <button
-              onClick={() => setExpanded(x => !x)}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors"
-            >
-              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {expanded && (
-        <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-3">
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <p className="text-lg font-bold text-gray-900 dark:text-white">{source.recordsReal.toLocaleString()}</p>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">Real listings</p>
-            </div>
-            <div>
-              <p className="text-lg font-bold text-amber-600">{source.recordsSynthetic.toLocaleString()}</p>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">Synthetic (excluded)</p>
-            </div>
-            <div>
-              <p className={`text-lg font-bold ${scoreColor(source.verificationScore)}`}>{source.verificationScore}%</p>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">Authenticity score</p>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
+interface Insight { key: string; tone: 'red' | 'blue' | 'amber'; text: string; action?: { label: string; run: () => void } }
 
 export default function LeadSourcesManagerPage() {
-  const [sources, setSources] = useState<LeadSource[]>(INITIAL_SOURCES);
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'paused' | 'error'>('all');
-  const [showLogs, setShowLogs] = useState(false);
-  const [syncing, setSyncing] = useState<string | null>(null);
-  const [bulkSyncing, setBulkSyncing] = useState(false);
+  const [data, setData] = useState<LeadSourceOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState<StatusFilter>('all');
+  const [stateFilter, setStateFilter] = useState('');
+  const [sort, setSort] = useState<SortKey>('leads');
+  const [view, setView] = useState<'cards' | 'table'>('cards');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [addFor, setAddFor] = useState<string | null>(null);
+  const [showCharts, setShowCharts] = useState(true);
+  const [, tick] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const selectedSources = sources.filter(s => s.isSelected);
-  const allSelected = sources.length > 0 && sources.every(s => s.isSelected);
-
-  const filtered = sources.filter(s => {
-    const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.markets.some(m => m.toLowerCase().includes(search.toLowerCase()));
-    const matchStatus = filterStatus === 'all' || s.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
-
-  const totalReal = sources.reduce((a, s) => a + s.recordsReal, 0);
-  const totalSynthetic = sources.reduce((a, s) => a + s.recordsSynthetic, 0);
-  const activeSources = sources.filter(s => s.status === 'active').length;
-
-  const handleToggleSelect = useCallback((id: string) => {
-    setSources(prev => prev.map(s => s.id === id ? { ...s, isSelected: !s.isSelected } : s));
+  const load = useCallback(async (fresh = false, quiet = false) => {
+    if (!quiet) { fresh ? setRefreshing(true) : setLoading(true); }
+    try {
+      const res = await authFetch(`/api/lead-sources/overview${fresh ? '?fresh=1' : ''}`);
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Could not load lead sources.');
+      setData(j as LeadSourceOverview);
+      setError(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not load lead sources.';
+      if (quiet) toast.error(msg); else setError(msg);
+    } finally { setLoading(false); setRefreshing(false); }
   }, []);
 
-  const handleSelectAll = useCallback(() => {
-    setSources(prev => prev.map(s => ({ ...s, isSelected: !allSelected })));
-  }, [allSelected]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { const t = setInterval(() => tick(n => n + 1), 30_000); return () => clearInterval(t); }, []);
 
-  const handleToggleStatus = useCallback((id: string) => {
-    setSources(prev => prev.map(s => {
-      if (s.id !== id) return s;
-      const next = s.status === 'active' ? 'paused' : 'active';
-      toast.success(`${s.name} ${next === 'active' ? 'activated' : 'paused'}`);
-      return { ...s, status: next };
-    }));
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = /input|textarea|select/i.test((e.target as HTMLElement)?.tagName ?? '');
+      if (e.key === '/' && !typing) { e.preventDefault(); searchRef.current?.focus(); }
+      if (e.key === 'Escape') { if (addFor !== null) setAddFor(null); else if (openKey) setOpenKey(null); else if (selected.size) setSelected(new Set()); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [addFor, openKey, selected.size]);
+
+  const canManage = data?.canManage ?? false;
+
+  const visible = useMemo(() => {
+    if (!data) return [];
+    const t = query.trim().toLowerCase();
+    return data.sources
+      .filter(s => (status === 'all' || s.status === status)
+        && (!stateFilter || s.states.includes(stateFilter))
+        && (!t || s.name.toLowerCase().includes(t) || s.states.some(x => x.toLowerCase() === t) || s.configs.some(c => `${c.market} ${c.city ?? ''}`.toLowerCase().includes(t))))
+      .sort(sorter(sort));
+  }, [data, query, status, stateFilter, sort]);
+
+  const openSource = useMemo(() => data?.sources.find(s => s.key === openKey) ?? null, [data, openKey]);
+
+  const postConfigs = useCallback(async (body: Record<string, unknown>) => {
+    const res = await authFetch('/api/lead-sources/configs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await res.json().catch(() => ({}));
+    return { ok: res.ok, error: (j.error as string | undefined) ?? 'Something went wrong. Nothing was changed.' };
   }, []);
 
-  const handleSync = useCallback((id: string) => {
-    const source = sources.find(s => s.id === id);
-    if (!source) return;
-    setSyncing(id);
-    toast.loading(`Syncing ${source.name}…`, { id: `sync-${id}` });
-    setTimeout(() => {
-      setSyncing(null);
-      toast.success(`${source.name} synced — ${source.recordsReal} real listings imported`, { id: `sync-${id}` });
-      setSources(prev => prev.map(s => s.id === id ? { ...s, lastSync: new Date().toISOString() } : s));
-    }, 2200);
-  }, [sources]);
+  const toggleConfigs = useCallback(async (ids: string[], active: boolean, label?: string) => {
+    if (!data || !ids.length) return;
+    const prev = data;
+    setData(patchConfigs(data, new Set(ids), c => ({ ...c, active, health: !active ? 'paused' : c.error ? 'attention' : c.lastSuccess ? 'healthy' : 'pending' })));
+    const r = await postConfigs({ action: 'toggle', ids, active });
+    if (!r.ok) { setData(prev); toast.error(r.error); return; }
+    toast.success(`${active ? 'Resumed' : 'Paused'} ${ids.length === 1 ? (label ?? '1 market') : `${ids.length} markets`}`, { action: { label: 'Undo', onClick: () => toggleConfigs(ids, !active, label) } });
+    load(true, true);
+  }, [data, postConfigs, load]);
 
-  const handleBulkSync = useCallback(() => {
-    const targets = selectedSources.length > 0 ? selectedSources : sources.filter(s => s.status === 'active');
-    if (targets.length === 0) {
-      toast.error('No active sources to sync');
-      return;
+  const toggleSource = useCallback((key: string, active: boolean) => {
+    const s = data?.sources.find(x => x.key === key);
+    if (s) toggleConfigs(s.configs.map(c => c.id), active, `${s.name}`);
+  }, [data, toggleConfigs]);
+
+  const updateConfig = useCallback(async (id: string, patch: ConfigPatch): Promise<string | null> => {
+    const r = await postConfigs({ action: 'update', id, ...patch });
+    if (!r.ok) return r.error;
+    toast.success('Market saved');
+    await load(true, true);
+    return null;
+  }, [postConfigs, load]);
+
+  const createMarket = useCallback(async (m: NewMarket): Promise<string | null> => {
+    const r = await postConfigs({ action: 'create', ...m });
+    if (!r.ok) return r.error;
+    toast.success(`${m.market} added to ${m.sourceName}`);
+    setAddFor(null);
+    await load(true, true);
+    setOpenKey(sourceKeyOf(m.sourceName));
+    return null;
+  }, [postConfigs, load]);
+
+  const toggleSelect = (key: string) => setSelected(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const selectAll = (checked: boolean) => setSelected(checked ? new Set(visible.map(s => s.key)) : new Set());
+  const selectedSources = useMemo(() => (data?.sources ?? []).filter(s => selected.has(s.key)), [data, selected]);
+  const selectedConfigIds = selectedSources.flatMap(s => s.configs.map(c => c.id));
+  const bulkAllPaused = selectedConfigIds.length > 0 && selectedSources.every(s => s.configs.every(c => !c.active));
+
+  const exportCsv = (list: SourceItem[]) => {
+    const url = URL.createObjectURL(new Blob([toCsv(list)], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = `lead-sources-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
+
+  const insights = useMemo<Insight[]>(() => {
+    if (!data) return [];
+    const out: Insight[] = [];
+    const bad = data.sources.filter(s => s.status === 'attention');
+    if (bad.length) out.push({ key: 'attention', tone: 'red', text: `${bad.map(s => s.name).join(', ')} ${bad.length > 1 ? 'have' : 'has'} an error to look at.`, action: { label: 'Show', run: () => setStatus('attention') } });
+    const waiting = data.sources.filter(s => s.status === 'pending');
+    if (waiting.length) out.push({ key: 'pending', tone: 'blue', text: `${waiting.map(s => s.name).join(', ')} ${waiting.length > 1 ? 'are' : 'is'} configured but no successful sync has been recorded yet.`, action: { label: 'Show', run: () => setStatus('pending') } });
+    const lowPhone = data.sources.filter(s => s.stats.real >= 200 && s.stats.phone / s.stats.real < 0.1).sort((a, b) => b.stats.total - a.stats.total)[0];
+    if (lowPhone) {
+      const phonePct = Math.round((lowPhone.stats.phone / lowPhone.stats.real) * 100);
+      out.push({ key: 'phone', tone: 'amber', text: `${lowPhone.name} has ${fmtNum(lowPhone.stats.total)} leads but ${phonePct === 0 ? 'none' : `only ${phonePct}%`} have a phone on file, so they can't be texted or called until they are enriched.`, action: { label: 'Open', run: () => setOpenKey(lowPhone.key) } });
     }
-    setBulkSyncing(true);
-    const totalReal = targets.reduce((a, s) => a + s.recordsReal, 0);
-    toast.loading(`Bulk-syncing ${targets.length} source(s)…`, { id: 'bulk-sync' });
-    setTimeout(() => {
-      setBulkSyncing(false);
-      toast.success(`Bulk sync complete — ${totalReal.toLocaleString()} real listings imported, 0 synthetic records contaminated`, { id: 'bulk-sync' });
-      setSources(prev => prev.map(s =>
-        targets.find(t => t.id === s.id) ? { ...s, lastSync: new Date().toISOString(), isSelected: false } : s
-      ));
-    }, 3000);
-  }, [selectedSources, sources]);
+    const loose = data.sources.filter(s => s.status === 'unmanaged' && s.stats.total > 0);
+    if (loose.length) out.push({ key: 'unmanaged', tone: 'amber', text: `${loose.map(s => s.name).join(', ')} send${loose.length === 1 ? 's' : ''} leads (${fmtNum(loose.reduce((n, s) => n + s.stats.total, 0))}) but ${loose.length === 1 ? 'has' : 'have'} no market config here.`, action: { label: 'Show', run: () => setStatus('unmanaged') } });
+    return out.slice(0, 4);
+  }, [data]);
+
+  const filtersOn = status !== 'all' || !!stateFilter || !!query.trim();
+  const resetFilters = () => { setStatus('all'); setStateFilter(''); setQuery(''); };
+  const toneClass = { red: 'bg-red-500/10 border-red-500/20 text-red-800 dark:text-red-300', blue: 'bg-blue-500/10 border-blue-500/20 text-blue-800 dark:text-blue-300', amber: 'bg-amber-500/10 border-amber-500/25 text-amber-900 dark:text-amber-300' };
 
   return (
     <AppLayout>
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 rounded-xl bg-gray-900 dark:bg-white flex items-center justify-center">
-              <Radio className="w-5 h-5 text-white dark:text-gray-900" />
-            </div>
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 space-y-5">
+        <header className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-start gap-3">
+            <span className="w-11 h-11 rounded-2xl bg-primary/10 text-primary inline-flex items-center justify-center"><Radio size={22} /></span>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Lead Sources Manager</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Verify authenticity and bulk-sync only real listings</p>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">Lead Sources Manager</h1>
+              <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Every place your leads come from, with the markets it runs in, how healthy each sync is, and how much usable contact data it actually delivers.</p>
+              {data && <p className="text-[11px] text-muted-foreground mt-1.5">Updated {relTime(data.generatedAt, 'just now')} · press <kbd className="px-1 rounded border border-border bg-muted text-[10px]">/</kbd> to search</p>}
             </div>
           </div>
-        </div>
-
-        {/* KPI strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          {[
-            { label: 'Active Sources', value: activeSources, icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />, color: 'text-emerald-600' },
-            { label: 'Real Listings', value: totalReal.toLocaleString(), icon: <Shield className="w-4 h-4 text-blue-500" />, color: 'text-blue-600' },
-            { label: 'Synthetic Excluded', value: totalSynthetic.toLocaleString(), icon: <AlertTriangle className="w-4 h-4 text-amber-500" />, color: 'text-amber-600' },
-            { label: 'Contamination Risk', value: '0%', icon: <Zap className="w-4 h-4 text-gray-500" />, color: 'text-gray-700 dark:text-gray-300' },
-          ].map(kpi => (
-            <div key={kpi.label} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex items-center gap-2 mb-1">
-                {kpi.icon}
-                <span className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</span>
-              </div>
-              <p className={`text-xl font-bold ${kpi.color}`}>{kpi.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search sources or markets…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white"
-            />
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => data && exportCsv(visible)} disabled={!data} className="h-9 px-3 rounded-xl border border-border bg-card text-sm font-medium hover:bg-muted inline-flex items-center gap-1.5 disabled:opacity-50"><Download size={14} /> Export</button>
+            <button type="button" onClick={() => load(true)} disabled={refreshing || loading} className="h-9 px-3 rounded-xl border border-border bg-card text-sm font-medium hover:bg-muted inline-flex items-center gap-1.5 disabled:opacity-60"><RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} /> Refresh</button>
+            {canManage && <button type="button" onClick={() => setAddFor('')} className="h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 inline-flex items-center gap-1.5"><Plus size={15} /> Add market</button>}
           </div>
+        </header>
 
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value as typeof filterStatus)}
-            className="text-sm px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none"
-          >
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="error">Error</option>
-          </select>
-
-          <button
-            onClick={handleSelectAll}
-            className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-gray-400 transition-colors"
-          >
-            {allSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
-            {allSelected ? 'Deselect all' : 'Select all'}
-          </button>
-
-          <button
-            onClick={handleBulkSync}
-            disabled={bulkSyncing}
-            className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {bulkSyncing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-            {selectedSources.length > 0 ? `Sync ${selectedSources.length} selected` : 'Bulk Sync All Active'}
-          </button>
-        </div>
-
-        {/* Authenticity notice */}
-        <div className="flex items-start gap-2.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-3 mb-5">
-          <Shield className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Authenticity Guard Active</p>
-            <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
-              Only listings with valid address fingerprints, real listing URLs, and non-synthetic source flags are imported.
-              Synthetic, demo, and test records are automatically excluded before any sync.
-            </p>
+        {loading && (
+          <div className="space-y-5" aria-busy="true" aria-label="Loading lead sources">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-[104px] rounded-2xl bg-muted animate-pulse" />)}</div>
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-64 rounded-2xl bg-muted animate-pulse" />)}</div>
           </div>
-        </div>
+        )}
 
-        {/* Source cards */}
-        <div className="space-y-3 mb-6">
-          {filtered.length === 0 ? (
-            <div className="text-center py-12 text-gray-400 dark:text-gray-600">
-              <Radio className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">No sources match your filters</p>
-            </div>
-          ) : (
-            filtered.map(source => (
-              <SourceCard
-                key={source.id}
-                source={source}
-                onToggleSelect={handleToggleSelect}
-                onToggleStatus={handleToggleStatus}
-                onSync={handleSync}
-              />
-            ))
-          )}
-        </div>
+        {!loading && error && !data && (
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center">
+            <AlertTriangle className="mx-auto text-red-500 mb-2" size={26} />
+            <p className="font-semibold text-foreground">{error}</p>
+            <button type="button" onClick={() => load()} className="mt-4 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">Try again</button>
+          </div>
+        )}
 
-        {/* Add source CTA */}
-        <button className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 text-sm text-gray-400 dark:text-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition-colors flex items-center justify-center gap-2 mb-8">
-          <Plus className="w-4 h-4" />
-          Add new lead source
-        </button>
+        {data && (
+          <>
+            {!canManage && (
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground"><Info size={14} /> You can view sources and their health. Only admins can pause, resume or edit markets.</div>
+            )}
 
-        {/* Sync Logs */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => setShowLogs(x => !x)}
-            className="w-full flex items-center justify-between px-5 py-4"
-          >
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-semibold text-gray-900 dark:text-white">Recent Sync Logs</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                {SYNC_LOGS.length}
-              </span>
-            </div>
-            {showLogs ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-          </button>
+            <KpiStrip totals={data.totals} status={status} onStatus={setStatus} />
 
-          {showLogs && (
-            <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
-              {SYNC_LOGS.map(log => (
-                <div key={log.id} className="px-5 py-3 flex items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{log.sourceName}</span>
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${logStatusBadge(log.status)}`}>
-                        {log.status.charAt(0).toUpperCase() + log.status.slice(1)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{log.notes}</p>
+            {insights.length > 0 && (
+              <section aria-label="What needs attention" className="space-y-2">
+                {insights.map(i => (
+                  <div key={i.key} className={`flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-sm ${toneClass[i.tone]}`}>
+                    <Lightbulb size={15} className="shrink-0" />
+                    <p className="flex-1 min-w-0">{i.text}</p>
+                    {i.action && <button type="button" onClick={i.action.run} className="shrink-0 text-xs font-semibold underline underline-offset-2 hover:no-underline">{i.action.label}</button>}
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                      {log.recordsVerified} / {log.recordsFetched} verified
-                    </p>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">
-                      {formatRelative(log.timestamp)}
-                    </p>
+                ))}
+              </section>
+            )}
+
+            <section className="rounded-2xl border border-border bg-card">
+              <button type="button" onClick={() => setShowCharts(v => !v)} aria-expanded={showCharts} className="w-full flex items-center justify-between px-4 py-3 text-left">
+                <span className="text-sm font-semibold text-foreground">Insights</span>
+                <ChevronDown size={16} className={`text-muted-foreground transition-transform ${showCharts ? 'rotate-180' : ''}`} />
+              </button>
+              {showCharts && (
+                <div className="grid lg:grid-cols-2 gap-6 px-4 pb-4">
+                  <div><p className="text-xs font-medium text-muted-foreground mb-2">Leads by source, and how many can be contacted by phone</p><LeadsBySourceChart sources={data.sources} onOpen={setOpenKey} /></div>
+                  <div><p className="text-xs font-medium text-muted-foreground mb-2">New leads per week, top sources</p><GrowthChart sources={data.sources} /></div>
+                </div>
+              )}
+            </section>
+
+            <section aria-label="Sources" className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative flex-1 min-w-[200px] max-w-md">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search sources, markets or states" className="w-full h-10 pl-9 pr-8 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+                  {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md hover:bg-muted inline-flex items-center justify-center text-muted-foreground"><X size={13} /></button>}
+                </div>
+                <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} aria-label="Filter by state" className="h-10 px-3 rounded-xl border border-border bg-card text-sm">
+                  <option value="">All states</option>{data.states.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select value={sort} onChange={e => setSort(e.target.value as SortKey)} aria-label="Sort sources" className="h-10 px-3 rounded-xl border border-border bg-card text-sm">
+                  {SORTS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+                <div className="inline-flex rounded-xl border border-border bg-card p-0.5 ml-auto" role="group" aria-label="View">
+                  <button type="button" onClick={() => setView('cards')} aria-pressed={view === 'cards'} aria-label="Card view" className={`w-9 h-9 rounded-lg inline-flex items-center justify-center ${view === 'cards' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}><LayoutGrid size={16} /></button>
+                  <button type="button" onClick={() => setView('table')} aria-pressed={view === 'table'} aria-label="Table view" className={`w-9 h-9 rounded-lg inline-flex items-center justify-center ${view === 'table' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}><List size={16} /></button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {STATUS_CHIPS.map(c => {
+                  const n = c.id === 'all' ? data.sources.length : data.sources.filter(s => s.status === c.id).length;
+                  if (c.id !== 'all' && n === 0 && status !== c.id) return null;
+                  return (
+                    <button key={c.id} type="button" onClick={() => setStatus(c.id)} aria-pressed={status === c.id}
+                      className={`h-8 px-3 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 transition-colors ${status === c.id ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border hover:text-foreground'}`}>
+                      {c.id !== 'all' && <span className={`w-1.5 h-1.5 rounded-full ${STATUS_META[c.id as SourceStatus].dot}`} />}{c.label}<span className="opacity-70 tabular-nums">{n}</span>
+                    </button>
+                  );
+                })}
+                {filtersOn && <button type="button" onClick={resetFilters} className="h-8 px-2.5 rounded-full text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">Clear filters</button>}
+                <span className="ml-auto text-xs text-muted-foreground">{visible.length} of {data.sources.length} sources</span>
+              </div>
+
+              {selected.size > 0 && (
+                <div className="sticky top-2 z-20 flex items-center gap-2 flex-wrap rounded-2xl border border-primary/30 bg-card shadow-lg px-3 py-2">
+                  <span className="text-sm font-semibold text-foreground">{selected.size} selected</span>
+                  <span className="text-xs text-muted-foreground">{selectedConfigIds.length} markets</span>
+                  <div className="ml-auto flex items-center gap-1.5">
+                    {canManage && selectedConfigIds.length > 0 && (
+                      <button type="button" onClick={() => toggleConfigs(selectedConfigIds, bulkAllPaused)} className="h-8 px-3 rounded-lg bg-foreground text-background text-xs font-semibold inline-flex items-center gap-1.5">
+                        {bulkAllPaused ? <><Play size={13} /> Resume markets</> : <><Pause size={13} /> Pause markets</>}
+                      </button>
+                    )}
+                    <button type="button" onClick={() => exportCsv(selectedSources)} className="h-8 px-3 rounded-lg border border-border text-xs font-medium hover:bg-muted inline-flex items-center gap-1.5"><Download size={13} /> Export</button>
+                    <button type="button" onClick={() => setSelected(new Set())} className="h-8 px-2.5 rounded-lg text-xs text-muted-foreground hover:bg-muted">Clear</button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              )}
+
+              {visible.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border py-16 text-center">
+                  <Search size={26} className="mx-auto text-muted-foreground/60 mb-2" />
+                  <p className="font-semibold text-foreground">No sources match</p>
+                  <p className="text-sm text-muted-foreground mt-1">Try a different search or clear the filters.</p>
+                  <button type="button" onClick={resetFilters} className="mt-4 h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-muted">Clear filters</button>
+                </div>
+              ) : view === 'cards' ? (
+                <div className="grid md:grid-cols-2 2xl:grid-cols-3 gap-4">
+                  {visible.map(s => <SourceCard key={s.key} source={s} selected={selected.has(s.key)} canManage={canManage} onSelect={toggleSelect} onOpen={setOpenKey} onToggleAll={toggleSource} onAddMarket={setAddFor} />)}
+                </div>
+              ) : (
+                <SourceTable sources={visible} selected={selected} sort={sort} onSort={setSort} onSelect={toggleSelect} onSelectAll={selectAll} onOpen={setOpenKey} />
+              )}
+            </section>
+
+            <p className="text-[11px] text-muted-foreground text-center pt-2">
+              Syncs themselves run from <Link href="/data-sync" className="underline underline-offset-2">Data Sync</Link>. This page shows and controls which markets each source covers.
+            </p>
+          </>
+        )}
       </div>
+
+      {openSource && <SourceDrawer source={openSource} canManage={canManage} onClose={() => setOpenKey(null)} onToggle={(ids, active) => toggleConfigs(ids, active)} onUpdate={updateConfig} onAddMarket={setAddFor} />}
+      <AddMarketModal open={addFor !== null} initialSource={addFor ?? ''} sourceNames={data?.sources.map(s => s.name) ?? []} onClose={() => setAddFor(null)} onCreate={createMarket} />
+      {refreshing && <div className="fixed bottom-4 right-4 z-40 h-9 px-3 rounded-full bg-foreground text-background text-xs font-medium inline-flex items-center gap-2 shadow-lg"><Loader2 size={13} className="animate-spin" /> Refreshing</div>}
     </AppLayout>
   );
 }
