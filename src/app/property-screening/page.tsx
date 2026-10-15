@@ -69,10 +69,17 @@ export default function PropertyScreeningPage() {
   const [editForm, setEditForm] = useState<Partial<PropertyScreening>>({});
   const [showForm, setShowForm] = useState(false);
 
+  const [serverQuery, setServerQuery] = useState('');
+  useEffect(() => { const t = setTimeout(() => setServerQuery(searchQuery), 300); return () => clearTimeout(t); }, [searchQuery]);
+
   const fetchData = useCallback(async () => {
-    setLoading(true);
     const [leadsRes, screeningsRes] = await Promise.all([
-      supabase.from('leads').select('id, address, city, state, property_type, portfolio, price, beds').not('address', 'is', null).order('created_at', { ascending: false }).limit(100),
+      (() => {
+        const term = serverQuery.replace(/[,()%*\\]/g, ' ').replace(/\s+/g, ' ').trim();
+        let q = supabase.from('leads').select('id, address, city, state, property_type, portfolio, price, beds').eq('is_synthetic', false).not('address', 'is', null).order('prospect_score', { ascending: false, nullsFirst: false }).limit(100);
+        if (term.length >= 2) q = q.or(`address.ilike.%${term}%,city.ilike.%${term}%`);
+        return q;
+      })(),
       supabase.from('property_screenings').select('*'),
     ]);
     if (leadsRes.data) setLeads(leadsRes.data);
@@ -82,7 +89,7 @@ export default function PropertyScreeningPage() {
       setScreenings(map);
     }
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, serverQuery]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

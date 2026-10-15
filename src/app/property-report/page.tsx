@@ -195,18 +195,26 @@ export default function PropertyReportPage() {
     if (aiError) toast.error(aiError.message);
   }, [aiError]);
 
+  const [leadSearch, setLeadSearch] = useState('');
   useEffect(() => {
-    const fetchLeads = async () => {
-      const { data } = await supabase
+    let cancelled = false;
+    const term = leadSearch.replace(/[,()%*\\]/g, ' ').replace(/\s+/g, ' ').trim();
+    const t = setTimeout(async () => {
+      let q = supabase
         .from('leads')
-        .select('id, address, city, state, zip_code, property_type, portfolio, contact_name, beds, baths, price')
+        .select('id, address, city, state, zip_code:zip, property_type, portfolio, contact_name, beds, baths, price')
+        .eq('is_synthetic', false)
         .not('address', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (data) setLeads(data);
-    };
-    fetchLeads();
-  }, [supabase]);
+        .order('prospect_score', { ascending: false, nullsFirst: false })
+        .limit(60);
+      if (term.length >= 2) q = q.or(`address.ilike.%${term}%,city.ilike.%${term}%,contact_name.ilike.%${term}%,owner_name.ilike.%${term}%`);
+      const { data } = await q;
+      if (cancelled || !data) return;
+      // Keep the lead being viewed in the list so changing the search never clears the report.
+      setLeads((prev) => { const keep = prev.find((l) => l.id === selectedLeadId); return keep && !data.some((l) => l.id === keep.id) ? [keep, ...data] : data; });
+    }, leadSearch ? 250 : 0);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [supabase, leadSearch, selectedLeadId]);
 
   useEffect(() => {
     if (!selectedLeadId) { setSelectedLead(null); setReport(null); return; }
@@ -429,6 +437,7 @@ Keep each section clearly labeled. Total length: ~250 words.`;
         {/* Lead Selector */}
         <div className="bg-card border border-border rounded-xl p-5">
           <label className="block text-sm font-semibold text-foreground mb-2">Select Property / Lead</label>
+          <input type="text" value={leadSearch} onChange={e => setLeadSearch(e.target.value)} placeholder="Search by address, city or owner name" className="w-full mb-2 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring/30" />
           <select
             value={selectedLeadId}
             onChange={e => setSelectedLeadId(e.target.value)}
