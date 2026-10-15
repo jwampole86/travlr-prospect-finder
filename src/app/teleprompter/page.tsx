@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Mic, MicOff, PhoneOff, Phone, AlertTriangle, CheckCircle, Clock, User, Home, ChevronLeft, ChevronRight, Loader2, Volume2, RefreshCw, FileText, Headphones, Settings, WifiOff, Radio, AlertCircle, ChevronDown, CheckSquare, Square, BookOpen, Zap, AlertOctagon, ThumbsUp, ThumbsDown, BarChart2, Hash, X, List, PhoneCall, PhoneMissed, PhoneIncoming, Delete, Briefcase, Brain, PanelRightOpen, Shield, DollarSign, Maximize2, Minimize2 } from 'lucide-react';
 import Link from 'next/link';
 import { resolveVariables, applyVariables, devicePreferences } from '@/lib/services/variableResolutionService';
+import { fetchAgentName } from '@/lib/agentIdentity';
 import { CALL_SCRIPTS, SCRIPT_OPTIONS, buildScriptText, ScriptId, CallScript, ScriptLine } from '@/lib/callScripts';
 import { SCRIPT_BEATS } from '@/lib/objectionLibrary';
 import { activityService } from '@/lib/services/activityService';
@@ -1259,18 +1260,9 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
   // Auto-fill agent name from the logged-in user's profile
   useEffect(() => {
     if (agentName.trim() || !user) return;
-    const supabase = createClient();
-    supabase
-      .from('user_profiles')
-      .select('full_name, email')
-      .eq('id', user.id)
-      .single()
-      .then(({ data }) => {
-        const metadata = user.user_metadata || {};
-        const emailName = data?.email ? String(data.email).split('@')[0]?.replace(/[._-]+/g, ' ') : '';
-        const name = data?.full_name || metadata.full_name || metadata.name || emailName || '';
-        if (name) setAgentName(name);
-      });
+    let cancelled = false;
+    fetchAgentName(createClient(), user).then(name => { if (!cancelled && name) setAgentName(prev => prev.trim() ? prev : name); });
+    return () => { cancelled = true; };
   }, [user, agentName]);
 
   // Load verified, phone-ready leads for the address dropdown.
@@ -1976,6 +1968,7 @@ function TeleprompterPageInner() {
           baseScript: baseScriptText,
           scriptId,
           leadId: lead.leadId,
+          agentName,
           leadContext: {
             contactName: lead.contactName,
             address: lead.address,

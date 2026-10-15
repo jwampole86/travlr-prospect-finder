@@ -18,6 +18,11 @@ import {
 import { activityService } from '@/lib/services/activityService';
 import CallOutcomeModal from './CallOutcomeModal';
 import ImmersiveCallView from './ImmersiveCallView';
+import { useAuth } from '@/contexts/AuthContext';
+import { createClient as createBrowserClient } from '@/lib/supabase/client';
+import { fetchAgentName } from '@/lib/agentIdentity';
+import { CALL_SCRIPTS, buildScriptText } from '@/lib/callScripts';
+import { resolveVariables, applyVariables } from '@/lib/services/variableResolutionService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,6 +86,16 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
   const [currentLeadInfo, setCurrentLeadInfo] = useState<{
     contactName?: string; address?: string; phone?: string; leadId?: string; sessionId?: string;
   }>({});
+
+  // The calling agent's real name, so the call assistant's script and first line use it.
+  const { user: authUser } = useAuth();
+  const [agentName, setAgentName] = useState('');
+  useEffect(() => {
+    if (!authUser) return;
+    let cancelled = false;
+    fetchAgentName(createBrowserClient(), authUser).then(n => { if (!cancelled) setAgentName(n); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [authUser]);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activeCallRef = useRef<Call | null>(null);
@@ -366,7 +381,11 @@ export default function FloatingDialer({ onClose }: FloatingDialerProps) {
             address: currentLeadInfo.address,
             phone: currentLeadInfo.phone,
             sessionId: currentLeadInfo.sessionId,
-            baseScript: 'Initial outreach call to homeowner.',
+            agentName,
+            baseScript: applyVariables(
+              buildScriptText(CALL_SCRIPTS.initial_outreach),
+              resolveVariables({ contactName: currentLeadInfo.contactName ?? '', address: currentLeadInfo.address ?? '' }, { senderName: agentName }),
+            ),
             scriptId: 'initial_outreach',
           }}
           callDuration={callDuration}

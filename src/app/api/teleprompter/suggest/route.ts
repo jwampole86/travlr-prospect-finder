@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { buildLeadBriefing } from '@/lib/services/teleprompterBriefing';
 import { TRAVLR_KNOWLEDGE } from '@/lib/teleprompterKnowledge';
+import { properName } from '@/lib/agentIdentity';
 
 const TELEPROMPTER_SYSTEM_PROMPT = `You are TRAVLR's real-time AI Teleprompter and Conversation Coach for live homeowner outreach calls. Your sole purpose is to help the agent stay on script while sounding natural, warm, and adaptive — never scripted-sounding or robotic.
 
@@ -56,7 +57,8 @@ USING THE LEAD PROFILE AND TRAVLR KNOWLEDGE
 - Questions about their home, their market, the estimate, what we sent them or earlier conversations: answer from the LEAD PROFILE. Use their real details (address, bedrooms, local rules, the estimate range we texted) so it is clear we did our homework.
 - If the answer is in neither source, do not guess. Give a short, honest bridge such as "That's a great question and I want to give you the right answer, so let me confirm it and follow up today."
 - Quote only the estimate range the profile marks as quotable, and always call it an estimate, never a promise. Never read out anything the profile marks internal only.
-- Never say or imply the homeowner opened, replied to or asked for anything unless the profile says so. Respect any opt-out note.
+- Never say or imply the homeowner opened, replied to or asked for anything unless the profile says so. Respect any opt-out note. Do not say when something was sent or seen unless the profile gives that date; otherwise say "recently" or leave the timing out.
+- AGENT ON THIS CALL is the real person speaking. Use that exact name whenever the agent introduces themselves, is asked who is calling, or signs off. Never invent, shorten into a nickname, or swap in any other name, including names that appear in examples.
 
 DE-ESCALATION
 - If the homeowner sounds frustrated, skeptical, or the call stalls, prioritize a calm, gentle redirect over pushing the script forward.
@@ -107,6 +109,7 @@ function getStaticFallbackLine(
   scriptId: string,
   transcript: Array<{ speaker: string; text: string }>,
   leadContext?: { contactName?: string; address?: string; localBlurb?: string },
+  agentName?: string,
 ): string {
   try {
     const script = CALL_SCRIPTS[scriptId as keyof typeof CALL_SCRIPTS];
@@ -116,7 +119,8 @@ function getStaticFallbackLine(
     const fill = (t: string) => t
       .replace(/\{contactName\}/g, contact)
       .replace(/\{address\}/g, leadContext?.address || 'your property')
-      .replace(/\{localBlurb\}/g, leadContext?.localBlurb || '');
+      .replace(/\{localBlurb\}/g, leadContext?.localBlurb || '')
+      .replace(/\{senderName\}/g, agentName || '');
 
     const agentLines = transcript.filter(e => e.speaker === 'Agent').map(e => e.text.toLowerCase());
     const homeownerSpoke = transcript.some(e => e.speaker === 'Homeowner');
@@ -139,11 +143,31 @@ function getStaticFallbackLine(
   }
 }
 
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+const agentNameCache = new Map<string, { at: number; name: string }>();
+
+/** Who is making the call: the name the screen sent (the agent can edit it before starting), else their profile name. */
+async function loadAgentName(supabase: ServerClient, userId: string, userMeta: Record<string, any> | undefined, claimed: unknown): Promise<string> {
+  const given = typeof claimed === 'string' ? claimed.replace(/[^\p{L}\p{M}'’.\- ]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+  if (given) return properName(given);
+  const hit = agentNameCache.get(userId);
+  if (hit && Date.now() - hit.at < 10 * 60_000) return hit.name;
+  let name = '';
+  try {
+    const { data } = await supabase.from('user_profiles').select('full_name').eq('id', userId).maybeSingle();
+    name = String(data?.full_name ?? '').trim();
+  } catch { /* fall through to sign-in details */ }
+  if (!name) name = String(userMeta?.full_name ?? userMeta?.name ?? '').trim();
+  name = properName(name);
+  if (name) agentNameCache.set(userId, { at: Date.now(), name });
+  return name;
+}
+
 const BRIEFING_TTL_MS = 5 * 60_000;
 const BRIEFING_TIMEOUT_MS = 2500;
 const briefingCache = new Map<string, { at: number; text: string }>();
 
-type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
 /** The lead the call is about: the id the screen sent, or, for a call typed in by hand, the one lead the user can see at that exact address. */
 async function resolveLeadId(supabase: ServerClient, leadId: unknown, address: unknown, state: unknown): Promise<string | null> {
@@ -191,6 +215,7 @@ export async function POST(request: NextRequest) {
       scriptId,
       leadContext,
       leadId,
+      agentName: claimedAgentName,
       warm,
       liveFragment,
       sessionId,
@@ -267,6 +292,7 @@ export async function POST(request: NextRequest) {
 
     const scriptGoal = SCRIPT_GOALS[scriptId] || SCRIPT_GOALS['initial_outreach'];
     const briefing = await loadBriefing(supabase, user.id, leadId, scriptId, leadContext?.address, leadContext?.portfolioState);
+    const agentName = await loadAgentName(supabase, user.id, user.user_metadata, claimedAgentName);
 
     // Build transcript section
     let transcriptSection: string;
@@ -284,6 +310,8 @@ SCRIPT GOAL: ${scriptGoal}
 ${liveFragment ? 'MODE: Live fragment — provide ultra-short next-line suggestion only, with no [Note] line.\n' : ''}
 BASE CALL SCRIPT (variables already resolved):
 ${baseScript}
+
+AGENT ON THIS CALL: ${agentName || 'unknown. Do not invent a name; if an introduction is needed, say "this is your TRAVLR representative".'}
 
 LEAD CONTEXT:
 - Contact Name: ${leadContext?.contactName || 'there'}
@@ -327,7 +355,7 @@ Based on the transcript above and the current script stage, what should the agen
       if (objectionHint) {
         return NextResponse.json({ suggestion: objectionHint.response, sessionId: sessionId || null, source: 'objection_library', degraded: true, degradedReason: reason, ...objectionMeta });
       }
-      const fallback = getStaticFallbackLine(scriptId || 'initial_outreach', Array.isArray(transcript) ? transcript : [], leadContext);
+      const fallback = getStaticFallbackLine(scriptId || 'initial_outreach', Array.isArray(transcript) ? transcript : [], leadContext, agentName);
       return NextResponse.json({
         suggestion: fallback,
         sessionId: sessionId || null,

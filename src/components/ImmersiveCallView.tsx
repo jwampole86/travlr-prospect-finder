@@ -22,6 +22,7 @@ interface LeadInfo {
   phone?: string;
   sessionId?: string;
   baseScript?: string;
+  agentName?: string;
   scriptId?: string;
 }
 
@@ -188,6 +189,7 @@ function useClaudeSuggestion(
           baseScript: leadInfo.baseScript || 'Initial outreach call to homeowner.',
           scriptId: leadInfo.scriptId || 'initial_outreach',
           leadId: leadInfo.leadId,
+          agentName: leadInfo.agentName,
           leadContext: {
             contactName: leadInfo.contactName || 'there',
             address: leadInfo.address || '',
