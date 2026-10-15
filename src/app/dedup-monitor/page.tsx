@@ -93,13 +93,19 @@ export default function DedupMonitorPage() {
         .select('*', { count: 'exact', head: true });
 
       // Unique leads by address fingerprint (count distinct address+city+state)
-      const { data: allLeads } = await supabase
-        .from('leads')
-        .select('address, city, state, source, prospect_score, confidence_band, created_at, updated_at, is_synthetic')
-        .order('created_at', { ascending: false })
-        .limit(5000);
-
-      const leads = allLeads || [];
+      // The database returns at most 1,000 rows per request, so read every page to cover all leads.
+      const leads: Array<Record<string, any>> = [];
+      for (let from = 0; ; from += 1000) {
+        const { data: pageRows, error: pageError } = await supabase
+          .from('leads')
+          .select('address, city, state, source, prospect_score, confidence_band, created_at, updated_at, is_synthetic')
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
+          .range(from, from + 999);
+        if (pageError) throw pageError;
+        leads.push(...(pageRows ?? []));
+        if (!pageRows || pageRows.length < 1000) break;
+      }
 
       // Build unique fingerprint set
       const fpSet = new Set<string>();
