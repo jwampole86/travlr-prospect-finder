@@ -353,7 +353,17 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       .catch(() => { /* the blanks simply stay blank */ });
   }, [lead, session?.access_token]);
 
+  // When the page moves to a different lead (for example from the picker), start over instead of keeping the previous result.
+  const resolvedFor = useRef<string | null | undefined>(undefined);
+
   useEffect(() => {
+    if (resolvedFor.current !== leadId) {
+      resolvedFor.current = leadId;
+      setLead(undefined);
+      setLeadNotFound(false);
+      setLeadLoading(Boolean(leadId));
+    }
+
     if (!leadId) {
       setLeadLoading(false);
       setLeadNotFound(true);
