@@ -1,5 +1,6 @@
 'use client';
 
+import BackButton from '@/components/ui/BackButton';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
@@ -559,6 +560,7 @@ export default function AdminLeadQueuePage() {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
+              <BackButton variant="icon" />
               <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center">
                 <Zap className="w-5 h-5 text-white" />
               </div>

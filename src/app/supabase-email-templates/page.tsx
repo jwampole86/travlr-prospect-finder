@@ -1,5 +1,6 @@
 'use client';
 
+import BackButton from '@/components/ui/BackButton';
 import React, { useState } from 'react';
 
 const LOGO_URL = 'https://app.staytrvlr.com/assets/images/app_logo.png';
@@ -159,6 +160,7 @@ export default function SupabaseEmailTemplatesPage() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto">
+        <BackButton className="!px-0 !pt-0 mb-3" />
 
         {/* Header */}
         <div className="mb-8">

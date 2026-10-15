@@ -1,5 +1,6 @@
 'use client';
 
+import BackButton from '@/components/ui/BackButton';
 import React, { useState, useCallback, useEffect, Suspense } from 'react';
 import {
   FileText, Send, CheckCircle, Loader2, ChevronDown, ChevronUp,
@@ -432,6 +433,7 @@ function OfferLettersInner() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <BackButton />
       {showPreview && generated && (
         <LetterPreviewModal html={generated.html} onClose={() => setShowPreview(false)} />
       )}

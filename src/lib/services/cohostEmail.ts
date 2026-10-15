@@ -20,7 +20,7 @@ export async function cohostAlertTarget(db: Db, propertyId: string) {
 
 const REPLY_TO = process.env.REPLY_ALERT_EMAIL ?? 'info@staytrvlr.com';
 const POSTAL = process.env.COHOST_POSTAL_ADDRESS ?? '17 Coronel Pl, Aliso Viejo, CA 92656-1631';
-const DAILY_CAP = 40;
+export const DAILY_CAP = 40;
 const COOLDOWN_DAYS = 3;
 const NO_EMAIL_STAGES = ['declined', 'not_a_fit'];
 const EARLY_STAGES = ['identified', 'reviewed'];

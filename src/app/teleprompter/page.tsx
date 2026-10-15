@@ -1,5 +1,6 @@
 'use client';
 
+import BackButton from '@/components/ui/BackButton';
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Mic, MicOff, PhoneOff, Phone, AlertTriangle, CheckCircle, Clock, User, Home, ChevronLeft, ChevronRight, Loader2, Volume2, RefreshCw, FileText, Headphones, Settings, WifiOff, Radio, AlertCircle, ChevronDown, CheckSquare, Square, BookOpen, Zap, AlertOctagon, ThumbsUp, ThumbsDown, BarChart2, Hash, X, List, PhoneCall, PhoneMissed, PhoneIncoming, Delete, Briefcase, Brain, PanelRightOpen, Shield, DollarSign, Maximize2, Minimize2 } from 'lucide-react';
@@ -2349,12 +2350,13 @@ function TeleprompterPageInner() {
       </div>
     );
   }
-  if (phase === 'setup') return <div className="min-h-screen bg-background text-foreground"><CallSetupForm onStart={handleSetupComplete} prefill={prefill} /></div>;
-  if (phase === 'headset') return <div className="min-h-screen bg-background text-foreground"><HeadsetSetupPanel onComplete={handleHeadsetComplete} userId={userId} /></div>;
-  if (phase === 'consent' && lead) return <div className="min-h-screen bg-background text-foreground"><ConsentGate onAccept={handleConsentAccepted} lead={lead} /></div>;
+  if (phase === 'setup') return <div className="min-h-screen bg-background text-foreground"><BackButton /><CallSetupForm onStart={handleSetupComplete} prefill={prefill} /></div>;
+  if (phase === 'headset') return <div className="min-h-screen bg-background text-foreground"><BackButton /><HeadsetSetupPanel onComplete={handleHeadsetComplete} userId={userId} /></div>;
+  if (phase === 'consent' && lead) return <div className="min-h-screen bg-background text-foreground"><BackButton /><ConsentGate onAccept={handleConsentAccepted} lead={lead} /></div>;
   if (phase === 'ended') {
     return (
       <div className="min-h-screen bg-background text-foreground">
+      <BackButton />
       <CallEndedSummary
         transcript={transcript}
         duration={elapsed}
@@ -2389,6 +2391,7 @@ function TeleprompterPageInner() {
       {/* Header bar */}
       <div className="flex items-center justify-between px-3 sm:px-6 py-3 bg-card border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <BackButton variant="icon" confirmMessage="Leave the live call screen?" />
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
             <span className="text-sm font-semibold text-foreground">Live</span>

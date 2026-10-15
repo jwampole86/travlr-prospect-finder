@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, ExternalLink, Eye, Mail, MailCheck, MailOpen, MailX, RefreshCw, Reply, Search, X } from 'lucide-react';
+import { AlertCircle, Clock, ExternalLink, Eye, Mail, MailCheck, MailOpen, MailX, RefreshCw, Reply, Search, X } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { authFetch } from '@/lib/authFetch';
 import type { EmailCampaignCounts, EmailMessageRow, EmailOverview } from '@/lib/emailOverviewTypes';
@@ -13,6 +13,10 @@ const STATUS_STYLE: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground', delivered: 'bg-emerald-500/10 text-emerald-600', sent: 'bg-sky-500/10 text-sky-600',
   bounced: 'bg-destructive/10 text-destructive', failed: 'bg-destructive/10 text-destructive',
 };
+function countdown(ms: number) {
+  const t = Math.max(0, Math.floor(ms / 1000)); const d = Math.floor(t / 86400); const h = Math.floor((t % 86400) / 3600); const m = Math.floor((t % 3600) / 60); const sec = t % 60;
+  return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m ${sec}s` : `${m}m ${sec}s`;
+}
 const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : '—');
 const when = (iso: string | null) => iso ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
 
@@ -33,6 +37,8 @@ export default function EmailCampaignsPage() {
   const [view, setView] = useState<View>('all');
   const [q, setQ] = useState('');
   const [preview, setPreview] = useState<EmailMessageRow | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -78,14 +84,41 @@ export default function EmailCampaignsPage() {
         {error && <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm flex items-center gap-2 text-destructive"><AlertCircle size={16} />{error}</div>}
 
         {data && (
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setCampaignId('all')} className={`px-3 py-1.5 rounded-xl text-sm font-medium border ${campaignId === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}>All campaigns</button>
-            {data.campaigns.map((c) => (
-              <button key={c.id} onClick={() => setCampaignId(c.id)} className={`px-3 py-1.5 rounded-xl text-sm font-medium border ${campaignId === c.id ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}>
-                {c.name} <span className="opacity-70">· {c.counts.total}</span>
+          <>
+            <div className="rounded-2xl border border-border bg-card px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+              <div className="flex items-center gap-2 text-sm"><Clock size={14} className="text-primary" /><span className="text-muted-foreground">Sent today</span><span className="font-semibold text-foreground">{data.daily.sentToday} of {data.daily.cap}</span></div>
+              <div className="flex-1 min-w-[140px] h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${Math.min(100, (data.daily.sentToday / data.daily.cap) * 100)}%` }} /></div>
+              <p className="text-sm text-muted-foreground">Daily limit resets in <span className="font-semibold tabular-nums text-foreground">{countdown(Date.parse(data.daily.resetsAt) - now)}</span></p>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <button onClick={() => setCampaignId('all')} className={`rounded-2xl border p-4 text-left transition-colors ${campaignId === 'all' ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/40'}`}>
+                <p className="text-sm font-semibold text-foreground">All campaigns</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{data.totals.total} emails · {data.totals.sent} sent · {data.totals.drafts} drafts</p>
               </button>
-            ))}
-          </div>
+              {data.campaigns.map((c) => {
+                const release = c.nextRelease ? Date.parse(c.nextRelease) - now : null;
+                const capped = data.daily.sentToday >= data.daily.cap;
+                return (
+                  <button key={c.id} onClick={() => setCampaignId(c.id)} className={`rounded-2xl border p-4 text-left transition-colors ${campaignId === c.id ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/40'}`}>
+                    <p className="text-sm font-semibold text-foreground truncate" title={c.name}>{c.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{c.counts.total} emails · {c.counts.sent} sent · {c.counts.drafts} drafts</p>
+                    <div className="h-1.5 rounded-full bg-muted mt-3 overflow-hidden"><div className="h-full bg-primary" style={{ width: `${c.counts.total ? (c.counts.sent / c.counts.total) * 100 : 0}%` }} /></div>
+                    {release !== null && release > 0 ? (
+                      <div className="mt-3 rounded-xl bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/30 px-3 py-2">
+                        <p className="text-[11px] text-sky-700 dark:text-sky-300 inline-flex items-center gap-1"><Clock size={11} />{c.held} resend{c.held === 1 ? '' : 's'} held for the owner's morning. Next goes out in</p>
+                        <p className="text-base font-bold tabular-nums text-sky-900 dark:text-sky-100 leading-tight">{countdown(release)}</p>
+                      </div>
+                    ) : c.counts.drafts > 0 ? (
+                      <div className="mt-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 px-3 py-2">
+                        <p className="text-[11px] text-amber-700 dark:text-amber-300 inline-flex items-center gap-1"><Clock size={11} />{c.counts.drafts} waiting to be sent</p>
+                        <p className="text-sm font-semibold text-foreground leading-tight">{capped ? <>Daily limit reached. Resumes in <span className="tabular-nums">{countdown(Date.parse(data.daily.resetsAt) - now)}</span></> : `Ready now · ${data.daily.cap - data.daily.sentToday} sends left today`}</p>
+                      </div>
+                    ) : <p className="mt-3 text-[11px] text-muted-foreground inline-flex items-center gap-1"><Clock size={11} />Nothing waiting</p>}
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
 
         <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -120,6 +153,7 @@ export default function EmailCampaignsPage() {
                       <span className="hidden sm:flex items-center gap-1.5 text-[11px]">
                         {m.openedAt && <span className="px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600">Opened</span>}
                         {m.repliedAt && <span className="px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600">Replied</span>}
+                        {m.retryAt && Date.parse(m.retryAt) > now && <span className="px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 tabular-nums">Resends in {countdown(Date.parse(m.retryAt) - now)}</span>}
                         {m.optedOut && <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600">Opted out</span>}
                       </span>
                       <span className="text-xs text-muted-foreground w-28 text-right hidden md:block">{m.sentAt ? when(m.sentAt) : 'Not sent'}</span>

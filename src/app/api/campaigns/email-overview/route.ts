@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { DAILY_CAP } from '@/lib/services/cohostEmail';
 import type { EmailCampaignCounts, EmailMessageRow, EmailOverview } from '@/lib/emailOverviewTypes';
 
 type Row = Record<string, any>;
@@ -39,7 +40,14 @@ export async function GET(req: NextRequest) {
       failureReason: m.failure_reason ?? null, replyText: m.reply_text ? String(m.reply_text).slice(0, 600) : null, optedOut: !!m.opted_out_at, retryAt: m.retry_at ?? null,
     });
   }
-  const campaigns = ((campRes.data ?? []) as Row[]).map((c) => ({ id: c.id, name: c.name, createdAt: c.created_at, counts: per.get(c.id) ?? empty() }));
-  const body: EmailOverview = { campaigns, messages, totals };
+  const nowMs = Date.now();
+  const campaigns = ((campRes.data ?? []) as Row[]).map((c) => {
+    const waiting = messages.filter((m) => m.campaignId === c.id && m.retryAt && Date.parse(m.retryAt) > nowMs && (m.status === 'bounced' || m.status === 'failed'));
+    const next = waiting.map((m) => m.retryAt as string).sort()[0] ?? null;
+    return { id: c.id, name: c.name, createdAt: c.created_at, counts: per.get(c.id) ?? empty(), nextRelease: next, held: waiting.length };
+  });
+  const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
+  const { count: sentToday } = await db.from('cohost_email_messages').select('id', { count: 'exact', head: true }).gte('sent_at', dayStart.toISOString());
+  const body: EmailOverview = { campaigns, messages, totals, daily: { sentToday: sentToday ?? 0, cap: DAILY_CAP, resetsAt: new Date(dayStart.getTime() + 86_400_000).toISOString() } };
   return NextResponse.json(body);
 }

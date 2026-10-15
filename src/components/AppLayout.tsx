@@ -100,7 +100,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </button>
           {!isLandingPage && (
             <button
-              onClick={() => router.back()}
+              onClick={() => (window.history.length > 1 ? router.back() : router.push('/'))}
               className="flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors touch-manipulation"
               aria-label="Go back"
               title="Go back"
@@ -121,7 +121,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <div>
             {!isLandingPage && (
               <button
-                onClick={() => router.back()}
+                onClick={() => (window.history.length > 1 ? router.back() : router.push('/'))}
                 className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 aria-label="Go back"
                 title="Go back"

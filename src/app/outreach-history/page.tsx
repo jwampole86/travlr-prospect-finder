@@ -1,9 +1,9 @@
 'use client';
 
+import BackButton from '@/components/ui/BackButton';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Mail, MessageSquare, CheckCircle, XCircle, AlertCircle, Clock, RefreshCw, ChevronDown, ChevronUp, Reply, Calendar, Search, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 
 interface OutreachRecord {
   id: string;
@@ -337,9 +337,7 @@ export default function OutreachHistoryPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/lead-management" className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-            <ArrowLeft size={16} />
-          </Link>
+          <BackButton variant="icon" fallbackHref="/lead-management" />
           <div>
             <h1 className="text-xl font-bold text-foreground">Outreach History</h1>
             <p className="text-sm text-muted-foreground mt-0.5">All sent emails & SMS per lead — delivery status, replies, and follow-up tracking</p>

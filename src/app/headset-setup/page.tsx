@@ -1,5 +1,6 @@
 'use client';
 
+import BackButton from '@/components/ui/BackButton';
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Headphones, Mic, Volume2, ChevronDown, AlertTriangle, WifiOff, CheckCircle, AlertCircle, Loader2, Phone, Shield, Info, ArrowRight, RefreshCw, Radio } from 'lucide-react';
@@ -237,6 +238,7 @@ function HeadsetSetupInner() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <BackButton />
       <div className="max-w-2xl mx-auto px-4 py-10">
 
         {/* Header */}

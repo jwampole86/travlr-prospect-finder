@@ -1,5 +1,6 @@
 'use client';
 
+import BackButton from '@/components/ui/BackButton';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Upload, Users, ChevronDown, ChevronUp, Search, X, Loader2, CheckCircle, AlertTriangle, FileText, RefreshCw, Play, Briefcase, Brain, MessageSquare, BarChart2, Save, ThumbsUp, AlertCircle, ArrowRight, ArrowLeft, Eye, EyeOff, Check, Target, Award, Zap, Shield, ChevronRight, SkipForward, Lock, PhoneCall } from 'lucide-react';
 import Link from 'next/link';
@@ -1508,6 +1509,7 @@ export default function InterviewModePage() {
       {/* Header */}
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3">
         <div className="max-w-screen-2xl mx-auto flex items-center gap-3">
+          <BackButton variant="icon" />
           <div className="w-8 h-8 rounded-xl bg-gray-900 dark:bg-white flex items-center justify-center">
             <Briefcase className="w-4 h-4 text-white dark:text-gray-900" />
           </div>
