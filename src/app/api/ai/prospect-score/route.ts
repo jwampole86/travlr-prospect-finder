@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { completion } from '@rocketnew/llm-sdk';
+import { requireApiActor } from '@/lib/auth/apiAuthorization';
 import { calculateProspectScore, type ProspectScoringInput } from '@/lib/scoring/prospectScoring';
 
 /**
@@ -9,6 +10,9 @@ import { calculateProspectScore, type ProspectScoringInput } from '@/lib/scoring
  */
 
 export async function POST(req: NextRequest) {
+  const auth = await requireApiActor(req);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
   let body: {
     leadId?: string;
     propertyDetails?: {
