@@ -176,6 +176,7 @@ function useClaudeSuggestion(
           transcript: transcript.slice(-10),
           baseScript: leadInfo.baseScript || 'Initial outreach call to homeowner.',
           scriptId: leadInfo.scriptId || 'initial_outreach',
+          leadId: leadInfo.leadId,
           leadContext: {
             contactName: leadInfo.contactName || 'there',
             address: leadInfo.address || '',

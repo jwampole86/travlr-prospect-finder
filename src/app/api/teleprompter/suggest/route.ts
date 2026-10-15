@@ -3,6 +3,9 @@ import { completion } from '@rocketnew/llm-sdk';
 import { CALL_SCRIPTS } from '@/lib/callScripts';
 import { matchObjection as matchObjPattern } from '@/lib/objectionLibrary';
 import { createClient } from '@/lib/supabase/server';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { buildLeadBriefing } from '@/lib/services/teleprompterBriefing';
+import { TRAVLR_KNOWLEDGE } from '@/lib/teleprompterKnowledge';
 
 const TELEPROMPTER_SYSTEM_PROMPT = `You are TRAVLR's real-time AI Teleprompter and Conversation Coach for live homeowner outreach calls. Your sole purpose is to help the agent stay on script while sounding natural, warm, and adaptive — never scripted-sounding or robotic.
 
@@ -27,7 +30,7 @@ HOW YOU OPERATE
 LIVE FRAGMENT MODE
 When receiving a live transcript fragment (partial sentence or recent utterance), prioritize:
 1. Responding to the most recent homeowner statement
-2. Keeping the suggestion ultra-short (1 sentence max) for real-time display
+2. Keeping the suggestion ultra-short for real-time display: one sentence, or two short ones when the homeowner asked a direct question that needs a real answer
 3. Matching the conversational momentum — don't restart the script mid-flow
 
 OUTPUT FORMAT (strict)
@@ -40,12 +43,20 @@ Option A: "[line A]"
 Option B: "[line B]"
 
 Optionally add one line of context underneath, only when it helps the agent understand why:
-[Note: brief context]
+[Note: one short line, 15 words max, using only facts from the lead profile or TRAVLR knowledge]
 
 TONE & STYLE
 - Warm, professional, confident — matches TRAVLR's brand voice.
 - Natural spoken English: contractions, short sentences, no corporate jargon.
 - Never robotic, never overly formal.
+
+USING THE LEAD PROFILE AND TRAVLR KNOWLEDGE
+- You are given TRAVLR KNOWLEDGE (approved facts about the company and its services) and, when available, a LEAD PROFILE for the homeowner on this call. Use them to answer the homeowner's questions directly and specifically.
+- Questions about TRAVLR or what we do: answer from TRAVLR KNOWLEDGE in plain spoken words.
+- Questions about their home, their market, the estimate, what we sent them or earlier conversations: answer from the LEAD PROFILE. Use their real details (address, bedrooms, local rules, the estimate range we texted) so it is clear we did our homework.
+- If the answer is in neither source, do not guess. Give a short, honest bridge such as "That's a great question and I want to give you the right answer, so let me confirm it and follow up today."
+- Quote only the estimate range the profile marks as quotable, and always call it an estimate, never a promise. Never read out anything the profile marks internal only.
+- Never say or imply the homeowner opened, replied to or asked for anything unless the profile says so. Respect any opt-out note.
 
 DE-ESCALATION
 - If the homeowner sounds frustrated, skeptical, or the call stalls, prioritize a calm, gentle redirect over pushing the script forward.
@@ -118,6 +129,30 @@ function getStaticFallbackLine(scriptId: string, transcript: Array<{ speaker: st
   }
 }
 
+const BRIEFING_TTL_MS = 60_000;
+const BRIEFING_TIMEOUT_MS = 2500;
+const briefingCache = new Map<string, { at: number; text: string }>();
+
+/** The lead briefing for this call, or '' if the lead is missing, not visible to the signed-in user, or slow to load. Never blocks a suggestion for long. */
+async function loadBriefing(supabase: Awaited<ReturnType<typeof createClient>>, leadId: unknown, scriptId: unknown): Promise<string> {
+  if (typeof leadId !== 'string' || !leadId || scriptId === 'candidate_next_steps') return '';
+  try {
+    const { data: visible } = await supabase.from('leads').select('id').eq('id', leadId).maybeSingle();
+    if (!visible) return '';
+    const hit = briefingCache.get(leadId);
+    if (hit && Date.now() - hit.at < BRIEFING_TTL_MS) return hit.text;
+    const text = await Promise.race([
+      buildLeadBriefing(getSupabaseAdmin(), leadId),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), BRIEFING_TIMEOUT_MS)),
+    ]);
+    if (text === null) return '';
+    briefingCache.set(leadId, { at: Date.now(), text });
+    return text;
+  } catch {
+    return '';
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -128,6 +163,7 @@ export async function POST(request: NextRequest) {
       baseScript,
       scriptId,
       leadContext,
+      leadId,
       liveFragment,
       sessionId,
       confidenceScore,
@@ -206,6 +242,7 @@ export async function POST(request: NextRequest) {
     }
 
     const scriptGoal = SCRIPT_GOALS[scriptId] || SCRIPT_GOALS['initial_outreach'];
+    const briefing = await loadBriefing(supabase, leadId, scriptId);
 
     // Build transcript section
     let transcriptSection: string;
@@ -230,9 +267,9 @@ LEAD CONTEXT:
 - Portfolio/State: ${leadContext?.portfolioState || 'Unknown'}
 - Local Blurb: ${leadContext?.localBlurb || ''}
 
-${transcriptSection}
+${scriptId === 'candidate_next_steps' ? '' : `TRAVLR KNOWLEDGE (approved facts you may use):\n${TRAVLR_KNOWLEDGE}\n\n`}${briefing ? `${briefing}\n\n` : 'LEAD PROFILE: not available for this call. Use only the lead context above. You do not know what we have sent them or whether they opened or replied to anything, so never claim it and never deny it. If they ask, say you will pull up exactly what they received and confirm. Bridge to a follow-up for anything else you do not know.\n\n'}${transcriptSection}
 
-Based on the transcript above and the current script stage, what should the agent say next? Provide the suggested line only — no raw variable tokens, no fabricated numbers.${liveFragment ? ' Keep it to one short sentence.' : ''}`;
+Based on the transcript above and the current script stage, what should the agent say next? Provide the suggested line only — no raw variable tokens, no fabricated numbers.${liveFragment ? ' Keep it to one short sentence, or two if they asked a direct question.' : ''}`;
 
     // ── LLM Call with Timeout + Graceful Degradation ──────────────────────────
     let suggestion = '';
@@ -248,7 +285,7 @@ Based on the transcript above and the current script stage, what should the agen
         stream: false,
         api_key: apiKey,
         temperature: liveFragment ? 0.3 : 0.4,
-        max_tokens: liveFragment ? 150 : 300,
+        max_tokens: liveFragment ? 220 : 320,
       } as any);
 
       const timeoutPromise = new Promise<null>((_, reject) =>

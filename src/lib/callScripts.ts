@@ -31,6 +31,15 @@ export interface ScriptLine {
   hasAgentFill?: boolean;
 }
 
+/** The approved "why TRAVLR" proof points. The scripts and the teleprompter's knowledge base both read this one list so they never drift apart. */
+export const TRAVLR_PROOF_POINTS: readonly string[] = [
+  'For the past 10 years, TRAVLR Vacation Homes has partnered with homeowners of ultra-luxury properties in California, managing multi-million-dollar vacation homes with a very high-touch standard of care.',
+  'Our California desert portfolio proved that the right management partner can help protect the property, elevate its value, and create meaningful passive income without putting the day-to-day burden on the homeowner.',
+  'That same approach is now expanding into select markets like Aspen, Vail, Las Vegas, Miami, and Seattle — places where discerning travelers are looking for exceptional one-of-a-kind homes.',
+  'What makes TRAVLR different is the combination of full-service property management, 5-star guest hospitality, dynamic revenue optimization, smart-home technology, compliance support, strong marketing, and transparent owner reporting.',
+  'We handle the details — platform marketing, concierge-style guest support, cleaning, maintenance, inspections, pricing, permits, taxes, and owner-portal reporting — so the homeowner can enjoy the upside with confidence.',
+];
+
 const buildTravlrDifferenceSection = (prefix: string): ScriptSection => ({
   id: `${prefix}_travlr_difference`,
   title: 'TRAVLR Difference — If They Ask Why Us',
@@ -43,27 +52,27 @@ const buildTravlrDifferenceSection = (prefix: string): ScriptSection => ({
     {
       id: `${prefix}-td-1`,
       type: 'spoken',
-      text: 'For the past 10 years, TRAVLR Vacation Homes has partnered with homeowners of ultra-luxury properties in California, managing multi-million-dollar vacation homes with a very high-touch standard of care.',
+      text: TRAVLR_PROOF_POINTS[0],
     },
     {
       id: `${prefix}-td-2`,
       type: 'spoken',
-      text: 'Our California desert portfolio proved that the right management partner can help protect the property, elevate its value, and create meaningful passive income without putting the day-to-day burden on the homeowner.',
+      text: TRAVLR_PROOF_POINTS[1],
     },
     {
       id: `${prefix}-td-3`,
       type: 'spoken',
-      text: 'That same approach is now expanding into select markets like Aspen, Vail, Las Vegas, Miami, and Seattle — places where discerning travelers are looking for exceptional one-of-a-kind homes.',
+      text: TRAVLR_PROOF_POINTS[2],
     },
     {
       id: `${prefix}-td-4`,
       type: 'spoken',
-      text: 'What makes TRAVLR different is the combination of full-service property management, 5-star guest hospitality, dynamic revenue optimization, smart-home technology, compliance support, strong marketing, and transparent owner reporting.',
+      text: TRAVLR_PROOF_POINTS[3],
     },
     {
       id: `${prefix}-td-5`,
       type: 'spoken',
-      text: 'We handle the details — platform marketing, concierge-style guest support, cleaning, maintenance, inspections, pricing, permits, taxes, and owner-portal reporting — so the homeowner can enjoy the upside with confidence.',
+      text: TRAVLR_PROOF_POINTS[4],
     },
   ],
 });

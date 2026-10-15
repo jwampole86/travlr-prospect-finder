@@ -1964,6 +1964,7 @@ function TeleprompterPageInner() {
           transcript: currentTranscript.slice(-10).map(e => ({ speaker: e.speaker, text: e.text })),
           baseScript: baseScriptText,
           scriptId,
+          leadId: lead.leadId,
           leadContext: {
             contactName: lead.contactName,
             address: lead.address,
