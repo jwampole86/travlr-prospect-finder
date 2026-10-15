@@ -33,7 +33,7 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
     category: 'Self-Management',
     label: 'Already self-managing on Airbnb',
     patterns: [
-      /already.*(airbnb|vrbo|manage|listing)/i,
+      /already.*(airbnb|vrbo|listing|manage (it|the (home|house|property|place)))/i,
       /self.?manag/i,
       /do it (myself|yourself|on my own)/i,
       /manage it (myself|on my own)/i,
@@ -94,7 +94,8 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
     category: 'Existing Manager',
     label: 'Already has a property manager',
     patterns: [
-      /already have (a|an) (manager|management|company)/i,
+      /already (have|got) (a|an|someone)\b.{0,25}(manager|management|company|service)/i,
+      /(have|got) (a|an|someone).{0,20}(managing|manages) (it|the)/i,
       /working with (someone|a company|another)/i,
       /current (manager|management)/i,
       /under contract/i,
@@ -137,7 +138,7 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
     patterns: [
       /occupancy/i,
       /enough bookings/i,
-      /sit empty/i,
+      /sits? empty/i,
       /slow season/i,
       /what if (it|the property) (doesn'?t|won'?t) (book|rent)/i,
       /guarantee.*(income|revenue|rent)/i,
@@ -239,15 +240,21 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
  */
 export function matchObjection(text: string): ObjectionEntry | null {
   if (!text || text.trim().length < 5) return null;
-  
+
+  // The longest matching phrase wins, so "not interested right now" beats "not interested" and a specific
+  // objection is not hidden behind a broader one that happens to be listed first.
+  let best: ObjectionEntry | null = null;
+  let bestLength = 0;
   for (const entry of OBJECTION_LIBRARY) {
     for (const pattern of entry.patterns) {
-      if (pattern.test(text)) {
-        return entry;
+      const hit = pattern.exec(text);
+      if (hit && hit[0].length > bestLength) {
+        best = entry;
+        bestLength = hit[0].length;
       }
     }
   }
-  return null;
+  return best;
 }
 
 /**

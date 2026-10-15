@@ -80,7 +80,7 @@ const SCRIPT_GOALS: Record<string, string> = {
 const CONFIDENCE_THRESHOLD = 0.6;
 
 // LLM call timeout in ms — fall back to static script if exceeded
-const LLM_TIMEOUT_MS = 6000;
+const LLM_TIMEOUT_MS = Number(process.env.TELEPROMPTER_LLM_TIMEOUT_MS) || 6000;
 
 // Bridging lines for low-confidence / pause situations
 const BRIDGING_LINES = [
@@ -94,38 +94,48 @@ function getRandomBridgingLine(): string {
   return BRIDGING_LINES[Math.floor(Math.random() * BRIDGING_LINES.length)];
 }
 
+/** Sections that only make sense after a specific answer, so they are never picked blindly. */
+const BRANCH_SECTION = /^(if_|close|not_interested|timing_not_right|still_interested)/;
+const NEUTRAL_BRIDGE = 'Suggested next line: "That\'s a fair point. Let me make sure I give you an accurate answer on that."';
+
 /**
- * Get the next static fallback line from the base script.
- * Used when LLM call times out or fails.
+ * Next static fallback line from the base script, used when the AI is slow or fails.
+ * It fills in the homeowner's name and address, never shows a placeholder it cannot fill, does not replay the greeting once the
+ * homeowner has spoken, and skips answer-dependent branches. When nothing fits it returns a neutral bridge.
  */
-function getStaticFallbackLine(scriptId: string, transcript: Array<{ speaker: string; text: string }>): string {
+function getStaticFallbackLine(
+  scriptId: string,
+  transcript: Array<{ speaker: string; text: string }>,
+  leadContext?: { contactName?: string; address?: string; localBlurb?: string },
+): string {
   try {
     const script = CALL_SCRIPTS[scriptId as keyof typeof CALL_SCRIPTS];
-    if (!script) return '';
-    
-    // Find the first spoken line we haven't likely covered yet
+    if (!script) return NEUTRAL_BRIDGE;
+
+    const contact = leadContext?.contactName && leadContext.contactName !== 'there' ? leadContext.contactName : 'there';
+    const fill = (t: string) => t
+      .replace(/\{contactName\}/g, contact)
+      .replace(/\{address\}/g, leadContext?.address || 'your property')
+      .replace(/\{localBlurb\}/g, leadContext?.localBlurb || '');
+
     const agentLines = transcript.filter(e => e.speaker === 'Agent').map(e => e.text.toLowerCase());
-    
+    const homeownerSpoke = transcript.some(e => e.speaker === 'Homeowner');
+
     for (const section of script.sections) {
+      if (BRANCH_SECTION.test(section.id) || (section.id === 'opening' && homeownerSpoke)) continue;
       for (const line of section.lines) {
         if (line.type !== 'spoken') continue;
-        const lineText = line.text.toLowerCase();
-        // Check if this line has been roughly said already
-        const alreadySaid = agentLines.some(al => {
-          const words = lineText.split(' ').filter(w => w.length > 4);
-          const matchCount = words.filter(w => al.includes(w)).length;
-          return matchCount > words.length * 0.4;
-        });
-        if (!alreadySaid) {
-          return `Suggested next line: "${line.text}"`;
-        }
+        const text = fill(line.text).replace(/\s+/g, ' ').trim();
+        if (!text || /\{[a-zA-Z]+\}/.test(text)) continue;
+        // Skip a line the agent has roughly said already.
+        const words = text.toLowerCase().split(' ').filter(w => w.length > 4);
+        const alreadySaid = agentLines.some(al => words.filter(w => al.includes(w)).length > words.length * 0.4);
+        if (!alreadySaid) return `Suggested next line: "${text}"`;
       }
     }
-    
-    // All lines covered — return a close
-    return 'Suggested next line: "Thanks so much for your time — I\'ll follow up with everything we discussed."';
+    return NEUTRAL_BRIDGE;
   } catch {
-    return '';
+    return NEUTRAL_BRIDGE;
   }
 }
 
@@ -317,7 +327,7 @@ Based on the transcript above and the current script stage, what should the agen
       if (objectionHint) {
         return NextResponse.json({ suggestion: objectionHint.response, sessionId: sessionId || null, source: 'objection_library', degraded: true, degradedReason: reason, ...objectionMeta });
       }
-      const fallback = getStaticFallbackLine(scriptId || 'initial_outreach', Array.isArray(transcript) ? transcript : []);
+      const fallback = getStaticFallbackLine(scriptId || 'initial_outreach', Array.isArray(transcript) ? transcript : [], leadContext);
       return NextResponse.json({
         suggestion: fallback,
         sessionId: sessionId || null,
