@@ -311,6 +311,59 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
+// ─── Item descriptions (shown as a subtitle and tooltip) ─────────────────────
+
+const NAV_DESCRIPTIONS: Record<string, string> = {
+  'nav-leads': 'Search, filter and work every lead',
+  'nav-lead-record': 'Full record, notes and activity',
+  'nav-lead-profile': 'Owner, property and contact details',
+  'nav-lead-sources': 'Where leads come from and how they convert',
+  'nav-lead-sources-manager': 'Add, pause and tune lead sources',
+  'nav-ml-prospect-scoring': 'Model-driven prospect scores',
+  'nav-screening': 'Qualify properties before outreach',
+  'nav-property-report': 'Revenue estimate and market report',
+  'nav-questionnaires': 'Owner intake and qualification forms',
+  'nav-dedup': 'Find and merge duplicate leads',
+  'nav-duplicate-audit': 'Review past merges and matches',
+  'nav-dedup-monitor': 'Live duplicate detection health',
+  'nav-renewal-alerts': 'Upcoming agreement renewals',
+  'nav-signing': 'Send and track agreements',
+  'nav-managed-properties': 'Homes under management',
+  'nav-turnovers': 'Cleaning jobs and guest turnovers',
+  'nav-data-sync': 'Run and monitor data imports',
+  'nav-sync-health': 'Sync status and failures',
+  'nav-data-freshness': 'How current each data source is',
+  'nav-contact-enrichment': 'Find phones and emails for owners',
+  'nav-csv-preflight': 'Validate a CSV before import',
+  'nav-email-templates': 'Branded outreach emails',
+  'nav-supabase-email-templates': 'Sign-in and invite emails',
+  'nav-templates': 'Reusable SMS and email messages',
+  'nav-template-editor': 'Create and edit templates',
+  'nav-template-ratings': 'Which templates agents rate best',
+  'nav-template-ai-suggestions': 'AI rewrites to lift replies',
+  'nav-cadence': 'Build multi-step outreach cadences',
+  'nav-cadence-performance': 'Reply and conversion by cadence',
+  'nav-cadence-ai-insights': 'AI tips to improve cadences',
+  'nav-escalated-leads': 'Leads needing a human follow-up',
+  'nav-followup-sequences': 'Automated follow-up steps',
+  'nav-sms-delivery': 'Delivery status for every text',
+  'nav-campaigns': 'Plan and launch campaigns',
+  'nav-cohost': 'Co-host prospects and offers',
+  'nav-sms-campaign-analytics': 'Texting results by campaign',
+  'nav-sms-inbound-threads': 'Replies from homeowners',
+  'nav-bulk-outreach': 'Send to many leads at once',
+  'nav-bulk-email-outreach': 'Bulk email with tracking',
+  'nav-email-campaigns': 'Email campaign builder',
+  'nav-sms-cadence-templates': 'Text templates for cadences',
+  'nav-delivery-kpis': 'Delivery, bounce and opt-out rates',
+  'nav-outreach-history': 'Every message sent to a lead',
+  'nav-outreach-tracking': 'Opens, clicks and replies',
+  'nav-retry-queue': 'Failed sends waiting to retry',
+  'nav-alert-hub': 'System and outreach alerts',
+  'nav-alerts-inbox': 'Your unread alerts',
+  'nav-info-request-dashboard': 'Homeowner info-request links',
+};
+
 // ─── NavGroup Component ───────────────────────────────────────────────────────
 
 function NavGroupSection({
@@ -341,17 +394,19 @@ function NavGroupSection({
           const ItemIcon = item.icon;
           const isActive = pathname === item.href;
           const showChatDot = item.key === 'nav-team-chat' && chatUnread > 0;
+          const desc = NAV_DESCRIPTIONS[item.key];
           return (
             <Link
               key={item.key}
               href={item.href}
-              title={item.label}
+              title={desc ? `${item.label} — ${desc}` : item.label}
               onClick={onNavClick}
-              className={`relative flex items-center justify-center p-2 rounded-md transition-all duration-150 min-h-[36px] ${
+              className={`relative flex items-center justify-center p-2 rounded-lg transition-all duration-150 min-h-[36px] ${
                 isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
               <ItemIcon size={15} className="shrink-0" />
+              {item.badge && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
               {showChatDot && (
                 <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-danger" />
               )}
@@ -362,43 +417,67 @@ function NavGroupSection({
     );
   }
 
+  const newCount = group.items.filter((item) => item.badge).length;
+
   return (
-    <div className="mb-1">
+    <div className="mb-1.5">
       <button
         onClick={toggle}
-        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-semibold transition-all duration-150 group ${
-          hasActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-        }`}
+        className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg transition-all duration-150 group ${
+          open ? 'bg-muted/60' : 'hover:bg-muted/50'
+        } ${hasActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
         aria-expanded={open}
       >
-        <GroupIcon size={13} className="shrink-0" />
-        <span className="flex-1 text-left uppercase tracking-wider text-[10px]">{group.label}</span>
+        <span className={`flex items-center justify-center w-6 h-6 rounded-md shrink-0 transition-colors ${hasActive ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground group-hover:text-foreground'}`}>
+          <GroupIcon size={13} />
+        </span>
+        <span className="flex-1 text-left uppercase tracking-[0.08em] text-[10.5px] font-semibold">{group.label}</span>
+        {newCount > 0 && !open && (
+          <span className="flex items-center gap-1 text-[9px] font-semibold text-emerald-700 bg-emerald-500/10 px-1.5 py-0.5 rounded-full" title={`${newCount} new`}>
+            <span className="w-1 h-1 rounded-full bg-emerald-500" />{newCount}
+          </span>
+        )}
+        <span className="text-[10px] tabular-nums font-medium text-muted-foreground/80 bg-muted px-1.5 py-0.5 rounded-full">{group.items.length}</span>
         <ChevronDown
-          size={11}
+          size={12}
           className={`shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
       {open && (
-        <div className="mt-0.5 ml-2 pl-2 border-l border-border/60 space-y-0.5">
+        <div className="mt-1 ml-[19px] pl-2.5 border-l border-border/60 space-y-0.5">
           {group.items.map((item) => {
             const ItemIcon = item.icon;
             const isActive = pathname === item.href;
+            const desc = NAV_DESCRIPTIONS[item.key];
             const chatBadge = item.key === 'nav-team-chat' && chatUnread > 0 ? (chatUnread > 99 ? '99+' : String(chatUnread)) : item.badge;
+            const isChat = item.key === 'nav-team-chat' && chatUnread > 0;
             return (
               <Link
                 key={item.key}
                 href={item.href}
                 onClick={onNavClick}
-                className={`flex items-center gap-2.5 px-2 rounded-md text-xs font-medium transition-all duration-150 touch-manipulation ${
+                title={desc ? `${item.label} — ${desc}` : item.label}
+                aria-current={isActive ? 'page' : undefined}
+                className={`relative group/item flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-all duration-150 touch-manipulation ${
                   isActive
-                    ? 'bg-primary/10 text-primary' :'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    ? 'bg-gradient-to-r from-primary/15 to-primary/5 text-primary shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
                 }`}
                 style={{ minHeight: '40px' }}
               >
-                <ItemIcon size={13} className="shrink-0" />
-                <span className="truncate">{item.label}</span>
+                {isActive && <span className="absolute -left-[11px] top-2 bottom-2 w-[3px] rounded-full bg-primary" />}
+                <span className={`flex items-center justify-center w-7 h-7 rounded-md shrink-0 transition-colors ${
+                  isActive ? 'bg-primary text-primary-foreground shadow' : 'bg-muted/70 group-hover/item:bg-background'
+                }`}>
+                  <ItemIcon size={14} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[12.5px] font-medium leading-tight">{item.label}</span>
+                  {desc && <span className={`block truncate text-[10px] leading-tight mt-0.5 ${isActive ? 'text-primary/70' : 'text-muted-foreground/70'}`}>{desc}</span>}
+                </span>
                 {chatBadge && (
-                  <span className={`ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${item.key === 'nav-team-chat' && chatUnread > 0 ? 'bg-danger/10 text-danger' : 'bg-primary/10 text-primary'}`}>
+                  <span className={`shrink-0 inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${isChat ? 'bg-danger/10 text-danger' : 'bg-emerald-500/10 text-emerald-700'}`}>
+                    {!isChat && <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />}
                     {chatBadge}
                   </span>
                 )}
