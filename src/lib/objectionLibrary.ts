@@ -39,7 +39,7 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
       /manage it (myself|on my own)/i,
       /listed on airbnb/i,
     ],
-    response: `Suggested next line: "That's great — it means you already know the upside. A lot of our owners came from self-managing and found that handing off the day-to-day — guest communication, pricing adjustments, maintenance calls — freed up their time without giving up revenue. We'd love to show you a comparison of what we'd project for your property versus what you're currently netting."`,
+    response: `Suggested next line: "That's great — it means you already know the upside. What we take off your plate is the day-to-day: guest communication, pricing adjustments, maintenance calls. We'd love to show you a comparison of what we'd project for your property versus what you're currently netting."`,
     note: 'Validate their experience, then position TRAVLR as an upgrade, not a replacement.',
   },
   {
@@ -100,7 +100,7 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
       /current (manager|management)/i,
       /under contract/i,
     ],
-    response: `Suggested next line: "Got it — we actually work with a lot of owners who've switched from other management companies, and the most common reason is wanting more local expertise and better communication. I'm not asking you to make any changes today, but would you be open to a quick comparison so you have a benchmark? No obligation."`,
+    response: `Suggested next line: "Got it, and I'm not asking you to make any changes today. Would you be open to a quick comparison of what we'd project for your property, so you have a benchmark? No obligation."`,
     note: 'Don\'t push to switch immediately — position as a benchmark comparison.',
   },
   {
@@ -114,7 +114,7 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
       /list it for sale/i,
       /sell (it|the property|the house)/i,
     ],
-    response: `Suggested next line: "That makes sense — a lot of owners in that position actually find that having a strong rental history and income documentation makes the property more attractive to buyers and can support a higher asking price. It might be worth exploring both paths in parallel. Would you be open to hearing more about how that's worked for other owners?"`,
+    response: `Suggested next line: "That makes sense. A documented rental history can be useful information whichever way you go, so it may be worth looking at both paths. Would you be open to seeing what we'd project for the property while you decide?"`,
     note: 'Reframe rental management as complementary to a future sale, not in conflict.',
   },
   {
@@ -158,7 +158,7 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
       /still use it/i,
       /family (use|visits|trips)/i,
     ],
-    response: `Suggested next line: "Absolutely — that's built into how we structure the partnership. You keep full access to block personal-use dates, and we work around your schedule. The agreement includes a personal-use notice period so we can manage bookings around your plans. Most of our owners use their property regularly and still see strong rental income."`,
+    response: `Suggested next line: "Absolutely — that's built into how we structure the partnership. Owners can stay in their home with advance notice, and we work around existing reservations. The agreement includes a personal-use notice period so we can manage bookings around your plans."`,
     note: 'Reassure immediately — personal use is a feature, not a conflict.',
   },
   {
