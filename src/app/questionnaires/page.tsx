@@ -29,7 +29,6 @@ interface Lead {
   city: string;
   state: string;
   contact_name: string | null;
-  contact_email: string | null;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
@@ -65,7 +64,7 @@ export default function QuestionnairesPage() {
     setLoading(true);
     const [qRes, lRes] = await Promise.all([
       supabase.from('homeowner_questionnaires').select('*').order('created_at', { ascending: false }),
-      supabase.from('leads').select('id, address, city, state, contact_name, contact_email').not('address', 'is', null).order('created_at', { ascending: false }).limit(200),
+      supabase.from('leads').select('id, address, city, state, contact_name').eq('is_synthetic', false).not('address', 'is', null).order('prospect_score', { ascending: false, nullsFirst: false }).limit(200),
     ]);
     if (qRes.data) setQuestionnaires(qRes.data);
     if (lRes.data) setLeads(lRes.data);
@@ -96,7 +95,7 @@ export default function QuestionnairesPage() {
         prefilled_city: lead.city,
         prefilled_state: lead.state,
         homeowner_name: lead.contact_name,
-        homeowner_email: lead.contact_email,
+        homeowner_email: null,
         confirmed_address: lead.address,
       })
       .select()
