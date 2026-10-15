@@ -1,4 +1,5 @@
 import 'server-only';
+import { isProtectedContact } from '@/lib/protectedContacts';
 import Anthropic from '@anthropic-ai/sdk';
 import { buildHomeownerReport } from '@/lib/homeownerEstimate';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -44,7 +45,7 @@ export interface OutreachLead {
 }
 
 export type Blocker =
-  | 'no_phone' | 'invalid_phone' | 'no_sms_consent' | 'opted_out' | 'do_not_contact' | 'no_address' | 'quiet_hours' | 'contacted_recently' | 'text_in_flight' | 'no_estimate' | 'too_long' | 'co_host_program';
+  | 'no_phone' | 'invalid_phone' | 'no_sms_consent' | 'opted_out' | 'do_not_contact' | 'no_address' | 'quiet_hours' | 'contacted_recently' | 'text_in_flight' | 'no_estimate' | 'too_long' | 'co_host_program' | 'protected_contact';
 
 export interface OutreachDraft {
   leadId: string;
@@ -180,6 +181,7 @@ export async function draftOutreach(db: Db, lead: OutreachLead, opts: { site: st
   const blockers: Blocker[] = [];
   // The text campaigns are only for homeowners we are converting to short-term rentals, never for existing hosts we would co-host.
   if (lead.program === 'co_host') blockers.push('co_host_program');
+  if (isProtectedContact(lead.owner_name, lead.contact_name)) blockers.push('protected_contact');
   const to = toE164(lead.contact_phone);
   if (!lead.contact_phone?.trim()) blockers.push('no_phone'); else if (!to) blockers.push('invalid_phone');
   // Consent: a YES reply sets sms_opt_in. Texting a number that has never opted in is a business/legal decision, so it stays

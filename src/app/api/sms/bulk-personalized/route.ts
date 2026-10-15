@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isProtectedContact } from '@/lib/protectedContacts';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { isSuppressed } from '@/lib/services/smsConsent';
@@ -35,8 +36,8 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
     const firstTouchOn = process.env.SMS_FIRST_TOUCH_ENABLED === 'true';
-    const isBlocked = async (l: { contact_phone: string | null; sms_opt_in: boolean | null; sms_opted_out_at: string | null }) =>
-      !!l.sms_opted_out_at || (l.sms_opt_in !== true && !firstTouchOn) || await isSuppressed(supabase, l.contact_phone);
+    const isBlocked = async (l: { contact_phone: string | null; sms_opt_in: boolean | null; sms_opted_out_at: string | null; owner_name?: string | null; contact_name?: string | null }) =>
+      !!l.sms_opted_out_at || isProtectedContact(l.owner_name, l.contact_name) || (l.sms_opt_in !== true && !firstTouchOn) || await isSuppressed(supabase, l.contact_phone);
 
     // ── Load canonical lead data from DB (send-time revalidation) ────────────
     const { data: leads, error: leadsError } = await supabase

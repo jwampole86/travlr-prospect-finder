@@ -1,4 +1,5 @@
 import 'server-only';
+import { isProtectedContact } from '@/lib/protectedContacts';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { draftOutreach, finalizeMessage, inSendWindow, LEAD_COLUMNS, type OutreachLead } from '@/lib/services/estimateOutreachSms';
 import { lookupPhoneNumber, smsBlockReason } from '@/lib/services/twilioService';
@@ -74,12 +75,14 @@ export async function audienceCandidates(db: Db, audience: string): Promise<Cand
   }
   if (!out.length) return out;
   const recent = await recentlyTexted(db);
-  if (!recent.phones.size && !recent.owners.size) return out;
   const blocked = new Set<string>();
   for (let i = 0; i < out.length; i += 100) {
-    const { data, error } = await db.from('leads').select('id, contact_phone, owner_name').in('id', out.slice(i, i + 100).map(c => c.id));
+    const { data, error } = await db.from('leads').select('id, contact_phone, owner_name, contact_name').in('id', out.slice(i, i + 100).map(c => c.id));
     if (error) throw error;
-    for (const l of data ?? []) { const ph = phoneKey(l.contact_phone); const ok = ownerKey(l.owner_name); if ((ph && recent.phones.has(ph)) || (ok && recent.owners.has(ok))) blocked.add(l.id as string); }
+    for (const l of data ?? []) {
+      const ph = phoneKey(l.contact_phone); const ok = ownerKey(l.owner_name);
+      if ((ph && recent.phones.has(ph)) || (ok && recent.owners.has(ok)) || isProtectedContact(l.owner_name, l.contact_name)) blocked.add(l.id as string);
+    }
   }
   return out.filter(c => !blocked.has(c.id));
 }

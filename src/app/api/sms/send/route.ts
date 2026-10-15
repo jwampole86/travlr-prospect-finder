@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isProtectedContact } from '@/lib/protectedContacts';
 import { createClient } from '@supabase/supabase-js';
 import { dispatchSMS, getTwilioConfigStatus, isTwilioConfigured, lookupPhoneNumber } from '@/lib/services/twilioService';
 import { injectTrackedLinks } from '@/lib/services/linkTrackingService';
@@ -31,11 +32,11 @@ export async function POST(req: NextRequest) {
     // it silently fails and returns null, which previously made this guard a no-op.
     const { data: leadRow } = await supabase
       .from('leads')
-      .select('address, sms_opt_in')
+      .select('address, sms_opt_in, owner_name, contact_name')
       .eq('id', leadId)
       .single();
 
-    if (leadRow?.sms_opt_in === false) {
+    if (leadRow?.sms_opt_in === false || isProtectedContact(leadRow?.owner_name, leadRow?.contact_name)) {
       // Log the blocked attempt for audit purposes
       await supabase.from('outreach_history').insert({
         lead_id: leadId,
