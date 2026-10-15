@@ -11,7 +11,7 @@ interface LeadRow { id: string; address: string | null; city: string | null; sta
 const safe = (q: string) => q.replace(/[,()%*\\]/g, ' ').replace(/\s+/g, ' ').trim();
 
 /** Shown when no lead is chosen (or the chosen one does not exist): search by address or name, or jump back into a recent lead. */
-export default function LeadPicker({ missingId }: { missingId: string | null }) {
+export default function LeadPicker({ missingId, basePath = '/lead-profile' }: { missingId: string | null; basePath?: string }) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [rows, setRows] = useState<LeadRow[]>([]);
@@ -58,7 +58,7 @@ export default function LeadPicker({ missingId }: { missingId: string | null }) 
           <ul className="divide-y divide-border">
             {rows.map(r => (
               <li key={r.id}>
-                <button type="button" onClick={() => router.push(`/lead-profile?id=${encodeURIComponent(r.id)}`)} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-muted/60 transition-colors">
+                <button type="button" onClick={() => router.push(`${basePath}?id=${encodeURIComponent(r.id)}`)} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-muted/60 transition-colors">
                   <span className="w-9 h-9 rounded-xl bg-muted inline-flex items-center justify-center text-muted-foreground shrink-0"><MapPin size={15} /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-foreground truncate">{r.address || 'No address'}</span>
