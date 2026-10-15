@@ -17,6 +17,7 @@ import { showErrorWithRetry } from '@/lib/hooks/useRetryToast';
 import SMSSendModal from './SMSSendModal';
 import BreadcrumbNav from '@/components/ui/BreadcrumbNav';
 import LeadTaskBoard from './LeadTaskBoard';
+import LeadPicker from './LeadPicker';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { activityService } from '@/lib/services/activityService';
@@ -711,7 +712,15 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
     })),
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : [];
 
-  if (!lead) return null;
+  // These come before anything that assumes a lead exists. A bare `return null` here once hid both screens, leaving the page blank.
+  if (leadLoading) return <LeadProfileSkeleton />;
+  if (!lead || leadNotFound) {
+    return (
+      <AppLayout>
+        <LeadPicker missingId={leadId} />
+      </AppLayout>
+    );
+  }
 
   async function handleSaveNote() {
     if (!noteContent.trim() || !lead) return;
@@ -875,38 +884,6 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
     } finally {
       setSavingPipelineStatus(false);
     }
-  }
-
-  // ── Show skeleton while lead is loading ───────────────────────────────────
-  if (leadLoading) {
-    return <LeadProfileSkeleton />;
-  }
-
-  // ── Fast-fail: lead not found ─────────────────────────────────────────────
-  if (!lead || leadNotFound) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-              <AlertCircle size={20} className="text-muted-foreground" />
-            </div>
-            <p className="text-foreground font-semibold">Lead not found</p>
-            <p className="text-xs text-muted-foreground max-w-xs">
-              {leadId
-                ? <>The lead ID <code className="bg-muted px-1 rounded text-xs">{leadId}</code> does not match any record.</>
-                : 'No lead ID was provided in the URL.'}
-            </p>
-            <button
-              onClick={() => router.push('/lead-management')}
-              className="mt-3 px-4 py-2 text-xs bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-            >
-              Back to Lead Management
-            </button>
-          </div>
-        </div>
-      </AppLayout>
-    );
   }
 
   const grossMonthly = lead.estimatedGrossMonthly;
