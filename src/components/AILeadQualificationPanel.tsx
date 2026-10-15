@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { Sparkles, Loader2, RefreshCw, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Zap, Brain, TrendingUp, Shield, Clock, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { authFetch } from '@/lib/authFetch';
 import type { LeadQualificationRequest, LeadQualificationResult } from '@/app/api/ai/lead-qualification/route';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -120,17 +121,10 @@ export default function AILeadQualificationPanel({
   const runQualification = useCallback(async () => {
     setLoading(true);
     try {
-      const payload: LeadQualificationRequest = {
-        leadId: signals.leadId,
-        ownerProfile: signals.ownerProfile,
-        propertyProfile: signals.propertyProfile,
-        responsePatterns: signals.responsePatterns,
-        regulatoryContext: signals.regulatoryContext,
-        currentStage: signals.currentStage,
-        currentScore: signals.currentScore,
-      };
+      // The server reads the lead's facts itself, so only the id is sent.
+      const payload = { leadId: signals.leadId };
 
-      const res = await fetch('/api/ai/lead-qualification', {
+      const res = await authFetch('/api/ai/lead-qualification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
