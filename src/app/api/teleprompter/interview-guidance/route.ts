@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { requireApiActor } from '@/lib/auth/apiAuthorization';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: NextRequest) {
+  const auth = await requireApiActor(req);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const body = await req.json() as {
       transcript: Array<{ speaker: string; text: string }>;

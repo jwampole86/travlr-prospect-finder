@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireApiActor } from '@/lib/auth/apiAuthorization';
 import { completion } from '@rocketnew/llm-sdk';
 
 const INTERVIEW_SYSTEM_PROMPT = `You are TRAVLR's real-time AI Interview Coach, helping Jen Wampole (the interviewer) conduct structured job interviews on Zoom.
@@ -41,6 +42,8 @@ BOUNDARIES:
 const LLM_TIMEOUT_MS = 5000;
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiActor(request);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const {
       transcript,

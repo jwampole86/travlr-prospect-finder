@@ -1940,6 +1940,17 @@ function TeleprompterPageInner() {
     });
   }, []);
 
+  // Load the lead's briefing on the server as soon as the call screen opens, so the first suggestion is not slowed by it.
+  useEffect(() => {
+    if (!lead || scriptId === 'candidate_next_steps') return;
+    fetch('/api/teleprompter/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ warm: true, scriptId, leadId: lead.leadId, leadContext: { address: lead.address, portfolioState: lead.portfolioState } }),
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead?.leadId, lead?.address, scriptId]);
+
   const fetchSuggestion = useCallback(async (currentTranscript: TranscriptEntry[], isBargeIn = false) => {
     if (!lead || !baseScriptText || currentTranscript.length === 0) return;
 

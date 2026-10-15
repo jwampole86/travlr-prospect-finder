@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { completion } from '@rocketnew/llm-sdk';
+import { requireApiActor } from '@/lib/auth/apiAuthorization';
 
 const ENRICHMENT_SYSTEM_PROMPT = `You are TRAVLR's AI Call Preparation Engine. Given a prospect's profile, generate highly personalized call preparation content for a luxury short-term rental outreach agent.
 
@@ -28,6 +29,8 @@ Rules:
 Tone: Warm, professional, premium. Never pushy. Never fabricate specific revenue numbers.`;
 
 export async function POST(req: NextRequest) {
+  const auth = await requireApiActor(req);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const { leadContext } = await req.json();
 

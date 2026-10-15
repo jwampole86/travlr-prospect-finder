@@ -80,7 +80,7 @@ const SCRIPT_GOALS: Record<string, string> = {
 const CONFIDENCE_THRESHOLD = 0.6;
 
 // LLM call timeout in ms — fall back to static script if exceeded
-const LLM_TIMEOUT_MS = 5000;
+const LLM_TIMEOUT_MS = 6000;
 
 // Bridging lines for low-confidence / pause situations
 const BRIDGING_LINES = [
@@ -129,24 +129,41 @@ function getStaticFallbackLine(scriptId: string, transcript: Array<{ speaker: st
   }
 }
 
-const BRIEFING_TTL_MS = 60_000;
+const BRIEFING_TTL_MS = 5 * 60_000;
 const BRIEFING_TIMEOUT_MS = 2500;
 const briefingCache = new Map<string, { at: number; text: string }>();
 
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/** The lead the call is about: the id the screen sent, or, for a call typed in by hand, the one lead the user can see at that exact address. */
+async function resolveLeadId(supabase: ServerClient, leadId: unknown, address: unknown, state: unknown): Promise<string | null> {
+  if (typeof leadId === 'string' && leadId) {
+    const { data } = await supabase.from('leads').select('id').eq('id', leadId).maybeSingle();
+    return data?.id ?? null;
+  }
+  const street = typeof address === 'string' ? address.trim() : '';
+  if (street.length < 6) return null;
+  let q = supabase.from('leads').select('id').ilike('address', street.replace(/[\\%_]/g, c => `\\${c}`)).limit(2);
+  if (typeof state === 'string' && /^[A-Za-z]{2}$/.test(state.trim())) q = q.ilike('state', state.trim());
+  const { data } = await q;
+  return data?.length === 1 ? (data[0].id as string) : null;
+}
+
 /** The lead briefing for this call, or '' if the lead is missing, not visible to the signed-in user, or slow to load. Never blocks a suggestion for long. */
-async function loadBriefing(supabase: Awaited<ReturnType<typeof createClient>>, leadId: unknown, scriptId: unknown): Promise<string> {
-  if (typeof leadId !== 'string' || !leadId || scriptId === 'candidate_next_steps') return '';
+async function loadBriefing(supabase: ServerClient, userId: string, leadId: unknown, scriptId: unknown, address?: unknown, state?: unknown): Promise<string> {
+  if (scriptId === 'candidate_next_steps') return '';
   try {
-    const { data: visible } = await supabase.from('leads').select('id').eq('id', leadId).maybeSingle();
-    if (!visible) return '';
-    const hit = briefingCache.get(leadId);
+    const key = `${userId}:${typeof leadId === 'string' && leadId ? leadId : `addr:${String(address ?? '').trim().toLowerCase()}|${String(state ?? '').toLowerCase()}`}`;
+    const hit = briefingCache.get(key);
     if (hit && Date.now() - hit.at < BRIEFING_TTL_MS) return hit.text;
+    const resolved = await resolveLeadId(supabase, leadId, address, state);
+    if (!resolved) return '';
     const text = await Promise.race([
-      buildLeadBriefing(getSupabaseAdmin(), leadId),
+      buildLeadBriefing(getSupabaseAdmin(), resolved),
       new Promise<null>(resolve => setTimeout(() => resolve(null), BRIEFING_TIMEOUT_MS)),
     ]);
     if (text === null) return '';
-    briefingCache.set(leadId, { at: Date.now(), text });
+    briefingCache.set(key, { at: Date.now(), text });
     return text;
   } catch {
     return '';
@@ -164,11 +181,18 @@ export async function POST(request: NextRequest) {
       scriptId,
       leadContext,
       leadId,
+      warm,
       liveFragment,
       sessionId,
       confidenceScore,
       isBargeIn,
     } = await request.json();
+
+    // The screen asks for this as a call starts so the first real suggestion does not wait on the database.
+    if (warm === true) {
+      await loadBriefing(supabase, user.id, leadId, scriptId, leadContext?.address, leadContext?.portfolioState);
+      return NextResponse.json({ warmed: true });
+    }
 
     if (!baseScript) {
       return NextResponse.json({ error: 'Missing required field: baseScript' }, { status: 400 });
@@ -216,33 +240,23 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Objection Library Matching ────────────────────────────────────────────
-    // Check if the latest homeowner utterance matches a known objection pattern
-    // Prefer pre-built response over LLM generation
+    // A matched objection no longer replaces the AI. Its approved response is handed to the AI to adapt to this homeowner and their
+    // lead profile, and it is used as is only if the AI is slow or fails.
     const latestText = liveFragment || (Array.isArray(transcript) ? transcript[transcript.length - 1]?.text : '');
     const latestSpeaker = Array.isArray(transcript) ? transcript[transcript.length - 1]?.speaker : null;
-    
+
+    let objectionHint: { id: string; category: string; note?: string; response: string } | null = null;
     if (latestSpeaker === 'Homeowner' || liveFragment) {
-      const objectionMatch = matchObjPattern(latestText || '');
-      if (objectionMatch) {
-        // Apply contact name variable if present
-        let response = objectionMatch.response;
-        if (leadContext?.contactName && leadContext.contactName !== 'there') {
-          response = response.replace('{contactName}', leadContext.contactName);
-        }
-        
-        return NextResponse.json({
-          suggestion: response,
-          sessionId: sessionId || null,
-          source: 'objection_library',
-          objectionId: objectionMatch.id,
-          objectionCategory: objectionMatch.category,
-          note: objectionMatch.note,
-        });
+      const match = matchObjPattern(latestText || '');
+      if (match) {
+        const name = leadContext?.contactName && leadContext.contactName !== 'there' ? String(leadContext.contactName) : null;
+        objectionHint = { id: match.id, category: match.category, note: match.note, response: name ? match.response.split('{contactName}').join(name) : match.response };
       }
     }
+    const objectionMeta = objectionHint ? { objectionId: objectionHint.id, objectionCategory: objectionHint.category, note: objectionHint.note } : {};
 
     const scriptGoal = SCRIPT_GOALS[scriptId] || SCRIPT_GOALS['initial_outreach'];
-    const briefing = await loadBriefing(supabase, leadId, scriptId);
+    const briefing = await loadBriefing(supabase, user.id, leadId, scriptId, leadContext?.address, leadContext?.portfolioState);
 
     // Build transcript section
     let transcriptSection: string;
@@ -257,7 +271,7 @@ export async function POST(request: NextRequest) {
 
     const userMessage = `CURRENT SCRIPT: ${scriptId ? scriptId.replace(/_/g, ' ').toUpperCase() : 'INITIAL OUTREACH'}
 SCRIPT GOAL: ${scriptGoal}
-${liveFragment ? 'MODE: Live fragment — provide ultra-short next-line suggestion only.\n' : ''}
+${liveFragment ? 'MODE: Live fragment — provide ultra-short next-line suggestion only, with no [Note] line.\n' : ''}
 BASE CALL SCRIPT (variables already resolved):
 ${baseScript}
 
@@ -267,7 +281,7 @@ LEAD CONTEXT:
 - Portfolio/State: ${leadContext?.portfolioState || 'Unknown'}
 - Local Blurb: ${leadContext?.localBlurb || ''}
 
-${scriptId === 'candidate_next_steps' ? '' : `TRAVLR KNOWLEDGE (approved facts you may use):\n${TRAVLR_KNOWLEDGE}\n\n`}${briefing ? `${briefing}\n\n` : 'LEAD PROFILE: not available for this call. Use only the lead context above. You do not know what we have sent them or whether they opened or replied to anything, so never claim it and never deny it. If they ask, say you will pull up exactly what they received and confirm. Bridge to a follow-up for anything else you do not know.\n\n'}${transcriptSection}
+${scriptId === 'candidate_next_steps' ? '' : `TRAVLR KNOWLEDGE (approved facts you may use):\n${TRAVLR_KNOWLEDGE}\n\n`}${briefing ? `${briefing}\n\n` : 'LEAD PROFILE: not available for this call. Use only the lead context above. You do not know what we have sent them or whether they opened or replied to anything, so never claim it and never deny it. If they ask, say you will pull up exactly what they received and confirm. Bridge to a follow-up for anything else you do not know.\n\n'}${objectionHint ? `APPROVED RESPONSE TO THIS KIND OF OBJECTION (${objectionHint.category}): adapt it to what the homeowner actually said and to their real details in the lead profile, keep the same intent, add no new claims, drop any statement about what most owners experience or any statistic that TRAVLR KNOWLEDGE does not support, and keep it short enough to say aloud.\n${objectionHint.response}\n\n` : ''}${transcriptSection}
 
 Based on the transcript above and the current script stage, what should the agent say next? Provide the suggested line only — no raw variable tokens, no fabricated numbers.${liveFragment ? ' Keep it to one short sentence, or two if they asked a direct question.' : ''}`;
 
@@ -298,33 +312,26 @@ Based on the transcript above and the current script stage, what should the agen
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       
-      if (errMsg === 'LLM_TIMEOUT') {
-        // Graceful degradation: fall back to static script line
-        const fallback = getStaticFallbackLine(scriptId || 'initial_outreach', Array.isArray(transcript) ? transcript : []);
-        return NextResponse.json({
-          suggestion: fallback,
-          sessionId: sessionId || null,
-          source: 'static_fallback',
-          degraded: true,
-          degradedReason: 'llm_timeout',
-        });
+      const reason = errMsg === 'LLM_TIMEOUT' ? 'llm_timeout' : 'llm_error';
+      // Slow or failed: an approved objection response is better than a generic script line.
+      if (objectionHint) {
+        return NextResponse.json({ suggestion: objectionHint.response, sessionId: sessionId || null, source: 'objection_library', degraded: true, degradedReason: reason, ...objectionMeta });
       }
-      
-      // LLM call failed outright — fall back to static script
       const fallback = getStaticFallbackLine(scriptId || 'initial_outreach', Array.isArray(transcript) ? transcript : []);
       return NextResponse.json({
         suggestion: fallback,
         sessionId: sessionId || null,
         source: 'static_fallback',
         degraded: true,
-        degradedReason: 'llm_error',
+        degradedReason: reason,
       });
     }
 
     return NextResponse.json({
       suggestion,
       sessionId: sessionId || null,
-      source,
+      source: objectionHint ? 'llm_objection' : source,
+      ...objectionMeta,
     });
 
   } catch (error) {

@@ -165,6 +165,17 @@ function useClaudeSuggestion(
   const lastFragmentRef = useRef('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Load the lead's briefing on the server when the call view opens, so the first suggestion is not slowed by it.
+  useEffect(() => {
+    if (!active || (!leadInfo.leadId && !leadInfo.address)) return;
+    fetch('/api/teleprompter/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ warm: true, scriptId: leadInfo.scriptId || 'initial_outreach', leadId: leadInfo.leadId, leadContext: { address: leadInfo.address, portfolioState: leadInfo.state } }),
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, leadInfo.leadId, leadInfo.address]);
+
   const fetchSuggestion = useCallback(async (liveFragment?: string) => {
     if (!active || (!transcript.length && !liveFragment)) return;
     setLoading(true);

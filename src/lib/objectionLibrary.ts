@@ -25,7 +25,7 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
       /that'?s? a lot/i,
       /keep more/i,
     ],
-    response: `Suggested next line: "That's a fair question — our fee covers full-service management: guest services, cleaning coordination, maintenance, pricing optimization, and 24/7 support. Most owners find the net revenue after our fee is higher than what they'd net managing it themselves, once you factor in the time and platform costs. Happy to walk through the numbers side by side."`,
+    response: `Suggested next line: "That's a fair question — our fee covers full-service management: guest services, cleaning coordination, maintenance, pricing optimization, and 24/7 support. What matters is what you keep after the fee, once you factor in your time and the platform costs. Happy to walk through that side by side in the written proposal."`,
     note: 'Acknowledge the concern, then pivot to net revenue comparison.',
   },
   {
