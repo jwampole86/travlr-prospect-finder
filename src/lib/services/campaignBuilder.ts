@@ -38,6 +38,31 @@ export interface CampaignParams {
 const hash = (s: string) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
 
+const phoneKey = (v: unknown) => String(v ?? '').replace(/\D/g, '').slice(-10) || null;
+const ownerKey = (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' ').toLowerCase() || null;
+const RECENT_DAYS = 7;
+
+/** Phones and owner names already texted (or scheduled to be texted) in the last 7 days, so the same homeowner is never texted twice in one week, even for a different property. */
+async function recentlyTexted(db: Db) {
+  const since = new Date(Date.now() - RECENT_DAYS * 86_400_000).toISOString();
+  const rows: Row[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db.from('outreach_history').select('lead_id, metadata').eq('channel', 'sms').gte('sent_at', since).range(from, from + 999);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < 1000) break;
+  }
+  const phones = new Set<string>(); const owners = new Set<string>();
+  for (const r of rows) { const ph = phoneKey((r.metadata as Row)?.to); if (ph) phones.add(ph); }
+  const leadIds = [...new Set(rows.map(r => r.lead_id as string).filter(Boolean))];
+  for (let i = 0; i < leadIds.length; i += 100) {
+    const { data, error } = await db.from('leads').select('contact_phone, owner_name').in('id', leadIds.slice(i, i + 100));
+    if (error) throw error;
+    for (const l of data ?? []) { const ph = phoneKey(l.contact_phone); const ok = ownerKey(l.owner_name); if (ph) phones.add(ph); if (ok) owners.add(ok); }
+  }
+  return { phones, owners };
+}
+
 export async function audienceCandidates(db: Db, audience: string): Promise<Candidate[]> {
   const out: Candidate[] = [];
   for (let from = 0; ; from += 1000) {
@@ -47,7 +72,16 @@ export async function audienceCandidates(db: Db, audience: string): Promise<Cand
     out.push(...rows.map(r => ({ id: r.lead_id, score: r.prospect_score ?? 0, state: r.state })));
     if (rows.length < 1000) break;
   }
-  return out;
+  if (!out.length) return out;
+  const recent = await recentlyTexted(db);
+  if (!recent.phones.size && !recent.owners.size) return out;
+  const blocked = new Set<string>();
+  for (let i = 0; i < out.length; i += 100) {
+    const { data, error } = await db.from('leads').select('id, contact_phone, owner_name').in('id', out.slice(i, i + 100).map(c => c.id));
+    if (error) throw error;
+    for (const l of data ?? []) { const ph = phoneKey(l.contact_phone); const ok = ownerKey(l.owner_name); if ((ph && recent.phones.has(ph)) || (ok && recent.owners.has(ok))) blocked.add(l.id as string); }
+  }
+  return out.filter(c => !blocked.has(c.id));
 }
 
 const filterCandidates = (c: Candidate[], p: Pick<CampaignParams, 'states' | 'minScore'>) =>
@@ -56,17 +90,30 @@ const filterCandidates = (c: Candidate[], p: Pick<CampaignParams, 'states' | 'mi
     .sort((a, b) => (a.rank < 0 ? 99 : a.rank) - (b.rank < 0 ? 99 : b.rank) || a.i - b.i).map(r => r.x);
 
 /** Size, average score and top states of every audience, for the picker and for the AI helper. */
-export async function audienceSummaries(db: Db) {
-  return Promise.all(AUDIENCES.map(async a => {
+let summariesCache: { at: number; value: Promise<Awaited<ReturnType<typeof computeSummaries>>> } | null = null;
+/** Concurrent or repeated page loads share one computation for 30 seconds, since the audience function is slow. */
+export function audienceSummaries(db: Db) {
+  if (summariesCache && Date.now() - summariesCache.at < 30_000) return summariesCache.value;
+  const value = computeSummaries(db);
+  summariesCache = { at: Date.now(), value };
+  value.catch(() => { if (summariesCache?.value === value) summariesCache = null; });
+  return value;
+}
+
+async function computeSummaries(db: Db) {
+  // One at a time: the audience function is heavy and running all five together hits the database statement timeout.
+  const out = [];
+  for (const a of AUDIENCES) {
     const c = await audienceCandidates(db, a.id);
     const byState = new Map<string, number>(); for (const x of c) if (x.state) byState.set(x.state, (byState.get(x.state) ?? 0) + 1);
-    return {
+    out.push({
       ...a, size: c.length, avgScore: c.length ? Math.round(c.reduce((s, x) => s + x.score, 0) / c.length) : 0,
       // Compact [state, score] pairs so the page can count matches live as filters change; no lead ids or contact details.
       points: c.map(x => [x.state ?? '', x.score] as [string, number]),
       topStates: [...byState.entries()].sort((x, y) => y[1] - x[1]).slice(0, 8).map(([state, count]) => ({ state, count })),
-    };
-  }));
+    });
+  }
+  return out;
 }
 
 export function parseParams(raw: unknown): { p: CampaignParams } | { error: string } {
