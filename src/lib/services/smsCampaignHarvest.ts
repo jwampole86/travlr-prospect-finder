@@ -144,7 +144,7 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
     if (has('questionnaire_started')) step = Math.max(step, STEP_RANK.questionnaire);
     const submittedAt = [...(reportBy.get(r.lead_id) ?? []).map(x => Date.parse(x.sent_at)).filter(t => t >= sendAt), ...myJ.filter(e => e.event === 'submitted').map(e => Date.parse(e.created_at))].sort()[0];
     if (submittedAt) step = STEP_RANK.submitted;
-    const contactAt = myJ.find(e => e.event === 'call_requested' || e.event === 'question_requested')?.created_at;
+    const contactAt = myJ.find(e => e.event === 'call_requested' || e.event === 'question_requested' || e.event === 'text_requested')?.created_at;
     const myReplies = (replyBy.get(r.lead_id) ?? []).filter(x => Date.parse(x.sent_at) >= sendAt);
     const reply = myReplies[myReplies.length - 1];
     const replyBody = reply ? String(reply.metadata?.body ?? '') : '';
@@ -156,7 +156,7 @@ export async function harvestBatch(db: Db, batch: string, opts: { refreshTwilio?
     const chat = myJ.filter(e => e.event === 'chat_question').length;
     if (reply && isWrongContact(replyBody)) quality = 'wrong_person';
     // Latest thing the homeowner did, so the Campaigns lists can show who interacted most recently.
-    const journeyLabel = (ev: string) => ev === 'submitted' ? 'Submitted the form' : ev === 'call_requested' || ev === 'question_requested' ? 'Asked for a call' : ev === 'chat_question' ? 'Asked a chat question' : ev === 'report_downloaded' || ev === 'report_printed' || ev === 'link_copied' ? 'Saved the report' : ev === 'contact_started' ? 'Started the contact form' : ev === 'questionnaire_started' ? 'Started the questionnaire' : 'Viewed the estimate';
+    const journeyLabel = (ev: string) => ev === 'submitted' ? 'Submitted the form' : ev === 'call_requested' || ev === 'question_requested' || ev === 'text_requested' ? 'Asked for a call or text' : ev === 'chat_question' ? 'Asked a chat question' : ev === 'report_downloaded' || ev === 'report_printed' || ev === 'link_copied' ? 'Saved the report' : ev === 'contact_started' ? 'Started the contact form' : ev === 'questionnaire_started' ? 'Started the questionnaire' : 'Viewed the estimate';
     const activity: Array<{ t: number; label: string }> = [
       ...human.map(l => ({ t: Date.parse(l.occurred_at), label: 'Opened the link' })),
       ...myJ.map(e => ({ t: Date.parse(e.created_at), label: journeyLabel(e.event) })),

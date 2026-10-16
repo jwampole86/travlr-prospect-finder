@@ -9,7 +9,7 @@ import { advancePipeline } from '@/lib/services/leadPipeline';
  * lead server-side, so no personal data travels in the request. Unknown codes and events are ignored.
  */
 const EVENTS = new Set([
-  'page_view', 'estimate_shown', 'contact_started', 'questionnaire_started', 'submitted', 'call_requested', 'question_requested',
+  'page_view', 'estimate_shown', 'contact_started', 'questionnaire_started', 'submitted', 'call_requested', 'question_requested', 'text_requested',
   'report_downloaded', 'report_printed', 'link_copied', 'chat_opened', 'chat_question', 'website_clicked', 'credential_clicked',
   'phone_clicked', 'email_clicked', 'scroll_depth', 'time_on_page', 'address_changed',
 ]);

@@ -67,8 +67,8 @@ const STEPS = [
 ];
 
 export default function HomeownerReportView({
-  report, variant = 'full', onPrint, onContact, equipment = null,
-}: { report: HomeownerReport; variant?: 'preview' | 'full'; onPrint?: () => void; onContact?: (mode: 'call' | 'question') => void; equipment?: EquipmentKey[] | null }) {
+  report, variant = 'full', onPrint, onContact, equipment = null, afterEstimate,
+}: { report: HomeownerReport; variant?: 'preview' | 'full'; onPrint?: () => void; onContact?: (mode: 'call' | 'question') => void; equipment?: EquipmentKey[] | null; /** Shown directly under the headline estimate. */ afterEstimate?: React.ReactNode }) {
   const [cons, exp, opt] = report.scenarios;
   const reg = report.regulation;
   const tone = TONE[reg.tone];
@@ -106,6 +106,7 @@ export default function HomeownerReportView({
         <p className="mt-2 text-sm text-indigo-100/90">
           Net to you after all operating costs. Realistic range <strong className="text-white">{compact(cons.annualNet)} to {compact(opt.annualNet)}</strong> a year.
         </p>
+        {afterEstimate && <div className="mt-5 print:hidden">{afterEstimate}</div>}
         <div className="mt-7 grid grid-cols-2 lg:grid-cols-4 print:grid-cols-4 gap-3">
           <Stat label="Net per month" value={usd(exp.netMonthly)} sub="to you" />
           <Stat label="Gross bookings" value={usd(exp.grossMonthly)} sub="per month" />

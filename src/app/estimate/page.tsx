@@ -14,6 +14,7 @@ import { WEBSITE_URL, WEBSITE_LABEL, CONTACT_EMAIL, CONTACT_PHONE, telHref } fro
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
 import HomeownerReportView from '@/app/estimate/components/HomeownerReport';
+import QuickRequest from '@/app/estimate/components/QuickRequest';
 import ContactRequestModal, { type ContactMode } from '@/app/estimate/components/ContactRequestModal';
 import type { HomeownerEstimate } from '@/lib/homeownerEstimateTypes';
 import { useForceLightTheme } from '@/lib/hooks/useForceLightTheme';
@@ -519,7 +520,7 @@ function EstimateLandingContent() {
                   {t('estimate.emailFull')}
                   <ChevronRight size={14} />
                 </button>
-                <HomeownerReportView report={estimate.report} variant="preview" />
+                <HomeownerReportView report={estimate.report} variant="preview" afterEstimate={<QuickRequest />} />
                 <div className="rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground leading-relaxed">
                   {t('estimate.fullReportAdds')}
                 </div>
