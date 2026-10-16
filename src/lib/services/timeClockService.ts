@@ -247,3 +247,34 @@ export async function getTeamActiveShifts(): Promise<TeamShiftStatus[]> {
     email: profileMap.get(s.user_id)?.email || '',
   }));
 }
+
+/** Break segments for a set of shifts, oldest first. */
+export async function getBreaksForShifts(shiftIds: string[]): Promise<TimeClockBreak[]> {
+  if (shiftIds.length === 0) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('time_clock_breaks')
+    .select('*')
+    .in('shift_id', shiftIds)
+    .order('break_start_at', { ascending: true });
+  return (data || []) as TimeClockBreak[];
+}
+
+/** Saves a note on one of your own shifts. */
+export async function updateShiftNotes(shiftId: string, notes: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('time_clock_shifts').update({ notes: notes.trim() ? notes.trim().slice(0, 500) : null }).eq('id', shiftId);
+  if (error) throw error;
+}
+
+/** Admin/owner only: every shift started in the last `days` days, with names, for the weekly team summary. */
+export async function getTeamRecentShifts(days = 7): Promise<TeamShiftStatus[]> {
+  const supabase = createClient();
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const { data: shifts } = await supabase.from('time_clock_shifts').select('*').gte('clock_in_at', since).order('clock_in_at', { ascending: false }).limit(2000);
+  if (!shifts || shifts.length === 0) return [];
+  const userIds = Array.from(new Set(shifts.map((s: TimeClockShift) => s.user_id)));
+  const { data: profiles } = await supabase.from('user_profiles').select('id, full_name, email').in('id', userIds);
+  const profileMap = new Map((profiles || []).map((p: { id: string; full_name: string; email: string }) => [p.id, p]));
+  return shifts.map((s: TimeClockShift) => ({ ...s, full_name: profileMap.get(s.user_id)?.full_name || 'Unknown', email: profileMap.get(s.user_id)?.email || '' }));
+}
