@@ -122,8 +122,8 @@ export async function GET() {
       recentLogs: logs.slice(0, RECENT_LOG_LIMIT),
     }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to load enrichment cost summary',
-    }, { status: 500 });
+    // Supabase errors are plain objects, not Error instances.
+    const message = (error as { message?: string } | null)?.message;
+    return NextResponse.json({ error: message || 'Failed to load enrichment cost summary' }, { status: 500 });
   }
 }

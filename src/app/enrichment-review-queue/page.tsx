@@ -101,7 +101,8 @@ export default function EnrichmentReviewQueuePage() {
       setLastLoadedAt(new Date().toISOString());
     } catch (error) {
       console.error('[enrichment-review-queue]', error);
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to load the review queue.');
+      // Supabase errors are plain objects, not Error instances.
+      setErrorMessage((error as { message?: string } | null)?.message || 'Failed to load the review queue.');
       setItems([]);
       setStatusCounts(EMPTY_COUNTS);
     } finally {
