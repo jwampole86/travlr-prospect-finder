@@ -32,6 +32,14 @@ const PROVIDERS: Record<string, (state: string, truliaPages: number) => Provider
   'zillow-search': (state) => ({ provider: 'zillow-search', region: state.toLowerCase(), maxPages: 1 }),
 };
 
+/** Provider errors can be strings or objects ({code, message}); never show "[object Object]". */
+function describeError(err: unknown, status: number): string {
+  if (!err) return `HTTP ${status}`;
+  if (typeof err === 'string') return err;
+  const o = err as { message?: unknown; code?: unknown };
+  return `HTTP ${status}: ${typeof o.message === 'string' ? o.message : JSON.stringify(err).slice(0, 300)}${o.code ? ` (${String(o.code)})` : ''}`;
+}
+
 function summarizeFailureMessages(results: PullResult[]) {
   return results.filter((result) => !result.ok).map((result) => `${result.state} · ${result.source}: ${result.error || 'Unknown error'}`);
 }
@@ -124,7 +132,9 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => (lastPull.get(a) || '').localeCompare(lastPull.get(b) || '') || a.localeCompare(b))
       .slice(0, statesPerRun);
 
-    const origin = req.nextUrl.origin;
+    // Scheduled runs can arrive on a deployment-specific hostname; the public production domain is the stable place to call back.
+    const prodHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    const origin = process.env.VERCEL_ENV === 'production' && prodHost ? `https://${prodHost}` : req.nextUrl.origin;
     const results: PullResult[] = [];
     const skipped: string[] = [];
 
@@ -156,7 +166,7 @@ export async function GET(req: NextRequest) {
               ok,
               newLeads: Number(data?.totals?.rowsNew) || 0,
               fetched: Number(data?.fetched) || 0,
-              ...(ok ? {} : { error: String(data?.error || `HTTP ${response.status}`) }),
+              ...(ok ? {} : { error: describeError(data?.error, response.status) }),
             };
           } catch (error) {
             return {
