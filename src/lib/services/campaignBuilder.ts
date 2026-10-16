@@ -24,6 +24,7 @@ export const AUDIENCES = [
   { id: 'luxury-phone', label: 'Luxury homes with a phone', blurb: 'High-value homes where a rental estimate is most compelling. Phone numbers are less verified.' },
   { id: 'high-score', label: 'High prospect score (70+)', blurb: 'Leads our scoring ranks as the strongest conversion candidates, with a phone and address.' },
   { id: 'allowed-markets', label: 'Short-term rentals allowed', blurb: 'Leads in places where regulation research found short-term rentals are allowed.' },
+  { id: 'rentals', label: 'Owner-listed rentals', blurb: 'Homes listed for rent with a phone and an address. No bedroom or price needed. Needs the 20261016110000 database migration.' },
   { id: 'broad', label: 'Broad: phone and full property details', blurb: 'Everyone with a phone, address, price and bedrooms. The largest pool; includes the groups above.' },
 ] as const;
 export type AudienceId = (typeof AUDIENCES)[number]['id'];
