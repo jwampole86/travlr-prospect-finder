@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { AlertTriangle, CheckCircle2, XCircle, RefreshCw, TrendingUp, TrendingDown, Database, Activity, Radio, Shield, BarChart2, Layers, AlertCircle, ChevronDown, ChevronUp, Bell, Filter } from 'lucide-react';
 import { toast } from 'sonner';
-import { PORTFOLIOS } from '@/contexts/PortfolioContext';
+import { usePortfolio } from '@/contexts/PortfolioContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,12 +44,6 @@ interface ZoneCoverage {
   leads_imported: number;
 }
 
-interface IngestDataPoint {
-  hour: string;
-  count: number;
-  portfolio: string;
-}
-
 interface IngestTrend {
   portfolio: string;
   stateCode: string;
@@ -62,7 +56,27 @@ interface IngestTrend {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const REAL_PORTFOLIOS = PORTFOLIOS.filter(p => p.key !== 'all');
+const LEAD_SOURCES = ['Trulia', 'Zillow', 'PadMapper', 'HotPads', 'Craigslist', 'Direct'] as const;
+const FRESH_HOURS = 25;
+const STALE_HOURS = 72;
+const DOMINANT_SHARE_PCT = 60;
+
+interface SourceFreshness {
+  source: string;
+  total: number;
+  sharePct: number;
+  last24h: number;
+  last7d: number;
+  newestLeadAt: string | null;
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastError: string | null;
+  health: 'fresh' | 'stale' | 'cold' | 'failing';
+}
+
+function portfolioLabel(name: string): string {
+  return /portfolio$/i.test(name) ? name : `${name} Portfolio`;
+}
 
 const STATUS_COLORS = {
   success: 'text-green-600 bg-green-50 border-green-200',
@@ -109,8 +123,13 @@ function MiniSparkline({ data, color = '#3b82f6' }: { data: number[]; color?: st
 export default function DataFreshnessPage() {
   const { user } = useAuth();
   const supabase = createClient();
+  const { configuredPortfolios } = usePortfolio();
+  const portfolioKeys = configuredPortfolios.map(p => p.key).join(',');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const REAL_PORTFOLIOS = useMemo(() => configuredPortfolios, [portfolioKeys]);
 
-  const [activeTab, setActiveTab] = useState<'alerts' | 'backlog' | 'coverage' | 'trends'>('alerts');
+  const [activeTab, setActiveTab] = useState<'sources' | 'alerts' | 'backlog' | 'coverage' | 'trends'>('sources');
+  const [sourceStats, setSourceStats] = useState<SourceFreshness[]>([]);
   const [alerts, setAlerts] = useState<SyncFailureAlert[]>([]);
   const [backlogs, setBacklogs] = useState<PortfolioBacklog[]>([]);
   const [coverage, setCoverage] = useState<ZoneCoverage[]>([]);
@@ -126,101 +145,178 @@ export default function DataFreshnessPage() {
   // ─── Load Alerts ───────────────────────────────────────────────────────────
 
   const loadAlerts = useCallback(async () => {
-    const { data } = await supabase
-      .from('app_notifications')
-      .select('*')
-      .in('type', ['sync_failure', 'sync_error', 'sync_stalled', 'batch_failure', 'batch_error'])
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (data) {
-      const mapped: SyncFailureAlert[] = data.map(row => ({
-        id: row.id,
-        portfolio: (row.metadata as Record<string, string>)?.portfolio || 'Unknown',
-        source_name: (row.metadata as Record<string, string>)?.source_name || row.title || 'Unknown Source',
-        zone: (row.metadata as Record<string, string>)?.zone || null,
-        error_message: row.message || 'No details available',
-        occurred_at: row.created_at,
-        resolved: row.read || false,
-        severity: row.type === 'batch_failure' || row.type === 'batch_error' ? 'critical' : 'warning',
-      }));
-      setAlerts(mapped);
-    }
-  }, [supabase]);
-
-  // ─── Load Backlog ──────────────────────────────────────────────────────────
-
-  const loadBacklogs = useCallback(async () => {
-    const results: PortfolioBacklog[] = [];
-
-    for (const p of REAL_PORTFOLIOS) {
-      // Lead counts
-      const { count: totalLeads } = await supabase
-        .from('leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('portfolio', p.label);
-
-      const { count: pendingEnrichment } = await supabase
-        .from('leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('portfolio', p.label)
-        .in('enrichment_stage', [0, 1]);
-
-      const { count: pendingOutreach } = await supabase
-        .from('leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('portfolio', p.label)
-        .in('stage', ['New', 'Contacted']);
-
-      // Sync coverage for this portfolio
-      const { data: coverageData } = await supabase
-        .from('sync_source_coverage')
-        .select('status, last_synced_at, last_sync_status')
-        .eq('portfolio', p.label);
-
-      const activeSources = coverageData?.filter(c => c.status === 'active').length || 0;
-      const failedSources = coverageData?.filter(c => c.last_sync_status === 'failed').length || 0;
-      const lastSynced = coverageData
-        ?.filter(c => c.last_synced_at)
-        .sort((a, b) => new Date(b.last_synced_at!).getTime() - new Date(a.last_synced_at!).getTime())[0];
-
-      // Recent sync errors
-      const { count: syncErrorCount } = await supabase
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const [{ data: notifications }, { data: events }] = await Promise.all([
+      supabase
         .from('app_notifications')
-        .select('*', { count: 'exact', head: true })
-        .in('type', ['sync_failure', 'sync_error', 'batch_failure'])
-        .eq('read', false)
-        .filter('metadata->>portfolio', 'eq', p.label);
+        .select('*')
+        .in('type', ['sync_failure', 'sync_error', 'sync_stalled', 'batch_failure', 'batch_error'])
+        .order('created_at', { ascending: false })
+        .limit(100),
+      supabase
+        .from('sync_events')
+        .select('id, operation_id, status, last_error, payload, created_at')
+        .eq('operation_type', 'source_sync')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(500),
+    ]);
 
-      results.push({
-        portfolio: p.label,
-        stateCode: p.stateCode,
-        totalLeads: totalLeads || 0,
-        pendingEnrichment: pendingEnrichment || 0,
-        pendingOutreach: pendingOutreach || 0,
-        lastSyncAt: lastSynced?.last_synced_at || null,
-        lastSyncStatus: (lastSynced?.last_sync_status as PortfolioBacklog['lastSyncStatus']) || null,
-        syncErrorCount: syncErrorCount || 0,
-        activeSources,
-        failedSources,
+    const mapped: SyncFailureAlert[] = (notifications || []).map(row => ({
+      id: row.id,
+      portfolio: (row.metadata as Record<string, string>)?.portfolio || 'Unknown',
+      source_name: (row.metadata as Record<string, string>)?.source_name || row.title || 'Unknown Source',
+      zone: (row.metadata as Record<string, string>)?.zone || null,
+      error_message: row.message || 'No details available',
+      occurred_at: row.created_at,
+      resolved: row.read || false,
+      severity: row.type === 'batch_failure' || row.type === 'batch_error' ? 'critical' : 'warning',
+    }));
+
+    // A failed pull stays an open alert only until a later pull of the same source+state succeeds.
+    const latestSuccess = new Map<string, string>();
+    for (const e of events || []) {
+      if (e.status === 'success' && !latestSuccess.has(e.operation_id)) latestSuccess.set(e.operation_id, e.created_at);
+    }
+    for (const e of events || []) {
+      if (e.status !== 'failed') continue;
+      const payload = (e.payload || {}) as Record<string, string>;
+      const recoveredAt = latestSuccess.get(e.operation_id);
+      const stateCode = payload.state_code;
+      const match = REAL_PORTFOLIOS.find(p => p.stateCode === stateCode);
+      mapped.push({
+        id: `sync-event-${e.id}`,
+        portfolio: match?.label || stateCode || 'Unknown',
+        source_name: payload.source || e.operation_id,
+        zone: null,
+        error_message: e.last_error || 'Source pull failed',
+        occurred_at: e.created_at,
+        resolved: !!recoveredAt && recoveredAt > e.created_at,
+        severity: 'warning',
       });
     }
 
-    setBacklogs(results);
-  }, [supabase]);
+    mapped.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+    setAlerts(mapped);
+  }, [supabase, REAL_PORTFOLIOS]);
 
   // ─── Load Zone Coverage ────────────────────────────────────────────────────
 
-  const loadCoverage = useCallback(async () => {
+  const loadCoverage = useCallback(async (): Promise<ZoneCoverage[]> => {
     const { data } = await supabase
       .from('sync_source_coverage')
       .select('portfolio, zone, source_name, status, last_synced_at, last_sync_status, leads_imported')
       .order('portfolio', { ascending: true })
       .order('zone', { ascending: true });
 
-    if (data) {
-      setCoverage(data as ZoneCoverage[]);
+    // Coverage rows store the bare state name ("Colorado"); the rest of the page uses portfolio labels.
+    const rows = ((data || []) as ZoneCoverage[]).map(r => ({ ...r, portfolio: portfolioLabel(r.portfolio) }));
+    setCoverage(rows);
+    return rows;
+  }, [supabase]);
+
+  // ─── Load Backlog ──────────────────────────────────────────────────────────
+
+  const loadBacklogs = useCallback(async (coverageRows: ZoneCoverage[]) => {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: failedEvents } = await supabase
+      .from('sync_events')
+      .select('payload')
+      .eq('operation_type', 'source_sync')
+      .eq('status', 'failed')
+      .gte('created_at', since)
+      .limit(500);
+    const failedByState: Record<string, number> = {};
+    for (const e of failedEvents || []) {
+      const code = (e.payload as Record<string, string> | null)?.state_code;
+      if (code) failedByState[code] = (failedByState[code] || 0) + 1;
     }
+
+    const results: PortfolioBacklog[] = [];
+    // Leads are tied to a portfolio by their state; enrichment/outreach use the real status columns.
+    for (let i = 0; i < REAL_PORTFOLIOS.length; i += 8) {
+      const batch = await Promise.all(REAL_PORTFOLIOS.slice(i, i + 8).map(async p => {
+        const count = (q: PromiseLike<{ count: number | null }>) => q.then(r => r.count || 0);
+        const [totalLeads, pendingEnrichment, pendingOutreach] = await Promise.all([
+          count(supabase.from('leads').select('*', { count: 'exact', head: true }).eq('state', p.stateCode)),
+          count(supabase.from('leads').select('*', { count: 'exact', head: true }).eq('state', p.stateCode).eq('enrichment_status', 'PENDING')),
+          count(supabase.from('leads').select('*', { count: 'exact', head: true }).eq('state', p.stateCode).eq('outreach_status', 'NOT_CONTACTED')),
+        ]);
+
+        const rows = coverageRows.filter(c => c.portfolio === p.label);
+        const lastSynced = rows
+          .filter(c => c.last_synced_at)
+          .sort((a, b) => new Date(b.last_synced_at!).getTime() - new Date(a.last_synced_at!).getTime())[0];
+
+        return {
+          portfolio: p.label,
+          stateCode: p.stateCode,
+          totalLeads,
+          pendingEnrichment,
+          pendingOutreach,
+          lastSyncAt: lastSynced?.last_synced_at || null,
+          lastSyncStatus: (lastSynced?.last_sync_status as PortfolioBacklog['lastSyncStatus']) || null,
+          syncErrorCount: failedByState[p.stateCode] || 0,
+          activeSources: rows.filter(c => c.status === 'active').length,
+          failedSources: rows.filter(c => c.last_sync_status === 'failed').length,
+        } satisfies PortfolioBacklog;
+      }));
+      results.push(...batch);
+    }
+
+    setBacklogs(results);
+  }, [supabase, REAL_PORTFOLIOS]);
+
+  // ─── Load Source Freshness ─────────────────────────────────────────────────
+
+  const loadSources = useCallback(async () => {
+    const now = Date.now();
+    const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+    const since7d = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: events } = await supabase
+      .from('sync_events')
+      .select('operation_id, status, last_error, payload, created_at')
+      .eq('operation_type', 'source_sync')
+      .order('created_at', { ascending: false })
+      .limit(1000);
+
+    const sourceOf = (e: { operation_id: string; payload: unknown }) =>
+      (e.payload as Record<string, string> | null)?.source || LEAD_SOURCES.find(s => e.operation_id.startsWith(s)) || null;
+
+    const { count: grandTotal } = await supabase.from('leads').select('*', { count: 'exact', head: true });
+
+    const stats = await Promise.all(LEAD_SOURCES.map(async source => {
+      const base = () => supabase.from('leads').select('*', { count: 'exact', head: true }).eq('source', source);
+      const [total, last24h, last7d, newest] = await Promise.all([
+        base().then(r => r.count || 0),
+        base().gte('created_at', since24h).then(r => r.count || 0),
+        base().gte('created_at', since7d).then(r => r.count || 0),
+        supabase.from('leads').select('created_at').eq('source', source).order('created_at', { ascending: false }).limit(1).maybeSingle()
+          .then(r => (r.data?.created_at as string | undefined) || null),
+      ]);
+
+      const mine = (events || []).filter(e => sourceOf(e) === source);
+      const lastSuccess = mine.find(e => e.status === 'success');
+      const lastFailure = mine.find(e => e.status === 'failed');
+      const ageHours = newest ? (now - new Date(newest).getTime()) / 3600000 : Infinity;
+      const failing = !!lastFailure && (!lastSuccess || lastFailure.created_at > lastSuccess.created_at);
+
+      return {
+        source,
+        total,
+        sharePct: grandTotal ? Math.round((total / grandTotal) * 1000) / 10 : 0,
+        last24h,
+        last7d,
+        newestLeadAt: newest,
+        lastSuccessAt: lastSuccess?.created_at || null,
+        lastFailureAt: lastFailure?.created_at || null,
+        lastError: failing ? lastFailure?.last_error || null : null,
+        health: failing ? 'failing' : ageHours < FRESH_HOURS ? 'fresh' : ageHours < STALE_HOURS ? 'stale' : 'cold',
+      } satisfies SourceFreshness;
+    }));
+
+    setSourceStats(stats);
   }, [supabase]);
 
   // ─── Load Ingest Trends ────────────────────────────────────────────────────
@@ -228,22 +324,26 @@ export default function DataFreshnessPage() {
   const loadTrends = useCallback(async () => {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    const trendResults: IngestTrend[] = [];
-
-    for (const p of REAL_PORTFOLIOS) {
+    // One paged scan for all states instead of one capped query per portfolio.
+    const rows: { state: string | null; created_at: string }[] = [];
+    for (let from = 0; from < 50000; from += 1000) {
       const { data } = await supabase
         .from('leads')
-        .select('created_at')
-        .eq('portfolio', p.label)
+        .select('state, created_at')
         .gte('created_at', since)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .range(from, from + 999);
+      rows.push(...((data || []) as { state: string | null; created_at: string }[]));
+      if (!data || data.length < 1000) break;
+    }
 
+    const trendResults: IngestTrend[] = REAL_PORTFOLIOS.map(p => {
       // Bucket into 6 4-hour windows
       const buckets: number[] = new Array(6).fill(0);
       const labels = ['20h', '16h', '12h', '8h', '4h', 'Now'];
       const now = Date.now();
 
-      (data || []).forEach(row => {
+      rows.filter(r => r.state === p.stateCode).forEach(row => {
         const age = now - new Date(row.created_at).getTime();
         const bucket = Math.min(5, Math.floor(age / (4 * 60 * 60 * 1000)));
         buckets[5 - bucket] = (buckets[5 - bucket] || 0) + 1;
@@ -256,7 +356,7 @@ export default function DataFreshnessPage() {
       const trend = recent > older * 1.1 ? 'up' : recent < older * 0.9 ? 'down' : 'flat';
       const trendPct = older > 0 ? Math.round(((recent - older) / older) * 100) : 0;
 
-      trendResults.push({
+      return {
         portfolio: p.label,
         stateCode: p.stateCode,
         hourlyData: labels.map((label, i) => ({ label, count: buckets[i] })),
@@ -264,19 +364,20 @@ export default function DataFreshnessPage() {
         avgPerHour: Math.round(avg),
         trend,
         trendPct: Math.abs(trendPct),
-      });
-    }
+      } satisfies IngestTrend;
+    });
 
     setTrends(trendResults);
-  }, [supabase]);
+  }, [supabase, REAL_PORTFOLIOS]);
 
   // ─── Initial Load ──────────────────────────────────────────────────────────
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    await Promise.all([loadAlerts(), loadBacklogs(), loadCoverage(), loadTrends()]);
+    const coverageRows = await loadCoverage();
+    await Promise.all([loadAlerts(), loadBacklogs(coverageRows), loadSources(), loadTrends()]);
     setLoading(false);
-  }, [loadAlerts, loadBacklogs, loadCoverage, loadTrends]);
+  }, [loadAlerts, loadBacklogs, loadCoverage, loadSources, loadTrends]);
 
   useEffect(() => {
     loadAll();
@@ -297,6 +398,14 @@ export default function DataFreshnessPage() {
           loadAlerts();
         }
       })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sync_events' }, (payload) => {
+        const row = payload.new as Record<string, unknown>;
+        if (row.operation_type === 'source_sync' && row.status === 'failed') {
+          toast.error(`Source pull failed: ${row.operation_id}`, { duration: 4000 });
+        }
+        loadAlerts();
+        loadSources();
+      })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, () => {
         liveRef.current += 1;
         setLiveCount(c => c + 1);
@@ -304,7 +413,7 @@ export default function DataFreshnessPage() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, loadAlerts]);
+  }, [supabase, loadAlerts, loadSources]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -314,7 +423,9 @@ export default function DataFreshnessPage() {
   };
 
   const handleResolveAlert = async (id: string) => {
-    await supabase.from('app_notifications').update({ read: true }).eq('id', id);
+    if (!id.startsWith('sync-event-')) {
+      await supabase.from('app_notifications').update({ read: true }).eq('id', id);
+    }
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, resolved: true } : a));
     toast.success('Alert marked as resolved');
   };
@@ -429,6 +540,7 @@ export default function DataFreshnessPage() {
         {/* Tabs */}
         <div className="flex items-center gap-1 border-b border-border">
           {[
+            { key: 'sources', label: 'Source Freshness', icon: Database },
             { key: 'alerts', label: 'Sync Failure Alerts', icon: AlertTriangle, badge: unresolvedCount },
             { key: 'backlog', label: 'Backlog by Portfolio', icon: Layers },
             { key: 'coverage', label: 'Zone Coverage', icon: Shield },
@@ -478,6 +590,70 @@ export default function DataFreshnessPage() {
             </select>
           )}
         </div>
+
+        {/* ── Tab: Source Freshness ── */}
+        {activeTab === 'sources' && (
+          <div className="space-y-3">
+            {loading ? (
+              <div className="flex items-center justify-center py-16 text-muted-foreground">
+                <RefreshCw size={18} className="animate-spin mr-2" /> Loading source freshness…
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Where leads actually come from and how recently each source delivered. Fresh = a lead arrived in the last {FRESH_HOURS}h; Failing = the latest pull errored.
+                </p>
+                {sourceStats.filter(s => s.sharePct > DOMINANT_SHARE_PCT).map(s => (
+                  <div key={s.source} className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <AlertTriangle size={12} />
+                    {s.source} supplies {s.sharePct}% of all leads — other sources are under-represented.
+                  </div>
+                ))}
+                <div className="bg-card border border-border rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/20 text-xs text-muted-foreground">
+                        <th className="text-left px-5 py-2.5 font-medium">Source</th>
+                        <th className="text-left px-4 py-2.5 font-medium">Health</th>
+                        <th className="text-right px-4 py-2.5 font-medium">Leads</th>
+                        <th className="text-right px-4 py-2.5 font-medium">Share</th>
+                        <th className="text-right px-4 py-2.5 font-medium">24h</th>
+                        <th className="text-right px-4 py-2.5 font-medium">7d</th>
+                        <th className="text-left px-4 py-2.5 font-medium">Newest lead</th>
+                        <th className="text-left px-5 py-2.5 font-medium">Last pull</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sourceStats.map(s => (
+                        <tr key={s.source} className="border-t border-border/50 hover:bg-muted/10">
+                          <td className="px-5 py-2.5 font-medium text-foreground">{s.source}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                              s.health === 'fresh' ? STATUS_COLORS.success
+                                : s.health === 'stale' ? STATUS_COLORS.partial
+                                : STATUS_COLORS.failed
+                            }`}>
+                              {s.health}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-right text-foreground">{s.total.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-right text-muted-foreground">{s.sharePct}%</td>
+                          <td className="px-4 py-2.5 text-right text-foreground">{s.last24h.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-right text-foreground">{s.last7d.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-xs text-muted-foreground">{timeAgo(s.newestLeadAt)}</td>
+                          <td className="px-5 py-2.5 text-xs text-muted-foreground">
+                            <div>{s.lastSuccessAt ? `${timeAgo(s.lastSuccessAt)} (ok)` : 'No recorded pull'}</div>
+                            {s.lastError && <div className="text-[10px] text-red-500 mt-0.5 max-w-xs truncate" title={s.lastError}>{s.lastError}</div>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* ── Tab: Sync Failure Alerts ── */}
         {activeTab === 'alerts' && (

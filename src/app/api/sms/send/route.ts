@@ -6,6 +6,7 @@ import { injectTrackedLinks } from '@/lib/services/linkTrackingService';
 import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { duplicateTextReason } from '@/lib/services/smsDuplicateGuard';
+import { isSuppressed } from '@/lib/services/smsConsent';
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,11 +33,26 @@ export async function POST(req: NextRequest) {
     // it silently fails and returns null, which previously made this guard a no-op.
     const { data: leadRow } = await supabase
       .from('leads')
-      .select('address, sms_opt_in, owner_name, contact_name')
+      .select('address, sms_opt_in, sms_opted_out_at, owner_name, contact_name')
       .eq('id', leadId)
       .single();
 
-    if (leadRow?.sms_opt_in === false || isProtectedContact(leadRow?.owner_name, leadRow?.contact_name)) {
+    // sms_opt_in = false with no opt-out date means "never asked", not "opted out". An explicit opt-out
+    // (opt-out date or suppressed number) always blocks. "Never asked" leads follow the same first-touch
+    // rule as bulk sends, and a lead who has texted us can always be answered one to one.
+    const admin = getSupabaseAdmin();
+    const explicitOptOut = !!leadRow?.sms_opted_out_at || isProtectedContact(leadRow?.owner_name, leadRow?.contact_name) || await isSuppressed(admin, to);
+    let blockedNotOptedIn = false;
+    if (!explicitOptOut && leadRow?.sms_opt_in === false && process.env.SMS_FIRST_TOUCH_ENABLED !== 'true') {
+      const { count } = await admin
+        .from('sms_conversation_threads')
+        .select('id', { count: 'exact', head: true })
+        .eq('lead_id', leadId)
+        .not('last_inbound_at', 'is', null);
+      blockedNotOptedIn = !count;
+    }
+
+    if (explicitOptOut || blockedNotOptedIn) {
       // Log the blocked attempt for audit purposes
       await supabase.from('outreach_history').insert({
         lead_id: leadId,
@@ -48,7 +64,7 @@ export async function POST(req: NextRequest) {
         sent_at: new Date().toISOString(),
         metadata: {
           to,
-          block_reason: 'sms_opt_in is explicitly false for this lead',
+          block_reason: explicitOptOut ? 'lead or number has explicitly opted out of SMS' : 'lead has not opted in to SMS and has not replied',
           bulk_batch: bulkBatch ?? false,
         },
       });
@@ -57,7 +73,9 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           status: 'blocked_dnc',
-          error: 'SMS blocked: this lead has opted out of SMS. Remove the flag before sending outreach.',
+          error: explicitOptOut
+            ? 'SMS blocked: this lead has opted out of SMS.'
+            : 'SMS blocked: this lead has not opted in to SMS. Record consent before sending outreach.',
           twilioConfigured: isTwilioConfigured(),
         },
         { status: 422 }

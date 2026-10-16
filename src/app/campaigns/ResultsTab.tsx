@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Copy, DollarSign, Flame, Loader2, MessageSquare, MousePointerClick, Search, Send, ShieldOff, Sparkles, ArrowDown, ArrowUp, Eye, X, Check } from 'lucide-react';
 import { BatchInfo, Card, Chip, DrillSpec, ERROR_MEANING, Hot, Insights, Notice, Overview, SectionTitle, Skeleton, TEMP_STYLE, cx, fmtDate, pct, post, timeAgo } from './shared';
 import DrilldownDrawer from './DrilldownDrawer';
@@ -44,7 +45,7 @@ function countdown(ms: number) {
   return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m ${sec}s` : `${m}m ${sec}s`;
 }
 
-function CampaignStrip({ batches, selected, onSelect, onCancelled, onDrill }: { batches: BatchInfo[]; selected: string; onSelect: (k: string) => void; onCancelled: () => void; onDrill: (d: DrillSpec) => void }) {
+function CampaignStrip({ batches, selected, onSelect, onOpen, onCancelled, onDrill }: { batches: BatchInfo[]; selected: string; onSelect: (k: string) => void; onOpen?: (k: string) => void; onCancelled: () => void; onDrill: (d: DrillSpec) => void }) {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -65,14 +66,14 @@ function CampaignStrip({ batches, selected, onSelect, onCancelled, onDrill }: { 
   return (
     <div className="space-y-2">
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
-        <button onClick={() => onSelect('all')} className={cx('snap-start shrink-0 w-44 text-left rounded-2xl border p-4 transition-all', selected === 'all' ? 'border-primary ring-2 ring-primary/30 bg-primary/5' : 'border-border bg-card hover:border-primary/50 hover:shadow-sm')}>
+        {onOpen && <button onClick={() => onSelect('all')} className={cx('snap-start shrink-0 w-44 text-left rounded-2xl border p-4 transition-all', selected === 'all' ? 'border-primary ring-2 ring-primary/30 bg-primary/5' : 'border-border bg-card hover:border-primary/50 hover:shadow-sm')}>
           <p className="text-xs text-muted-foreground">Everything</p><p className="font-semibold mt-0.5">All campaigns</p><p className="text-xs text-muted-foreground mt-2">{all} texts · {batches.length} campaign{batches.length === 1 ? '' : 's'}</p>
-        </button>
+        </button>}
         {ordered.map(b => {
           const st = status(b, now); const sent = Math.max(0, b.texts - b.pending - b.canceled);
           return (
             <div key={b.batch} className={cx('snap-start shrink-0 w-64 rounded-2xl border p-4 transition-all', selected === b.batch ? 'border-primary ring-2 ring-primary/30 bg-primary/5' : 'border-border bg-card hover:border-primary/50 hover:shadow-sm')}>
-              <button onClick={() => onSelect(b.batch)} className="text-left w-full">
+              <button onClick={() => (onOpen ? onOpen(b.batch) : onSelect(b.batch))} title={onOpen ? 'Open campaign details' : undefined} className="text-left w-full">
                 <div className="flex items-center justify-between gap-2"><Chip tone={st.tone}>{st.label}</Chip>{b.audience && <span className="text-[11px] text-muted-foreground truncate">{b.audience}</span>}</div>
                 <p className="font-semibold text-sm mt-2 truncate" title={b.batch}>{b.batch}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{b.texts} texts · {fmtDate(b.firstSend)}</p>
@@ -124,8 +125,11 @@ type SortKey = 'texts' | 'deliveredPct' | 'clickPct' | 'submitted' | 'replied' |
 export default function ResultsTab(props: {
   batches: BatchInfo[]; selected: string; setSelected: (k: string) => void; data: Overview | null; insights: Insights | null; loading: boolean; error: string | null;
   busy: 'refresh' | 'insights' | null; onInsights: () => void; onReload: () => void; onAskHelper: (goal: string) => void; onNew: () => void;
+  /** On a campaign's own page the strip shows just that campaign and does not link anywhere else. */
+  detail?: boolean;
 }) {
-  const { batches, selected, setSelected, data, insights, loading, error, busy, onInsights, onReload, onAskHelper, onNew } = props;
+  const { batches, selected, setSelected, data, insights, loading, error, busy, onInsights, onReload, onAskHelper, onNew, detail } = props;
+  const router = useRouter();
   const [tab, setTab] = useState('audience');
   const [focus, setFocus] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'texts', dir: -1 });
@@ -184,7 +188,7 @@ export default function ResultsTab(props: {
 
   return (
     <div className="space-y-6">
-      {batches.length > 0 && <CampaignStrip batches={batches} selected={selected} onSelect={setSelected} onCancelled={onReload} onDrill={setDrill} />}
+      {batches.length > 0 && <CampaignStrip batches={batches} selected={selected} onSelect={setSelected} onOpen={detail ? undefined : b => router.push(`/campaigns/${encodeURIComponent(b)}`)} onCancelled={onReload} onDrill={setDrill} />}
 
       {error && <Notice tone="red"><AlertTriangle size={15} className="mt-0.5 shrink-0" /> {error}</Notice>}
       {loading && !data && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-24" />)}</div>}

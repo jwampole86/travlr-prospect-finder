@@ -1,582 +1,542 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Database,
+  Eye,
+  FileCheck2,
+  FileSpreadsheet,
+  Info,
+  Search,
+  Sparkles,
+  Upload,
+  XCircle,
+} from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
-import { Upload, FileText, AlertTriangle, CheckCircle2, XCircle, RefreshCw, Edit3, Copy, RotateCcw, Play, X, Info, Zap } from 'lucide-react';
+import {
+  EmptyState,
+  ErrorBanner,
+  LoadingState,
+  PageHeader,
+  Panel,
+  StatGrid,
+  StatusPill,
+  buttonPrimary,
+  buttonSecondary,
+  inputClass,
+} from '@/components/ops';
+import type { ImportPreview, PreviewRowResult } from '@/app/api/leads/csv-import-preview/route';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+type Severity = 'error' | 'warning' | 'info';
+type OutcomeFilter = PreviewRowResult['outcome'] | 'LOCAL_ERROR' | 'all';
 
-type IssueType = 'duplicate_address' | 'invalid_format' | 'missing_required' | 'invalid_source' | 'invalid_stage';
-type IssueSeverity = 'error' | 'warning';
-type RowStatus = 'valid' | 'error' | 'warning' | 'fixed' | 'skipped';
-
-interface RowIssue {
-  type: IssueType;
-  severity: IssueSeverity;
-  field: string;
-  message: string;
-  suggestion?: string;
-}
-
-interface ParsedRow {
+type ParsedRow = {
   rowIndex: number;
-  raw: Record<string, string>;
   address: string;
-  source: string;
-  stage: string;
+  contact: string;
+  phone: string;
+  city: string;
+  state: string;
+  zip: string;
   beds: string;
   baths: string;
   price: string;
+  priceType: string;
+  source: string;
+  stage: string;
   notes: string;
-  issues: RowIssue[];
-  status: RowStatus;
-  edited: boolean;
-}
+  link: string;
+  source_property_id?: string;
+  apn?: string;
+};
 
-interface PreflightSummary {
-  total: number;
-  valid: number;
-  errors: number;
-  warnings: number;
-  duplicates: number;
-  missingRequired: number;
-  invalidFormat: number;
-}
+type LocalIssue = {
+  severity: Severity;
+  field: string;
+  message: string;
+};
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+type DisplayRow = {
+  row: ParsedRow;
+  preview: PreviewRowResult | null;
+  issues: LocalIssue[];
+  effectiveOutcome: Exclude<OutcomeFilter, 'all'>;
+};
 
-const REQUIRED_FIELDS = ['address'];
-const VALID_SOURCES = ['Zillow', 'Craigslist', 'Facebook Marketplace', 'Realtor.com', 'Direct', 'Referral', 'LoopNet', 'HotPads', 'Apartments.com', 'Trulia', 'Redfin', 'MLS', 'Airbnb', 'VRBO', 'Other'];
-const VALID_STAGES = ['New Lead', 'Contacted', 'Qualified', 'Proposal Sent', 'Negotiating', 'Closed', 'Lost'];
-const ADDRESS_REGEX = /\d+\s+[\w\s]+(?:st|ave|blvd|dr|rd|ln|ct|pl|way|circle|cir|terrace|ter|pkwy|hwy|route|rt)\.?/i;
+const ACTIVE_PIPELINE_STAGES = ['Contacted', 'Interested', 'Proposal Sent', 'Under Contract'];
+const STATE_NAME_MAP: Record<string, string> = {
+  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO',
+  connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID',
+  illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA',
+  maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN',
+  mississippi: 'MS', missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV',
+  'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+  'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK', oregon: 'OR',
+  pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD',
+  tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', virginia: 'VA', washington: 'WA',
+  'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY', 'district of columbia': 'DC',
+};
 
-// ─── CSV Parser ───────────────────────────────────────────────────────────────
+const OUTCOME_TONE: Record<Exclude<OutcomeFilter, 'all'>, 'success' | 'warning' | 'danger' | 'primary' | 'default'> = {
+  NEW: 'success',
+  UPDATED_EXISTING: 'primary',
+  UNCHANGED_EXISTING: 'default',
+  DUPLICATE_IN_FILE: 'warning',
+  REVIEW_REQUIRED: 'warning',
+  ERROR: 'danger',
+  LOCAL_ERROR: 'danger',
+};
 
 function splitCSVLine(line: string): string[] {
   const result: string[] = [];
   let current = '';
   let inQuotes = false;
+
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
-    if (ch === '"') { inQuotes = !inQuotes; }
-    else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
-    else { current += ch; }
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
   }
+
   result.push(current);
-  return result.map(v => v.trim().replace(/^"|"$/g, ''));
+  return result;
 }
 
-function parseCSV(text: string): ParsedRow[] {
+function parseCSVText(text: string): ParsedRow[] {
   const lines: string[] = [];
   let current = '';
   let inQuotes = false;
+
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
-    if (ch === '"') { inQuotes = !inQuotes; }
-    else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
       if (current.trim()) lines.push(current);
       current = '';
-      if (ch === '\r' && text[i + 1] === '\n') i++;
-    } else { current += ch; }
+      if (ch === '\r' && text[i + 1] === '\n') i += 1;
+    } else {
+      current += ch;
+    }
   }
+
   if (current.trim()) lines.push(current);
   if (lines.length < 2) return [];
 
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z]/g, ''));
+  const headers = lines[0].split(',').map((header) => header.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''));
   const rows: ParsedRow[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const vals = splitCSVLine(lines[i]);
-    const raw: Record<string, string> = {};
-    headers.forEach((h, idx) => { raw[h] = (vals[idx] || '').trim(); });
+  for (let index = 1; index < lines.length; index += 1) {
+    const values = splitCSVLine(lines[index]);
+    const row: Record<string, string> = {};
+    headers.forEach((header, columnIndex) => {
+      row[header] = (values[columnIndex] || '').trim().replace(/^"|"$/g, '');
+    });
 
     rows.push({
-      rowIndex: i,
-      raw,
-      address: raw['address'] || '',
-      source: raw['source'] || 'Direct',
-      stage: raw['stage'] || 'New Lead',
-      beds: raw['beds'] || '3',
-      baths: raw['baths'] || '2',
-      price: raw['price'] || '2500',
-      notes: raw['notes'] || '',
-      issues: [],
-      status: 'valid',
-      edited: false,
+      rowIndex: index,
+      address: row.address || '',
+      contact: row.contact || row.owner || row.contactname || '',
+      phone: row.phone || row.contact_phone || row.contactphone || '',
+      city: row.city || '',
+      state: row.state || '',
+      zip: row.zip || row.zipcode || '',
+      beds: row.beds || row.bedsbaths || '',
+      baths: row.baths || '',
+      price: row.price || '',
+      priceType: row.pricetype || row.price_type || 'rent',
+      source: row.source || 'Direct',
+      stage: row.stage || 'New Lead',
+      notes: row.notes || '',
+      link: row.link || row.url || row.listingurl || '',
+      source_property_id: row.source_property_id || undefined,
+      apn: row.apn || undefined,
     });
   }
+
   return rows;
 }
 
-function validateRows(rows: ParsedRow[]): ParsedRow[] {
-  const addressSet = new Map<string, number[]>();
-
-  // First pass: collect addresses for duplicate detection
-  rows.forEach((row, idx) => {
-    const normalized = row.address.toLowerCase().trim();
-    if (normalized) {
-      if (!addressSet.has(normalized)) addressSet.set(normalized, []);
-      addressSet.get(normalized)!.push(idx);
-    }
-  });
-
-  return rows.map((row, idx) => {
-    const issues: RowIssue[] = [];
-
-    // Missing required fields
-    if (!row.address.trim()) {
-      issues.push({ type: 'missing_required', severity: 'error', field: 'address', message: 'Address is required', suggestion: 'Add a valid street address' });
-    }
-
-    // Invalid address format
-    if (row.address.trim() && !ADDRESS_REGEX.test(row.address)) {
-      issues.push({ type: 'invalid_format', severity: 'warning', field: 'address', message: 'Address format may be invalid', suggestion: 'Use format: 123 Main St, City, ST 12345' });
-    }
-
-    // Duplicate address
-    const normalized = row.address.toLowerCase().trim();
-    if (normalized && addressSet.has(normalized) && addressSet.get(normalized)!.length > 1) {
-      const otherRows = addressSet.get(normalized)!.filter(i => i !== idx);
-      issues.push({ type: 'duplicate_address', severity: 'error', field: 'address', message: `Duplicate address — also on row ${otherRows.map(r => r + 1).join(', ')}`, suggestion: 'Remove duplicate or merge records' });
-    }
-
-    // Invalid source
-    if (row.source && !VALID_SOURCES.includes(row.source)) {
-      issues.push({ type: 'invalid_source', severity: 'warning', field: 'source', message: `Unknown source "${row.source}"`, suggestion: `Use one of: ${VALID_SOURCES.slice(0, 5).join(', ')}, …` });
-    }
-
-    // Invalid stage
-    if (row.stage && !VALID_STAGES.includes(row.stage)) {
-      issues.push({ type: 'invalid_stage', severity: 'warning', field: 'stage', message: `Unknown stage "${row.stage}"`, suggestion: `Use one of: ${VALID_STAGES.join(', ')}` });
-    }
-
-    // Invalid price
-    if (row.price && isNaN(Number(row.price.replace(/[$,]/g, '')))) {
-      issues.push({ type: 'invalid_format', severity: 'warning', field: 'price', message: 'Price must be a number', suggestion: 'Enter a numeric value like 2500' });
-    }
-
-    const hasErrors = issues.some(i => i.severity === 'error');
-    const hasWarnings = issues.some(i => i.severity === 'warning');
-
-    return {
-      ...row,
-      issues,
-      status: hasErrors ? 'error' : hasWarnings ? 'warning' : 'valid',
-    };
-  });
+function normalizePhone(phone: string): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return null;
 }
 
-// ─── Issue Badge ──────────────────────────────────────────────────────────────
-
-function IssueBadge({ issue }: { issue: RowIssue }) {
-  const colors = {
-    duplicate_address: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-    invalid_format: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-    missing_required: 'bg-red-500/10 text-red-600 border-red-500/20',
-    invalid_source: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-    invalid_stage: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
-  };
-  const labels = {
-    duplicate_address: 'Duplicate',
-    invalid_format: 'Bad Format',
-    missing_required: 'Missing Field',
-    invalid_source: 'Unknown Source',
-    invalid_stage: 'Unknown Stage',
-  };
-  return (
-    <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border font-medium ${colors[issue.type]}`}>
-      {issue.severity === 'error' ? <XCircle size={9} /> : <AlertTriangle size={9} />}
-      {labels[issue.type]}
-    </span>
-  );
+function normalizeStateCandidate(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.length === 2) return trimmed.toUpperCase();
+  return STATE_NAME_MAP[trimmed.toLowerCase()] || trimmed.toUpperCase();
 }
 
-// ─── Row Editor ───────────────────────────────────────────────────────────────
+function getLocalIssues(row: ParsedRow): LocalIssue[] {
+  const issues: LocalIssue[] = [];
 
-function RowEditor({ row, onSave, onSkip, onClose }: {
-  row: ParsedRow;
-  onSave: (updated: Partial<ParsedRow>) => void;
-  onSkip: () => void;
-  onClose: () => void;
-}) {
-  const [address, setAddress] = useState(row.address);
-  const [source, setSource] = useState(row.source);
-  const [stage, setStage] = useState(row.stage);
-  const [price, setPrice] = useState(row.price);
+  if (!row.address.trim() || row.address.trim().length < 5) {
+    issues.push({ severity: 'error', field: 'address', message: 'CSV import skips rows without a usable address.' });
+  }
 
-  return (
-    <div className="bg-card border border-primary/30 rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">Edit Row {row.rowIndex}</p>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2">
-          <label className="text-[11px] text-muted-foreground mb-1 block">Address *</label>
-          <input value={address} onChange={e => setAddress(e.target.value)}
-            className="w-full bg-muted border border-border rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary" />
-        </div>
-        <div>
-          <label className="text-[11px] text-muted-foreground mb-1 block">Source</label>
-          <select value={source} onChange={e => setSource(e.target.value)}
-            className="w-full bg-muted border border-border rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary">
-            {VALID_SOURCES.map(s => <option key={s}>{s}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-[11px] text-muted-foreground mb-1 block">Stage</label>
-          <select value={stage} onChange={e => setStage(e.target.value)}
-            className="w-full bg-muted border border-border rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary">
-            {VALID_STAGES.map(s => <option key={s}>{s}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-[11px] text-muted-foreground mb-1 block">Price</label>
-          <input value={price} onChange={e => setPrice(e.target.value)}
-            className="w-full bg-muted border border-border rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary" />
-        </div>
-      </div>
-      <div className="flex items-center gap-2 pt-1">
-        <button onClick={() => onSave({ address, source, stage, price, status: 'fixed', edited: true })}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
-          <CheckCircle2 size={12} /> Save Fix
-        </button>
-        <button onClick={onSkip}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-muted-foreground text-xs hover:text-foreground transition-colors">
-          Skip Row
-        </button>
-      </div>
-    </div>
-  );
+  if (row.phone.trim() && !normalizePhone(row.phone)) {
+    issues.push({ severity: 'warning', field: 'phone', message: 'Phone will not normalize to E.164, so it will not import as a verified number.' });
+  }
+
+  if (ACTIVE_PIPELINE_STAGES.includes(row.stage.trim())) {
+    issues.push({ severity: 'info', field: 'stage', message: 'Import will coerce this stage back to “New Lead”; CSV uploads cannot advance active pipeline stages.' });
+  }
+
+  if (row.state.trim() && !/^[A-Za-z]{2}$/.test(row.state.trim()) && !STATE_NAME_MAP[row.state.trim().toLowerCase()]) {
+    issues.push({ severity: 'warning', field: 'state', message: `State “${row.state}” does not map cleanly to a two-letter code and may not create the expected portfolio.` });
+  }
+
+  if (!row.city.trim() && !row.state.trim() && !row.zip.trim()) {
+    issues.push({ severity: 'info', field: 'address', message: 'Dedup will rely mostly on the street line because city, state, and ZIP are all blank.' });
+  }
+
+  return issues;
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+function outcomeLabel(outcome: OutcomeFilter): string {
+  if (outcome === 'LOCAL_ERROR') return 'LOCAL ERROR';
+  return outcome.replace(/_/g, ' ');
+}
+
+function IssuePill({ issue }: { issue: LocalIssue }) {
+  const tone = issue.severity === 'error' ? 'danger' : issue.severity === 'warning' ? 'warning' : 'primary';
+  const Icon = issue.severity === 'error' ? XCircle : issue.severity === 'warning' ? AlertTriangle : Info;
+  return <StatusPill tone={tone} icon={Icon}>{issue.field}</StatusPill>;
+}
+
+function OutcomePill({ outcome }: { outcome: Exclude<OutcomeFilter, 'all'> }) {
+  return <StatusPill tone={OUTCOME_TONE[outcome]}>{outcomeLabel(outcome)}</StatusPill>;
+}
 
 export default function CsvPreflightPage() {
-  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState('');
-  const [phase, setPhase] = useState<'upload' | 'review' | 'done'>('upload');
-  const [editingRow, setEditingRow] = useState<number | null>(null);
-  const [filterStatus, setFilterStatus] = useState<RowStatus | 'all'>('all');
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
-  const [dragOver, setDragOver] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all');
 
-  const processFile = useCallback((file: File) => {
-    if (!file.name.endsWith('.csv')) return;
-    setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = e => {
-      const text = e.target?.result as string;
-      const parsed = parseCSV(text);
-      const validated = validateRows(parsed);
-      setRows(validated);
-      setPhase('review');
-    };
-    reader.readAsText(file);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  }, [processFile]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) processFile(file);
-  };
-
-  const handleSaveEdit = (rowIndex: number, updates: Partial<ParsedRow>) => {
-    setRows(prev => {
-      const updated = prev.map(r => r.rowIndex === rowIndex ? { ...r, ...updates } : r);
-      return validateRows(updated.map(r => r.rowIndex === rowIndex ? { ...r, ...updates } : r));
-    });
-    setEditingRow(null);
-  };
-
-  const handleSkipRow = (rowIndex: number) => {
-    setRows(prev => prev.map(r => r.rowIndex === rowIndex ? { ...r, status: 'skipped' } : r));
-    setEditingRow(null);
-  };
-
-  const handleAutoFix = () => {
-    setRows(prev => prev.map(row => {
-      if (row.status === 'warning') {
-        const fixed = { ...row };
-        if (!VALID_SOURCES.includes(fixed.source)) fixed.source = 'Other';
-        if (!VALID_STAGES.includes(fixed.stage)) fixed.stage = 'New Lead';
-        if (isNaN(Number(fixed.price.replace(/[$,]/g, '')))) fixed.price = '2500';
-        return { ...fixed, status: 'fixed', edited: true, issues: [] };
-      }
-      return row;
-    }));
-  };
-
-  const handleImport = async () => {
-    setImporting(true);
-    await new Promise(r => setTimeout(r, 1500));
-    const toImport = rows.filter(r => r.status === 'valid' || r.status === 'fixed' || r.status === 'warning');
-    const skipped = rows.filter(r => r.status === 'error' || r.status === 'skipped');
-    setImportResult({ imported: toImport.length, skipped: skipped.length });
-    setImporting(false);
-    setPhase('done');
-  };
-
-  const handleReset = () => {
-    setRows([]);
+  const reset = () => {
     setFileName('');
-    setPhase('upload');
-    setEditingRow(null);
-    setImportResult(null);
-    setFilterStatus('all');
+    setRows([]);
+    setPreview(null);
+    setError(null);
+    setSearch('');
+    setOutcomeFilter('all');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const summary: PreflightSummary = {
-    total: rows.length,
-    valid: rows.filter(r => r.status === 'valid').length,
-    errors: rows.filter(r => r.status === 'error').length,
-    warnings: rows.filter(r => r.status === 'warning').length,
-    duplicates: rows.filter(r => r.issues.some(i => i.type === 'duplicate_address')).length,
-    missingRequired: rows.filter(r => r.issues.some(i => i.type === 'missing_required')).length,
-    invalidFormat: rows.filter(r => r.issues.some(i => i.type === 'invalid_format')).length,
+  const analyzeFile = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setError('Please choose a .csv file.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const text = await file.text();
+      const parsedRows = parseCSVText(text);
+      if (parsedRows.length === 0) {
+        throw new Error('CSV appears empty or malformed.');
+      }
+
+      const importBatchId = globalThis.crypto?.randomUUID?.() ?? `preflight-${Date.now()}`;
+      const response = await fetch('/api/leads/csv-import-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: parsedRows, importBatchId }),
+      });
+
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.error || 'Preview failed.');
+      }
+
+      setFileName(file.name);
+      setRows(parsedRows);
+      setPreview(body.preview as ImportPreview);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Preview failed.');
+      setPreview(null);
+      setRows([]);
+      setFileName('');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredRows = filterStatus === 'all' ? rows : rows.filter(r => r.status === filterStatus);
-  const canImport = rows.some(r => r.status === 'valid' || r.status === 'fixed' || r.status === 'warning');
+  const displayRows = useMemo<DisplayRow[]>(() => {
+    const previewMap = new Map<number, PreviewRowResult>((preview?.rowResults || []).map((result) => [result.rowIndex, result]));
+    return rows.map((row) => {
+      const issues = getLocalIssues(row);
+      const previewRow = previewMap.get(row.rowIndex) ?? null;
+      const effectiveOutcome: Exclude<OutcomeFilter, 'all'> = issues.some((issue) => issue.severity === 'error') && !previewRow
+        ? 'LOCAL_ERROR'
+        : previewRow?.outcome ?? 'REVIEW_REQUIRED';
+      return { row, preview: previewRow, issues, effectiveOutcome };
+    });
+  }, [preview, rows]);
+
+  const filteredRows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return displayRows.filter(({ row, preview: previewRow, issues, effectiveOutcome }) => {
+      if (outcomeFilter !== 'all' && effectiveOutcome !== outcomeFilter) return false;
+      if (!query) return true;
+      const haystack = [
+        row.address,
+        row.contact,
+        row.phone,
+        row.city,
+        row.state,
+        row.zip,
+        row.stage,
+        row.source,
+        previewRow?.normalizedAddress || '',
+        previewRow?.matchStrategy || '',
+        issues.map((issue) => issue.message).join(' '),
+      ].join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [displayRows, outcomeFilter, search]);
+
+  const localIssueCounts = useMemo(() => {
+    return displayRows.reduce(
+      (acc, item) => {
+        const hasError = item.issues.some((issue) => issue.severity === 'error');
+        const hasWarning = item.issues.some((issue) => issue.severity === 'warning');
+        if (hasError) acc.errorRows += 1;
+        if (hasWarning) acc.warningRows += 1;
+        for (const issue of item.issues) {
+          if (issue.severity === 'error') acc.errors += 1;
+          if (issue.severity === 'warning') acc.warnings += 1;
+          if (issue.field === 'stage') acc.stageOverrides += 1;
+          if (issue.field === 'phone' && issue.severity === 'warning') acc.phoneWarnings += 1;
+        }
+        return acc;
+      },
+      { errors: 0, warnings: 0, errorRows: 0, warningRows: 0, stageOverrides: 0, phoneWarnings: 0 },
+    );
+  }, [displayRows]);
+
+  const filterOptions: OutcomeFilter[] = ['all', 'NEW', 'UPDATED_EXISTING', 'UNCHANGED_EXISTING', 'DUPLICATE_IN_FILE', 'REVIEW_REQUIRED', 'LOCAL_ERROR'];
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">CSV Pre-Flight Check</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Validate CSV uploads before import — flags duplicates, invalid formats, and missing fields with a correction workflow.
-          </p>
-        </div>
+      <div className="space-y-6 p-6">
+        <PageHeader
+          icon={FileCheck2}
+          title="CSV Pre-Flight Check"
+          description="Runs the real /api/leads/csv-import-preview dedup logic without inserting or updating anything."
+          actions={
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void analyzeFile(file);
+                  event.currentTarget.value = '';
+                }}
+              />
+              <button className={buttonSecondary} onClick={reset} disabled={loading || rows.length === 0}>Reset</button>
+              <button className={buttonPrimary} onClick={() => fileInputRef.current?.click()} disabled={loading}>
+                <Upload size={16} />
+                {rows.length > 0 ? 'Analyze another CSV' : 'Choose CSV'}
+              </button>
+            </>
+          }
+        />
 
-        {/* Upload Phase */}
-        {phase === 'upload' && (
-          <div
-            onDrop={handleDrop}
-            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onClick={() => fileRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all ${
-              dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/30'
-            }`}
-          >
-            <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Upload size={28} className="text-primary" />
-              </div>
-              <div>
-                <p className="text-lg font-semibold text-foreground">Drop your CSV file here</p>
-                <p className="text-sm text-muted-foreground mt-1">or click to browse — supports address, source, stage, beds, baths, price, notes</p>
-              </div>
-              <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1"><CheckCircle2 size={11} className="text-emerald-500" /> Duplicate detection</span>
-                <span className="flex items-center gap-1"><CheckCircle2 size={11} className="text-emerald-500" /> Format validation</span>
-                <span className="flex items-center gap-1"><CheckCircle2 size={11} className="text-emerald-500" /> Required field check</span>
-              </div>
-            </div>
-          </div>
+        {error && <ErrorBanner message={error} onRetry={() => fileInputRef.current?.click()} />}
+
+        {!fileName && !loading && (
+          <EmptyState
+            icon={FileSpreadsheet}
+            title="Drop in a CSV to inspect it before import"
+            hint="Pre-flight checks the real dedup keys the importer uses: source_property_id, apn, dedup_fingerprint, plus a fallback address match. This page never writes to the database."
+            action={<button className={buttonPrimary} onClick={() => fileInputRef.current?.click()}><Upload size={16} />Upload CSV</button>}
+          />
         )}
 
-        {/* Review Phase */}
-        {phase === 'review' && (
+        {loading && <LoadingState label="Running read-only import preview…" />}
+
+        {!!fileName && !!preview && !loading && (
           <>
-            {/* File info bar */}
-            <div className="flex items-center justify-between bg-muted/40 border border-border rounded-xl px-4 py-3">
-              <div className="flex items-center gap-3">
-                <FileText size={18} className="text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">{fileName}</p>
-                  <p className="text-[11px] text-muted-foreground">{rows.length} rows parsed</p>
+            <StatGrid
+              columns={5}
+              stats={[
+                { label: 'Rows parsed', value: rows.length, hint: fileName, icon: FileSpreadsheet, tone: 'default' },
+                { label: 'Unique after CSV dedup', value: preview.uniquePropertiesAfterCsvDedup, hint: `${preview.duplicatesWithinCsv} duplicate rows inside file`, icon: Database, tone: 'primary' },
+                { label: 'New prospects', value: preview.newProspects, hint: 'Would insert as new leads', icon: Sparkles, tone: 'success' },
+                { label: 'Existing matches', value: preview.existingMatches, hint: `${preview.existingToEnrich} would enrich`, icon: Eye, tone: 'primary' },
+                { label: 'Rows with blocking issues', value: localIssueCounts.errorRows, hint: `${localIssueCounts.warningRows} rows have warnings`, icon: AlertTriangle, tone: localIssueCounts.errorRows > 0 ? 'danger' : 'success' },
+              ]}
+            />
+
+            <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+              <Panel title="What the real importer will do" icon={Database}>
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <p>
+                    This preview calls <span className="font-mono text-foreground">/api/leads/csv-import-preview</span>, which checks the same lead columns the live importer uses:
+                    <span className="ml-1 font-medium text-foreground">source_property_id</span>,
+                    <span className="ml-1 font-medium text-foreground">apn</span>, and
+                    <span className="ml-1 font-medium text-foreground">dedup_fingerprint</span>,
+                    with a fallback address match.
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex gap-2"><CheckCircle2 size={16} className="mt-0.5 text-success" />Only <span className="font-medium text-foreground">address</span> is required for a row to be considered.</li>
+                    <li className="flex gap-2"><Info size={16} className="mt-0.5 text-primary" />CSV stages like Contacted or Proposal Sent will still import as <span className="font-medium text-foreground">New Lead</span>.</li>
+                    <li className="flex gap-2"><Info size={16} className="mt-0.5 text-primary" />Missing city/state/ZIP reduces match quality but does not block import.</li>
+                    <li className="flex gap-2"><XCircle size={16} className="mt-0.5 text-danger" />This pre-flight never posts to <span className="font-mono text-foreground">/api/leads/csv-import</span>, so it never creates leads, portfolios, or audit rows.</li>
+                  </ul>
+                </div>
+              </Panel>
+
+              <Panel title="Observed validation notes" icon={AlertTriangle}>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-3 py-2">
+                    <span className="text-muted-foreground">Address errors</span>
+                    <span className="font-semibold tabular-nums text-foreground">{localIssueCounts.errors}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-3 py-2">
+                    <span className="text-muted-foreground">Phone warnings</span>
+                    <span className="font-semibold tabular-nums text-foreground">{localIssueCounts.phoneWarnings}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-3 py-2">
+                    <span className="text-muted-foreground">Stage overrides to New Lead</span>
+                    <span className="font-semibold tabular-nums text-foreground">{localIssueCounts.stageOverrides}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-3 py-2">
+                    <span className="text-muted-foreground">New state portfolios if imported</span>
+                    <span className="font-semibold tabular-nums text-foreground">{preview.newPortfoliosToCreate}</span>
+                  </div>
+                </div>
+              </Panel>
+            </div>
+
+            <Panel title="Preview filters" icon={Search}>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative w-full lg:max-w-sm">
+                  <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    className={`${inputClass} pl-9`}
+                    placeholder="Search address, state, match strategy, or note"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {filterOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setOutcomeFilter(option)}
+                      className={outcomeFilter === option ? buttonPrimary : buttonSecondary}
+                    >
+                      {option === 'all' ? `All (${displayRows.length})` : `${outcomeLabel(option)} (${displayRows.filter((item) => item.effectiveOutcome === option).length})`}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <button onClick={handleReset} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                <RotateCcw size={13} /> Upload new file
-              </button>
-            </div>
+            </Panel>
 
-            {/* Summary cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: 'Valid', value: summary.valid, color: 'text-emerald-500', bg: 'border-emerald-500/20', icon: <CheckCircle2 size={15} className="text-emerald-500" /> },
-                { label: 'Errors', value: summary.errors, color: 'text-red-500', bg: 'border-red-500/20', icon: <XCircle size={15} className="text-red-500" /> },
-                { label: 'Warnings', value: summary.warnings, color: 'text-amber-500', bg: 'border-amber-500/20', icon: <AlertTriangle size={15} className="text-amber-500" /> },
-                { label: 'Duplicates', value: summary.duplicates, color: 'text-orange-500', bg: 'border-orange-500/20', icon: <Copy size={15} className="text-orange-500" /> },
-              ].map(({ label, value, color, bg, icon }) => (
-                <div key={label} className={`bg-card border ${bg} rounded-xl p-4`}>
-                  <div className="flex items-center gap-2 mb-1">{icon}<span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span></div>
-                  <p className={`text-2xl font-bold ${color}`}>{value}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Action bar */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                {(['all', 'valid', 'error', 'warning', 'fixed', 'skipped'] as const).map(f => (
-                  <button key={f} onClick={() => setFilterStatus(f)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
-                      filterStatus === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
-                    }`}>
-                    {f === 'all' ? `All (${rows.length})` : `${f} (${rows.filter(r => r.status === f).length})`}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                {summary.warnings > 0 && (
-                  <button onClick={handleAutoFix}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-600 border border-amber-500/20 text-xs font-medium hover:bg-amber-500/20 transition-colors">
-                    <Zap size={13} /> Auto-fix Warnings
-                  </button>
-                )}
-                <button onClick={handleImport} disabled={!canImport || importing}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
-                  {importing ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
-                  {importing ? 'Importing…' : `Import ${rows.filter(r => ['valid', 'fixed', 'warning'].includes(r.status)).length} rows`}
-                </button>
-              </div>
-            </div>
-
-            {/* Row table */}
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <Panel title="Row-by-row pre-flight report" icon={FileCheck2} padded={false}>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-10">#</th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Address</th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Source</th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Stage</th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Issues</th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                <table className="min-w-full divide-y divide-border text-sm">
+                  <thead className="bg-muted/30">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Row</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Outcome</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Match</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Validation details</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {filteredRows.map(row => (
-                      <React.Fragment key={row.rowIndex}>
-                        <tr className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
-                          row.status === 'error' ? 'bg-red-500/3' :
-                          row.status === 'warning' ? 'bg-amber-500/3' :
-                          row.status === 'fixed' ? 'bg-emerald-500/3' :
-                          row.status === 'skipped' ? 'opacity-40' : ''
-                        }`}>
-                          <td className="px-4 py-2.5 text-[11px] text-muted-foreground">{row.rowIndex}</td>
-                          <td className="px-4 py-2.5">
-                            <span className="text-xs text-foreground font-medium">{row.address || <span className="text-red-400 italic">missing</span>}</span>
-                            {row.edited && <span className="ml-1.5 text-[9px] text-emerald-500 font-medium">edited</span>}
-                          </td>
-                          <td className="px-4 py-2.5 text-xs text-muted-foreground">{row.source}</td>
-                          <td className="px-4 py-2.5 text-xs text-muted-foreground">{row.stage}</td>
-                          <td className="px-4 py-2.5">
-                            <div className="flex flex-wrap gap-1">
-                              {row.issues.map((issue, i) => <IssueBadge key={i} issue={issue} />)}
-                              {row.issues.length === 0 && <span className="text-[10px] text-emerald-500">—</span>}
+                  <tbody className="divide-y divide-border">
+                    {filteredRows.map(({ row, preview: previewRow, issues, effectiveOutcome }) => (
+                      <tr key={row.rowIndex} className="align-top hover:bg-muted/20">
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{row.rowIndex}</td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-1">
+                            <div className="font-medium text-foreground">{row.address || 'Missing address'}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {[row.city, normalizeStateCandidate(row.state), row.zip].filter(Boolean).join(', ') || 'No city/state/ZIP'}
                             </div>
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                              row.status === 'valid' ? 'bg-emerald-500/10 text-emerald-600' :
-                              row.status === 'error' ? 'bg-red-500/10 text-red-600' :
-                              row.status === 'warning' ? 'bg-amber-500/10 text-amber-600' :
-                              row.status === 'fixed'? 'bg-blue-500/10 text-blue-600' : 'bg-muted text-muted-foreground'
-                            }`}>{row.status}</span>
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <div className="flex items-center gap-1">
-                              {row.status !== 'skipped' && (
-                                <button onClick={() => setEditingRow(editingRow === row.rowIndex ? null : row.rowIndex)}
-                                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                                  <Edit3 size={13} />
-                                </button>
-                              )}
-                              {row.status !== 'skipped' && (
-                                <button onClick={() => handleSkipRow(row.rowIndex)}
-                                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400 transition-colors">
-                                  <X size={13} />
-                                </button>
-                              )}
-                              {row.status === 'skipped' && (
-                                <button onClick={() => setRows(prev => prev.map(r => r.rowIndex === row.rowIndex ? { ...r, status: r.issues.some(i => i.severity === 'error') ? 'error' : r.issues.length > 0 ? 'warning' : 'valid' } : r))}
-                                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                                  <RotateCcw size={13} />
-                                </button>
-                              )}
+                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                              {row.contact && <span>Contact: {row.contact}</span>}
+                              {row.phone && <span>Phone: {row.phone}</span>}
+                              {row.source && <span>Source: {row.source}</span>}
                             </div>
-                          </td>
-                        </tr>
-                        {editingRow === row.rowIndex && (
-                          <tr>
-                            <td colSpan={7} className="px-4 py-3 bg-muted/20">
-                              <RowEditor
-                                row={row}
-                                onSave={updates => handleSaveEdit(row.rowIndex, updates)}
-                                onSkip={() => handleSkipRow(row.rowIndex)}
-                                onClose={() => setEditingRow(null)}
-                              />
-                            </td>
-                          </tr>
-                        )}
-                        {/* Issue suggestions */}
-                        {row.issues.length > 0 && editingRow !== row.rowIndex && (
-                          <tr>
-                            <td colSpan={7} className="px-4 pb-2">
-                              <div className="space-y-1">
-                                {row.issues.map((issue, i) => (
-                                  <div key={i} className="flex items-start gap-2 text-[11px] text-muted-foreground">
-                                    <Info size={11} className="mt-0.5 flex-shrink-0 text-blue-400" />
-                                    <span><span className="font-medium text-foreground">{issue.field}:</span> {issue.message}
-                                      {issue.suggestion && <span className="text-muted-foreground"> — {issue.suggestion}</span>}
-                                    </span>
-                                  </div>
-                                ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3"><OutcomePill outcome={effectiveOutcome} /></td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {previewRow ? (
+                            <div className="space-y-1">
+                              {previewRow.matchStrategy ? <div>Strategy: <span className="font-medium text-foreground">{previewRow.matchStrategy}</span></div> : <div>New lead candidate</div>}
+                              {typeof previewRow.matchConfidence === 'number' && <div>Confidence: <span className="font-medium tabular-nums text-foreground">{previewRow.matchConfidence}%</span></div>}
+                              {previewRow.normalizedAddress && <div className="break-words">Normalized: {previewRow.normalizedAddress}</div>}
+                            </div>
+                          ) : (
+                            <span>{issues.some((issue) => issue.severity === 'error') ? 'Not sent to preview endpoint' : 'No preview result returned'}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-2">
+                            {issues.length === 0 && <span className="text-xs text-muted-foreground">No client-side issues detected.</span>}
+                            {issues.map((issue, index) => (
+                              <div key={`${row.rowIndex}-${index}`} className="space-y-1 rounded-xl border border-border bg-muted/20 p-2.5">
+                                <IssuePill issue={issue} />
+                                <p className="text-xs text-muted-foreground">{issue.message}</p>
                               </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
+                            ))}
+                            {previewRow?.reviewReason && (
+                              <div className="rounded-xl border border-border bg-muted/20 p-2.5 text-xs text-muted-foreground">
+                                <span className="font-medium text-foreground">Review note:</span> {previewRow.reviewReason}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
+              {filteredRows.length === 0 && (
+                <div className="p-6">
+                  <EmptyState
+                    icon={Search}
+                    title="No rows match the current filters"
+                    hint="Adjust the outcome filter or search query to see more of the preview report."
+                  />
+                </div>
+              )}
+            </Panel>
           </>
-        )}
-
-        {/* Done Phase */}
-        {phase === 'done' && importResult && (
-          <div className="text-center py-16 space-y-6">
-            <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
-              <CheckCircle2 size={36} className="text-emerald-500" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-foreground">Import Complete</h2>
-              <p className="text-muted-foreground mt-1">Your CSV has been processed successfully.</p>
-            </div>
-            <div className="flex items-center justify-center gap-8">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-emerald-500">{importResult.imported}</p>
-                <p className="text-sm text-muted-foreground">Leads imported</p>
-              </div>
-              <div className="text-center">
-                <p className="text-3xl font-bold text-muted-foreground">{importResult.skipped}</p>
-                <p className="text-sm text-muted-foreground">Rows skipped</p>
-              </div>
-            </div>
-            <button onClick={handleReset}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors">
-              <Upload size={16} /> Upload Another File
-            </button>
-          </div>
         )}
       </div>
     </AppLayout>

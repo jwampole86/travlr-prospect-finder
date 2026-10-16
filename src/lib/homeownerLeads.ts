@@ -32,6 +32,7 @@ export async function upsertHomeownerLead(db: Db, input: {
   report: HomeownerReport;
   contact: HomeownerContact;
   origin: 'estimate_form' | 'call_request' | 'question';
+  brand?: string;
   qualification?: Record<string, unknown>;
   summary?: string;
   validation?: Record<string, unknown>;
@@ -48,6 +49,7 @@ export async function upsertHomeownerLead(db: Db, input: {
   const submission = {
     submitted_at: now,
     origin,
+    brand: input.brand ?? 'travlr',
     estimate_shown: {
       adr: expected.adr, occupancy: expected.occupancy, gross_monthly: expected.grossMonthly,
       net_monthly: expected.netMonthly, annual_net: expected.annualNet, long_term_rent: report.longTermRent,

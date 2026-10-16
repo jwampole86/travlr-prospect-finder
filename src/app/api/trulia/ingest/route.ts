@@ -14,7 +14,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { parseTruliaUrl, validateSyncCounters, determineHealthStatus, validateReconciliation, validateSourceConfig, getSafeStageForSourceSync, type SyncCounters, type SourceHealthStatus,  } from '@/lib/services/truliaSourceValidationService';
+import { recordSourcePull } from '@/lib/services/sourceSyncRecorder';
+import { searchTruliaRentals } from '@/lib/services/rapidApiRealEstateService';
+import { parseTruliaUrl, validateSyncCounters, determineHealthStatus, validateReconciliation, validateSourceConfig, type SyncCounters, type SourceHealthStatus,  } from '@/lib/services/truliaSourceValidationService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +26,7 @@ interface IngestRequest {
   tier?: 'STANDARD' | 'LUXURY' | 'all';
   triggeredBy?: string;
   dryRun?: boolean;        // validate only, no DB writes
+  maxPages?: number;       // Trulia result pages per source (default 2, max 5)
 }
 
 interface SourceSyncResult {
@@ -53,6 +56,10 @@ interface SourceSyncResult {
   durationMs: number;
 }
 
+const DEFAULT_PAGES_PER_SOURCE = 2;
+const MAX_PAGES_PER_SOURCE = 5;
+const IMPORT_CHUNK_SIZE = 50;
+
 // ─── Safe number helper ───────────────────────────────────────────────────────
 
 function safeInt(val: unknown, defaultVal = -1): number {
@@ -69,6 +76,9 @@ export async function POST(req: NextRequest) {
   try {
     const body: IngestRequest = await req.json().catch(() => ({}));
     const { sourceId, stateCode, tier, triggeredBy, dryRun = false } = body;
+    const maxPages = Math.min(MAX_PAGES_PER_SOURCE, Math.max(1, Number(body.maxPages) || DEFAULT_PAGES_PER_SOURCE));
+    const origin = new URL(req.url).origin;
+    const cookie = req.headers.get('cookie') || '';
 
     const supabase = await createClient();
 
@@ -207,14 +217,11 @@ export async function POST(req: NextRequest) {
       }
 
       // ── Attempt authorized source access ─────────────────────────────────
-      // Trulia's public search pages are not an authorized data API.
-      // We report SOURCE_ACCESS_UNAVAILABLE for direct web scraping attempts.
-      // This system is designed to integrate with an authorized data provider
-      // (e.g., licensed MLS feed, BatchData, or similar authorized property API).
-      // The source URL serves as the SOURCE CONFIGURATION (state, tier, filters).
-      // Actual property data must come from an authorized/licensed integration.
+      // Trulia's public search pages are never scraped directly. Listings come
+      // from the licensed Trulia RapidAPI subscription; the source config
+      // supplies the state and minimum-rent filters.
 
-      const accessResult = await attemptAuthorizedSourceAccess(src, supabase);
+      const accessResult = await fetchFromTruliaRapidApi(src, maxPages);
 
       if (!accessResult.authorized) {
         const result: SourceSyncResult = {
@@ -234,7 +241,7 @@ export async function POST(req: NextRequest) {
           pagesFailed: null,
           syncStatus: 'SOURCE_ACCESS_UNAVAILABLE',
           healthStatus: 'SOURCE_ERROR',
-          lastError: accessResult.error || 'SOURCE_ACCESS_UNAVAILABLE: Trulia direct web access is not an authorized data integration. Configure an authorized property data provider (BatchData, MLS, etc.) to enable real property ingestion.',
+          lastError: accessResult.error || 'SOURCE_ACCESS_UNAVAILABLE: Trulia RapidAPI access failed.',
           reconciliationValid: false,
           reconciliationNotes: 'Source access unavailable — no data to reconcile',
           durationMs: Date.now() - srcStart,
@@ -299,7 +306,8 @@ export async function POST(req: NextRequest) {
         src,
         records || [],
         syncRunDbId,
-        dryRun
+        dryRun,
+        { origin, cookie }
       );
 
       const { counters: validatedCounters } = validateSyncCounters(pipelineResult.counters);
@@ -389,7 +397,7 @@ export async function POST(req: NextRequest) {
         .neq('is_synthetic', true);
 
       // Pipeline stage changes from sync MUST be 0
-      const pipelineStageChanges = 0; // enforced by getSafeStageForSourceSync
+      const pipelineStageChanges = 0; // csv-import never advances stage; new rows are always 'New Lead'
 
       const overallStatus =
         batchCounters.sourcesFailed === batchCounters.sourcesAttempted
@@ -437,6 +445,19 @@ export async function POST(req: NextRequest) {
           pipelineSafe: pipelineStageChanges === 0,
         },
       };
+    }
+
+    if (!dryRun && stateCode && batchCounters.sourcesAttempted > 0) {
+      const failed = batchCounters.sourcesFailed === batchCounters.sourcesAttempted;
+      await recordSourcePull({
+        source: 'Trulia',
+        stateCode: stateCode.toUpperCase(),
+        ok: !failed,
+        fetched: batchCounters.sourceResultsReturned,
+        imported: batchCounters.newProspectsInserted + batchCounters.existingProspectsUpdated,
+        newLeads: batchCounters.newProspectsInserted,
+        error: failed ? sourceResults.map((r) => r.lastError).find(Boolean) : null,
+      });
     }
 
     return NextResponse.json({
@@ -602,163 +623,96 @@ interface PropertyRecord {
   listingStatus: string | null;
   latitude: number | null;
   longitude: number | null;
+  beds?: number | null;
+  baths?: number | null;
+  notes?: string | null;
+  isFsbo?: boolean;
+  isApartmentCommunity?: boolean;
 }
 
 /**
- * Attempt authorized source access.
- *
- * IMPORTANT: Trulia's public search pages are not an authorized data API.
- * Direct web scraping, CAPTCHA circumvention, proxy rotation, or
- * anti-bot bypassing are NOT permitted.
- *
- * This function checks for a configured authorized data provider
- * (BatchData API, licensed MLS feed, etc.) and uses that instead.
- * If no authorized provider is configured, it reports SOURCE_ACCESS_UNAVAILABLE.
+ * Fetch Trulia rentals for one source config through the licensed Trulia
+ * RapidAPI subscription (never by scraping trulia.com). The config's state and
+ * minimum rent are passed as search filters; type/state/rent are re-validated
+ * per record in the pipeline.
  */
-async function attemptAuthorizedSourceAccess(
+async function fetchFromTruliaRapidApi(
   src: Record<string, unknown>,
-  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never
+  maxPages: number
 ): Promise<AccessResult> {
-  // Check if BatchData API is configured (authorized property data provider)
-  const batchDataKey = process.env.BATCHDATA_API_KEY;
+  const stateCode = String(src.state_code || '').toUpperCase();
+  const minimumRent = Number(src.minimum_rent) || undefined;
+  const records: PropertyRecord[] = [];
+  let pagesSucceeded = 0;
+  let pagesFailed = 0;
+  let firstError: { error?: string; status?: number } | null = null;
 
-  if (batchDataKey && batchDataKey !== 'your-batchdata-api-key-here') {
-    // Use BatchData as authorized property data source
-    return await fetchFromBatchData(src, batchDataKey);
+  for (let page = 1; page <= maxPages; page++) {
+    const result = await searchTruliaRentals({ location: stateCode, page, priceMin: minimumRent, sort: 'newest' });
+    if (!result.ok) {
+      pagesFailed++;
+      firstError = firstError || { error: result.error, status: result.status };
+      break;
+    }
+    pagesSucceeded++;
+    if (result.listings.length === 0) break;
+
+    for (const l of result.listings) {
+      records.push({
+        providerPropertyId: l.externalId || null,
+        providerListingId: null,
+        rawAddress: l.address || '',
+        city: l.city,
+        state: l.state,
+        zip: l.zip,
+        propertyType: l.propertyTypeLabel || null,
+        askingRent: l.price ?? null,
+        furnished: l.isFurnished === true ? true : null,
+        listingUrl: l.listingUrl || null,
+        listingStatus: l.listingStatus,
+        latitude: l.latitude ?? null,
+        longitude: l.longitude ?? null,
+        beds: l.beds,
+        baths: l.baths,
+        notes: l.notes || null,
+        isFsbo: l.isFsbo,
+        isApartmentCommunity: l.isApartmentCommunity,
+      });
+    }
   }
 
-  // No authorized provider configured
-  // Report SOURCE_ACCESS_UNAVAILABLE — do NOT fabricate results
-  return {
-    authorized: false,
-    method: 'SOURCE_ACCESS_UNAVAILABLE',
-    httpStatus: null,
-    error: [
-      'SOURCE_ACCESS_UNAVAILABLE: No authorized property data provider is configured.',
-      'Trulia.com direct web access is not a permitted ingestion method.',
-      'To enable real property ingestion, configure an authorized data provider:',
-      '  - BATCHDATA_API_KEY: BatchData property data API',
-      '  - Or another licensed MLS/property data integration',
-      'The source URL (trulia_source_configs.source_url_canonical) defines the',
-      'search parameters (state, rent threshold, property type, furnished).',
-      'These parameters should be passed to your authorized data provider.',
-    ].join('\n'),
-    records: null,
-    paginationInfo: null,
-    parseError: null,
+  const paginationInfo: PaginationInfo = {
+    pagesAvailable: null,
+    pagesRequested: pagesSucceeded + pagesFailed,
+    pagesSucceeded,
+    pagesFailed,
   };
-}
 
-/**
- * Fetch property data from BatchData API (authorized provider).
- * Uses the source config parameters (state, rent, property type) as filters.
- */
-async function fetchFromBatchData(
-  src: Record<string, unknown>,
-  apiKey: string
-): Promise<AccessResult> {
-  try {
-    const stateCode = src.state_code as string;
-    const minimumRent = src.minimum_rent as number;
-    const propertyTypes = (src.property_types as string[]) || ['SINGLE-FAMILY_HOME', 'TOWNHOUSE'];
-
-    // BatchData property search endpoint
-    const searchPayload = {
-      requests: [{
-        state: stateCode,
-        propertyType: propertyTypes.includes('SINGLE-FAMILY_HOME') ? 'SFR' : 'TH',
-        rentMin: minimumRent,
-        furnished: true,
-        status: 'FOR_RENT',
-        limit: 100,
-      }],
-    };
-
-    const response = await fetch('https://api.batchdata.com/api/v1/property/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(searchPayload),
-      signal: AbortSignal.timeout(30000),
-    });
-
-    if (!response.ok) {
-      const statusText = response.status === 401 || response.status === 403
-        ? 'AUTH_ERROR' :'SOURCE_ERROR';
-      return {
-        authorized: false,
-        method: 'BATCHDATA_API',
-        httpStatus: response.status,
-        error: `${statusText}: BatchData returned HTTP ${response.status}`,
-        records: null,
-        paginationInfo: null,
-        parseError: null,
-      };
-    }
-
-    const data = await response.json();
-
-    // Parse BatchData response
-    const rawResults = data?.results?.[0]?.properties || data?.properties || [];
-    if (!Array.isArray(rawResults)) {
-      return {
-        authorized: true,
-        method: 'BATCHDATA_API',
-        httpStatus: response.status,
-        error: null,
-        records: null,
-        paginationInfo: { pagesAvailable: null, pagesRequested: 1, pagesSucceeded: 0, pagesFailed: 1 },
-        parseError: 'PARSING_ERROR: Unexpected response schema from BatchData API',
-      };
-    }
-
-    const records: PropertyRecord[] = rawResults.map((p: Record<string, unknown>) => ({
-      providerPropertyId: (p.propertyId || p.id || null) as string | null,
-      providerListingId: (p.listingId || null) as string | null,
-      rawAddress: [p.address, p.city, p.state, p.zip].filter(Boolean).join(', '),
-      city: (p.city || '') as string,
-      state: (p.state || stateCode) as string,
-      zip: (p.zip || p.zipCode || '') as string,
-      propertyType: (p.propertyType || null) as string | null,
-      askingRent: p.rentAmount ? Number(p.rentAmount) : null,
-      furnished: p.furnished === true || p.furnished === 'true' || null,
-      listingUrl: (p.listingUrl || p.url || null) as string | null,
-      listingStatus: (p.status || p.listingStatus || null) as string | null,
-      latitude: p.latitude ? Number(p.latitude) : null,
-      longitude: p.longitude ? Number(p.longitude) : null,
-    }));
-
-    const totalResults = data?.totalResults || data?.total || rawResults.length;
-    const pagesAvailable = totalResults > 100 ? Math.ceil(totalResults / 100) : 1;
-
-    return {
-      authorized: true,
-      method: 'BATCHDATA_API',
-      httpStatus: response.status,
-      error: null,
-      records,
-      paginationInfo: {
-        pagesAvailable,
-        pagesRequested: 1,
-        pagesSucceeded: 1,
-        pagesFailed: 0,
-      },
-      parseError: null,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+  // A failed first page is an access failure, never "0 results".
+  if (pagesSucceeded === 0) {
+    const noKey = /No RAPIDAPI_KEY/i.test(firstError?.error || '');
     return {
       authorized: false,
-      method: 'BATCHDATA_API',
-      httpStatus: null,
-      error: `SOURCE_ERROR: ${message}`,
+      method: noKey ? 'SOURCE_ACCESS_UNAVAILABLE' : 'TRULIA_RAPIDAPI',
+      httpStatus: firstError?.status ?? null,
+      error: noKey
+        ? 'SOURCE_ACCESS_UNAVAILABLE: No RAPIDAPI_KEY_* is configured, so the Trulia RapidAPI integration cannot run.'
+        : `SOURCE_ERROR: Trulia RapidAPI request failed (${firstError?.error || 'unknown error'})`,
       records: null,
       paginationInfo: null,
       parseError: null,
     };
   }
+
+  return {
+    authorized: true,
+    method: 'TRULIA_RAPIDAPI',
+    httpStatus: 200,
+    error: null,
+    records,
+    paginationInfo,
+    parseError: null,
+  };
 }
 
 // ─── Ingestion Pipeline ───────────────────────────────────────────────────────
@@ -770,24 +724,57 @@ interface PipelineResult {
   lastError: string | null;
 }
 
+interface ImportContext {
+  origin: string;
+  cookie: string;
+}
+
+interface ImportRow {
+  source: 'Trulia';
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  beds: number;
+  baths: number;
+  price: number;
+  priceType: 'rent';
+  isFsbo?: boolean;
+  isApartmentCommunity?: boolean;
+  propertyTypeLabel?: string;
+  isFurnished?: boolean;
+  notes: string;
+  link?: string;
+  stage: 'New Lead';
+  source_property_id?: string;
+}
+
+/**
+ * Parse → normalize → validate (state, rent, property type) → hand accepted rows
+ * to /api/leads/csv-import, the same dedup/enrichment/scoring path every other
+ * source uses. New rows are always created at stage "New Lead" and existing
+ * leads keep their stage, so source sync can never move the TRAVLR pipeline.
+ */
 async function runIngestionPipeline(
   supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
   src: Record<string, unknown>,
   records: PropertyRecord[],
   syncRunDbId: string | null,
-  dryRun: boolean
+  dryRun: boolean,
+  ctx: ImportContext
 ): Promise<PipelineResult> {
   const sourceId = src.source_id as string;
   const stateCode = src.state_code as string;
   const sourceTier = src.source_tier as string;
   const minimumRent = src.minimum_rent as number;
-  const sourceConfigId = src.id as string;
+  const allowedTypes = new Set(
+    ((src.property_types as string[] | null) || ['SINGLE-FAMILY_HOME', 'TOWNHOUSE']).map(normalizePropertyType)
+  );
 
   let parsed = 0;
   let normalized = 0;
   let stateValidated = 0;
   let filterValidated = 0;
-  let propertiesVerified = 0;
   let newInserted = 0;
   let existingUpdated = 0;
   let deduped = 0;
@@ -795,213 +782,134 @@ async function runIngestionPipeline(
   let rejectedWrongState = 0;
   let rejectedFilterMismatch = 0;
   let errors = 0;
-  let luxuryMatches = 0;
-  let csvMatches = 0;
   let lastError: string | null = null;
+  const accepted: ImportRow[] = [];
 
   for (const record of records) {
-    try {
-      parsed++;
+    parsed++;
 
-      // ── Normalize address ───────────────────────────────────────────────
-      const rawAddress = record.rawAddress?.trim();
-      if (!rawAddress || rawAddress.length < 5) {
-        rejectedInvalid++;
-        await logPipelineEvent(supabase, syncRunDbId, sourceId, 'REJECTED_INVALID_ADDRESS', {
-          rawAddress, reason: 'Address too short or missing',
-        }, dryRun);
-        continue;
-      }
+    const rawAddress = record.rawAddress?.trim();
+    if (!rawAddress || rawAddress.length < 5) {
+      rejectedInvalid++;
+      await logPipelineEvent(supabase, syncRunDbId, sourceId, 'REJECTED_INVALID_ADDRESS', {
+        rawAddress, reason: 'Address too short or missing',
+      }, dryRun);
+      continue;
+    }
 
-      // Normalize: street, city, state, zip
-      const normalizedAddress = normalizeAddressString(rawAddress, record.city, record.state, record.zip);
-      if (!normalizedAddress.isComplete) {
-        rejectedInvalid++;
-        await logPipelineEvent(supabase, syncRunDbId, sourceId, 'REJECTED_INCOMPLETE_ADDRESS', {
-          rawAddress, missing: normalizedAddress.missingComponents,
-        }, dryRun);
-        continue;
-      }
-      normalized++;
+    const normalizedAddress = normalizeAddressString(rawAddress, record.city, record.state, record.zip);
+    if (!normalizedAddress.isComplete) {
+      rejectedInvalid++;
+      await logPipelineEvent(supabase, syncRunDbId, sourceId, 'REJECTED_INCOMPLETE_ADDRESS', {
+        rawAddress, missing: normalizedAddress.missingComponents,
+      }, dryRun);
+      continue;
+    }
+    normalized++;
 
-      // ── State validation ────────────────────────────────────────────────
-      const propertyState = (record.state || normalizedAddress.state || '').toUpperCase().trim();
-      if (propertyState !== stateCode.toUpperCase()) {
-        rejectedWrongState++;
-        await logPipelineEvent(supabase, syncRunDbId, sourceId, 'PROPERTY_STATE_MISMATCH', {
-          rawAddress,
-          configuredState: stateCode,
-          propertyState,
-          reason: 'Property state does not match source configuration state',
-        }, dryRun);
-        continue;
-      }
-      stateValidated++;
+    const propertyState = (record.state || normalizedAddress.state || '').toUpperCase().trim();
+    if (propertyState !== stateCode.toUpperCase()) {
+      rejectedWrongState++;
+      await logPipelineEvent(supabase, syncRunDbId, sourceId, 'PROPERTY_STATE_MISMATCH', {
+        rawAddress,
+        configuredState: stateCode,
+        propertyState,
+        reason: 'Property state does not match source configuration state',
+      }, dryRun);
+      continue;
+    }
+    stateValidated++;
 
-      // ── Rent filter validation ──────────────────────────────────────────
-      if (record.askingRent !== null && record.askingRent < minimumRent) {
-        rejectedFilterMismatch++;
-        await logPipelineEvent(supabase, syncRunDbId, sourceId, 'SOURCE_FILTER_MISMATCH', {
-          rawAddress,
-          configuredMinRent: minimumRent,
-          observedRent: record.askingRent,
-          reason: 'Property asking rent is below source minimum rent threshold',
-        }, dryRun);
-        continue;
-      }
+    // A listing without a rent cannot be proven to meet the source's minimum.
+    if (record.askingRent === null || record.askingRent < minimumRent) {
+      rejectedFilterMismatch++;
+      await logPipelineEvent(supabase, syncRunDbId, sourceId, 'SOURCE_FILTER_MISMATCH', {
+        rawAddress,
+        configuredMinRent: minimumRent,
+        observedRent: record.askingRent,
+        reason: record.askingRent === null
+          ? 'Listing has no asking rent, so the source minimum cannot be verified'
+          : 'Property asking rent is below source minimum rent threshold',
+      }, dryRun);
+      continue;
+    }
 
-      // ── Property type validation ────────────────────────────────────────
-      if (record.propertyType) {
-        const normalizedType = normalizePropertyType(record.propertyType);
-        const allowedTypes = ['SINGLE-FAMILY_HOME', 'TOWNHOUSE', 'SFR', 'SINGLE_FAMILY', 'TOWNHOME'];
-        if (!allowedTypes.some((t) => normalizedType.toUpperCase().includes(t.replace('_', '').replace('-', '')))) {
-          rejectedInvalid++;
-          await logPipelineEvent(supabase, syncRunDbId, sourceId, 'REJECTED_PROPERTY_TYPE', {
-            rawAddress, propertyType: record.propertyType,
-            reason: 'Property type not in configured filter (SINGLE-FAMILY_HOME, TOWNHOUSE)',
-          }, dryRun);
+    if (record.propertyType && !allowedTypes.has(normalizePropertyType(record.propertyType))) {
+      rejectedInvalid++;
+      await logPipelineEvent(supabase, syncRunDbId, sourceId, 'REJECTED_PROPERTY_TYPE', {
+        rawAddress, propertyType: record.propertyType,
+        reason: `Property type not in configured filter (${[...allowedTypes].join(', ')})`,
+      }, dryRun);
+      continue;
+    }
+    filterValidated++;
+
+    accepted.push({
+      source: 'Trulia',
+      address: normalizedAddress.street,
+      city: normalizedAddress.city,
+      state: stateCode.toUpperCase(),
+      zip: normalizedAddress.zip,
+      beds: record.beds ?? 0,
+      baths: record.baths ?? 0,
+      price: record.askingRent,
+      priceType: 'rent',
+      isFsbo: record.isFsbo,
+      isApartmentCommunity: record.isApartmentCommunity,
+      propertyTypeLabel: record.propertyType || undefined,
+      isFurnished: record.furnished === true ? true : undefined,
+      notes: (record.notes || '').slice(0, 2000),
+      link: record.listingUrl || undefined,
+      stage: 'New Lead',
+      source_property_id: record.providerPropertyId || undefined,
+    });
+  }
+
+  if (dryRun) {
+    newInserted = accepted.length;
+  } else {
+    const batchId = `trulia-ingest-${sourceId}-${Date.now()}`;
+    for (let i = 0; i < accepted.length; i += IMPORT_CHUNK_SIZE) {
+      const chunk = accepted.slice(i, i + IMPORT_CHUNK_SIZE);
+      try {
+        const res = await fetch(`${ctx.origin}/api/leads/csv-import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', cookie: ctx.cookie },
+          body: JSON.stringify({
+            rows: chunk,
+            importFilename: `trulia-source-sync-${sourceId}.json`,
+            importBatchId: `${batchId}-c${Math.floor(i / IMPORT_CHUNK_SIZE) + 1}`,
+          }),
+          signal: AbortSignal.timeout(60000),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          errors += chunk.length;
+          lastError = data?.error || `csv-import failed with HTTP ${res.status}`;
           continue;
         }
+        const sum = (data?.summary || {}) as Record<string, number>;
+        const chunkNew = Number(sum.rowsNew) || 0;
+        const chunkUpdated = (Number(sum.rowsUpdatedExisting) || 0) + (Number(sum.rowsUnchangedExisting) || 0);
+        const chunkDeduped = Number(sum.rowsDuplicateInFile) || 0;
+        newInserted += chunkNew;
+        existingUpdated += chunkUpdated;
+        deduped += chunkDeduped;
+        const chunkErrors = Number(sum.rowsError) || 0;
+        errors += chunkErrors;
+        if (chunkErrors > 0) {
+          lastError = `${chunkErrors} row(s) failed in the lead import (see enrichment_error_logs for batch ${batchId})`;
+        }
+        // Anything the import did not account for is surfaced as an error, not dropped.
+        const unaccounted = chunk.length - chunkNew - chunkUpdated - chunkDeduped - chunkErrors;
+        if (unaccounted > 0) {
+          errors += unaccounted;
+          lastError = lastError || `${unaccounted} row(s) were not accounted for by the lead import`;
+        }
+      } catch (err) {
+        errors += chunk.length;
+        lastError = err instanceof Error ? err.message : String(err);
       }
-      filterValidated++;
-
-      // ── Deduplication ───────────────────────────────────────────────────
-      if (!dryRun) {
-        const dedupResult = await findExistingProspect(supabase, record, normalizedAddress);
-
-        if (dedupResult.isDuplicate && dedupResult.existingId) {
-          deduped++;
-          propertiesVerified++;
-
-          // Update source observation (listing may have changed)
-          await upsertSourceObservation(supabase, {
-            prospectId: dedupResult.existingId,
-            sourceConfigId,
-            sourceId,
-            sourceTier,
-            sourceUrl: src.source_url_canonical as string,
-            listingUrl: record.listingUrl,
-            observedRent: record.askingRent,
-            observedListingStatus: record.listingStatus,
-            dedupMatchMethod: dedupResult.matchMethod,
-            syncRunDbId,
-            isLuxury: sourceTier === 'LUXURY',
-          });
-
-          // Update existing prospect with non-destructive enrichment
-          // NEVER overwrite: verified_owner, verified_number, contact_phone (manual CSV data)
-          // NEVER change: stage, lead_stage (pipeline protection)
-          await updateExistingProspectSafely(supabase, dedupResult.existingId, record, sourceTier);
-
-          existingUpdated++;
-
-          if (sourceTier === 'LUXURY') luxuryMatches++;
-          if (dedupResult.matchMethod === 'CSV_MATCH') csvMatches++;
-          continue;
-        }
-
-        // ── Insert new prospect ───────────────────────────────────────────
-        const portfolioName = stateToPortfolioName(stateCode);
-        const { data: portfolioData } = await supabase
-          .from('portfolios')
-          .select('id')
-          .eq('state_code', stateCode)
-          .eq('is_active', true)
-          .single();
-
-        const newProspect = {
-          // Address
-          address: normalizedAddress.fullNormalized,
-          city: normalizedAddress.city,
-          state: stateCode,
-          zip: normalizedAddress.zip,
-          raw_address: rawAddress,
-          standardized_address: normalizedAddress.fullNormalized,
-          // Property
-          property_type: record.propertyType || null,
-          // Source
-          lead_source: 'TRULIA',
-          source_id: sourceId,
-          source_tier: sourceTier,
-          listing_url: record.listingUrl || null,
-          listing_status: record.listingStatus || null,
-          current_asking_rent: record.askingRent || null,
-          // Furnished
-          furnished_status: record.furnished === true ? 'confirmed' : 'unconfirmed',
-          furnished_source: record.furnished === true ? 'PROPERTY_CONFIRMED' : 'SOURCE_REQUESTED',
-          // Pipeline — ALWAYS New Lead for source sync
-          stage: 'New Lead',
-          // Portfolio
-          portfolio: portfolioName,
-          portfolio_id: portfolioData?.id || null,
-          // Verification — NOT verified merely because source returned it
-          verified_address: null,
-          verified_owner: false,
-          verified_number: false,
-          address_verification_source: null,
-          // Luxury
-          luxury_source_match: sourceTier === 'LUXURY',
-          luxury_classification_source: sourceTier === 'LUXURY' ? 'SOURCE_MATCH' : null,
-          luxury_source_id: sourceTier === 'LUXURY' ? sourceId : null,
-          luxury_observed_rent: sourceTier === 'LUXURY' ? record.askingRent : null,
-          luxury_observed_at: sourceTier === 'LUXURY' ? new Date().toISOString() : null,
-          // Provenance
-          provider_property_id: record.providerPropertyId || null,
-          provider_listing_id: record.providerListingId || null,
-          first_seen_at: new Date().toISOString(),
-          last_source_seen_at: new Date().toISOString(),
-          // Synthetic flag — NEVER true for real source data
-          is_synthetic: false,
-          data_integrity_status: 'LISTING_UNVERIFIED',
-          // Geo
-          latitude: record.latitude || null,
-          longitude: record.longitude || null,
-        };
-
-        const { data: insertedProspect, error: insertError } = await supabase
-          .from('leads')
-          .insert(newProspect)
-          .select('id')
-          .single();
-
-        if (insertError) {
-          errors++;
-          lastError = insertError.message;
-          await logPipelineEvent(supabase, syncRunDbId, sourceId, 'UPSERT_ERROR', {
-            rawAddress, error: insertError.message,
-          }, dryRun);
-          continue;
-        }
-
-        propertiesVerified++;
-        newInserted++;
-        if (sourceTier === 'LUXURY') luxuryMatches++;
-
-        // Create source observation
-        if (insertedProspect?.id) {
-          await upsertSourceObservation(supabase, {
-            prospectId: insertedProspect.id,
-            sourceConfigId,
-            sourceId,
-            sourceTier,
-            sourceUrl: src.source_url_canonical as string,
-            listingUrl: record.listingUrl,
-            observedRent: record.askingRent,
-            observedListingStatus: record.listingStatus,
-            dedupMatchMethod: 'NEW_RECORD',
-            syncRunDbId,
-            isLuxury: sourceTier === 'LUXURY',
-          });
-        }
-      } else {
-        // Dry run — count as would-be insert
-        propertiesVerified++;
-        newInserted++;
-        if (sourceTier === 'LUXURY') luxuryMatches++;
-      }
-    } catch (err) {
-      errors++;
-      lastError = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -1012,7 +920,7 @@ async function runIngestionPipeline(
       recordsNormalized: normalized,
       stateValidated,
       filterValidated,
-      propertiesVerified,
+      propertiesVerified: newInserted + existingUpdated,
       newProspectsInserted: newInserted,
       existingProspectsUpdated: existingUpdated,
       duplicatesMerged: deduped,
@@ -1021,8 +929,8 @@ async function runIngestionPipeline(
       rejectedFilterMismatch,
       errors,
     },
-    luxuryMatches,
-    csvMatches,
+    luxuryMatches: sourceTier === 'LUXURY' ? newInserted + existingUpdated : 0,
+    csvMatches: 0,
     lastError,
   };
 }
@@ -1055,17 +963,21 @@ function validateDbConfigs(configs: Record<string, unknown>[]) {
   const validatedConfigs = configs.map((config) => {
     const sourceUrl = String(config.source_url_canonical || config.source_url_raw || config.source_url || '');
     const parsed = parseTruliaUrl(sourceUrl);
+    // The URL is the source of truth for the rent threshold. Stored values that
+    // were seeded with a flat default (5000) must not disable luxury sources.
+    const effectiveMinimumRent = parsed.minimumRent ?? Number(config.minimum_rent || 0);
     const validation = validateSourceConfig({
       sourceId: String(config.source_id || ''),
       stateCode: String(config.state_code || ''),
       tier: (config.source_tier === 'LUXURY' ? 'LUXURY' : 'STANDARD'),
-      minimumRent: Number(config.minimum_rent || 0),
+      minimumRent: effectiveMinimumRent,
       rawUrl: sourceUrl,
       active: config.active !== false,
     }, canonicalUrls);
 
     const nextConfig = {
       ...config,
+      minimum_rent: effectiveMinimumRent,
       source_url_canonical: parsed.canonicalUrl,
       url_valid: validation.urlValid,
       state_match: validation.stateMatch,
@@ -1137,163 +1049,10 @@ function normalizeAddressString(
 }
 
 function normalizePropertyType(raw: string): string {
-  const upper = raw.toUpperCase().replace(/[\s-_]/g, '');
-  if (upper.includes('SINGLEFAMILY') || upper.includes('SFR') || upper.includes('SINGLEFAMILYHOME')) {
-    return 'SINGLE-FAMILY_HOME';
-  }
-  if (upper.includes('TOWNHOUSE') || upper.includes('TOWNHOME') || upper.includes('TH')) {
-    return 'TOWNHOUSE';
-  }
-  return raw;
-}
-
-function stateToPortfolioName(stateCode: string): string {
-  const map: Record<string, string> = {
-    AZ: 'Arizona Portfolio', CA: 'California Portfolio', CO: 'Colorado Portfolio',
-    FL: 'Florida Portfolio', GA: 'Georgia Portfolio', ID: 'Idaho Portfolio',
-    KS: 'Kansas Portfolio', MA: 'Massachusetts Portfolio', MD: 'Maryland Portfolio',
-    MN: 'Minnesota Portfolio', MO: 'Missouri Portfolio', MT: 'Montana Portfolio',
-    NC: 'North Carolina Portfolio', NE: 'Nebraska Portfolio', NH: 'New Hampshire Portfolio',
-    NJ: 'New Jersey Portfolio', NM: 'New Mexico Portfolio', NV: 'Nevada Portfolio',
-    NY: 'New York Portfolio', OR: 'Oregon Portfolio', TX: 'Texas Portfolio',
-    UT: 'Utah Portfolio', VT: 'Vermont Portfolio', WA: 'Washington Portfolio',
-    WI: 'Wisconsin Portfolio', WY: 'Wyoming Portfolio',
-  };
-  return map[stateCode] || `${stateCode} Portfolio`;
-}
-
-interface DeduplicationResult {
-  isDuplicate: boolean;
-  existingId: string | null;
-  matchMethod: string;
-}
-
-async function findExistingProspect(
-  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
-  record: PropertyRecord,
-  normalized: NormalizedAddressResult
-): Promise<DeduplicationResult> {
-  // 1. Provider property ID (most reliable)
-  if (record.providerPropertyId) {
-    const { data } = await supabase
-      .from('leads')
-      .select('id')
-      .eq('provider_property_id', record.providerPropertyId)
-      .single();
-    if (data?.id) return { isDuplicate: true, existingId: data.id, matchMethod: 'PROVIDER_ID' };
-  }
-
-  // 2. Provider listing ID
-  if (record.providerListingId) {
-    const { data } = await supabase
-      .from('leads')
-      .select('id')
-      .eq('provider_listing_id', record.providerListingId)
-      .single();
-    if (data?.id) return { isDuplicate: true, existingId: data.id, matchMethod: 'PROVIDER_LISTING_ID' };
-  }
-
-  // 3. Exact standardized address
-  if (normalized.fullNormalized) {
-    const { data } = await supabase
-      .from('leads')
-      .select('id')
-      .eq('standardized_address', normalized.fullNormalized)
-      .single();
-    if (data?.id) return { isDuplicate: true, existingId: data.id, matchMethod: 'EXACT_ADDRESS' };
-  }
-
-  // 4. Normalized street + city + state + zip
-  if (normalized.street && normalized.city && normalized.state && normalized.zip) {
-    const { data } = await supabase
-      .from('leads')
-      .select('id')
-      .ilike('address', `%${normalized.street}%`)
-      .eq('city', normalized.city)
-      .eq('state', normalized.state)
-      .eq('zip', normalized.zip)
-      .limit(1);
-    if (data && data.length > 0) {
-      return { isDuplicate: true, existingId: data[0].id, matchMethod: 'NORMALIZED_ADDRESS' };
-    }
-  }
-
-  return { isDuplicate: false, existingId: null, matchMethod: 'NONE' };
-}
-
-async function upsertSourceObservation(
-  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
-  params: {
-    prospectId: string;
-    sourceConfigId: string;
-    sourceId: string;
-    sourceTier: string;
-    sourceUrl: string;
-    listingUrl: string | null | undefined;
-    observedRent: number | null | undefined;
-    observedListingStatus: string | null | undefined;
-    dedupMatchMethod: string;
-    syncRunDbId: string | null;
-    isLuxury: boolean;
-  }
-) {
-  const now = new Date().toISOString();
-  await supabase
-    .from('trulia_source_observations')
-    .upsert({
-      prospect_id: params.prospectId,
-      source_config_id: params.sourceConfigId,
-      source_id: params.sourceId,
-      source_tier: params.sourceTier,
-      source_url: params.sourceUrl,
-      listing_url: params.listingUrl || null,
-      last_seen_at: now,
-      observed_rent: params.observedRent || null,
-      observed_listing_status: params.observedListingStatus || null,
-      listing_presence_status: 'ACTIVE',
-      luxury_source_match: params.isLuxury,
-      luxury_classification_source: params.isLuxury ? 'SOURCE_MATCH' : null,
-      luxury_observed_rent: params.isLuxury ? params.observedRent : null,
-      luxury_observed_at: params.isLuxury ? now : null,
-      dedup_match_method: params.dedupMatchMethod,
-      sync_run_id: params.syncRunDbId,
-      updated_at: now,
-    }, { onConflict: 'prospect_id,source_id' });
-}
-
-async function updateExistingProspectSafely(
-  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
-  prospectId: string,
-  record: PropertyRecord,
-  sourceTier: string
-) {
-  // CRITICAL: Never overwrite manual CSV data (verified_owner, verified_number, contact_phone)
-  // Never change stage (pipeline protection)
-  // Only update non-destructive source-provided fields
-  const updates: Record<string, unknown> = {
-    last_source_seen_at: new Date().toISOString(),
-    listing_status: record.listingStatus || null,
-  };
-
-  // Only update listing URL if we have a real one (not null)
-  if (record.listingUrl) {
-    updates.listing_url = record.listingUrl;
-  }
-
-  // Only update rent if source provides it
-  if (record.askingRent !== null) {
-    updates.current_asking_rent = record.askingRent;
-  }
-
-  // Luxury upgrade: if this source is LUXURY, add luxury classification
-  if (sourceTier === 'LUXURY') {
-    updates.luxury_source_match = true;
-    updates.luxury_classification_source = 'SOURCE_MATCH';
-    updates.luxury_observed_rent = record.askingRent;
-    updates.luxury_observed_at = new Date().toISOString();
-  }
-
-  await supabase.from('leads').update(updates).eq('id', prospectId);
+  const upper = raw.toUpperCase().replace(/[\s_-]/g, '');
+  if (upper.includes('SINGLEFAMILY') || upper === 'SFR' || upper === 'HOUSE') return 'SINGLE-FAMILY_HOME';
+  if (upper.includes('TOWNHOUSE') || upper.includes('TOWNHOME') || upper === 'TH') return 'TOWNHOUSE';
+  return upper;
 }
 
 async function logPipelineEvent(

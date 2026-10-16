@@ -14,7 +14,9 @@ interface Service {
 }
 interface Incident { id: string; service: string; serviceName: string; severity: 'major' | 'minor'; status: 'ongoing' | 'resolved'; startedAt: string; resolvedAt: string | null; durationMin: number; samples: number; detail?: string }
 interface Summary { uptime30d: number | null; avgMs24h: number | null; checksRecorded: number; since: string | null; incidents30d: number; ongoing: number }
-interface Report { checkedAt: string | null; overall: Status; services: Service[]; incidents: Incident[]; summary: Summary; viewer: { admin: boolean } }
+interface RepairEntry { id: string; service: string; at: string; status: string; trigger: string; detail: string }
+interface RepairAction { service: string; outcome: 'fixed' | 'ran' | 'skipped' | 'failed' | 'needs_attention'; detail: string }
+interface Report { repairs?: RepairEntry[]; lastRepair?: RepairAction[]; checkedAt: string | null; overall: Status; services: Service[]; incidents: Incident[]; summary: Summary; viewer: { admin: boolean } }
 interface Point { t: string; status: Status; ms: number | null; detail?: string | null }
 
 const GROUPS: Array<{ id: Group | 'all'; label: string }> = [{ id: 'all', label: 'All' }, { id: 'core', label: 'Core' }, { id: 'messaging', label: 'Messaging' }, { id: 'data', label: 'Data & AI' }, { id: 'jobs', label: 'Background jobs' }];
@@ -260,7 +262,7 @@ export default function SystemHealthPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-2 pb-8 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center"><Activity size={20} className="text-white" /></div>
-            <div><h1 className="text-xl font-bold text-white">AVYRO System Status</h1><p className="text-sm text-white/90">Live checks of every service, recorded every 5 minutes</p></div>
+            <div><h1 className="text-xl font-bold text-white">AVYRO System Status</h1><p className="text-sm text-white/90">Live checks of every service, recorded every 5 minutes. Stalled jobs are re-run automatically.</p></div>
           </div>
           <div className="flex items-center gap-2 bg-white/20 rounded-lg px-3 py-2">
             <div className={`w-2.5 h-2.5 rounded-full bg-white ${overall === 'operational' ? 'animate-pulse' : ''}`} />
@@ -275,7 +277,7 @@ export default function SystemHealthPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer"><input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} />Auto-refresh (30s)</label>
             <button type="button" onClick={() => void load()} disabled={refreshing} className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 disabled:opacity-50"><RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />Refresh</button>
-            {admin && <button type="button" onClick={() => void runNow()} disabled={running} className="flex items-center gap-1.5 text-xs font-medium text-white bg-slate-800 rounded-lg px-3 py-1.5 hover:bg-slate-700 disabled:opacity-50"><Play size={12} />{running ? 'Running checks…' : 'Run checks now'}</button>}
+            {admin && <button type="button" onClick={() => void runNow()} disabled={running} className="flex items-center gap-1.5 text-xs font-medium text-white bg-slate-800 rounded-lg px-3 py-1.5 hover:bg-slate-700 disabled:opacity-50"><Play size={12} />{running ? 'Checking and repairing…' : 'Run checks & repair'}</button>}
           </div>
         </div>
 
@@ -297,6 +299,37 @@ export default function SystemHealthPage() {
             <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-slate-500"><Shield size={10} />Select to view</p>
           </button>
         </div>
+
+        {admin && (report?.lastRepair?.length || report?.repairs?.length) ? (
+          <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+            <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2"><Wrench size={14} />Automatic repairs</h2>
+            {report?.lastRepair && report.lastRepair.length > 0 && (
+              <ul className="space-y-1.5">
+                {report.lastRepair.map(a => (
+                  <li key={a.service + a.outcome} className="text-xs flex items-start gap-2">
+                    <span className={`shrink-0 mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${a.outcome === 'fixed' ? 'bg-emerald-100 text-emerald-700' : a.outcome === 'ran' ? 'bg-sky-100 text-sky-700' : a.outcome === 'failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{a.outcome === 'needs_attention' ? 'NEEDS YOU' : a.outcome.toUpperCase()}</span>
+                    <span className="text-slate-600"><strong className="text-slate-800">{services.find(x => x.id === a.service)?.name ?? a.service}:</strong> {a.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {report?.repairs && report.repairs.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Recent repair runs</p>
+                <ul className="divide-y divide-slate-100">
+                  {report.repairs.slice(0, 8).map(r => (
+                    <li key={r.id} className="py-1.5 text-xs flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full ${r.status === 'success' ? 'bg-emerald-500' : r.status === 'failed' ? 'bg-red-500' : 'bg-slate-300'}`} />
+                      <span className="text-slate-800 font-medium">{services.find(x => x.id === r.service)?.name ?? r.service}</span>
+                      <span className="text-slate-500">{r.status === 'success' ? 'job re-run' : r.status} · {r.trigger}</span>
+                      <span className="ml-auto text-slate-400">{ago(r.at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : null}
 
         {sum && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">

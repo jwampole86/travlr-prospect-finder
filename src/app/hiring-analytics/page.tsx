@@ -1,733 +1,582 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { AlertTriangle, BarChart3, BriefcaseBusiness, CalendarClock, CheckCircle2, Clock3, LineChart, RefreshCw, Target, Users } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { createClient } from '@/lib/supabase/client';
-import Link from 'next/link';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis } from 'recharts';
-import { TrendingUp, Users, Clock, RefreshCw, Calendar, Briefcase, Target, Award, ChevronRight, Brain, Star, Lightbulb, CheckCircle, ArrowUp, ArrowDown } from 'lucide-react';
-import Icon from '@/components/ui/AppIcon';
+import {
+  EmptyState,
+  ErrorBanner,
+  LoadingState,
+  PageHeader,
+  Panel,
+  SegmentedTabs,
+  StatGrid,
+  StatusPill,
+  type Stat,
+  buttonPrimary,
+  buttonSecondary,
+} from '@/components/ops';
+import DistributionBars, { type DistributionDatum } from './components/DistributionBars';
+import RoleBreakdownTable, { type RoleMetricRow } from './components/RoleBreakdownTable';
 
+type AnalyticsTab = 'overview' | 'quality' | 'roles';
+type PeriodKey = '30' | '90' | '180' | 'all';
+type QueryError = { code?: string; message: string } | null;
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface CandidateProfile {
+interface CandidateRow {
   id: string;
-  role_id: string;
-  role_title: string;
-  interview_date: string;
-  overall_score: 'strong_yes' | 'yes' | 'maybe' | 'no' | null;
-  follow_up_status: 'pending' | 'scheduled' | 'completed' | 'rejected' | 'hired';
+  full_name: string;
+  candidate_status: string | null;
+  pipeline_status: string | null;
   created_at: string;
+  updated_at: string;
+  first_interview_at: string | null;
+  latest_interview_at: string | null;
+  interview_count: number | null;
+  latest_scorecard_average: number | null;
 }
 
-interface InterviewSession {
+interface InterviewSessionRow {
   id: string;
-  role_id: string;
-  role_title: string;
-  scheduled_at: string;
+  candidate_id: string | null;
+  candidate_name: string;
+  role_title: string | null;
+  scheduled_at: string | null;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+}
+
+interface ScorecardRow {
+  id: string;
+  candidate_id: string;
+  hire_recommendation: string | null;
   created_at: string;
 }
 
-interface FunnelStage {
-  name: string;
-  value: number;
-  fill: string;
-  pct?: number;
+interface PipelineAuditRow {
+  id: string;
+  candidate_id: string;
+  new_status: string;
+  changed_at: string;
 }
 
-interface RoleMetric {
-  role: string;
-  applied: number;
-  interviewed: number;
-  offered: number;
-  hired: number;
-  avgDays: number;
-  conversionRate: number;
-  fill?: string;
+const PAGE_SIZE = 500;
+const MOVING_FORWARD_STAGES = new Set(['FOLLOW_UP', 'MOVE_FORWARD', 'SECOND_INTERVIEW', 'HIRED']);
+const MONTH_LABELS = 6;
+
+function stageOf(candidate: CandidateRow) {
+  return candidate.pipeline_status || candidate.candidate_status || 'UNKNOWN';
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function daysBetween(a: string, b: string) {
-  return Math.round(Math.abs(new Date(b).getTime() - new Date(a).getTime()) / (1000 * 60 * 60 * 24));
+function normalizeName(value: string) {
+  return value.trim().toLowerCase();
 }
 
-const FUNNEL_COLORS = ['#1f2937', '#374151', '#6b7280', '#9ca3af'];
-const ROLE_COLORS = ['#1f2937', '#374151', '#4b5563', '#6b7280', '#9ca3af', '#d1d5db'];
-
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, icon: Icon, color }: { label: string; value: string | number; sub?: string; icon: React.ElementType; color: string }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
-          <Icon className="w-5 h-5" />
-        </div>
-      </div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs font-semibold text-gray-500 mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-    </div>
-  );
+function median(values: number[]) {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
-// ─── Funnel Stage Row ─────────────────────────────────────────────────────────
-
-function FunnelRow({ stage, prev }: { stage: FunnelStage; prev?: FunnelStage }) {
-  const convRate = prev && prev.value > 0 ? Math.round((stage.value / prev.value) * 100) : null;
-  const barWidth = stage.pct ?? 100;
-
-  return (
-    <div className="flex items-center gap-4">
-      <div className="w-28 text-right">
-        <span className="text-sm font-semibold text-gray-700">{stage.name}</span>
-      </div>
-      <div className="flex-1 relative h-10 flex items-center">
-        <div
-          className="h-8 rounded-lg flex items-center justify-end pr-3 transition-all duration-500"
-          style={{ width: `${barWidth}%`, backgroundColor: stage.fill }}
-        >
-          <span className="text-white text-sm font-bold">{stage.value}</span>
-        </div>
-      </div>
-      <div className="w-20 text-left">
-        {convRate !== null ? (
-          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${convRate >= 50 ? 'bg-green-100 text-green-700' : convRate >= 25 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-            {convRate}%
-          </span>
-        ) : (
-          <span className="text-xs text-gray-400">—</span>
-        )}
-      </div>
-    </div>
-  );
+function daysBetween(from: string, to: string) {
+  return (new Date(to).getTime() - new Date(from).getTime()) / 86400000;
 }
 
-// ─── Performance Insights Tab ─────────────────────────────────────────────────
+async function paginateQuery<T>(run: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: QueryError }>) {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await run(from, from + PAGE_SIZE - 1);
+    if (error) return { data: [] as T[], error };
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return { data: rows, error: null };
+  }
+}
 
-function PerformanceInsightsTab({ profiles, sessions }: { profiles: CandidateProfile[]; sessions: InterviewSession[] }) {
-  // Score distribution over time (monthly)
-  const monthlyScores: { month: string; strong_yes: number; yes: number; maybe: number; no: number; total: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - i);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-    const monthProfiles = profiles.filter(p => p.created_at?.startsWith(key));
-    monthlyScores.push({
-      month: label,
-      strong_yes: monthProfiles.filter(p => p.overall_score === 'strong_yes').length,
-      yes: monthProfiles.filter(p => p.overall_score === 'yes').length,
-      maybe: monthProfiles.filter(p => p.overall_score === 'maybe').length,
-      no: monthProfiles.filter(p => p.overall_score === 'no').length,
-      total: monthProfiles.length,
+function makeMonthBuckets() {
+  const buckets: { key: string; label: string }[] = [];
+  for (let index = MONTH_LABELS - 1; index >= 0; index -= 1) {
+    const date = new Date();
+    date.setDate(1);
+    date.setMonth(date.getMonth() - index);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    buckets.push({
+      key,
+      label: date.toLocaleDateString('en-US', { month: 'short' }),
     });
   }
-
-  // Strengths radar data (derived from score patterns)
-  const totalScored = profiles.filter(p => p.overall_score).length || 1;
-  const strongHireRate = profiles.filter(p => p.overall_score === 'strong_yes' || p.overall_score === 'yes').length / totalScored;
-  const hiredRate = profiles.filter(p => p.follow_up_status === 'hired').length / Math.max(profiles.length, 1);
-  const completionRate = sessions.filter(s => s.status === 'completed').length / Math.max(sessions.length, 1);
-
-  const strengthsData = [
-    { subject: 'Role Fit', value: Math.round(strongHireRate * 85 + 10), fullMark: 100 },
-    { subject: 'Communication', value: Math.round(strongHireRate * 75 + 15), fullMark: 100 },
-    { subject: 'Culture Match', value: Math.round(hiredRate * 90 + 5), fullMark: 100 },
-    { subject: 'Interview Prep', value: Math.round(completionRate * 80 + 15), fullMark: 100 },
-    { subject: 'Consistency', value: Math.round((strongHireRate + completionRate) / 2 * 80 + 10), fullMark: 100 },
-    { subject: 'Pipeline Mgmt', value: Math.round(hiredRate * 70 + 20), fullMark: 100 },
-  ];
-
-  // Coaching tips based on data
-  const coachingTips: { icon: React.ElementType; title: string; tip: string; priority: 'high' | 'medium' | 'low' }[] = [];
-
-  const maybeRate = profiles.filter(p => p.overall_score === 'maybe').length / totalScored;
-  const noRate = profiles.filter(p => p.overall_score === 'no').length / totalScored;
-
-  if (maybeRate > 0.3) {
-    coachingTips.push({
-      icon: Target,
-      title: 'Reduce "Maybe" Decisions',
-      tip: 'A high "Maybe" rate suggests interview questions may not be probing deeply enough. Try adding structured behavioral questions to get clearer signal on role fit.',
-      priority: 'high',
-    });
-  }
-
-  if (noRate > 0.4) {
-    coachingTips.push({
-      icon: Users,
-      title: 'Improve Candidate Sourcing',
-      tip: 'High rejection rates often indicate a sourcing mismatch. Review job descriptions and screening criteria to attract better-qualified applicants.',
-      priority: 'high',
-    });
-  }
-
-  if (completionRate < 0.7 && sessions.length > 0) {
-    coachingTips.push({
-      icon: Calendar,
-      title: 'Reduce Interview No-Shows',
-      tip: 'Send confirmation emails 24 hours before each interview and use the Candidate Sequences tool to automate reminders.',
-      priority: 'medium',
-    });
-  }
-
-  coachingTips.push({
-    icon: Brain,
-    title: 'Use AI Guidance During Interviews',
-    tip: 'Enable the Live Guidance overlay in Interview Mode to get real-time coaching on strengths, probe topics, and bias mitigation as the conversation unfolds.',
-    priority: 'medium',
-  });
-
-  coachingTips.push({
-    icon: Star,
-    title: 'Rate Every Candidate',
-    tip: 'Unrated profiles reduce the accuracy of your score distribution analytics. Make it a habit to assign a rating before saving each interview profile.',
-    priority: 'low',
-  });
-
-  const unratedCount = profiles.filter(p => !p.overall_score).length;
-  if (unratedCount > 3) {
-    coachingTips.unshift({
-      icon: CheckCircle,
-      title: `Rate ${unratedCount} Unrated Profiles`,
-      tip: `You have ${unratedCount} candidate profiles without a score. Visit Candidate Profiles to rate them and improve your analytics accuracy.`,
-      priority: 'high',
-    });
-  }
-
-  const priorityColors = {
-    high: 'border-red-200 bg-red-50',
-    medium: 'border-amber-200 bg-amber-50',
-    low: 'border-blue-200 bg-blue-50',
-  };
-  const priorityTextColors = {
-    high: 'text-red-700',
-    medium: 'text-amber-700',
-    low: 'text-blue-700',
-  };
-  const priorityIconColors = {
-    high: 'text-red-500',
-    medium: 'text-amber-500',
-    low: 'text-blue-500',
-  };
-
-  // Score trend: is quality improving?
-  const recentMonths = monthlyScores.slice(-3);
-  const olderMonths = monthlyScores.slice(0, 3);
-  const recentStrongRate = recentMonths.reduce((s, m) => s + m.strong_yes + m.yes, 0) / Math.max(recentMonths.reduce((s, m) => s + m.total, 0), 1);
-  const olderStrongRate = olderMonths.reduce((s, m) => s + m.strong_yes + m.yes, 0) / Math.max(olderMonths.reduce((s, m) => s + m.total, 0), 1);
-  const trendUp = recentStrongRate >= olderStrongRate;
-
-  return (
-    <div className="space-y-6">
-      {/* Jen's Score Trend Banner */}
-      <div className={`rounded-2xl border p-5 flex items-center gap-4 ${trendUp ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${trendUp ? 'bg-green-100' : 'bg-amber-100'}`}>
-          {trendUp ? <ArrowUp className="w-6 h-6 text-green-600" /> : <ArrowDown className="w-6 h-6 text-amber-600" />}
-        </div>
-        <div className="flex-1">
-          <p className={`text-sm font-bold ${trendUp ? 'text-green-900' : 'text-amber-900'}`}>
-            {trendUp ? 'Interview quality is trending up 📈' : 'Interview quality needs attention 📊'}
-          </p>
-          <p className={`text-xs mt-0.5 ${trendUp ? 'text-green-700' : 'text-amber-700'}`}>
-            Strong hire rate: {Math.round(recentStrongRate * 100)}% (last 3 months) vs {Math.round(olderStrongRate * 100)}% (prior 3 months)
-          </p>
-        </div>
-        <div className={`text-2xl font-bold ${trendUp ? 'text-green-700' : 'text-amber-700'}`}>
-          {Math.round(recentStrongRate * 100)}%
-        </div>
-      </div>
-
-      {/* Score Distribution Over Time */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <div className="mb-5">
-          <h2 className="text-base font-bold text-gray-900">Jen's Score Distribution Over Time</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Monthly breakdown of interview ratings — last 6 months</p>
-        </div>
-        {monthlyScores.every(m => m.total === 0) ? (
-          <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-            <Award className="w-10 h-10 mb-2 opacity-30" />
-            <p className="text-sm">No scored interviews yet</p>
-          </div>
-        ) : (
-          <>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={monthlyScores} barGap={2} barSize={14}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: 12 }} />
-                <Bar dataKey="strong_yes" name="Strong Yes" stackId="a" fill="#16a34a" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="yes" name="Yes" stackId="a" fill="#22c55e" />
-                <Bar dataKey="maybe" name="Maybe" stackId="a" fill="#f59e0b" />
-                <Bar dataKey="no" name="No" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="flex items-center gap-4 mt-3 justify-center flex-wrap">
-              {[
-                { color: '#16a34a', label: 'Strong Yes' },
-                { color: '#22c55e', label: 'Yes' },
-                { color: '#f59e0b', label: 'Maybe' },
-                { color: '#ef4444', label: 'No' },
-              ].map(l => (
-                <div key={l.label} className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded" style={{ backgroundColor: l.color }} />
-                  <span className="text-xs text-gray-500">{l.label}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Strengths Radar + Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Strengths Radar */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="mb-5">
-            <h2 className="text-base font-bold text-gray-900">Interview Strengths</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Jen's performance across key interview dimensions</p>
-          </div>
-          <ResponsiveContainer width="100%" height={240}>
-            <RadarChart data={strengthsData}>
-              <PolarGrid stroke="#e5e7eb" />
-              <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: '#6b7280' }} />
-              <Radar name="Score" dataKey="value" stroke="#1f2937" fill="#1f2937" fillOpacity={0.15} strokeWidth={2} />
-            </RadarChart>
-          </ResponsiveContainer>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {strengthsData.map(d => (
-              <div key={d.subject} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
-                <span className="text-xs text-gray-600 font-medium">{d.subject}</span>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-gray-800 rounded-full" style={{ width: `${d.value}%` }} />
-                  </div>
-                  <span className="text-xs font-bold text-gray-700 w-8 text-right">{d.value}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Coaching Tips */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <Lightbulb className="w-5 h-5 text-amber-500" />
-            <div>
-              <h2 className="text-base font-bold text-gray-900">Coaching Tips</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Personalized recommendations to improve future interviews</p>
-            </div>
-          </div>
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-            {coachingTips.slice(0, 5).map((tip, i) => {
-              const TipIcon = tip.icon;
-              return (
-                <div key={i} className={`rounded-xl border p-3.5 ${priorityColors[tip.priority]}`}>
-                  <div className="flex items-start gap-2.5">
-                    <TipIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${priorityIconColors[tip.priority]}`} />
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className={`text-xs font-bold ${priorityTextColors[tip.priority]}`}>{tip.title}</p>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${
-                          tip.priority === 'high' ? 'bg-red-200 text-red-700' :
-                          tip.priority === 'medium'? 'bg-amber-200 text-amber-700' : 'bg-blue-200 text-blue-700'
-                        }`}>
-                          {tip.priority}
-                        </span>
-                      </div>
-                      <p className={`text-xs leading-relaxed ${priorityTextColors[tip.priority]} opacity-90`}>{tip.tip}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Improve Your Performance</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {[
-            { href: '/teleprompter/interview', label: 'Start Interview with AI Guidance', icon: Brain, desc: 'Live coaching overlay' },
-            { href: '/candidate-sequences', label: 'Send Follow-Up Sequences', icon: Award, desc: 'Automate candidate comms' },
-            { href: '/candidate-profiles', label: 'Rate Unrated Profiles', icon: Star, desc: `${profiles.filter(p => !p.overall_score).length} profiles need ratings` },
-          ].map(action => {
-            const ActionIcon = action.icon;
-            return (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all group"
-              >
-                <div className="w-9 h-9 rounded-xl bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center flex-shrink-0 transition-colors">
-                  <ActionIcon className="w-4 h-4 text-gray-600" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-gray-900 leading-tight">{action.label}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">{action.desc}</p>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 ml-auto transition-colors" />
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
+  return buckets;
 }
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function HiringAnalyticsPage() {
   const supabase = createClient();
-  const [profiles, setProfiles] = useState<CandidateProfile[]>([]);
-  const [sessions, setSessions] = useState<InterviewSession[]>([]);
+  const [period, setPeriod] = useState<PeriodKey>('90');
+  const [tab, setTab] = useState<AnalyticsTab>('overview');
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<'30' | '90' | '180' | 'all'>('90');
-  const [activeTab, setActiveTab] = useState<'overview' | 'performance'>('overview');
+  const [error, setError] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<CandidateRow[]>([]);
+  const [sessions, setSessions] = useState<InterviewSessionRow[]>([]);
+  const [scorecards, setScorecards] = useState<ScorecardRow[]>([]);
+  const [pipelineAudit, setPipelineAudit] = useState<PipelineAuditRow[]>([]);
+  const [counts, setCounts] = useState({ candidates: 0, sessions: 0, scorecards: 0, candidateProfiles: 0, pipelineAudit: 0 });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const cutoff = period === 'all' ? null : new Date(Date.now() - Number(period) * 24 * 60 * 60 * 1000).toISOString();
+    setError(null);
 
-    const [profilesRes, sessionsRes] = await Promise.all([
-      supabase.from('candidate_profiles').select('id,role_id,role_title,interview_date,overall_score,follow_up_status,created_at').order('created_at', { ascending: false }),
-      supabase.from('interview_sessions').select('id,role_id,role_title,scheduled_at,status,created_at').order('created_at', { ascending: false }),
+    const cutoff = period === 'all' ? null : new Date(Date.now() - Number(period) * 86400000).toISOString();
+    const withCutoff = <T,>(query: T, column: string) => (cutoff ? (query as any).gte(column, cutoff) : query);
+
+    const [candidateRows, sessionRows, scorecardRows, pipelineAuditRows, candidateCount, sessionCount, scorecardCount, profileCount, auditCount] = await Promise.all([
+      paginateQuery<CandidateRow>((from, to) => {
+        let query = supabase
+          .from('candidates')
+          .select('id,full_name,candidate_status,pipeline_status,created_at,updated_at,first_interview_at,latest_interview_at,interview_count,latest_scorecard_average')
+          .order('created_at', { ascending: false })
+          .range(from, to);
+        query = withCutoff(query, 'created_at');
+        return query;
+      }),
+      paginateQuery<InterviewSessionRow>((from, to) => {
+        let query = supabase
+          .from('interview_sessions')
+          .select('id,candidate_id,candidate_name,role_title,scheduled_at,status')
+          .order('scheduled_at', { ascending: false })
+          .range(from, to);
+        query = withCutoff(query, 'scheduled_at');
+        return query;
+      }),
+      paginateQuery<ScorecardRow>((from, to) => {
+        let query = supabase
+          .from('candidate_scorecards')
+          .select('id,candidate_id,hire_recommendation,created_at')
+          .order('created_at', { ascending: false })
+          .range(from, to);
+        query = withCutoff(query, 'created_at');
+        return query;
+      }),
+      paginateQuery<PipelineAuditRow>((from, to) => {
+        let query = supabase
+          .from('candidate_pipeline_audit')
+          .select('id,candidate_id,new_status,changed_at')
+          .order('changed_at', { ascending: false })
+          .range(from, to);
+        query = withCutoff(query, 'changed_at');
+        return query;
+      }),
+      withCutoff(supabase.from('candidates').select('id', { count: 'exact', head: true }), 'created_at'),
+      withCutoff(supabase.from('interview_sessions').select('id', { count: 'exact', head: true }), 'scheduled_at'),
+      withCutoff(supabase.from('candidate_scorecards').select('id', { count: 'exact', head: true }), 'created_at'),
+      withCutoff(supabase.from('candidate_profiles').select('id', { count: 'exact', head: true }), 'created_at'),
+      withCutoff(supabase.from('candidate_pipeline_audit').select('id', { count: 'exact', head: true }), 'changed_at'),
     ]);
 
-    let p = (profilesRes.data || []) as CandidateProfile[];
-    let s = (sessionsRes.data || []) as InterviewSession[];
-
-    if (cutoff) {
-      p = p.filter(x => x.created_at >= cutoff);
-      s = s.filter(x => x.created_at >= cutoff);
+    const fatalError = candidateRows.error || sessionRows.error || scorecardRows.error || pipelineAuditRows.error || candidateCount.error || sessionCount.error || scorecardCount.error || profileCount.error || auditCount.error;
+    if (fatalError) {
+      setError(fatalError.message ?? 'Unable to load hiring analytics.');
+      setLoading(false);
+      return;
     }
 
-    setProfiles(p);
-    setSessions(s);
+    setCandidates(candidateRows.data);
+    setSessions(sessionRows.data);
+    setScorecards(scorecardRows.data);
+    setPipelineAudit(pipelineAuditRows.data);
+    setCounts({
+      candidates: candidateCount.count ?? 0,
+      sessions: sessionCount.count ?? 0,
+      scorecards: scorecardCount.count ?? 0,
+      candidateProfiles: profileCount.count ?? 0,
+      pipelineAudit: auditCount.count ?? 0,
+    });
     setLoading(false);
-  }, [supabase, period]);
+  }, [period, supabase]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
-  // ─── Derived Metrics ───────────────────────────────────────────────────────
+  const candidateById = useMemo(() => new Map(candidates.map((candidate) => [candidate.id, candidate])), [candidates]);
+  const candidateIdByName = useMemo(() => new Map(candidates.map((candidate) => [normalizeName(candidate.full_name), candidate.id])), [candidates]);
 
-  const totalApplied = sessions.length;
-  const totalInterviewed = profiles.length;
-  const totalOffered = profiles.filter(p => ['scheduled', 'completed', 'hired'].includes(p.follow_up_status)).length;
-  const totalHired = profiles.filter(p => p.follow_up_status === 'hired').length;
+  const candidateKeyForSession = useCallback((session: InterviewSessionRow) => {
+    return session.candidate_id ?? candidateIdByName.get(normalizeName(session.candidate_name)) ?? `name:${normalizeName(session.candidate_name)}`;
+  }, [candidateIdByName]);
 
-  const maxFunnel = Math.max(totalApplied, 1);
-  const funnelStages: FunnelStage[] = [
-    { name: 'Applied', value: totalApplied, fill: FUNNEL_COLORS[0], pct: 100 },
-    { name: 'Interviewed', value: totalInterviewed, fill: FUNNEL_COLORS[1], pct: Math.round((totalInterviewed / maxFunnel) * 100) },
-    { name: 'Offered', value: totalOffered, fill: FUNNEL_COLORS[2], pct: Math.round((totalOffered / maxFunnel) * 100) },
-    { name: 'Hired', value: totalHired, fill: FUNNEL_COLORS[3], pct: Math.round((totalHired / maxFunnel) * 100) },
-  ];
+  const scheduledCandidateKeys = useMemo(
+    () => new Set(sessions.filter((session) => session.status !== 'cancelled').map(candidateKeyForSession)),
+    [candidateKeyForSession, sessions]
+  );
+  const completedCandidateKeys = useMemo(() => new Set(sessions.filter((session) => session.status === 'completed').map(candidateKeyForSession)), [candidateKeyForSession, sessions]);
 
-  const overallConversion = totalApplied > 0 ? Math.round((totalHired / totalApplied) * 100) : 0;
+  const interviewedCandidateCount = useMemo(() => {
+    const fromCandidates = candidates.filter((candidate) => candidate.first_interview_at || (candidate.interview_count ?? 0) > 0).map((candidate) => candidate.id);
+    const ids = new Set([...fromCandidates, ...completedCandidateKeys]);
+    return ids.size;
+  }, [candidates, completedCandidateKeys]);
 
-  const hiredProfiles = profiles.filter(p => p.follow_up_status === 'hired');
-  const avgTimeToHire = hiredProfiles.length > 0
-    ? Math.round(hiredProfiles.reduce((sum, p) => {
-        const session = sessions.find(s => s.role_id === p.role_id);
-        return sum + (session ? daysBetween(session.created_at, p.created_at) : 14);
-      }, 0) / hiredProfiles.length)
-    : 0;
+  const movingForwardCount = useMemo(() => candidates.filter((candidate) => MOVING_FORWARD_STAGES.has(stageOf(candidate))).length, [candidates]);
+  const hiredCandidates = useMemo(() => candidates.filter((candidate) => stageOf(candidate) === 'HIRED'), [candidates]);
 
-  const roleMap: Record<string, RoleMetric> = {};
-  sessions.forEach(s => {
-    if (!roleMap[s.role_id]) roleMap[s.role_id] = { role: s.role_title, applied: 0, interviewed: 0, offered: 0, hired: 0, avgDays: 0, conversionRate: 0 };
-    roleMap[s.role_id].applied++;
-  });
-  profiles.forEach(p => {
-    if (!roleMap[p.role_id]) roleMap[p.role_id] = { role: p.role_title, applied: 0, interviewed: 0, offered: 0, hired: 0, avgDays: 0, conversionRate: 0 };
-    roleMap[p.role_id].interviewed++;
-    if (['scheduled', 'completed', 'hired'].includes(p.follow_up_status)) roleMap[p.role_id].offered++;
-    if (p.follow_up_status === 'hired') roleMap[p.role_id].hired++;
-  });
+  const daysToFirstInterview = useMemo(() => {
+    return candidates
+      .filter((candidate) => candidate.first_interview_at)
+      .map((candidate) => daysBetween(candidate.created_at, candidate.first_interview_at as string))
+      .filter((value) => Number.isFinite(value) && value >= 0);
+  }, [candidates]);
 
-  const roleMetrics = Object.values(roleMap).map((r, i) => ({
-    ...r,
-    conversionRate: r.applied > 0 ? Math.round((r.hired / r.applied) * 100) : 0,
-    fill: ROLE_COLORS[i % ROLE_COLORS.length],
-  }));
+  const timeToHireDays = useMemo(() => {
+    return pipelineAudit
+      .filter((entry) => entry.new_status === 'HIRED')
+      .map((entry) => {
+        const candidate = candidateById.get(entry.candidate_id);
+        return candidate ? daysBetween(candidate.created_at, entry.changed_at) : null;
+      })
+      .filter((value): value is number => value !== null && Number.isFinite(value) && value >= 0);
+  }, [candidateById, pipelineAudit]);
 
-  const scoreMap: Record<string, number> = { strong_yes: 0, yes: 0, maybe: 0, no: 0, unrated: 0 };
-  profiles.forEach(p => { const k = p.overall_score || 'unrated'; scoreMap[k] = (scoreMap[k] || 0) + 1; });
-  const scoreData = [
-    { name: 'Strong Yes', value: scoreMap.strong_yes, fill: '#16a34a' },
-    { name: 'Yes', value: scoreMap.yes, fill: '#22c55e' },
-    { name: 'Maybe', value: scoreMap.maybe, fill: '#f59e0b' },
-    { name: 'No', value: scoreMap.no, fill: '#ef4444' },
-    { name: 'Unrated', value: scoreMap.unrated, fill: '#d1d5db' },
-  ].filter(d => d.value > 0);
+  const scorecardCoverage = useMemo(() => {
+    if (interviewedCandidateCount === 0) return null;
+    const distinct = new Set(scorecards.map((scorecard) => scorecard.candidate_id));
+    return distinct.size / interviewedCandidateCount;
+  }, [interviewedCandidateCount, scorecards]);
 
-  const monthlyTrend: { month: string; applied: number; hired: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - i);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString('en-US', { month: 'short' });
-    const applied = sessions.filter(s => s.created_at?.startsWith(key)).length;
-    const hired = profiles.filter(p => p.follow_up_status === 'hired' && p.created_at?.startsWith(key)).length;
-    monthlyTrend.push({ month: label, applied, hired });
-  }
+  const funnelRows = useMemo<DistributionDatum[]>(() => ([
+    { label: 'Candidate records', value: counts.candidates, tone: 'default', hint: 'Rows in candidates for the selected period' },
+    { label: 'Interview scheduled', value: scheduledCandidateKeys.size, tone: 'primary', hint: 'Distinct candidates with an interview session' },
+    { label: 'Interview completed', value: interviewedCandidateCount, tone: 'warning', hint: 'Completed sessions or candidates with interview activity' },
+    { label: 'Moving forward', value: movingForwardCount, tone: 'success', hint: 'FOLLOW_UP, MOVE_FORWARD, SECOND_INTERVIEW, or HIRED' },
+    { label: 'Hired', value: hiredCandidates.length, tone: 'success', hint: 'Candidates currently marked HIRED' },
+  ]), [counts.candidates, hiredCandidates.length, interviewedCandidateCount, movingForwardCount, scheduledCandidateKeys.size]);
+
+  const stageDistribution = useMemo<DistributionDatum[]>(() => {
+    const grouped = new Map<string, number>();
+    for (const candidate of candidates) {
+      const stage = stageOf(candidate);
+      grouped.set(stage, (grouped.get(stage) ?? 0) + 1);
+    }
+    return [...grouped.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, value]) => ({
+        label: label.replaceAll('_', ' '),
+        value,
+        tone: label === 'HIRED' ? 'success' : label === 'READY_TO_INTERVIEW' ? 'primary' : label === 'NOT_MOVING_FORWARD' ? 'danger' : 'warning',
+      }));
+  }, [candidates]);
+
+  const recommendationDistribution = useMemo<DistributionDatum[]>(() => {
+    const grouped = new Map<string, number>();
+    for (const scorecard of scorecards) {
+      const key = scorecard.hire_recommendation ?? 'PENDING';
+      grouped.set(key, (grouped.get(key) ?? 0) + 1);
+    }
+    return [...grouped.entries()].map(([label, value]) => ({
+      label: label.replaceAll('_', ' '),
+      value,
+      tone: label === 'STRONG_YES' || label === 'YES' ? 'success' : label === 'NO' ? 'danger' : 'warning',
+    }));
+  }, [scorecards]);
+
+  const monthlyActivity = useMemo(() => {
+    const buckets = makeMonthBuckets().map((bucket) => ({ ...bucket, candidates: 0, completed: 0 }));
+    const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+
+    for (const candidate of candidates) {
+      const key = candidate.created_at.slice(0, 7);
+      const bucket = byKey.get(key);
+      if (bucket) bucket.candidates += 1;
+    }
+
+    for (const session of sessions) {
+      if (session.status !== 'completed' || !session.scheduled_at) continue;
+      const key = session.scheduled_at.slice(0, 7);
+      const bucket = byKey.get(key);
+      if (bucket) bucket.completed += 1;
+    }
+
+    return buckets;
+  }, [candidates, sessions]);
+
+  const maxMonthly = useMemo(() => Math.max(1, ...monthlyActivity.map((bucket) => Math.max(bucket.candidates, bucket.completed))), [monthlyActivity]);
+
+  const roleRows = useMemo<RoleMetricRow[]>(() => {
+    const grouped = new Map<string, RoleMetricRow & { candidateKeys: Set<string>; hiredKeys: Set<string>; scoreByCandidate: Map<string, number> }>();
+
+    for (const session of sessions) {
+      const key = session.role_title ?? 'Unspecified role';
+      const current = grouped.get(key) ?? {
+        roleTitle: key,
+        candidates: 0,
+        scheduled: 0,
+        completed: 0,
+        hired: 0,
+        averageScore: null,
+        lastInterviewAt: null,
+        candidateKeys: new Set<string>(),
+        hiredKeys: new Set<string>(),
+        scoreByCandidate: new Map<string, number>(),
+      };
+
+      if (session.status === 'completed') current.completed += 1;
+      if (session.status === 'scheduled' || session.status === 'in_progress') current.scheduled += 1;
+      if (!current.lastInterviewAt || (session.scheduled_at && session.scheduled_at > current.lastInterviewAt)) {
+        current.lastInterviewAt = session.scheduled_at;
+      }
+
+      const candidateId = candidateKeyForSession(session);
+      const candidateKey = String(candidateId);
+      current.candidateKeys.add(candidateKey);
+      const candidate = candidateKey.startsWith('name:') ? null : candidateById.get(candidateKey);
+      if (candidate && candidate.latest_scorecard_average != null) current.scoreByCandidate.set(candidateKey, candidate.latest_scorecard_average);
+      if (candidate && stageOf(candidate) === 'HIRED') current.hiredKeys.add(candidateKey);
+      grouped.set(key, current);
+    }
+
+    return [...grouped.values()]
+      .map(({ candidateKeys, hiredKeys, scoreByCandidate, ...row }) => ({
+        ...row,
+        candidates: candidateKeys.size,
+        hired: hiredKeys.size,
+        averageScore: scoreByCandidate.size
+          ? [...scoreByCandidate.values()].reduce((sum, value) => sum + value, 0) / scoreByCandidate.size
+          : null,
+      }))
+      .sort((a, b) => b.candidates - a.candidates || a.roleTitle.localeCompare(b.roleTitle));
+  }, [candidateById, candidateKeyForSession, sessions]);
+
+  const upcomingSessions = useMemo(() => {
+    return sessions
+      .filter((session) => session.status === 'scheduled' || session.status === 'in_progress')
+      .sort((a, b) => (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? ''))
+      .slice(0, 6);
+  }, [sessions]);
+
+  const warnings = useMemo(() => {
+    const list: string[] = [];
+    if (counts.candidateProfiles === 0) {
+      list.push('candidate_profiles has no rows, so this page reads from candidates and interview_sessions instead of showing empty metrics.');
+    }
+    if (completedCandidateKeys.size > 0 && counts.scorecards < completedCandidateKeys.size) {
+      list.push(`Only ${counts.scorecards} scorecard row${counts.scorecards === 1 ? '' : 's'} exist for ${completedCandidateKeys.size} completed interview candidate${completedCandidateKeys.size === 1 ? '' : 's'}.`);
+    }
+    if (hiredCandidates.length > 0 && counts.pipelineAudit === 0) {
+      list.push('No HIRED stage transitions are recorded in candidate_pipeline_audit yet, so exact time-to-hire cannot be calculated reliably.');
+    }
+    return list;
+  }, [completedCandidateKeys.size, counts.candidateProfiles, counts.pipelineAudit, counts.scorecards, hiredCandidates.length]);
+
+  const stats = useMemo<Stat[]>(() => ([
+    {
+      label: 'Candidates',
+      value: counts.candidates,
+      hint: `${counts.sessions} interview sessions in period`,
+      icon: Users,
+      tone: 'default',
+    },
+    {
+      label: 'Scheduled interviews',
+      value: scheduledCandidateKeys.size,
+      hint: 'Distinct candidates with a session',
+      icon: CalendarClock,
+      tone: 'primary',
+    },
+    {
+      label: 'Completed interviews',
+      value: interviewedCandidateCount,
+      hint: counts.scorecards + ' scorecard row' + (counts.scorecards === 1 ? '' : 's'),
+      icon: CheckCircle2,
+      tone: interviewedCandidateCount > 0 ? 'success' : 'default',
+    },
+    {
+      label: 'Median days to first interview',
+      value: median(daysToFirstInterview) == null ? '—' : `${Math.round(median(daysToFirstInterview) as number)}d`,
+      hint: daysToFirstInterview.length > 0 ? 'From candidate created_at to first_interview_at' : 'No first_interview_at timestamps in range',
+      icon: Clock3,
+      tone: daysToFirstInterview.length > 0 ? 'warning' : 'default',
+    },
+    {
+      label: 'Hired',
+      value: hiredCandidates.length,
+      hint: timeToHireDays.length > 0 ? `Median time-to-hire ${Math.round(median(timeToHireDays) as number)}d` : 'Time-to-hire awaits pipeline audit data',
+      icon: Target,
+      tone: hiredCandidates.length > 0 ? 'success' : 'default',
+    },
+  ]), [counts.candidates, counts.scorecards, counts.sessions, daysToFirstInterview, hiredCandidates.length, interviewedCandidateCount, scheduledCandidateKeys.size, timeToHireDays]);
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Hiring Analytics</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Candidate funnel, time-to-hire, and performance insights</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center bg-gray-100 rounded-xl p-1">
-              {(['30', '90', '180', 'all'] as const).map(p => (
-                <button key={p} onClick={() => setPeriod(p)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${period === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                  {p === 'all' ? 'All Time' : `${p}d`}
-                </button>
-              ))}
-            </div>
-            <Link href="/interview-calendar" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
-              <Calendar className="w-4 h-4" /> Calendar
-            </Link>
-            <Link href="/candidate-profiles" className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
-              <Users className="w-4 h-4" /> Profiles
-            </Link>
-            <button onClick={fetchData} className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-              <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-6">
-          {[
-            { key: 'overview', label: 'Overview', icon: TrendingUp },
-            { key: 'performance', label: 'Performance Insights', icon: Brain },
-          ].map(tab => {
-            const TabIcon = tab.icon;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === tab.key ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                <TabIcon className="w-4 h-4" />
-                {tab.label}
-                {tab.key === 'performance' && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">New</span>
-                )}
+      <div className="mx-auto max-w-7xl space-y-6 p-6">
+        <PageHeader
+          icon={BarChart3}
+          title="Hiring Analytics"
+          description="Real funnel and timing metrics derived from the live candidates, interview_sessions, scorecards, and pipeline audit tables."
+          actions={(
+            <>
+              <div className="rounded-2xl border border-border bg-card p-1">
+                {(['30', '90', '180', 'all'] as const).map((value) => (
+                  <button
+                    key={value}
+                    onClick={() => setPeriod(value)}
+                    className={`rounded-xl px-3 py-2 text-sm font-medium ${period === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    {value === 'all' ? 'All time' : `${value}d`}
+                  </button>
+                ))}
+              </div>
+              <Link href="/candidate-sequences" className={buttonSecondary}>Candidate sequences</Link>
+              <button onClick={() => void fetchData()} className={buttonPrimary}>
+                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
               </button>
-            );
-          })}
-        </div>
+            </>
+          )}
+        />
+
+        {error && <ErrorBanner message={error} onRetry={() => void fetchData()} />}
 
         {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <RefreshCw className="w-8 h-8 text-gray-300 animate-spin" />
-          </div>
-        ) : activeTab === 'performance' ? (
-          <PerformanceInsightsTab profiles={profiles} sessions={sessions} />
+          <LoadingState label="Loading hiring metrics…" />
         ) : (
           <>
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <StatCard label="Total Applied" value={totalApplied} icon={Users} color="bg-gray-100 text-gray-600" sub="Interview sessions scheduled" />
-              <StatCard label="Interviewed" value={totalInterviewed} icon={Briefcase} color="bg-blue-50 text-blue-600" sub="Completed interview profiles" />
-              <StatCard label="Overall Conversion" value={`${overallConversion}%`} icon={Target} color="bg-purple-50 text-purple-600" sub="Applied → Hired rate" />
-              <StatCard label="Avg. Time to Hire" value={avgTimeToHire > 0 ? `${avgTimeToHire}d` : '—'} icon={Clock} color="bg-amber-50 text-amber-600" sub="Days from first contact" />
-            </div>
+            <StatGrid stats={stats} columns={5} />
 
-            {/* Funnel + Score Distribution */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* Candidate Funnel */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <h2 className="text-base font-bold text-gray-900">Candidate Funnel</h2>
-                    <p className="text-xs text-gray-500 mt-0.5">Applied → Interviewed → Offered → Hired</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {funnelStages.map((stage, i) => (
-                    <FunnelRow key={stage.name} stage={stage} prev={i > 0 ? funnelStages[i - 1] : undefined} />
+            {warnings.length > 0 && (
+              <Panel title="Data quality flags" icon={AlertTriangle}>
+                <div className="space-y-2">
+                  {warnings.map((warning) => (
+                    <div key={warning} className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                      {warning}
+                    </div>
                   ))}
                 </div>
-                <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Overall conversion</span>
-                  <span className={`text-sm font-bold ${overallConversion >= 20 ? 'text-green-600' : overallConversion >= 10 ? 'text-amber-600' : 'text-red-600'}`}>
-                    {overallConversion}%
-                  </span>
-                </div>
-              </div>
+              </Panel>
+            )}
 
-              {/* Score Distribution */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6">
-                <div className="mb-5">
-                  <h2 className="text-base font-bold text-gray-900">Interview Score Distribution</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">How candidates are rated after interviews</p>
-                </div>
-                {scoreData.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-                    <Award className="w-10 h-10 mb-2 opacity-30" />
-                    <p className="text-sm">No scored interviews yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {scoreData.map(d => {
-                      const total = scoreData.reduce((s, x) => s + x.value, 0);
-                      const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
-                      return (
-                        <div key={d.name} className="flex items-center gap-3">
-                          <span className="w-20 text-xs font-semibold text-gray-600 text-right">{d.name}</span>
-                          <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                            <div className="h-full rounded-full flex items-center justify-end pr-2 transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: d.fill }}>
-                              {pct > 10 && <span className="text-white text-[10px] font-bold">{d.value}</span>}
+            <SegmentedTabs
+              tabs={[
+                { key: 'overview', label: 'Overview', icon: LineChart },
+                { key: 'quality', label: 'Quality', icon: AlertTriangle, badge: warnings.length || undefined },
+                { key: 'roles', label: 'Roles', icon: BriefcaseBusiness },
+              ]}
+              value={tab}
+              onChange={(value) => setTab(value as AnalyticsTab)}
+            />
+
+            {tab === 'overview' && (
+              <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="space-y-6">
+                  <Panel title="Hiring funnel" icon={Target}>
+                    <DistributionBars
+                      rows={funnelRows}
+                      emptyTitle="No funnel data"
+                      emptyHint="Candidate intake and interview activity will appear here once records exist in the selected period."
+                    />
+                  </Panel>
+
+                  <Panel title="Candidate intake vs completed interviews" icon={LineChart}>
+                    <div className="space-y-4">
+                      {monthlyActivity.map((bucket) => (
+                        <div key={bucket.key} className="grid grid-cols-[56px_1fr_auto] items-center gap-3 text-sm">
+                          <div className="font-medium text-foreground">{bucket.label}</div>
+                          <div className="space-y-2">
+                            <div>
+                              <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground"><span>Candidate intake</span><span className="tabular-nums">{bucket.candidates}</span></div>
+                              <div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary/80" style={{ width: `${(bucket.candidates / maxMonthly) * 100}%` }} /></div>
+                            </div>
+                            <div>
+                              <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground"><span>Completed interviews</span><span className="tabular-nums">{bucket.completed}</span></div>
+                              <div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-success/80" style={{ width: `${(bucket.completed / maxMonthly) * 100}%` }} /></div>
                             </div>
                           </div>
-                          <span className="w-10 text-xs font-semibold text-gray-500">{pct}%</span>
+                          <StatusPill tone={bucket.completed > 0 ? 'success' : 'default'}>{bucket.completed}</StatusPill>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="mt-5 pt-4 border-t border-gray-100">
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: 'Strong Hire', value: scoreMap.strong_yes + scoreMap.yes, color: 'text-green-600 bg-green-50' },
-                      { label: 'Maybe', value: scoreMap.maybe, color: 'text-amber-600 bg-amber-50' },
-                      { label: 'No Hire', value: scoreMap.no, color: 'text-red-600 bg-red-50' },
-                    ].map(s => (
-                      <div key={s.label} className={`rounded-xl p-3 text-center ${s.color}`}>
-                        <p className="text-lg font-bold">{s.value}</p>
-                        <p className="text-[10px] font-semibold mt-0.5">{s.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Monthly Trend */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
-              <div className="mb-5">
-                <h2 className="text-base font-bold text-gray-900">Monthly Hiring Trend</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Applied vs. hired over the last 6 months</p>
-              </div>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={monthlyTrend} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: 12 }} />
-                  <Bar dataKey="applied" name="Applied" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="hired" name="Hired" fill="#1f2937" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="flex items-center gap-4 mt-3 justify-center">
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-gray-200" /><span className="text-xs text-gray-500">Applied</span></div>
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-gray-900" /><span className="text-xs text-gray-500">Hired</span></div>
-              </div>
-            </div>
-
-            {/* By-Role Breakdown */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h2 className="text-base font-bold text-gray-900">Performance by Role</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Funnel and conversion rates per open position</p>
-                </div>
-              </div>
-              {roleMetrics.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-32 text-gray-400">
-                  <Briefcase className="w-10 h-10 mb-2 opacity-30" />
-                  <p className="text-sm">No role data yet</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
-                        <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Applied</th>
-                        <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Interviewed</th>
-                        <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Offered</th>
-                        <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Hired</th>
-                        <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Conversion</th>
-                        <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Funnel</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {roleMetrics.map((r) => (
-                        <tr key={r.role} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                          <td className="py-3 px-2">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: r.fill }} />
-                              <span className="font-medium text-gray-800 text-xs">{r.role}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-2 text-center text-xs font-semibold text-gray-700">{r.applied}</td>
-                          <td className="py-3 px-2 text-center text-xs font-semibold text-gray-700">{r.interviewed}</td>
-                          <td className="py-3 px-2 text-center text-xs font-semibold text-gray-700">{r.offered}</td>
-                          <td className="py-3 px-2 text-center">
-                            <span className={`text-xs font-bold ${r.hired > 0 ? 'text-green-600' : 'text-gray-400'}`}>{r.hired}</span>
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.conversionRate >= 20 ? 'bg-green-100 text-green-700' : r.conversionRate >= 10 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
-                              {r.conversionRate}%
-                            </span>
-                          </td>
-                          <td className="py-3 px-2">
-                            <div className="flex items-center gap-0.5 justify-center">
-                              {[r.applied, r.interviewed, r.offered, r.hired].map((v, j) => {
-                                const max = Math.max(r.applied, 1);
-                                const w = Math.max(Math.round((v / max) * 40), v > 0 ? 4 : 0);
-                                return (
-                                  <div key={j} className="h-4 rounded-sm" style={{ width: w, backgroundColor: FUNNEL_COLORS[j] }} title={['Applied', 'Interviewed', 'Offered', 'Hired'][j] + ': ' + v} />
-                                );
-                              })}
-                            </div>
-                          </td>
-                        </tr>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </Panel>
                 </div>
-              )}
-            </div>
 
-            {/* Empty state hint */}
-            {totalApplied === 0 && totalInterviewed === 0 && (
-              <div className="mt-6 bg-blue-50 border border-blue-100 rounded-2xl p-6 flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <TrendingUp className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-blue-900">No hiring data yet</p>
-                  <p className="text-xs text-blue-700 mt-1">Schedule interviews in the Interview Calendar and save candidate profiles after sessions to populate this dashboard.</p>
-                  <div className="flex items-center gap-3 mt-3">
-                    <Link href="/interview-calendar" className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-900 transition-colors">
-                      Go to Calendar <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
-                    <Link href="/candidate-profiles" className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-900 transition-colors">
-                      View Profiles <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
+                <div className="space-y-6">
+                  <Panel title="Upcoming interviews" icon={CalendarClock}>
+                    {upcomingSessions.length === 0 ? (
+                      <EmptyState
+                        icon={CalendarClock}
+                        title="No upcoming interviews"
+                        hint="Scheduled or in-progress interviews will appear here."
+                      />
+                    ) : (
+                      <div className="space-y-3">
+                        {upcomingSessions.map((session) => (
+                          <div key={session.id} className="rounded-2xl border border-border bg-muted/20 px-4 py-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="font-medium text-foreground">{session.candidate_name}</div>
+                                <div className="text-xs text-muted-foreground">{session.role_title ?? 'Role not captured yet'}</div>
+                              </div>
+                              <StatusPill tone={session.status === 'in_progress' ? 'warning' : 'primary'}>{session.status.replaceAll('_', ' ')}</StatusPill>
+                            </div>
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              {session.scheduled_at ? new Date(session.scheduled_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Schedule missing'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Panel>
+
+                  <Panel title="Time-to-hire" icon={Clock3}>
+                    {timeToHireDays.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">Median</div>
+                          <div className="text-2xl font-bold tabular-nums text-foreground">{Math.round(median(timeToHireDays) as number)}d</div>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Computed from candidates.created_at to candidate_pipeline_audit.changed_at for rows that reached HIRED.
+                        </div>
+                      </div>
+                    ) : (
+                      <EmptyState
+                        icon={Clock3}
+                        title="Exact time-to-hire is not available yet"
+                        hint="This requires HIRED transitions in candidate_pipeline_audit. The live database currently has hired candidates but no recorded HIRED transition history in the selected period."
+                      />
+                    )}
+                  </Panel>
                 </div>
               </div>
+            )}
+
+            {tab === 'quality' && (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Panel title="Pipeline stage distribution" icon={Users}>
+                  <DistributionBars
+                    rows={stageDistribution}
+                    emptyTitle="No pipeline stages"
+                    emptyHint="Candidate stage counts will appear once candidates exist in the selected period."
+                  />
+                </Panel>
+
+                <Panel title="Hire recommendation coverage" icon={CheckCircle2}>
+                  <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+                    <StatusPill tone={scorecardCoverage && scorecardCoverage >= 0.8 ? 'success' : 'warning'}>
+                      {scorecardCoverage == null ? 'No completed interviews yet' : `${Math.round(scorecardCoverage * 100)}% coverage`}
+                    </StatusPill>
+                    <span className="text-muted-foreground">Completed interview candidates with at least one scorecard</span>
+                  </div>
+                  <DistributionBars
+                    rows={recommendationDistribution}
+                    emptyTitle="No scorecards in range"
+                    emptyHint="Recommendation breakdown appears when candidate_scorecards are saved."
+                  />
+                </Panel>
+              </div>
+            )}
+
+            {tab === 'roles' && (
+              <Panel title="Role breakdown" icon={BriefcaseBusiness}>
+                <RoleBreakdownTable rows={roleRows} />
+              </Panel>
             )}
           </>
         )}

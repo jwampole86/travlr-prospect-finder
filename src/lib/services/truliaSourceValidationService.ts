@@ -424,19 +424,19 @@ export function validateReconciliation(counters: SyncCounters): {
     return { valid: false, notes: 'Cannot reconcile: DATA_ERROR in counters' };
   }
 
+  // Rejected records are excluded before filterValidated is counted, so every
+  // validated record must end up as new, updated, merged, or an error.
   const validated = counters.filterValidated;
   const accounted =
     counters.newProspectsInserted +
     counters.existingProspectsUpdated +
     counters.duplicatesMerged +
-    counters.rejectedInvalid +
-    counters.rejectedWrongState +
-    counters.rejectedFilterMismatch;
+    counters.errors;
 
   if (validated !== accounted) {
     return {
       valid: false,
-      notes: `Reconciliation mismatch: validated=${validated}, accounted=${accounted} (new=${counters.newProspectsInserted}+updated=${counters.existingProspectsUpdated}+deduped=${counters.duplicatesMerged}+rejected=${counters.rejectedInvalid + counters.rejectedWrongState + counters.rejectedFilterMismatch})`,
+      notes: `Reconciliation mismatch: validated=${validated}, accounted=${accounted} (new=${counters.newProspectsInserted}+updated=${counters.existingProspectsUpdated}+deduped=${counters.duplicatesMerged}+errors=${counters.errors})`,
     };
   }
 

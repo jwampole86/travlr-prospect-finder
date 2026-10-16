@@ -24,15 +24,7 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
     const body = await req.json();
-    const {
-      leadId,
-      address,
-      city,
-      state,
-      zip,
-      apn,
-      forceRefresh = false,
-    } = body;
+    const { leadId, address, city, state, zip, apn, forceRefresh = false } = body;
 
     if (!leadId || !address || !city || !state || !zip) {
       return NextResponse.json(
@@ -44,7 +36,9 @@ export async function POST(req: NextRequest) {
     // Load canonical lead — property is always the anchor
     const { data: lead, error: leadError } = await supabase
       .from('leads')
-      .select('id, address, city, state, zip, apn, contact_name, contact_phone, verified_owner, verified_number, property_reach_id, property_reach_match_status')
+      .select(
+        'id, address, city, state, zip, apn, contact_name, owner_name, contact_phone, verified_owner, verified_number, property_reach_id, property_reach_match_status'
+      )
       .eq('id', leadId)
       .single();
 
@@ -126,7 +120,7 @@ export async function POST(req: NextRequest) {
       lead.verified_owner,
       lead.verified_number,
       supabase
-    ).catch(err => console.error('[PropertyReach] Job runner error:', err));
+    ).catch((err) => console.error('[PropertyReach] Job runner error:', err));
 
     return NextResponse.json({
       jobId: job.id,
@@ -180,7 +174,9 @@ export async function GET(req: NextRequest) {
         .limit(20),
       supabase
         .from('leads')
-        .select('property_reach_id, property_reach_apn, property_reach_match_status, property_reach_last_enriched_at, verified_owner, verified_number, verified_address')
+        .select(
+          'property_reach_id, property_reach_apn, property_reach_match_status, property_reach_last_enriched_at, verified_owner, verified_number, verified_address'
+        )
         .eq('id', leadId)
         .single(),
     ]);
@@ -227,7 +223,9 @@ async function runPropertyReachJob(
       // the property (confirmed live: PropertyReach returns a real 200 match
       // for the street-only address, but a real 404 "Subject property not
       // found" for the full combined string). Use the street-only components.
-      address: [normalized.streetNumber, normalized.streetName, normalized.streetSuffix].filter(Boolean).join(' '),
+      address: [normalized.streetNumber, normalized.streetName, normalized.streetSuffix]
+        .filter(Boolean)
+        .join(' '),
       city: normalized.city,
       state: normalized.state,
       zip: normalized.zip,
@@ -255,8 +253,11 @@ async function runPropertyReachJob(
     // Only proceed to owner/contact if property matched
     if (result.propertyMatchStatus !== 'PROPERTY_MATCHED' || !result.property) {
       const finalStatus =
-        result.propertyMatchStatus === 'PROPERTY_NOT_FOUND' ?'NO_MATCH'
-          : result.propertyMatchStatus === 'PROVIDER_ERROR' ?'FAILED' :'NO_MATCH';
+        result.propertyMatchStatus === 'PROPERTY_NOT_FOUND'
+          ? 'NO_MATCH'
+          : result.propertyMatchStatus === 'PROVIDER_ERROR'
+            ? 'FAILED'
+            : 'NO_MATCH';
 
       await supabase
         .from('propertyreach_enrichment_jobs')
@@ -345,7 +346,9 @@ async function runPropertyReachJob(
       } else if (bestScore >= autoAcceptThreshold && bestMatchResult.autoAccept) {
         // Auto-accept requires property + owner + phone multi-signal
         // Do NOT auto-accept if manual research exists with different owner
-        const hasManualConflict = existingVerifiedOwner && existingManualOwner &&
+        const hasManualConflict =
+          existingVerifiedOwner &&
+          existingManualOwner &&
           bestOwner?.fullName.toLowerCase().trim() !== existingManualOwner.toLowerCase().trim();
 
         if (hasManualConflict) {
@@ -395,7 +398,10 @@ async function runPropertyReachJob(
         match_reasons: bestMatchResult?.matchReasons || [],
         match_decision: matchDecision,
         auto_accepted: autoAccepted,
-        evidence_tier: bestScore >= autoAcceptThreshold ? 'HIGH_CONFIDENCE_PROVIDER' : 'MEDIUM_CONFIDENCE_PROVIDER',
+        evidence_tier:
+          bestScore >= autoAcceptThreshold
+            ? 'HIGH_CONFIDENCE_PROVIDER'
+            : 'MEDIUM_CONFIDENCE_PROVIDER',
         provider_name: 'PROPERTYREACH',
         provider_retrieved_at: new Date().toISOString(),
         raw_evidence: {
@@ -413,7 +419,8 @@ async function runPropertyReachJob(
       .update({
         owner_resolution_done: result.ownerCandidates.length > 0,
         owner_candidates_count: result.ownerCandidates.length,
-        contact_enrichment_done: result.phoneCandidates.length > 0 || result.emailCandidates.length > 0,
+        contact_enrichment_done:
+          result.phoneCandidates.length > 0 || result.emailCandidates.length > 0,
         phones_found: result.phoneCandidates.length,
         emails_found: result.emailCandidates.length,
         match_confidence_score: bestScore,
@@ -440,15 +447,28 @@ async function runPropertyReachJob(
 
     // If review required: add to review queue
     if (requiresReview && matchRecord) {
+      const suggestedPhone =
+        result.phoneCandidates.find((phone) => phone.rankOrder === 1 && phone.phoneE164)
+          ?.phoneE164 ||
+        result.phoneCandidates.find((phone) => phone.phoneE164)?.phoneE164 ||
+        null;
+
       await supabase.from('enrichment_review_queue').insert({
         lead_id: leadId,
         job_id: jobId,
+        match_id: matchRecord.id,
+        current_owner_name: existingManualOwner || null,
+        current_phone: existingManualPhone || null,
         suggested_owner_name: bestOwner?.fullName || null,
+        suggested_phone: suggestedPhone,
         confidence: bestMatchResult?.confidence || 'NO_MATCH',
         match_score: bestScore,
         evidence: { signals: bestMatchResult?.signals || [], matchRecord: matchRecord.id },
         provider: 'PROPERTYREACH',
-        reason: matchDecision === 'CONFLICT' ?'Owner conflict with existing manual research' :'Medium confidence — requires human review',
+        reason:
+          matchDecision === 'CONFLICT'
+            ? 'Owner conflict with existing manual research'
+            : 'Medium confidence — requires human review',
         review_status: 'PENDING',
       });
 
@@ -465,9 +485,10 @@ async function runPropertyReachJob(
     const finalJobStatus = autoAccepted
       ? 'CONTACT_ENRICHED'
       : requiresReview
-      ? 'REVIEW_REQUIRED'
-      : result.ownerCandidates.length > 0
-      ? 'OWNER_RESOLVED' :'NO_MATCH';
+        ? 'REVIEW_REQUIRED'
+        : result.ownerCandidates.length > 0
+          ? 'OWNER_RESOLVED'
+          : 'NO_MATCH';
 
     await supabase
       .from('propertyreach_enrichment_jobs')
@@ -485,7 +506,6 @@ async function runPropertyReachJob(
         updated_at: new Date().toISOString(),
       })
       .eq('id', leadId);
-
   } catch (err) {
     console.error('[PropertyReach] Job runner error:', err);
     await supabase
@@ -549,7 +569,7 @@ async function applyAcceptedEnrichment(
   }
 
   // Update phone — pick highest-confidence phone, never overwrite manual
-  const bestPhone = phones.find(p => p.confidence >= 70);
+  const bestPhone = phones.find((p) => p.confidence >= 70);
   if (bestPhone && !isManuallyVerifiedPhone) {
     updates.contact_phone = bestPhone.phoneE164;
     updates.verified_number = bestPhone.confidence >= 80;
@@ -585,22 +605,26 @@ async function applyAcceptedEnrichment(
       continue;
     }
 
-    await supabase.from('enrichment_phone_evidence').upsert({
-      lead_id: leadId,
-      phone_e164: phone.phoneE164,
-      phone_raw: phone.phoneRaw,
-      phone_type: phone.phoneType,
-      phone_status: phone.confidence >= 80 ? 'CURRENT_HIGH_CONFIDENCE' : 'CURRENT_MEDIUM_CONFIDENCE',
-      provider: 'PROPERTYREACH',
-      provider_record_id: phone.providerRecordId || null,
-      confidence: phone.confidence,
-      association_type: phone.associationType || null,
-      rank_order: phone.rankOrder,
-      is_selected: phone.rankOrder === 1,
-      last_verified_at: now,
-      verified_number: phone.confidence >= 80,
-      freshness_status: 'CURRENT',
-    }, { onConflict: 'lead_id,phone_e164' });
+    await supabase.from('enrichment_phone_evidence').upsert(
+      {
+        lead_id: leadId,
+        phone_e164: phone.phoneE164,
+        phone_raw: phone.phoneRaw,
+        phone_type: phone.phoneType,
+        phone_status:
+          phone.confidence >= 80 ? 'CURRENT_HIGH_CONFIDENCE' : 'CURRENT_MEDIUM_CONFIDENCE',
+        provider: 'PROPERTYREACH',
+        provider_record_id: phone.providerRecordId || null,
+        confidence: phone.confidence,
+        association_type: phone.associationType || null,
+        rank_order: phone.rankOrder,
+        is_selected: phone.rankOrder === 1,
+        last_verified_at: now,
+        verified_number: phone.confidence >= 80,
+        freshness_status: 'CURRENT',
+      },
+      { onConflict: 'lead_id,phone_e164' }
+    );
   }
 
   // Audit: canonical updated

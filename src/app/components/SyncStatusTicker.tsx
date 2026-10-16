@@ -306,7 +306,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
         const response = await fetch('/api/leads/rapidapi-import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ provider: 'trulia', location: selectedPortfolio.stateCode, maxPages: 1 }),
+          body: JSON.stringify({ provider: 'trulia', location: selectedPortfolio.stateCode, maxPages: 3 }),
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || result.error) {

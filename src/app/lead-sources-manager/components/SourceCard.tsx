@@ -67,6 +67,8 @@ export default function SourceCard({ source, selected, canManage, onSelect, onOp
                   <span className={`w-1.5 h-1.5 rounded-full ${meta.dot} ${source.status === 'attention' ? 'animate-pulse' : ''}`} />
                   {meta.label}
                 </span>
+                {!source.feed.connected && <span title={source.feed.note ?? ''} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">No data feed</span>}
+                {source.feed.mode === 'auto' && <span title="Pulled automatically on a schedule" className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary">Auto</span>}
               </span>
               <span className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <MapPin size={11} />
@@ -100,7 +102,11 @@ export default function SourceCard({ source, selected, canManage, onSelect, onOp
             </div>
           </div>
         ) : (
-          <p className="mt-4 text-xs text-muted-foreground rounded-lg bg-muted/60 px-3 py-2">No leads from this source yet. {source.configs.length ? 'It starts filling once its first sync runs.' : 'Add a market to start tracking it.'}</p>
+          <p className="mt-4 text-xs text-muted-foreground rounded-lg bg-muted/60 px-3 py-2">
+            {source.feed.connected
+              ? <>No leads from this source yet. {source.configs.length ? 'It starts filling once its first sync runs.' : 'Add a market to start tracking it.'}</>
+              : <><span className="font-semibold text-foreground">No data feed.</span> {source.feed.note}</>}
+          </p>
         )}
 
         {firstError && (

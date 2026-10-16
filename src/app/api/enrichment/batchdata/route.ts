@@ -102,6 +102,8 @@ async function callBatchDataAPI(address: string): Promise<BatchDataOwnerResult |
 }
 
 export async function POST(req: NextRequest) {
+  let logId: string | null = null;
+
   try {
     const { leadId, address, prospectScore = 60 } = await req.json();
 
@@ -127,7 +129,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Log API call attempt
-    const logId = crypto.randomUUID();
+    logId = crypto.randomUUID();
     await supabase.from('enrichment_api_logs').insert({
       id: logId,
       lead_id: leadId,
@@ -135,6 +137,7 @@ export async function POST(req: NextRequest) {
       stage: 'stage1',
       cost: 0.05,
       success: false,
+      error_message: null,
       called_at: new Date().toISOString(),
     }).then(undefined, () => {});
 
@@ -174,7 +177,7 @@ export async function POST(req: NextRequest) {
 
     // Update log
     await supabase.from('enrichment_api_logs')
-      .update({ success: !upsertError, cost: 0.05 })
+      .update({ success: !upsertError, cost: 0.05, error_message: upsertError?.message || null })
       .eq('id', logId)
       .then(undefined, () => {});
 
@@ -205,6 +208,13 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
+    if (logId) {
+      const supabase = await createClient();
+      await supabase.from('enrichment_api_logs')
+        .update({ success: false, error_message: err instanceof Error ? err.message : 'Enrichment failed' })
+        .eq('id', logId)
+        .then(undefined, () => {});
+    }
     console.error('[enrichment/batchdata]', err);
     return NextResponse.json({ error: 'Enrichment failed' }, { status: 500 });
   }

@@ -9,6 +9,7 @@ import { trackEstimateEvent, getTrackingContext } from '@/lib/estimateTracking';
 import ReportActions from '@/app/estimate/components/ReportActions';
 import { type EquipmentKey } from '@/lib/homeownerReportContent';
 import { MapPin, DollarSign, TrendingUp, Shield, ChevronRight, CheckCircle, Loader2, Phone, AlertCircle, ExternalLink } from 'lucide-react';
+import { resolveBrand } from '@/lib/brands';
 import { WEBSITE_URL, WEBSITE_LABEL, CONTACT_EMAIL, CONTACT_PHONE, telHref } from '@/lib/homeownerContact';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
@@ -16,6 +17,8 @@ import HomeownerReportView from '@/app/estimate/components/HomeownerReport';
 import ContactRequestModal, { type ContactMode } from '@/app/estimate/components/ContactRequestModal';
 import type { HomeownerEstimate } from '@/lib/homeownerEstimateTypes';
 import { useForceLightTheme } from '@/lib/hooks/useForceLightTheme';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +63,7 @@ function AddressAutocomplete({
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -122,7 +126,7 @@ function AddressAutocomplete({
           value={value}
           onChange={e => { onChange(e.target.value); }}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
-          placeholder="Start typing your property address…"
+          placeholder={t('estimate.addressPlaceholder')}
           className="w-full pl-10 pr-10 py-3.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
           autoComplete="off"
           aria-autocomplete="list"
@@ -175,7 +179,8 @@ function EstimateCard({ label, value, sub, highlight }: { label: string; value: 
 function ProgressBar({ step }: { step: Step }) {
   const steps: Step[] = ['address', 'estimate', 'contact', 'success'];
   const currentIdx = steps.indexOf(step);
-  const labels = ['Address', 'Estimate', 'Contact', 'Done'];
+  const { t } = useLanguage();
+  const labels = [t('estimate.step.address'), t('estimate.step.estimate'), t('estimate.step.contact'), t('estimate.step.done')];
 
   return (
     <div className="flex items-center gap-1 mb-6">
@@ -203,7 +208,9 @@ function ProgressBar({ step }: { step: Step }) {
 
 function EstimateLandingContent() {
   useForceLightTheme();
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
+  const brand = resolveBrand(searchParams.get('brand')).key;
   const [step, setStep] = useState<Step>('address');
   const [addressInput, setAddressInput] = useState(searchParams.get('address') ?? '');
   const [selectedAddress, setSelectedAddress] = useState('');
@@ -281,7 +288,7 @@ function EstimateLandingContent() {
 
   async function handleGenerateEstimate(addr?: string) {
     const address = addr ?? selectedAddress ?? addressInput;
-    if (!address.trim()) { toast.error('Please select an address from the suggestions'); return; }
+    if (!address.trim()) { toast.error(t('estimate.pickAddress')); return; }
     setLoadingEstimate(true);
     setEstimateError(false);
     setEstimate(null);
@@ -307,9 +314,9 @@ function EstimateLandingContent() {
 
   function validateContact(): boolean {
     const errors: Partial<ContactForm> = {};
-    if (!contact.firstName.trim()) errors.firstName = 'Required';
-    if (!contact.phone.trim() || contact.phone.replace(/\D/g, '').length < 10) errors.phone = 'Valid phone required';
-    if (!contact.email.trim() || !contact.email.includes('@')) errors.email = 'Valid email required';
+    if (!contact.firstName.trim()) errors.firstName = t('estimate.required');
+    if (!contact.phone.trim() || contact.phone.replace(/\D/g, '').length < 10) errors.phone = t('estimate.validPhone');
+    if (!contact.email.trim() || !contact.email.includes('@')) errors.email = t('estimate.validEmail');
     setContactErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -361,7 +368,7 @@ function EstimateLandingContent() {
       const res = await fetch('/api/estimate/resend-report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: selectedAddress || addressInput, email: contact.email, equipment: equipment ?? undefined }) });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.emailed) { setEmailed(true); setResendState('sent'); }
-      else { setResendState('error'); toast.error(data.error || "We couldn't send the email just now. Your report is below, and a specialist will follow up."); }
+      else { setResendState('error'); toast.error(data.error || t('estimate.resendError')); }
     } catch {
       setResendState('error');
     }
@@ -379,6 +386,7 @@ function EstimateLandingContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           address: selectedAddress || addressInput,
+          brand,
           estimate,
           contact: { ...named, emailConfirmed: emailKept },
           qualification: { ...qualification, equipment: equipment ?? undefined },
@@ -388,18 +396,18 @@ function EstimateLandingContent() {
       if (submitRes.status === 422 && submitData?.fields) {
         setContactErrors(prev => ({ ...prev, email: submitData.fields.email, phone: submitData.fields.phone }));
         setEmailSuggestion(submitData.suggestion ?? null);
-        toast.error(submitData.error || 'Please check your contact details');
+        toast.error(submitData.error || t('estimate.checkDetails'));
         setStep('contact');
         return;
       }
       if (!submitRes.ok || !submitData?.success) {
-        toast.error(submitData?.error || 'Something went wrong. Please try again.');
+        toast.error(submitData?.error || t('estimate.wentWrong'));
         return;
       }
       setEmailed(submitData.emailed === true);
       setStep('success');
     } catch {
-      toast.error('Something went wrong. Please try again.');
+      toast.error(t('estimate.wentWrong'));
     } finally {
       setSubmitting(false);
     }
@@ -418,13 +426,14 @@ function EstimateLandingContent() {
           <img src="/brand/travlr-badge.png" alt="TRAVLR" width={36} height={36} className="w-9 h-9 object-contain" />
           <div>
             <p className="text-sm font-bold text-foreground">TRAVLR Vacation Homes</p>
-            <p className="text-[10px] text-muted-foreground">Free Instant Property Estimate</p>
+            <p className="text-[10px] text-muted-foreground">{t('estimate.subtitle')}</p>
           </div>
-          <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline" aria-label="Visit the official TRAVLR website (opens in a new tab)">
+          <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline" aria-label={t('estimate.visitSite', { site: WEBSITE_LABEL })}>
             <Shield size={12} className="text-emerald-600" />
             <span>{WEBSITE_LABEL}</span>
             <ExternalLink size={10} />
           </a>
+          <LanguageSwitcher compact />
         </div>
       </header>
 
@@ -437,9 +446,9 @@ function EstimateLandingContent() {
         {step === 'address' && (
           <div className="space-y-6">
             <div className="text-center space-y-2">
-              <h1 className="text-2xl font-bold text-foreground">What could your home earn?</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t('estimate.addressTitle')}</h1>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Get an instant, free estimate of your property's vacation rental potential — ADR, occupancy, and net monthly income.
+                {t('estimate.addressIntro')}
               </p>
             </div>
 
@@ -452,7 +461,7 @@ function EstimateLandingContent() {
               {addressInput && !selectedAddress && (
                 <p className="text-[11px] text-amber-800 flex items-center gap-1.5">
                   <AlertCircle size={11} />
-                  Select an address from the dropdown for the most accurate estimate
+                  {t('estimate.selectHint')}
                 </p>
               )}
               <button
@@ -461,7 +470,7 @@ function EstimateLandingContent() {
                 className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
               >
                 <TrendingUp size={15} />
-                Get My Free Estimate
+                {t('estimate.getEstimate')}
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -469,9 +478,9 @@ function EstimateLandingContent() {
             {/* Trust signals */}
             <div className="grid grid-cols-3 gap-3 text-center">
               {[
-                { icon: <CheckCircle size={16} className="text-emerald-500" />, label: 'No obligation' },
-                { icon: <Shield size={16} className="text-blue-500" />, label: 'Private & secure' },
-                { icon: <DollarSign size={16} className="text-primary" />, label: 'Instant results' },
+                { icon: <CheckCircle size={16} className="text-emerald-500" />, label: t('estimate.noObligation') },
+                { icon: <Shield size={16} className="text-blue-500" />, label: t('estimate.privateSecure') },
+                { icon: <DollarSign size={16} className="text-primary" />, label: t('estimate.instantResults') },
               ].map(({ icon, label }) => (
                 <div key={label} className="flex flex-col items-center gap-1.5 py-3 bg-card border border-border rounded-xl">
                   {icon}
@@ -490,15 +499,15 @@ function EstimateLandingContent() {
                 <MapPin size={13} className="text-primary" />
                 <p className="text-xs text-muted-foreground truncate">{displayAddress}</p>
               </div>
-              <h2 className="text-xl font-bold text-foreground">Your Estimate</h2>
+              <h2 className="text-xl font-bold text-foreground">{t('estimate.yourEstimate')}</h2>
             </div>
 
             {loadingEstimate ? (
               <div className="bg-card border border-border rounded-2xl p-12 flex flex-col items-center gap-4">
                 <Loader2 size={28} className="text-primary animate-spin" />
                 <div className="text-center">
-                  <p className="text-sm font-semibold text-foreground">Calculating your estimate…</p>
-                  <p className="text-xs text-muted-foreground mt-1">Analyzing market data for your area</p>
+                  <p className="text-sm font-semibold text-foreground">{t('estimate.calculating')}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('estimate.analyzing')}</p>
                 </div>
               </div>
             ) : estimate ? (
@@ -507,23 +516,23 @@ function EstimateLandingContent() {
                   onClick={() => setStep('contact')}
                   className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                 >
-                  Email me the full report — free
+                  {t('estimate.emailFull')}
                   <ChevronRight size={14} />
                 </button>
                 <HomeownerReportView report={estimate.report} variant="preview" />
                 <div className="rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground leading-relaxed">
-                  Your full report adds the monthly cost breakdown, a five-year comparison with a traditional lease, the permits and taxes required for your address, and a step-by-step plan to go live.
+                  {t('estimate.fullReportAdds')}
                 </div>
 
                 <button
                   onClick={() => setStep('contact')}
                   className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                 >
-                  Get My Full Report — It's Free
+                  {t('estimate.getFullReport')}
                   <ChevronRight size={14} />
                 </button>
                 <button onClick={() => openContact('question')} className="w-full text-sm font-semibold text-primary hover:underline text-center py-1">
-                  Have a question first? Talk to a specialist
+                  {t('estimate.haveQuestion')}
                 </button>
                 <button onClick={() => { setStep('address'); setSelectedAddress(''); }} className="w-full text-xs text-muted-foreground hover:text-foreground text-center py-1 transition-colors">
                   ← Try a different address
@@ -532,10 +541,10 @@ function EstimateLandingContent() {
             ) : (
               <div className="bg-card border border-border rounded-2xl p-8 text-center space-y-3">
                 <AlertCircle size={22} className="text-amber-500 mx-auto" />
-                <p className="text-sm font-semibold text-foreground">We couldn't build your estimate just now</p>
-                <p className="text-xs text-muted-foreground">Please check the address and try again.</p>
-                <button onClick={() => handleGenerateEstimate(displayAddress)} className="text-xs font-semibold text-primary hover:underline">Try again</button>
-                <button onClick={() => { setStep('address'); setSelectedAddress(''); }} className="block w-full text-xs text-muted-foreground hover:text-foreground">← Try a different address</button>
+                <p className="text-sm font-semibold text-foreground">{t('estimate.couldntBuild')}</p>
+                <p className="text-xs text-muted-foreground">{t('estimate.checkAddress')}</p>
+                <button onClick={() => handleGenerateEstimate(displayAddress)} className="text-xs font-semibold text-primary hover:underline">{t('estimate.tryAgain')}</button>
+                <button onClick={() => { setStep('address'); setSelectedAddress(''); }} className="block w-full text-xs text-muted-foreground hover:text-foreground">{t('estimate.tryDifferent')}</button>
               </div>
             )}
           </div>
@@ -545,13 +554,13 @@ function EstimateLandingContent() {
         {step === 'contact' && (
           <div className="space-y-5">
             <div>
-              <h2 className="text-xl font-bold text-foreground">Where should we send your report?</h2>
-              <p className="text-sm text-muted-foreground mt-1">We'll send a detailed breakdown to your inbox — no spam, ever.</p>
+              <h2 className="text-xl font-bold text-foreground">{t('estimate.whereSend')}</h2>
+              <p className="text-sm text-muted-foreground mt-1">{t('estimate.sendDetailed')}</p>
             </div>
 
             <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Name *</label>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">{t('estimate.name')} *</label>
                 <input
                   value={contact.firstName}
                   onChange={e => { setContact(c => ({ ...c, firstName: e.target.value })); setContactErrors(er => ({ ...er, firstName: undefined })); }}
@@ -562,7 +571,7 @@ function EstimateLandingContent() {
                 {contactErrors.firstName && <p className="text-[10px] text-red-500 mt-1">{contactErrors.firstName}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Phone *</label>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">{t('estimate.phone')} *</label>
                 <div className="relative">
                   <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   <input
@@ -578,7 +587,7 @@ function EstimateLandingContent() {
                 {contactErrors.phone && <p className="text-[10px] text-red-500 mt-1">{contactErrors.phone}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Email *</label>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">{t('estimate.email')} *</label>
                 <input
                   value={contact.email}
                   onChange={e => { setContact(c => ({ ...c, email: e.target.value })); setContactErrors(er => ({ ...er, email: undefined })); setEmailSuggestion(null); setEmailKept(false); }}
@@ -593,9 +602,9 @@ function EstimateLandingContent() {
                 {emailSuggestion && (
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                     <button type="button" onClick={() => { setContact(c => ({ ...c, email: emailSuggestion })); setEmailSuggestion(null); setContactErrors(er => ({ ...er, email: undefined })); }}
-                      className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold">Use {emailSuggestion}</button>
+                      className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold">{t('estimate.useEmail', { email: emailSuggestion })}</button>
                     <button type="button" onClick={() => { setEmailKept(true); setEmailSuggestion(null); setContactErrors(er => ({ ...er, email: undefined })); }}
-                      className="px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted">Keep what I typed</button>
+                      className="px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted">{t('estimate.keepTyped')}</button>
                   </div>
                 )}
               </div>
@@ -608,7 +617,7 @@ function EstimateLandingContent() {
                   className="mt-0.5 w-4 h-4 rounded border-border text-primary focus:ring-primary/30"
                 />
                 <span className="text-[11px] text-muted-foreground leading-relaxed">
-                  Optional: text me updates. Message & data rates may apply. Reply STOP to opt out.
+                  {t('estimate.smsConsent')}
                 </span>
               </label>
 
@@ -617,10 +626,10 @@ function EstimateLandingContent() {
                 disabled={validating || submitting}
                 className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-70 transition-all flex items-center justify-center gap-2"
               >
-                {validating || submitting ? <><Loader2 size={14} className="animate-spin" /> {submitting ? 'Sending your report…' : 'Checking your details…'}</> : <>Send my full report<ChevronRight size={14} /></>}
+                {validating || submitting ? <><Loader2 size={14} className="animate-spin" /> {submitting ? t('estimate.sending') : t('estimate.checking')}</> : <>{t('estimate.sendReport')}<ChevronRight size={14} /></>}
               </button>
               <p className="text-[10px] text-muted-foreground text-center">
-                By continuing, you agree to be contacted by TRAVLR Vacation Homes. We respect your privacy.
+                {t('estimate.agree', { brand: 'TRAVLR Vacation Homes' })}
               </p>
             </div>
           </div>
@@ -633,15 +642,15 @@ function EstimateLandingContent() {
               <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
                 <CheckCircle size={28} className="text-emerald-600" />
               </div>
-              <h2 className="text-2xl font-bold text-foreground">Your report is ready, {contact.firstName}!</h2>
+              <h2 className="text-2xl font-bold text-foreground">{t('estimate.reportReady', { name: contact.firstName })}</h2>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                {emailed ? <>We&apos;ve emailed a copy to <strong>{contact.email}</strong>. </> : <>We couldn&apos;t send the email just now, but your full report is below. </>}A TRAVLR specialist will reach out within 1 business day to refine these numbers with your home&apos;s details.
+                {emailed ? t('estimate.emailedCopy', { email: contact.email }) : t('estimate.emailFailed')} {t('estimate.specialist', { brand: 'TRAVLR' })}
               </p>
               <p className="text-xs text-muted-foreground">
-                {resendState === 'sent' ? 'Sent again. It should arrive within a minute.' : emailed ? "Don't see it? Check your spam or promotions folder, or " : ''}
+                {resendState === 'sent' ? t('estimate.resendSent') : emailed ? t('estimate.checkSpam') : ''}
                 {resendState !== 'sent' && (
                   <button onClick={resendReport} disabled={resendState === 'sending'} className="text-primary font-semibold hover:underline disabled:opacity-60">
-                    {resendState === 'sending' ? 'Sending…' : emailed ? 'send it again' : 'Try sending the email again'}
+                    {resendState === 'sending' ? t('estimate.resendSending') : emailed ? t('estimate.resendAgain') : t('estimate.resendRetry')}
                   </button>
                 )}
               </p>

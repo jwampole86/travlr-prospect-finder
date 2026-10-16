@@ -192,6 +192,17 @@ export async function runScheduledSyncs(
       const intervalMs = getIntervalForSource(schedule.source);
       const nextSyncTime = new Date(now.getTime() + intervalMs);
 
+      // The background refresh no longer pulls anything (synthetic generation is disabled and real
+      // pulls run from the dashboard Sync controls). Reporting that as a successful, healthy sync
+      // would hide stale sources, so leave the schedule idle and say nothing.
+      if (result.sources.length === 0) {
+        await supabase
+          .from('sync_schedules')
+          .update({ status: 'idle', next_sync_at: nextSyncTime.toISOString(), updated_at: now.toISOString() })
+          .eq('id', schedule.id);
+        continue;
+      }
+
       await supabase
         .from('sync_schedules')
         .update({

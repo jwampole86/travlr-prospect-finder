@@ -3,7 +3,17 @@ import { createClient } from '@/lib/supabase/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { OUTREACH_BIZDEV_JOB_DESCRIPTION } from '@/lib/roles/outreachBizDevRole';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const INTERVIEW_SCRIPT_MODEL = 'claude-sonnet-4-6';
+const ANTHROPIC_ENV_VAR = 'ANTHROPIC_API_KEY';
+
+function createAnthropicClient() {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error(`${ANTHROPIC_ENV_VAR} is not configured on the server`);
+  }
+
+  return new Anthropic({ apiKey });
+}
 
 const TARGET_ROLE = OUTREACH_BIZDEV_JOB_DESCRIPTION;
 
@@ -229,6 +239,7 @@ ${candidate.resume_raw_text ? `RAW RESUME TEXT (first 3000 chars):\n${String(can
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
+    const anthropic = createAnthropicClient();
     const { candidateId, forceRegenerate } = await req.json() as { candidateId: string; forceRegenerate?: boolean };
 
     if (!candidateId) {
@@ -407,7 +418,7 @@ Mark isCore: true for standard TRAVLR questions that must not be removed.
 Mark isLocked: true for questions that should not be substantially rewritten.`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: INTERVIEW_SCRIPT_MODEL,
       max_tokens: 8000,
       messages: [
         { role: 'user', content: userMessage },
@@ -439,7 +450,7 @@ Mark isLocked: true for questions that should not be substantially rewritten.`;
         interview_script: script,
         interview_script_version: (candidate.interview_script_version || 0) + 1,
         script_generated_at: now,
-        script_model: 'claude-sonnet-4-6',
+        script_model: INTERVIEW_SCRIPT_MODEL,
         script_prompt_version: '2.0',
         candidate_status: 'READY_TO_INTERVIEW',
         updated_at: now,
@@ -449,9 +460,20 @@ Mark isLocked: true for questions that should not be substantially rewritten.`;
     return NextResponse.json({ script, cached: false, generatedAt: now });
   } catch (err) {
     console.error('[generate-script]', err);
+    const details = err instanceof Error ? err.message : String(err);
+    const status = details.includes(ANTHROPIC_ENV_VAR) ? 503 : 500;
     return NextResponse.json(
-      { error: 'Failed to generate interview script', details: String(err) },
-      { status: 500 }
+      {
+        error: status === 503 ? 'Interview script generation is unavailable until the server AI key is configured.' : 'Failed to generate interview script',
+        details,
+        meta: {
+          model: INTERVIEW_SCRIPT_MODEL,
+          anthropicEnvVar: ANTHROPIC_ENV_VAR,
+          apiKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
+          browserKeyExposed: Boolean(process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY),
+        },
+      },
+      { status }
     );
   }
 }

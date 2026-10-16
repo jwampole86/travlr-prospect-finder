@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+function getErrorDetails(err: unknown) {
+  if (err && typeof err === 'object') {
+    const maybeMessage = 'message' in err ? err.message : null;
+    const maybeCode = 'code' in err ? err.code : null;
+    return { message: String(maybeMessage || 'Unknown error'), code: maybeCode ? String(maybeCode) : undefined };
+  }
+  return { message: String(err) };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -62,7 +71,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ candidates: candidates || [], counts });
   } catch (err) {
     console.error('[pipeline GET]', err);
-    return NextResponse.json({ error: 'Failed to fetch pipeline' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch pipeline', details: getErrorDetails(err) }, { status: 500 });
   }
 }
 
@@ -130,6 +139,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ candidate: data, offerDraftUrl });
   } catch (err) {
     console.error('[pipeline PATCH]', err);
-    return NextResponse.json({ error: 'Failed to update pipeline status' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update pipeline status', details: getErrorDetails(err) }, { status: 500 });
   }
 }

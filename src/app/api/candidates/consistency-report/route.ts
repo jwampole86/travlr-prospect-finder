@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { OUTREACH_BIZDEV_JOB_DESCRIPTION } from '@/lib/roles/outreachBizDevRole';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const CONSISTENCY_MODEL = 'claude-sonnet-4-6';
+const CONSISTENCY_PROMPT_VERSION = '1.0';
+const ANTHROPIC_ENV_VAR = 'ANTHROPIC_API_KEY';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,64 @@ interface ConsistencyReport {
   secondInterviewQuestions: string[];
 }
 
+function createAnthropicClient() {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error(`${ANTHROPIC_ENV_VAR} is not configured on the server`);
+  }
+
+  return new Anthropic({ apiKey });
+}
+
+function getErrorDetails(err: unknown) {
+  if (err && typeof err === 'object') {
+    const maybeMessage = 'message' in err ? err.message : null;
+    const maybeCode = 'code' in err ? err.code : null;
+    return { message: String(maybeMessage || 'Unknown error'), code: maybeCode ? String(maybeCode) : undefined };
+  }
+  return { message: String(err) };
+}
+
+function hasResumeEvidence(candidate: Record<string, unknown>) {
+  const workExp = Array.isArray(candidate.work_experience) ? candidate.work_experience : [];
+  const skills = Array.isArray(candidate.skills) ? candidate.skills : [];
+  const highlights = Array.isArray(candidate.resume_highlights) ? candidate.resume_highlights : [];
+  return workExp.length > 0 || skills.length > 0 || highlights.length > 0 || Boolean(candidate.resume_raw_text);
+}
+
+function buildReadiness(args: {
+  candidate: Record<string, unknown>;
+  notesCount: number;
+  interviewCount: number;
+  latestScorecard: Record<string, unknown> | null;
+  reportCount: number;
+}) {
+  const { candidate, notesCount, interviewCount, latestScorecard, reportCount } = args;
+  const resumeReady = hasResumeEvidence(candidate);
+  const hasInterviewerNotes = Boolean(String(latestScorecard?.interviewer_notes || '').trim());
+  const hasScorecard = Boolean(latestScorecard);
+  const hasInterviewEvidence = notesCount > 0 || hasInterviewerNotes;
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+
+  if (!resumeReady) blockers.push('This candidate has no structured resume evidence yet.');
+  if (!hasInterviewEvidence) blockers.push('No interview notes or interviewer summary are available yet.');
+  if (!hasScorecard) warnings.push('No scorecard exists yet; the report can still run once interview notes are present.');
+  if (!interviewCount) warnings.push('Interview count is still zero on the candidate record.');
+
+  return {
+    readyForAnalysis: resumeReady && hasInterviewEvidence,
+    resumeReady,
+    notesCount,
+    interviewCount,
+    hasScorecard,
+    hasInterviewerNotes,
+    reportCount,
+    blockers,
+    warnings,
+  };
+}
+
 function buildStructuredInput(
   candidate: Record<string, unknown>,
   notes: Array<{ question_text?: string; note_text: string }>,
@@ -44,7 +104,6 @@ function buildStructuredInput(
   const workExp = Array.isArray(candidate.work_experience) ? candidate.work_experience : [];
   const skills = Array.isArray(candidate.skills) ? candidate.skills : [];
 
-  // Build safe scorecard summary (no PII, job-relevant only)
   const scorecardSummary = scorecard ? `
 SCORECARD RESULTS:
 Vacation Rental Knowledge: ${scorecard.vacation_rental_knowledge ?? 'Not rated'}/10
@@ -68,7 +127,7 @@ Interviewer Notes: ${scorecard.interviewer_notes || 'None recorded'}
 ` : 'No scorecard completed yet.';
 
   const notesText = notes.length > 0
-    ? notes.map(n => `Q: ${n.question_text || 'General note'}\nNote: ${n.note_text}`).join('\n\n')
+    ? notes.map((n) => `Q: ${n.question_text || 'General note'}\nNote: ${n.note_text}`).join('\n\n')
     : 'No interview notes recorded.';
 
   const workExpText = workExp.map((job: Record<string, unknown>) =>
@@ -83,7 +142,7 @@ ${OUTREACH_BIZDEV_JOB_DESCRIPTION}
 RESUME WORK HISTORY:
 ${workExpText || candidate.resume_raw_text?.toString().slice(0, 3000) || 'Not available'}
 
-RESUME SKILLS: ${Array.isArray(skills) ? skills.join(', ') : 'Not specified'}
+RESUME SKILLS: ${skills.join(', ') || 'Not specified'}
 
 RESUME HIGHLIGHTS:
 ${Array.isArray(candidate.resume_highlights) ? (candidate.resume_highlights as string[]).join('\n') : candidate.seed_fit_notes || 'Not specified'}
@@ -98,87 +157,137 @@ ${scorecardSummary}
 `.trim();
 }
 
+async function loadCandidateContext(supabase: Awaited<ReturnType<typeof createClient>>, candidateId: string, scorecardId?: string | null) {
+  const [{ data: candidate, error: candErr }, { data: notes, error: notesErr }, { count: reportCount, error: reportCountErr }] = await Promise.all([
+    supabase
+      .from('candidates')
+      .select(`
+        id, full_name, candidate_rank, interview_priority, pipeline_status,
+        current_title, current_company, work_experience, skills, resume_highlights,
+        resume_raw_text, seed_fit_notes, seed_concerns, concerns,
+        latest_interview_at, interview_count, latest_scorecard_average, top_strength,
+        main_area_to_validate, consistency_report_status, resume_version
+      `)
+      .eq('id', candidateId)
+      .single(),
+    supabase
+      .from('candidate_interview_notes')
+      .select('question_text, note_text')
+      .eq('candidate_id', candidateId)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('candidate_consistency_reports')
+      .select('id', { count: 'exact', head: true })
+      .eq('candidate_id', candidateId),
+  ]);
+
+  if (candErr || !candidate) throw candErr || new Error('Candidate not found');
+  if (notesErr) throw notesErr;
+  if (reportCountErr) throw reportCountErr;
+
+  let latestScorecardQuery = supabase
+    .from('candidate_scorecards')
+    .select('*')
+    .eq('candidate_id', candidateId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (scorecardId) latestScorecardQuery = latestScorecardQuery.eq('id', scorecardId);
+
+  const { data: latestScorecard, error: scorecardErr } = await latestScorecardQuery.maybeSingle();
+  if (scorecardErr) throw scorecardErr;
+
+  const { data: latestReport, error: latestReportErr } = await supabase
+    .from('candidate_consistency_reports')
+    .select('*')
+    .eq('candidate_id', candidateId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latestReportErr) throw latestReportErr;
+
+  const readiness = buildReadiness({
+    candidate: candidate as Record<string, unknown>,
+    notesCount: notes?.length || 0,
+    interviewCount: Number(candidate.interview_count) || 0,
+    latestScorecard: latestScorecard as Record<string, unknown> | null,
+    reportCount: reportCount || 0,
+  });
+
+  return {
+    candidate,
+    notes: notes || [],
+    latestScorecard,
+    latestReport,
+    readiness,
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);
     const candidateId = searchParams.get('candidateId');
 
-    if (!candidateId) return NextResponse.json({ error: 'candidateId required' }, { status: 400 });
+    if (!candidateId) {
+      return NextResponse.json({ error: 'candidateId required' }, { status: 400 });
+    }
 
-    const { data, error } = await supabase
-      .from('candidate_consistency_reports')
-      .select('*')
-      .eq('candidate_id', candidateId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    const context = await loadCandidateContext(supabase, candidateId);
 
-    if (error && error.code !== 'PGRST116') throw error;
-    return NextResponse.json({ report: data || null });
+    return NextResponse.json({
+      report: context.latestReport || null,
+      candidate: context.candidate,
+      readiness: context.readiness,
+      meta: {
+        model: context.latestReport?.model || CONSISTENCY_MODEL,
+        promptVersion: context.latestReport?.prompt_version || CONSISTENCY_PROMPT_VERSION,
+        apiKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
+        browserKeyExposed: Boolean(process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY),
+      },
+    });
   } catch (err) {
     console.error('[consistency-report GET]', err);
-    return NextResponse.json({ error: 'Failed to fetch report' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch report context', details: getErrorDetails(err) },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
+    const anthropic = createAnthropicClient();
     const { candidateId, interviewId, scorecardId } = await req.json();
 
     if (!candidateId) return NextResponse.json({ error: 'candidateId required' }, { status: 400 });
 
-    // Fetch candidate (job-relevant fields only — no unnecessary PII)
-    const { data: candidate, error: candErr } = await supabase
-      .from('candidates')
-      .select(`
-        id, full_name, first_name, current_title, current_company,
-        work_experience, skills, resume_highlights, resume_raw_text,
-        seed_fit_notes, seed_concerns, strengths, concerns,
-        vacation_rental_experience, property_management_experience,
-        outbound_calling_experience, closing_experience, crm_experience,
-        resume_version
-      `)
-      .eq('id', candidateId)
-      .single();
+    const context = await loadCandidateContext(supabase, candidateId, scorecardId);
 
-    if (candErr || !candidate) return NextResponse.json({ error: 'Candidate not found' }, { status: 404 });
-
-    // Fetch interview notes
-    const { data: notes } = await supabase
-      .from('candidate_interview_notes')
-      .select('question_text, note_text')
-      .eq('candidate_id', candidateId)
-      .order('created_at', { ascending: true });
-
-    // Fetch scorecard
-    let scorecard = null;
-    if (scorecardId) {
-      const { data: sc } = await supabase
-        .from('candidate_scorecards')
-        .select('*')
-        .eq('id', scorecardId)
-        .single();
-      scorecard = sc;
-    } else {
-      const { data: sc } = await supabase
-        .from('candidate_scorecards')
-        .select('*')
-        .eq('candidate_id', candidateId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      scorecard = sc;
+    if (!context.readiness.readyForAnalysis) {
+      return NextResponse.json(
+        {
+          error: 'This candidate does not have enough real interview evidence for a consistency report yet.',
+          readiness: context.readiness,
+          meta: {
+            model: CONSISTENCY_MODEL,
+            promptVersion: CONSISTENCY_PROMPT_VERSION,
+            apiKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
+          },
+        },
+        { status: 409 }
+      );
     }
 
-    // Create pending report record
+    const { candidate, notes, latestScorecard } = context;
+
     const { data: reportRecord, error: insertErr } = await supabase
       .from('candidate_consistency_reports')
       .insert({
         candidate_id: candidateId,
         interview_id: interviewId || null,
-        scorecard_id: scorecardId || scorecard?.id || null,
+        scorecard_id: scorecardId || latestScorecard?.id || null,
         resume_version: candidate.resume_version || 1,
         generation_status: 'GENERATING',
       })
@@ -187,11 +296,10 @@ export async function POST(req: NextRequest) {
 
     if (insertErr) throw insertErr;
 
-    // Build structured input (no unnecessary PII)
     const structuredInput = buildStructuredInput(
       candidate as Record<string, unknown>,
-      notes || [],
-      scorecard as Record<string, unknown> | null
+      notes,
+      latestScorecard as Record<string, unknown> | null
     );
 
     const systemPrompt = `You are an expert interview analyst for TRAVLR Vacation Homes, a boutique luxury vacation-rental brand.
@@ -248,7 +356,7 @@ For secondInterviewQuestions: generate questions that derive from resume evidenc
 
     try {
       const message = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: CONSISTENCY_MODEL,
         max_tokens: 6000,
         messages: [{ role: 'user', content: userMessage }],
         system: systemPrompt,
@@ -259,17 +367,14 @@ For secondInterviewQuestions: generate questions that derive from resume evidenc
       if (!jsonMatch) throw new Error('Anthropic did not return valid JSON');
 
       report = JSON.parse(jsonMatch[0]) as ConsistencyReport;
-
-      // Validate required fields
       if (!report.executiveSummary || !Array.isArray(report.validatedClaims)) {
         throw new Error('Invalid report structure from Anthropic');
       }
     } catch (genErr) {
-      generationError = String(genErr);
+      generationError = genErr instanceof Error ? genErr.message : String(genErr);
       console.error('[consistency-report] Generation error:', genErr);
     }
 
-    // Save report (success or failure)
     const updateData = report ? {
       executive_summary: report.executiveSummary,
       validated_claims: report.validatedClaims,
@@ -284,8 +389,8 @@ For secondInterviewQuestions: generate questions that derive from resume evidenc
       second_interview_questions: report.secondInterviewQuestions,
       generation_status: 'COMPLETED',
       generated_at: new Date().toISOString(),
-      model: 'claude-sonnet-4-6',
-      prompt_version: '1.0',
+      model: CONSISTENCY_MODEL,
+      prompt_version: CONSISTENCY_PROMPT_VERSION,
     } : {
       generation_status: 'FAILED',
       generation_error: generationError,
@@ -296,7 +401,6 @@ For secondInterviewQuestions: generate questions that derive from resume evidenc
       .update(updateData)
       .eq('id', reportRecord.id);
 
-    // Update candidate consistency_report_status
     await supabase
       .from('candidates')
       .update({
@@ -305,7 +409,6 @@ For secondInterviewQuestions: generate questions that derive from resume evidenc
       })
       .eq('id', candidateId);
 
-    // Audit event
     await supabase.from('candidate_audit_events').insert({
       candidate_id: candidateId,
       event_type: 'CONSISTENCY_REPORT_GENERATED',
@@ -326,10 +429,25 @@ For secondInterviewQuestions: generate questions that derive from resume evidenc
       .eq('id', reportRecord.id)
       .single();
 
-    return NextResponse.json({ report: finalReport });
+    return NextResponse.json({
+      report: finalReport,
+      readiness: context.readiness,
+      meta: {
+        model: CONSISTENCY_MODEL,
+        promptVersion: CONSISTENCY_PROMPT_VERSION,
+      },
+    });
   } catch (err) {
     console.error('[consistency-report POST]', err);
-    return NextResponse.json({ error: 'Failed to generate consistency report' }, { status: 500 });
+    const details = getErrorDetails(err);
+    const status = details.message.includes(ANTHROPIC_ENV_VAR) ? 503 : 500;
+    return NextResponse.json(
+      {
+        error: status === 503 ? 'Consistency report generation is unavailable until the server AI key is configured.' : 'Failed to generate consistency report',
+        details,
+      },
+      { status }
+    );
   }
 }
 
@@ -351,6 +469,9 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ report: data });
   } catch (err) {
     console.error('[consistency-report PATCH]', err);
-    return NextResponse.json({ error: 'Failed to update report' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to update report', details: getErrorDetails(err) },
+      { status: 500 }
+    );
   }
 }

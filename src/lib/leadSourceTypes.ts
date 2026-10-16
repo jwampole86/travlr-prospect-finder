@@ -67,8 +67,19 @@ export interface ScheduleInfo {
   leadsAdded: number;
 }
 
+/** How leads from a source get into the platform. */
+export interface SourceFeed {
+  /** True when the platform has a working data provider for this source. */
+  connected: boolean;
+  /** 'auto' = pulled by the scheduled sync, 'manual' = only on demand, 'none' = no provider (CSV import only). */
+  mode: 'auto' | 'manual' | 'none';
+  /** Plain-language explanation shown next to sources that are not connected. */
+  note: string | null;
+}
+
 export interface SourceItem {
   key: string;
+  feed: SourceFeed;
   name: string;
   status: SourceStatus;
   configs: ConfigItem[];

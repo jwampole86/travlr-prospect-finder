@@ -1,900 +1,449 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import AppLayout from '@/components/AppLayout';
-import { createClient } from '@/lib/supabase/client';
-import { Phone, MessageSquare, Mail, MoreHorizontal, Plus, Search, Filter, Calendar, User, ChevronDown, X, CheckCircle, Clock, AlertCircle, ThumbsUp, ThumbsDown, PhoneOff, PhoneMissed, RefreshCw, MapPin, ArrowUpDown, Loader2, Download, AlarmClock, CalendarClock, CheckSquare, Square } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { BarChart3, CalendarClock, CheckCircle2, Download, MessageSquarePlus, Phone, RefreshCw, Rows4, Signal, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
-import Link from 'next/link';
-import Icon from '@/components/ui/AppIcon';
+import AppLayout from '@/components/AppLayout';
+import {
+  ErrorBanner,
+  LoadingState,
+  PageHeader,
+  Panel,
+  SegmentedTabs,
+  StatGrid,
+  StatusPill,
+  buttonPrimary,
+  buttonSecondary,
+  inputClass,
+} from '@/components/ops';
+import { createClient } from '@/lib/supabase/client';
+import LeadQueueTable from './components/LeadQueueTable';
+import LogEntryModal from './components/LogEntryModal';
+import OutreachActivityTable from './components/OutreachActivityTable';
+import {
+  COMM_TYPE_OPTIONS,
+  OUTREACH_STATUS_OPTIONS,
+  RESPONSE_STATUSES,
+  STAGE_OPTIONS,
+  exportOutreachCsv,
+  formatDateTime,
+  getLeadDisplayName,
+  getLeadStageLabel,
+  type LeadOption,
+  type OutreachDashboardStats,
+  type OutreachLead,
+  type OutreachLog,
+} from './lib';
 
+type Tab = 'queue' | 'activity';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type CommType = 'call' | 'text' | 'email' | 'other';
-type ResponseStatus =
-  | 'No Answer' | 'Interested' | 'Not Interested' | 'Follow-up Needed' |'Voicemail' | 'Callback Requested' | 'Wrong Number' | 'Do Not Contact';
-
-interface OutreachLog {
-  id: string;
-  lead_id: string;
-  agent_id: string | null;
-  agent_name: string | null;
-  comm_type: CommType;
-  notes: string | null;
-  response_status: ResponseStatus;
-  logged_at: string;
-  created_at: string;
-  due_date: string | null;
-  snooze_until: string | null;
-  is_completed: boolean;
-  priority: string | null;
-  lead_address?: string;
-  lead_city?: string;
-  lead_state?: string;
-}
-
-interface LeadOption {
-  id: string;
-  address: string;
-  city: string;
-  state: string;
-}
-
-// ─── Config ───────────────────────────────────────────────────────────────────
-
-const COMM_TYPE_CONFIG: Record<CommType, { label: string; icon: React.ElementType; color: string }> = {
-  call:  { label: 'Phone Call', icon: Phone,          color: 'text-blue-600 bg-blue-500/10 border-blue-500/20' },
-  text:  { label: 'Text / SMS', icon: MessageSquare,  color: 'text-violet-600 bg-violet-500/10 border-violet-500/20' },
-  email: { label: 'Email',      icon: Mail,           color: 'text-amber-600 bg-amber-500/10 border-amber-500/20' },
-  other: { label: 'Other',      icon: MoreHorizontal, color: 'text-slate-600 bg-slate-500/10 border-slate-500/20' },
-};
-
-const RESPONSE_STATUS_CONFIG: Record<ResponseStatus, { label: string; icon: React.ElementType; color: string }> = {
-  'No Answer':          { label: 'No Answer',          icon: PhoneMissed,   color: 'text-slate-600 bg-slate-500/10 border-slate-500/20' },
-  'Interested':         { label: 'Interested',          icon: ThumbsUp,      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20' },
-  'Not Interested':     { label: 'Not Interested',      icon: ThumbsDown,    color: 'text-red-600 bg-red-500/10 border-red-500/20' },
-  'Follow-up Needed':   { label: 'Follow-up Needed',    icon: Clock,         color: 'text-amber-600 bg-amber-500/10 border-amber-500/20' },
-  'Voicemail':          { label: 'Voicemail',            icon: PhoneOff,      color: 'text-blue-600 bg-blue-500/10 border-blue-500/20' },
-  'Callback Requested': { label: 'Callback Requested',  icon: RefreshCw,     color: 'text-purple-600 bg-purple-500/10 border-purple-500/20' },
-  'Wrong Number':       { label: 'Wrong Number',         icon: AlertCircle,   color: 'text-orange-600 bg-orange-500/10 border-orange-500/20' },
-  'Do Not Contact':     { label: 'Do Not Contact',       icon: X,             color: 'text-red-700 bg-red-600/10 border-red-600/20' },
-};
-
-const RESPONSE_STATUSES: ResponseStatus[] = [
-  'No Answer', 'Interested', 'Not Interested', 'Follow-up Needed',
-  'Voicemail', 'Callback Requested', 'Wrong Number', 'Do Not Contact',
-];
-
-const SNOOZE_PRESETS = [
-  { label: '1 hour',    hours: 1 },
-  { label: '3 hours',   hours: 3 },
-  { label: 'Tomorrow',  hours: 24 },
-  { label: '3 days',    hours: 72 },
-  { label: '1 week',    hours: 168 },
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function CommTypeBadge({ type }: { type: CommType }) {
-  const cfg = COMM_TYPE_CONFIG[type];
-  const Icon = cfg.icon;
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${cfg.color}`}>
-      <Icon size={10} />{cfg.label}
-    </span>
-  );
-}
-
-function ResponseBadge({ status }: { status: ResponseStatus }) {
-  const cfg = RESPONSE_STATUS_CONFIG[status];
-  const Icon = cfg.icon;
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${cfg.color}`}>
-      <Icon size={10} />{cfg.label}
-    </span>
-  );
-}
-
-function formatDateTime(d: string) {
-  return new Date(d).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit',
-  });
-}
-
-function isDueOverdue(dueDate: string | null): boolean {
-  if (!dueDate) return false;
-  return new Date(dueDate) < new Date();
-}
-
-function isDueSoon(dueDate: string | null): boolean {
-  if (!dueDate) return false;
-  const diff = new Date(dueDate).getTime() - Date.now();
-  return diff > 0 && diff < 24 * 60 * 60 * 1000; // within 24h
-}
-
-function isSnoozed(snoozeUntil: string | null): boolean {
-  if (!snoozeUntil) return false;
-  return new Date(snoozeUntil) > new Date();
-}
-
-// ─── CSV Export ───────────────────────────────────────────────────────────────
-
-function exportOutreachCSV(logs: OutreachLog[]) {
-  const headers = [
-    'Date/Time', 'Lead Address', 'City', 'State', 'Agent', 'Type',
-    'Response Status', 'Notes', 'Due Date', 'Snooze Until', 'Completed', 'Priority'
-  ];
-  const rows = logs.map(l => [
-    formatDateTime(l.logged_at),
-    l.lead_address || '',
-    l.lead_city || '',
-    l.lead_state || '',
-    l.agent_name || '',
-    COMM_TYPE_CONFIG[l.comm_type]?.label || l.comm_type,
-    l.response_status,
-    l.notes || '',
-    l.due_date ? formatDateTime(l.due_date) : '',
-    l.snooze_until ? formatDateTime(l.snooze_until) : '',
-    l.is_completed ? 'Yes' : 'No',
-    l.priority || 'normal',
-  ]);
-
-  const csv = [headers, ...rows]
-    .map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `outreach-logs-${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast.success('Outreach logs exported to CSV');
-}
-
-// ─── Log Entry Modal ──────────────────────────────────────────────────────────
-
-interface LogEntryModalProps {
-  onClose: () => void;
-  onSaved: () => void;
-  prefillLeadId?: string;
-  prefillLeadAddress?: string;
-}
-
-function LogEntryModal({ onClose, onSaved, prefillLeadId, prefillLeadAddress }: LogEntryModalProps) {
-  const [leadId, setLeadId] = useState(prefillLeadId || '');
-  const [leadSearch, setLeadSearch] = useState(prefillLeadAddress || '');
-  const [leadOptions, setLeadOptions] = useState<LeadOption[]>([]);
-  const [leadDropdownOpen, setLeadDropdownOpen] = useState(false);
-  const [commType, setCommType] = useState<CommType>('call');
-  const [responseStatus, setResponseStatus] = useState<ResponseStatus>('No Answer');
-  const [notes, setNotes] = useState('');
-  const [loggedAt, setLoggedAt] = useState(() => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-  });
-  const [dueDate, setDueDate] = useState('');
-  const [snoozeUntil, setSnoozeUntil] = useState('');
-  const [priority, setPriority] = useState<'low' | 'normal' | 'high'>('normal');
-  const [saving, setSaving] = useState(false);
-  const [searchingLeads, setSearchingLeads] = useState(false);
-  const supabase = createClient();
-  const { user } = useAuth();
-  const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const searchLeads = useCallback(async (term: string) => {
-    if (!term || term.length < 2) { setLeadOptions([]); return; }
-    setSearchingLeads(true);
-    try {
-      const { data } = await supabase
-        .from('leads')
-        .select('id, address, city, state')
-        .or(`address.ilike.%${term}%,city.ilike.%${term}%`)
-        .eq('is_synthetic', false)
-        .limit(10);
-      setLeadOptions((data as LeadOption[]) || []);
-    } finally {
-      setSearchingLeads(false);
-    }
-  }, [supabase]);
-
-  useEffect(() => {
-    if (searchRef.current) clearTimeout(searchRef.current);
-    searchRef.current = setTimeout(() => searchLeads(leadSearch), 300);
-    return () => { if (searchRef.current) clearTimeout(searchRef.current); };
-  }, [leadSearch, searchLeads]);
-
-  function applySnoozePreset(hours: number) {
-    const d = new Date(Date.now() + hours * 60 * 60 * 1000);
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    setSnoozeUntil(d.toISOString().slice(0, 16));
-  }
-
-  async function handleSave() {
-    if (!leadId) { toast.error('Please select a lead'); return; }
-    setSaving(true);
-    try {
-      const { error } = await supabase.from('outreach_logs').insert({
-        lead_id: leadId,
-        agent_id: user?.id || null,
-        agent_name: user?.user_metadata?.full_name || user?.email || null,
-        comm_type: commType,
-        response_status: responseStatus,
-        notes: notes.trim() || null,
-        logged_at: new Date(loggedAt).toISOString(),
-        due_date: dueDate ? new Date(dueDate).toISOString() : null,
-        snooze_until: snoozeUntil ? new Date(snoozeUntil).toISOString() : null,
-        priority,
-        is_completed: false,
-      });
-      if (error) throw error;
-      toast.success('Outreach entry logged');
-      onSaved();
-      onClose();
-    } catch (e) {
-      toast.error('Failed to save entry');
-      console.error(e);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div
-        className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
-          <h2 className="text-sm font-bold text-foreground">Log Outreach Entry</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-            <X size={15} className="text-muted-foreground" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-4">
-          {/* Lead selector */}
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1.5">Lead / Property *</label>
-            {prefillLeadId ? (
-              <div className="px-3 py-2 bg-muted/50 rounded-lg text-xs text-foreground">{prefillLeadAddress}</div>
-            ) : (
-              <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={leadSearch}
-                  onChange={e => { setLeadSearch(e.target.value); setLeadDropdownOpen(true); setLeadId(''); }}
-                  onFocus={() => setLeadDropdownOpen(true)}
-                  placeholder="Search by address or city..."
-                  className="w-full pl-8 pr-3 py-2 text-xs bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                {leadDropdownOpen && (leadOptions.length > 0 || searchingLeads) && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-xl z-10 max-h-48 overflow-y-auto">
-                    {searchingLeads && (
-                      <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
-                        <Loader2 size={11} className="animate-spin" />Searching…
-                      </div>
-                    )}
-                    {leadOptions.map(l => (
-                      <button
-                        key={l.id}
-                        onClick={() => {
-                          setLeadId(l.id);
-                          setLeadSearch(`${l.address}, ${l.city}, ${l.state}`);
-                          setLeadDropdownOpen(false);
-                        }}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors"
-                      >
-                        <span className="font-medium text-foreground">{l.address}</span>
-                        <span className="text-muted-foreground ml-1">{l.city}, {l.state}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Communication type */}
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1.5">Communication Type *</label>
-            <div className="grid grid-cols-4 gap-2">
-              {(Object.keys(COMM_TYPE_CONFIG) as CommType[]).map(t => {
-                const cfg = COMM_TYPE_CONFIG[t];
-                const Icon = cfg.icon;
-                return (
-                  <button
-                    key={t}
-                    onClick={() => setCommType(t)}
-                    className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all ${
-                      commType === t
-                        ? 'border-primary bg-primary/10 text-primary' :'border-border bg-muted/30 text-muted-foreground hover:border-primary/40'
-                    }`}
-                  >
-                    <Icon size={14} />
-                    {cfg.label.split(' ')[0]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Response status */}
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1.5">Response Status *</label>
-            <div className="relative">
-              <select
-                value={responseStatus}
-                onChange={e => setResponseStatus(e.target.value as ResponseStatus)}
-                className="w-full px-3 py-2 text-xs bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none"
-              >
-                {RESPONSE_STATUSES.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Priority */}
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1.5">Priority</label>
-            <div className="flex gap-2">
-              {(['low', 'normal', 'high'] as const).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setPriority(p)}
-                  className={`flex-1 py-2 rounded-lg border text-[11px] font-medium capitalize transition-all ${
-                    priority === p
-                      ? p === 'high' ? 'border-red-500 bg-red-500/10 text-red-600'
-                        : p === 'low'? 'border-slate-400 bg-slate-500/10 text-slate-600' :'border-primary bg-primary/10 text-primary' :'border-border bg-muted/30 text-muted-foreground hover:border-border/80'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Date/time */}
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1.5">Date & Time</label>
-            <input
-              type="datetime-local"
-              value={loggedAt}
-              onChange={e => setLoggedAt(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </div>
-
-          {/* Due date */}
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1.5 flex items-center gap-1.5">
-              <CalendarClock size={12} className="text-amber-600" />
-              Due Date / Follow-up Deadline
-            </label>
-            <input
-              type="datetime-local"
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            {dueDate && (
-              <button onClick={() => setDueDate('')} className="mt-1 text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1">
-                <X size={9} />Clear due date
-              </button>
-            )}
-          </div>
-
-          {/* Snooze until */}
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1.5 flex items-center gap-1.5">
-              <AlarmClock size={12} className="text-blue-600" />
-              Snooze Until (hide from queue until)
-            </label>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {SNOOZE_PRESETS.map(p => (
-                <button
-                  key={p.label}
-                  onClick={() => applySnoozePreset(p.hours)}
-                  className="px-2.5 py-1 text-[10px] font-medium bg-muted/50 border border-border rounded-full hover:border-primary/40 hover:text-primary transition-colors"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <input
-              type="datetime-local"
-              value={snoozeUntil}
-              onChange={e => setSnoozeUntil(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            {snoozeUntil && (
-              <button onClick={() => setSnoozeUntil('')} className="mt-1 text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1">
-                <X size={9} />Clear snooze
-              </button>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1.5">Notes</label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={3}
-              placeholder="What happened? Any key details from the conversation..."
-              className="w-full px-3 py-2 text-xs bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border sticky bottom-0 bg-card">
-          <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !leadId}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {saving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
-            Save Entry
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
+const LEAD_PAGE_SIZE = 25;
+const LOG_PAGE_SIZE = 25;
 
 export default function OutreachTrackingPage() {
+  const supabase = useMemo(() => createClient(), []);
+  const [activeTab, setActiveTab] = useState<Tab>('queue');
+  const [dashboard, setDashboard] = useState<OutreachDashboardStats | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+
+  const [leadRows, setLeadRows] = useState<OutreachLead[]>([]);
+  const [leadTotal, setLeadTotal] = useState(0);
+  const [leadPage, setLeadPage] = useState(1);
+  const [leadLoading, setLeadLoading] = useState(true);
+  const [leadError, setLeadError] = useState<string | null>(null);
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadOutreachFilter, setLeadOutreachFilter] = useState('NOT_CONTACTED');
+  const [leadStageFilter, setLeadStageFilter] = useState('all');
+
   const [logs, setLogs] = useState<OutreachLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [logModalOpen, setLogModalOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterAgent, setFilterAgent] = useState<string>('all');
-  const [filterView, setFilterView] = useState<'all' | 'due' | 'overdue' | 'snoozed' | 'completed'>('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
-  const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const supabase = createClient();
+  const [logsTotal, setLogsTotal] = useState(0);
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsLoading, setLogsLoading] = useState(true);
+  const [logsError, setLogsError] = useState<string | null>(null);
+  const [logsResponseFilter, setLogsResponseFilter] = useState('all');
+  const [logsCommTypeFilter, setLogsCommTypeFilter] = useState('all');
+  const [logsDateFrom, setLogsDateFrom] = useState('');
+  const [logsDateTo, setLogsDateTo] = useState('');
+  const [updatingLogId, setUpdatingLogId] = useState<string | null>(null);
+
+  const [modalLead, setModalLead] = useState<LeadOption | null>(null);
+
+  const countQuery = useCallback(async (query: PromiseLike<{ count: number | null; error: { message?: string } | null }>) => {
+    const result = await query;
+    if (result.error) throw new Error(result.error.message || 'Count query failed');
+    return result.count ?? 0;
+  }, []);
+
+  const loadDashboard = useCallback(async () => {
+    setDashboardLoading(true);
+    setDashboardError(null);
+    const now = new Date();
+    const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    try {
+      const [
+        totalLeads,
+        newLeadStage,
+        notContacted,
+        touched,
+        responded,
+        withPhone,
+        logsTotalCount,
+        logsCompleted,
+        logsOverdue,
+        logsDueSoon,
+        logsSnoozed,
+      ] = await Promise.all([
+        countQuery(supabase.from('leads').select('id', { count: 'exact', head: true }).eq('is_synthetic', false)),
+        countQuery(supabase.from('leads').select('id', { count: 'exact', head: true }).eq('is_synthetic', false).eq('stage', 'New Lead')),
+        countQuery(supabase.from('leads').select('id', { count: 'exact', head: true }).eq('is_synthetic', false).eq('outreach_status', 'NOT_CONTACTED')),
+        countQuery(supabase.from('leads').select('id', { count: 'exact', head: true }).eq('is_synthetic', false).not('last_contacted_at', 'is', null)),
+        countQuery(supabase.from('leads').select('id', { count: 'exact', head: true }).eq('is_synthetic', false).not('outreach_responded_at', 'is', null)),
+        countQuery(supabase.from('leads').select('id', { count: 'exact', head: true }).eq('is_synthetic', false).not('contact_phone', 'is', null)),
+        countQuery(supabase.from('outreach_logs').select('id', { count: 'exact', head: true })),
+        countQuery(supabase.from('outreach_logs').select('id', { count: 'exact', head: true }).eq('is_completed', true)),
+        countQuery(supabase.from('outreach_logs').select('id', { count: 'exact', head: true }).eq('is_completed', false).not('due_date', 'is', null).lt('due_date', now.toISOString())),
+        countQuery(supabase.from('outreach_logs').select('id', { count: 'exact', head: true }).eq('is_completed', false).not('due_date', 'is', null).gte('due_date', now.toISOString()).lt('due_date', next24h)),
+        countQuery(supabase.from('outreach_logs').select('id', { count: 'exact', head: true }).not('snooze_until', 'is', null).gt('snooze_until', now.toISOString())),
+      ]);
+
+      setDashboard({
+        totalLeads,
+        newLeadStage,
+        notContacted,
+        touched,
+        responded,
+        withPhone,
+        logsTotal: logsTotalCount,
+        logsCompleted,
+        logsOverdue,
+        logsDueSoon,
+        logsSnoozed,
+      });
+    } catch (error) {
+      console.error('[OutreachTracking] dashboard failed', error);
+      setDashboardError(error instanceof Error ? error.message : 'Failed to load outreach metrics');
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, [countQuery, supabase]);
+
+  const loadLeadQueue = useCallback(async () => {
+    setLeadLoading(true);
+    setLeadError(null);
+    try {
+      let query = supabase
+        .from('leads')
+        .select(
+          'id, address, city, state, contact_name, owner_name, stage, outreach_status, prospect_score, last_contacted_at, outreach_responded_at, next_followup_due, contact_phone, created_at',
+          { count: 'exact' }
+        )
+        .eq('is_synthetic', false)
+        .order('created_at', { ascending: false })
+        .range((leadPage - 1) * LEAD_PAGE_SIZE, leadPage * LEAD_PAGE_SIZE - 1);
+
+      if (leadOutreachFilter !== 'all') query = query.eq('outreach_status', leadOutreachFilter);
+      if (leadStageFilter !== 'all') query = query.eq('stage', leadStageFilter);
+      if (leadSearch.trim()) {
+        const term = leadSearch.trim();
+        query = query.or(`address.ilike.%${term}%,city.ilike.%${term}%,owner_name.ilike.%${term}%,contact_name.ilike.%${term}%`);
+      }
+
+      const { data, count, error } = await query;
+      if (error) throw error;
+
+      const nextRows = ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+        id: String(row.id),
+        address: String(row.address ?? ''),
+        city: String(row.city ?? ''),
+        state: String(row.state ?? ''),
+        contact_name: String(row.contact_name ?? ''),
+        owner_name: String(row.owner_name ?? ''),
+        stage: String(row.stage ?? ''),
+        outreach_status: String(row.outreach_status ?? 'NOT_CONTACTED'),
+        prospect_score: typeof row.prospect_score === 'number' ? row.prospect_score : row.prospect_score ? Number(row.prospect_score) : null,
+        last_contacted_at: row.last_contacted_at ? String(row.last_contacted_at) : null,
+        outreach_responded_at: row.outreach_responded_at ? String(row.outreach_responded_at) : null,
+        next_followup_due: row.next_followup_due ? String(row.next_followup_due) : null,
+        contact_phone: row.contact_phone ? String(row.contact_phone) : null,
+        created_at: row.created_at ? String(row.created_at) : null,
+      }));
+
+      setLeadRows(nextRows);
+      setLeadTotal(count ?? 0);
+    } catch (error) {
+      console.error('[OutreachTracking] lead queue failed', error);
+      setLeadError(error instanceof Error ? error.message : 'Failed to load lead queue');
+    } finally {
+      setLeadLoading(false);
+    }
+  }, [leadOutreachFilter, leadPage, leadSearch, leadStageFilter, supabase]);
 
   const loadLogs = useCallback(async () => {
-    setLoading(true);
+    setLogsLoading(true);
+    setLogsError(null);
     try {
       let query = supabase
         .from('outreach_logs')
-        .select('*, leads(address, city, state)')
-        .order('logged_at', { ascending: sortDir === 'asc' })
-        .limit(500);
+        .select('id, lead_id, agent_id, agent_name, comm_type, notes, response_status, logged_at, created_at, due_date, snooze_until, is_completed, priority, leads(address, city, state)', { count: 'exact' })
+        .order('logged_at', { ascending: false })
+        .range((logsPage - 1) * LOG_PAGE_SIZE, logsPage * LOG_PAGE_SIZE - 1);
 
-      if (filterStatus !== 'all') query = query.eq('response_status', filterStatus);
-      if (filterType !== 'all') query = query.eq('comm_type', filterType);
-      if (filterAgent !== 'all') query = query.eq('agent_id', filterAgent);
-      if (dateFrom) query = query.gte('logged_at', dateFrom);
-      if (dateTo) query = query.lte('logged_at', dateTo + 'T23:59:59Z');
+      if (logsResponseFilter !== 'all') query = query.eq('response_status', logsResponseFilter);
+      if (logsCommTypeFilter !== 'all') query = query.eq('comm_type', logsCommTypeFilter);
+      if (logsDateFrom) query = query.gte('logged_at', logsDateFrom);
+      if (logsDateTo) query = query.lte('logged_at', `${logsDateTo}T23:59:59.999Z`);
 
-      const { data, error } = await query;
+      const { data, count, error } = await query;
       if (error) throw error;
 
-      const mapped: OutreachLog[] = (data || []).map((r: Record<string, unknown>) => ({
-        id: String(r.id),
-        lead_id: String(r.lead_id),
-        agent_id: r.agent_id ? String(r.agent_id) : null,
-        agent_name: r.agent_name ? String(r.agent_name) : null,
-        comm_type: String(r.comm_type) as CommType,
-        notes: r.notes ? String(r.notes) : null,
-        response_status: String(r.response_status) as ResponseStatus,
-        logged_at: String(r.logged_at),
-        created_at: String(r.created_at),
-        due_date: r.due_date ? String(r.due_date) : null,
-        snooze_until: r.snooze_until ? String(r.snooze_until) : null,
-        is_completed: Boolean(r.is_completed),
-        priority: r.priority ? String(r.priority) : 'normal',
-        lead_address: (r.leads as Record<string, unknown>)?.address ? String((r.leads as Record<string, unknown>).address) : undefined,
-        lead_city: (r.leads as Record<string, unknown>)?.city ? String((r.leads as Record<string, unknown>).city) : undefined,
-        lead_state: (r.leads as Record<string, unknown>)?.state ? String((r.leads as Record<string, unknown>).state) : undefined,
-      }));
-
-      setLogs(mapped);
-
-      const agentMap: Record<string, string> = {};
-      mapped.forEach(l => {
-        if (l.agent_id && l.agent_name) agentMap[l.agent_id] = l.agent_name;
+      const nextLogs = ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
+        const lead = (row.leads as Record<string, unknown> | null) ?? {};
+        return {
+          id: String(row.id),
+          lead_id: String(row.lead_id),
+          agent_id: row.agent_id ? String(row.agent_id) : null,
+          agent_name: row.agent_name ? String(row.agent_name) : null,
+          comm_type: String(row.comm_type ?? 'other') as OutreachLog['comm_type'],
+          notes: row.notes ? String(row.notes) : null,
+          response_status: String(row.response_status ?? 'No Answer') as OutreachLog['response_status'],
+          logged_at: String(row.logged_at),
+          created_at: String(row.created_at),
+          due_date: row.due_date ? String(row.due_date) : null,
+          snooze_until: row.snooze_until ? String(row.snooze_until) : null,
+          is_completed: Boolean(row.is_completed),
+          priority: row.priority ? String(row.priority) : null,
+          lead_address: String(lead.address ?? ''),
+          lead_city: String(lead.city ?? ''),
+          lead_state: String(lead.state ?? ''),
+        };
       });
-      setAgents(Object.entries(agentMap).map(([id, name]) => ({ id, name })));
-    } catch (e) {
-      console.error('[OutreachTracking] load error:', e);
+
+      setLogs(nextLogs);
+      setLogsTotal(count ?? 0);
+    } catch (error) {
+      console.error('[OutreachTracking] outreach logs failed', error);
+      setLogsError(error instanceof Error ? error.message : 'Failed to load outreach logs');
     } finally {
-      setLoading(false);
+      setLogsLoading(false);
     }
-  }, [supabase, filterStatus, filterType, filterAgent, dateFrom, dateTo, sortDir]);
+  }, [logsCommTypeFilter, logsDateFrom, logsDateTo, logsPage, logsResponseFilter, supabase]);
 
-  useEffect(() => { loadLogs(); }, [loadLogs]);
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
 
-  async function toggleComplete(log: OutreachLog) {
-    setUpdatingId(log.id);
+  useEffect(() => {
+    void loadLeadQueue();
+  }, [loadLeadQueue]);
+
+  useEffect(() => {
+    void loadLogs();
+  }, [loadLogs]);
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([loadDashboard(), loadLeadQueue(), loadLogs()]);
+  }, [loadDashboard, loadLeadQueue, loadLogs]);
+
+  const handleToggleComplete = useCallback(async (log: OutreachLog) => {
+    setUpdatingLogId(log.id);
     try {
-      const { error } = await supabase
-        .from('outreach_logs')
-        .update({ is_completed: !log.is_completed })
-        .eq('id', log.id);
+      const { error } = await supabase.from('outreach_logs').update({ is_completed: !log.is_completed }).eq('id', log.id);
       if (error) throw error;
-      setLogs(prev => prev.map(l => l.id === log.id ? { ...l, is_completed: !l.is_completed } : l));
-      toast.success(log.is_completed ? 'Marked as pending' : 'Marked as completed');
-    } catch {
-      toast.error('Failed to update entry');
+      toast.success(log.is_completed ? 'Marked as open.' : 'Marked as completed.');
+      await Promise.all([loadLogs(), loadDashboard()]);
+    } catch (error) {
+      console.error('[OutreachTracking] toggle complete failed', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update outreach log');
     } finally {
-      setUpdatingId(null);
+      setUpdatingLogId(null);
     }
-  }
+  }, [loadDashboard, loadLogs, supabase]);
 
-  async function snoozeEntry(log: OutreachLog, hours: number) {
-    setUpdatingId(log.id);
+  const handleSnooze = useCallback(async (log: OutreachLog, hours: number) => {
+    setUpdatingLogId(log.id);
     try {
       const snoozeUntil = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-      const { error } = await supabase
-        .from('outreach_logs')
-        .update({ snooze_until: snoozeUntil })
-        .eq('id', log.id);
+      const { error } = await supabase.from('outreach_logs').update({ snooze_until: snoozeUntil }).eq('id', log.id);
       if (error) throw error;
-      setLogs(prev => prev.map(l => l.id === log.id ? { ...l, snooze_until: snoozeUntil } : l));
-      toast.success(`Snoozed for ${hours < 24 ? hours + 'h' : Math.round(hours / 24) + 'd'}`);
-    } catch {
-      toast.error('Failed to snooze entry');
+      toast.success(`Snoozed until ${formatDateTime(snoozeUntil)}.`);
+      await Promise.all([loadLogs(), loadDashboard()]);
+    } catch (error) {
+      console.error('[OutreachTracking] snooze failed', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to snooze outreach log');
     } finally {
-      setUpdatingId(null);
+      setUpdatingLogId(null);
     }
-  }
+  }, [loadDashboard, loadLogs, supabase]);
 
-  const filteredLogs = logs.filter(l => {
-    if (search) {
-      const term = search.toLowerCase();
-      if (
-        !l.lead_address?.toLowerCase().includes(term) &&
-        !l.lead_city?.toLowerCase().includes(term) &&
-        !l.notes?.toLowerCase().includes(term) &&
-        !l.agent_name?.toLowerCase().includes(term)
-      ) return false;
-    }
-
-    if (filterView === 'due') return l.due_date && !l.is_completed && !isSnoozed(l.snooze_until);
-    if (filterView === 'overdue') return isDueOverdue(l.due_date) && !l.is_completed;
-    if (filterView === 'snoozed') return isSnoozed(l.snooze_until);
-    if (filterView === 'completed') return l.is_completed;
-
-    return true;
-  });
-
-  const groupedByLead = filteredLogs.reduce<Record<string, OutreachLog[]>>((acc, log) => {
-    if (!acc[log.lead_id]) acc[log.lead_id] = [];
-    acc[log.lead_id].push(log);
-    return acc;
-  }, {});
-
-  const overdueCount = logs.filter(l => isDueOverdue(l.due_date) && !l.is_completed).length;
-  const dueSoonCount = logs.filter(l => isDueSoon(l.due_date) && !l.is_completed).length;
-  const snoozedCount = logs.filter(l => isSnoozed(l.snooze_until)).length;
-  const completedCount = logs.filter(l => l.is_completed).length;
+  const filteredSummary = useMemo(() => {
+    if (!dashboard) return [];
+    return [
+      { label: 'Real lead count', value: dashboard.totalLeads.toLocaleString(), hint: 'Exact count from leads', icon: Users, tone: 'default' as const },
+      { label: 'New Lead stage', value: dashboard.newLeadStage.toLocaleString(), hint: 'stage = New Lead', icon: Rows4, tone: 'default' as const },
+      { label: 'Not contacted', value: dashboard.notContacted.toLocaleString(), hint: 'outreach_status = NOT_CONTACTED', icon: Signal, tone: 'warning' as const },
+      { label: 'Touched', value: dashboard.touched.toLocaleString(), hint: 'last_contacted_at is populated', icon: Phone, tone: 'default' as const },
+      { label: 'Responded', value: dashboard.responded.toLocaleString(), hint: 'outreach_responded_at is populated', icon: CheckCircle2, tone: dashboard.responded > 0 ? 'success' as const : 'default' as const },
+    ];
+  }, [dashboard]);
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border bg-card shrink-0">
-          <div>
-            <h1 className="text-base font-bold text-foreground">Outreach Tracking</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Log and track all homeowner communications with due dates and reminders</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => exportOutreachCSV(filteredLogs)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-muted/50 text-muted-foreground border border-border rounded-lg hover:border-primary/30 hover:text-foreground transition-colors"
-            >
-              <Download size={12} />Export CSV
-            </button>
-            <button
-              onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
-                showFilters ? 'bg-primary/10 text-primary border-primary/30' : 'bg-muted/50 text-muted-foreground border-border hover:border-primary/30'
-              }`}
-            >
-              <Filter size={12} />Filters
-            </button>
-            <button
-              onClick={() => setLogModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              <Plus size={12} />Log Entry
-            </button>
-          </div>
-        </div>
-
-        {/* Stats bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 sm:px-6 py-3 border-b border-border bg-muted/20 shrink-0">
-          {[
-            { label: 'Total Entries', value: filteredLogs.length, color: 'text-foreground' },
-            { label: 'Overdue', value: overdueCount, color: overdueCount > 0 ? 'text-red-600' : 'text-foreground' },
-            { label: 'Due Soon (24h)', value: dueSoonCount, color: dueSoonCount > 0 ? 'text-amber-600' : 'text-foreground' },
-            { label: 'Completed', value: completedCount, color: 'text-emerald-600' },
-          ].map(s => (
-            <div key={s.label} className="bg-card rounded-xl border border-border px-3 py-2.5">
-              <p className="text-[10px] text-muted-foreground">{s.label}</p>
-              <p className={`text-lg font-bold mt-0.5 ${s.color}`}>{s.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* View tabs */}
-        <div className="flex gap-1 px-4 sm:px-6 py-2 border-b border-border bg-muted/5 shrink-0 overflow-x-auto">
-          {[
-            { key: 'all', label: 'All', count: logs.length },
-            { key: 'overdue', label: 'Overdue', count: overdueCount, urgent: overdueCount > 0 },
-            { key: 'due', label: 'Due', count: logs.filter(l => l.due_date && !l.is_completed).length },
-            { key: 'snoozed', label: 'Snoozed', count: snoozedCount },
-            { key: 'completed', label: 'Completed', count: completedCount },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setFilterView(tab.key as typeof filterView)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg whitespace-nowrap transition-colors ${
-                filterView === tab.key
-                  ? 'bg-primary/10 text-primary' :'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                  tab.urgent ? 'bg-red-500 text-white' : 'bg-muted text-muted-foreground'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Filters panel */}
-        {showFilters && (
-          <div className="px-4 sm:px-6 py-3 border-b border-border bg-muted/10 shrink-0">
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-              <div className="col-span-2 relative">
-                <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search address, notes, agent..."
-                  className="w-full pl-8 pr-3 py-2 text-xs bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-              <div className="relative">
-                <select
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none"
-                >
-                  <option value="all">All Statuses</option>
-                  {RESPONSE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              </div>
-              <div className="relative">
-                <select
-                  value={filterType}
-                  onChange={e => setFilterType(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none"
-                >
-                  <option value="all">All Types</option>
-                  <option value="call">Phone Call</option>
-                  <option value="text">Text / SMS</option>
-                  <option value="email">Email</option>
-                  <option value="other">Other</option>
-                </select>
-                <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              </div>
-              {agents.length > 0 && (
-                <div className="relative">
-                  <select
-                    value={filterAgent}
-                    onChange={e => setFilterAgent(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none"
-                  >
-                    <option value="all">All Agents</option>
-                    {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                  <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                </div>
-              )}
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={e => setDateFrom(e.target.value)}
-                  className="flex-1 px-2 py-2 text-xs bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                <span className="text-xs text-muted-foreground">–</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={e => setDateTo(e.target.value)}
-                  className="flex-1 px-2 py-2 text-xs bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-              <button
-                onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-card border border-border rounded-lg hover:border-primary/30 transition-colors text-muted-foreground"
-              >
-                <ArrowUpDown size={11} />
-                {sortDir === 'desc' ? 'Newest first' : 'Oldest first'}
+      <div className="mx-auto flex max-w-screen-2xl flex-col gap-5 px-4 py-5 sm:px-6">
+        <PageHeader
+          icon={BarChart3}
+          title="Outreach Tracking"
+          description="Exact outreach metrics from leads plus paginated outreach_logs activity. No mock counts, no capped 1,000-row summaries."
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => exportOutreachCsv(logs)} className={buttonSecondary}>
+                <Download size={14} /> Export current log page
+              </button>
+              <button type="button" onClick={() => setModalLead({ id: '', address: '', city: '', state: '' })} className={buttonPrimary}>
+                <MessageSquarePlus size={14} /> Log outreach
+              </button>
+              <button type="button" onClick={() => void refreshAll()} className={buttonSecondary}>
+                <RefreshCw size={14} /> Refresh
               </button>
             </div>
-          </div>
-        )}
+          }
+        />
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={`skel-${i}`} className="h-24 bg-muted/40 rounded-xl animate-pulse" />
-              ))}
-            </div>
-          ) : filteredLogs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-                <Phone size={20} className="text-muted-foreground" />
-              </div>
-              <p className="text-sm font-semibold text-foreground mb-1">No outreach entries</p>
-              <p className="text-xs text-muted-foreground mb-4">
-                {filterView !== 'all' ? 'No entries match this filter.' : 'Start logging calls, texts, and emails to track your homeowner outreach.'}
-              </p>
-              {filterView === 'all' && (
-                <button
-                  onClick={() => setLogModalOpen(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  <Plus size={12} />Log First Entry
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredLogs.map(log => {
-                const overdue = isDueOverdue(log.due_date) && !log.is_completed;
-                const dueSoon = isDueSoon(log.due_date) && !log.is_completed;
-                const snoozed = isSnoozed(log.snooze_until);
+        {dashboardError && <ErrorBanner message={dashboardError} onRetry={() => void loadDashboard()} />}
+        {dashboardLoading || !dashboard ? <LoadingState label="Loading live outreach metrics…" /> : <StatGrid stats={filteredSummary} columns={5} />}
 
-                return (
-                  <div
-                    key={log.id}
-                    className={`bg-card border rounded-xl px-4 py-3 hover:border-primary/20 transition-colors ${
-                      log.is_completed ? 'opacity-60 border-border' : overdue ?'border-red-500/30 bg-red-500/5': dueSoon ?'border-amber-500/30 bg-amber-500/5': 'border-border'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                        {/* Complete toggle */}
-                        <button
-                          onClick={() => toggleComplete(log)}
-                          disabled={updatingId === log.id}
-                          className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          {updatingId === log.id ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : log.is_completed ? (
-                            <CheckSquare size={14} className="text-emerald-600" />
-                          ) : (
-                            <Square size={14} />
-                          )}
-                        </button>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-4">
+            <SegmentedTabs
+              tabs={[
+                { key: 'queue', label: 'Lead queue', icon: Signal, badge: leadTotal || undefined },
+                { key: 'activity', label: 'Outreach logs', icon: CalendarClock, badge: logsTotal || undefined },
+              ]}
+              value={activeTab}
+              onChange={(value) => setActiveTab(value as Tab)}
+            />
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                            <CommTypeBadge type={log.comm_type} />
-                            <ResponseBadge status={log.response_status} />
-                            {log.priority === 'high' && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border text-red-600 bg-red-500/10 border-red-500/20">
-                                High Priority
-                              </span>
-                            )}
-                            {snoozed && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border text-blue-600 bg-blue-500/10 border-blue-500/20">
-                                <AlarmClock size={9} />Snoozed
-                              </span>
-                            )}
-                          </div>
-
-                          {log.lead_address && (
-                            <Link
-                              href={`/lead-profile?id=${log.lead_id}`}
-                              className="flex items-center gap-1 text-xs font-semibold text-foreground hover:text-primary transition-colors mb-1"
-                            >
-                              <MapPin size={10} className="text-muted-foreground shrink-0" />
-                              {log.lead_address}
-                              {log.lead_city && <span className="font-normal text-muted-foreground">, {log.lead_city}, {log.lead_state}</span>}
-                            </Link>
-                          )}
-
-                          {/* Due date display */}
-                          {log.due_date && !log.is_completed && (
-                            <div className={`flex items-center gap-1 text-[11px] mb-1 ${
-                              overdue ? 'text-red-600 font-medium' : dueSoon ? 'text-amber-600 font-medium' : 'text-muted-foreground'
-                            }`}>
-                              <CalendarClock size={10} />
-                              {overdue ? 'Overdue: ' : 'Due: '}
-                              {formatDateTime(log.due_date)}
-                            </div>
-                          )}
-
-                          {/* Snooze display */}
-                          {snoozed && log.snooze_until && (
-                            <div className="flex items-center gap-1 text-[11px] text-blue-600 mb-1">
-                              <AlarmClock size={10} />
-                              Snoozed until {formatDateTime(log.snooze_until)}
-                            </div>
-                          )}
-
-                          {log.notes && (
-                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{log.notes}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground justify-end">
-                          <Calendar size={10} />
-                          {formatDateTime(log.logged_at)}
-                        </div>
-                        {log.agent_name && (
-                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground justify-end">
-                            <User size={10} />
-                            {log.agent_name}
-                          </div>
-                        )}
-                        {/* Snooze quick actions */}
-                        {!log.is_completed && !snoozed && (
-                          <div className="flex items-center gap-1 mt-1">
-                            {SNOOZE_PRESETS.slice(0, 3).map(p => (
-                              <button
-                                key={p.label}
-                                onClick={() => snoozeEntry(log, p.hours)}
-                                disabled={updatingId === log.id}
-                                className="px-1.5 py-0.5 text-[9px] font-medium bg-muted/50 border border-border rounded hover:border-primary/30 hover:text-primary transition-colors text-muted-foreground"
-                                title={`Snooze ${p.label}`}
-                              >
-                                {p.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+            {activeTab === 'queue' ? (
+              <div className="space-y-4">
+                <Panel title="Queue filters">
+                  <div className="grid gap-3 lg:grid-cols-[1.2fr_repeat(3,minmax(0,1fr))]">
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-foreground">Search</span>
+                      <input value={leadSearch} onChange={(event) => { setLeadPage(1); setLeadSearch(event.target.value); }} className={inputClass} placeholder="Address, city, owner, contact" />
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-foreground">Outreach status</span>
+                      <select value={leadOutreachFilter} onChange={(event) => { setLeadPage(1); setLeadOutreachFilter(event.target.value); }} className={inputClass}>
+                        <option value="all">All</option>
+                        {OUTREACH_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                      </select>
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-foreground">Stage</span>
+                      <select value={leadStageFilter} onChange={(event) => { setLeadPage(1); setLeadStageFilter(event.target.value); }} className={inputClass}>
+                        <option value="all">All</option>
+                        {STAGE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                      </select>
+                    </label>
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-semibold text-foreground">Current focus</span>
+                      <div className="rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                        Stage labels come directly from leads.stage ({getLeadStageLabel('New Lead')}, not “New”).
                       </div>
                     </div>
                   </div>
-                );
-              })}
+                </Panel>
+                {leadError && <ErrorBanner message={leadError} onRetry={() => void loadLeadQueue()} />}
+                <LeadQueueTable
+                  leads={leadRows}
+                  total={leadTotal}
+                  page={leadPage}
+                  pageSize={LEAD_PAGE_SIZE}
+                  loading={leadLoading}
+                  onPageChange={setLeadPage}
+                  onLogLead={setModalLead}
+                />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Panel title="Activity filters">
+                  <div className="grid gap-3 lg:grid-cols-[repeat(4,minmax(0,1fr))]">
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-foreground">Response</span>
+                      <select value={logsResponseFilter} onChange={(event) => { setLogsPage(1); setLogsResponseFilter(event.target.value); }} className={inputClass}>
+                        <option value="all">All</option>
+                        {RESPONSE_STATUSES.map((option) => <option key={option} value={option}>{option}</option>)}
+                      </select>
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-foreground">Channel</span>
+                      <select value={logsCommTypeFilter} onChange={(event) => { setLogsPage(1); setLogsCommTypeFilter(event.target.value); }} className={inputClass}>
+                        <option value="all">All</option>
+                        {COMM_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                      </select>
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-foreground">Logged from</span>
+                      <input type="date" value={logsDateFrom} onChange={(event) => { setLogsPage(1); setLogsDateFrom(event.target.value); }} className={inputClass} />
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-foreground">Logged to</span>
+                      <input type="date" value={logsDateTo} onChange={(event) => { setLogsPage(1); setLogsDateTo(event.target.value); }} className={inputClass} />
+                    </label>
+                  </div>
+                </Panel>
+                {logsError && <ErrorBanner message={logsError} onRetry={() => void loadLogs()} />}
+                <OutreachActivityTable
+                  logs={logs}
+                  total={logsTotal}
+                  page={logsPage}
+                  pageSize={LOG_PAGE_SIZE}
+                  loading={logsLoading}
+                  updatingId={updatingLogId}
+                  onPageChange={setLogsPage}
+                  onToggleComplete={(log) => void handleToggleComplete(log)}
+                  onSnooze={(log, hours) => void handleSnooze(log, hours)}
+                />
+              </div>
+            )}
+          </div>
+
+          <Panel title="Reality checks">
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3">
+                <div className="font-semibold text-foreground">leads.outreach_status</div>
+                <div className="mt-1">This page uses the live enum-style values from leads, including <code className="rounded bg-card px-1 py-0.5 font-mono text-xs">NOT_CONTACTED</code>.</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3">
+                <div className="font-semibold text-foreground">leads.stage</div>
+                <div className="mt-1">Pipeline stages are shown exactly as stored, e.g. <code className="rounded bg-card px-1 py-0.5 font-mono text-xs">New Lead</code>.</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3">
+                <div className="font-semibold text-foreground">outreach_logs</div>
+                <div className="mt-1">Activity is paginated from outreach_logs with exact counts. No capped client-side rollups are used.</div>
+              </div>
+              {dashboard && (
+                <div className="rounded-2xl border border-border bg-card px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusPill tone={dashboard.logsTotal > 0 ? 'success' : 'warning'}>{dashboard.logsTotal.toLocaleString()} log rows</StatusPill>
+                    <StatusPill tone={dashboard.logsOverdue > 0 ? 'warning' : 'default'}>{dashboard.logsOverdue.toLocaleString()} overdue</StatusPill>
+                    <StatusPill tone={dashboard.logsCompleted > 0 ? 'success' : 'default'}>{dashboard.logsCompleted.toLocaleString()} completed</StatusPill>
+                  </div>
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    Leads with phone: {dashboard.withPhone.toLocaleString()} · Leads ever contacted: {dashboard.touched.toLocaleString()} · Leads with a response timestamp: {dashboard.responded.toLocaleString()}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </Panel>
         </div>
       </div>
 
-      {logModalOpen && (
+      {modalLead && (
         <LogEntryModal
-          onClose={() => setLogModalOpen(false)}
-          onSaved={loadLogs}
+          prefillLead={modalLead.id ? modalLead : null}
+          onClose={() => setModalLead(null)}
+          onSaved={refreshAll}
         />
       )}
     </AppLayout>

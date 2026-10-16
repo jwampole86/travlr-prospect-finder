@@ -1,197 +1,333 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import AppLayout from '@/components/AppLayout';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  loadAuditTrail,
-  formatAuditEventLabel,
-  EVENT_TYPE_COLORS,
-  type AuditTrailEntry,
-  type AuditEventType,
-} from '@/lib/services/auditTrailService';
-import {
-  History, Search, Filter, Loader2, GitCommit, User, Clock, ChevronDown,
+  Activity,
+  Database,
+  GitCommit,
+  History,
+  Info,
+  Search,
+  Sparkles,
+  User,
 } from 'lucide-react';
+import AppLayout from '@/components/AppLayout';
+import { createClient } from '@/lib/supabase/client';
+import {
+  EmptyState,
+  ErrorBanner,
+  LoadingState,
+  PageHeader,
+  Panel,
+  StatGrid,
+  StatusPill,
+  buttonSecondary,
+  inputClass,
+} from '@/components/ops';
 
-const EVENT_TYPE_OPTIONS: { value: AuditEventType | 'all'; label: string }[] = [
-  { value: 'all', label: 'All Events' },
-  { value: 'stage_progression', label: 'Stage Changes' },
-  { value: 'field_change', label: 'Field Changes' },
-  { value: 'note_added', label: 'Notes Added' },
-  { value: 'enrichment_event', label: 'Enrichment' },
-  { value: 'lead_created', label: 'Lead Created' },
-  { value: 'lead_deleted', label: 'Lead Deleted' },
-];
+type AuditEntry = {
+  id: string;
+  sourceTable: 'activity_events' | 'lead_activity_log';
+  timestamp: string;
+  title: string;
+  detail: string | null;
+  eventType: string;
+  actorName: string | null;
+  leadId: string | null;
+  leadAddress: string | null;
+  leadState: string | null;
+  metadata: Record<string, unknown>;
+};
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
+type SourceFilter = 'all' | 'activity_events' | 'lead_activity_log';
+
+type Counts = {
+  activityEvents: number;
+  leadActivityLog: number;
+  legacyLeadAuditTrail: number;
+};
+
+type LeadLookup = Record<string, { address: string | null; state: string | null }>;
+
+function formatRelativeTime(value: string): string {
+  const diff = Date.now() - new Date(value).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
 
+function formatDateHeading(value: string): string {
+  return new Date(value).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function summarizeActivityData(value: Record<string, unknown>): string | null {
+  const description = typeof value.description === 'string' ? value.description : null;
+  if (description) return description;
+  const title = typeof value.title === 'string' ? value.title : null;
+  const body = typeof value.body === 'string' ? value.body : null;
+  if (title && body) return `${title} — ${body}`;
+  if (title) return title;
+  return null;
+}
+
+function prettyLabel(value: string): string {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function AuditTrailPage() {
-  const { user } = useAuth();
-  const [entries, setEntries] = useState<AuditTrailEntry[]>([]);
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [counts, setCounts] = useState<Counts>({ activityEvents: 0, leadActivityLog: 0, legacyLeadAuditTrail: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [eventTypeFilter, setEventTypeFilter] = useState<AuditEventType | 'all'>('all');
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const supabase = useMemo(() => createClient(), []);
 
   const load = useCallback(async () => {
-    if (!user) return;
     setLoading(true);
-    const data = await loadAuditTrail(user.id, undefined, 200);
-    setEntries(data);
-    setLoading(false);
-  }, [user]);
+    setError(null);
 
-  useEffect(() => { load(); }, [load]);
+    try {
+      const [
+        activityCountRes,
+        leadActivityCountRes,
+        legacyCountRes,
+        activityRes,
+        leadActivityRes,
+      ] = await Promise.all([
+        supabase.from('activity_events').select('*', { count: 'exact', head: true }),
+        supabase.from('lead_activity_log').select('*', { count: 'exact', head: true }),
+        supabase.from('lead_audit_trail').select('*', { count: 'exact', head: true }),
+        supabase
+          .from('activity_events')
+          .select('id,lead_id,lead_address,lead_state,event_type,description,detail,actor_email,metadata,event_timestamp,created_at')
+          .order('event_timestamp', { ascending: false })
+          .limit(150),
+        supabase
+          .from('lead_activity_log')
+          .select('id,lead_id,activity_type,activity_data,performed_by_name,created_at')
+          .order('created_at', { ascending: false })
+          .limit(150),
+      ]);
 
-  const filtered = entries.filter((e) => {
-    if (eventTypeFilter !== 'all' && e.event_type !== eventTypeFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        e.lead_id.toLowerCase().includes(q) ||
-        (e.field_name ?? '').toLowerCase().includes(q) ||
-        (e.old_value ?? '').toLowerCase().includes(q) ||
-        (e.new_value ?? '').toLowerCase().includes(q) ||
-        (e.changed_by_email ?? '').toLowerCase().includes(q) ||
-        formatAuditEventLabel(e).toLowerCase().includes(q)
-      );
+      if (activityCountRes.error) throw activityCountRes.error;
+      if (leadActivityCountRes.error) throw leadActivityCountRes.error;
+      if (legacyCountRes.error) throw legacyCountRes.error;
+      if (activityRes.error) throw activityRes.error;
+      if (leadActivityRes.error) throw leadActivityRes.error;
+
+      const distinctLeadIds = Array.from(new Set(
+        (leadActivityRes.data || []).map((row) => row.lead_id).filter(Boolean),
+      ));
+
+      let leadLookup: LeadLookup = {};
+      if (distinctLeadIds.length > 0) {
+        const { data: leads, error: leadsError } = await supabase
+          .from('leads')
+          .select('id,address,state')
+          .in('id', distinctLeadIds);
+        if (leadsError) throw leadsError;
+        leadLookup = Object.fromEntries((leads || []).map((lead) => [lead.id, { address: lead.address, state: lead.state }]));
+      }
+
+      const activityEntries: AuditEntry[] = (activityRes.data || []).map((row) => ({
+        id: row.id,
+        sourceTable: 'activity_events',
+        timestamp: row.event_timestamp || row.created_at,
+        title: row.description || prettyLabel(row.event_type),
+        detail: row.detail,
+        eventType: row.event_type,
+        actorName: row.actor_email || null,
+        leadId: row.lead_id || null,
+        leadAddress: row.lead_address || null,
+        leadState: row.lead_state || null,
+        metadata: (row.metadata as Record<string, unknown>) || {},
+      }));
+
+      const leadActivityEntries: AuditEntry[] = (leadActivityRes.data || []).map((row) => {
+        const activityData = (row.activity_data as Record<string, unknown>) || {};
+        const lead = row.lead_id ? leadLookup[row.lead_id] : undefined;
+        return {
+          id: row.id,
+          sourceTable: 'lead_activity_log',
+          timestamp: row.created_at,
+          title: summarizeActivityData(activityData) || prettyLabel(row.activity_type),
+          detail: typeof activityData.body === 'string' ? activityData.body : null,
+          eventType: row.activity_type,
+          actorName: row.performed_by_name || null,
+          leadId: row.lead_id || null,
+          leadAddress: lead?.address || null,
+          leadState: lead?.state || null,
+          metadata: activityData,
+        };
+      });
+
+      setEntries([...activityEntries, ...leadActivityEntries].sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
+      setCounts({
+        activityEvents: activityCountRes.count || 0,
+        leadActivityLog: leadActivityCountRes.count || 0,
+        legacyLeadAuditTrail: legacyCountRes.count || 0,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load the audit trail.');
+      setEntries([]);
+    } finally {
+      setLoading(false);
     }
-    return true;
-  });
+  }, [supabase]);
 
-  const grouped = filtered.reduce<Record<string, AuditTrailEntry[]>>((acc, entry) => {
-    const date = new Date(entry.created_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(entry);
-    return acc;
-  }, {});
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const filteredEntries = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return entries.filter((entry) => {
+      if (sourceFilter !== 'all' && entry.sourceTable !== sourceFilter) return false;
+      if (!query) return true;
+      return [
+        entry.title,
+        entry.detail || '',
+        entry.eventType,
+        entry.actorName || '',
+        entry.leadAddress || '',
+        entry.leadId || '',
+        JSON.stringify(entry.metadata),
+      ].join(' ').toLowerCase().includes(query);
+    });
+  }, [entries, search, sourceFilter]);
+
+  const groupedEntries = useMemo(() => {
+    return filteredEntries.reduce<Record<string, AuditEntry[]>>((acc, entry) => {
+      const key = formatDateHeading(entry.timestamp);
+      acc[key] = [...(acc[key] || []), entry];
+      return acc;
+    }, {});
+  }, [filteredEntries]);
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <History size={16} className="text-primary" />
-            </div>
-            <div>
-              <h1 className="text-base font-semibold text-foreground">Lead Audit Trail</h1>
-              <p className="text-xs text-muted-foreground">Track all lead mutations — field changes, stage progressions, notes, and enrichment events</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{filtered.length} events</span>
-          </div>
-        </div>
+      <div className="space-y-6 p-6">
+        <PageHeader
+          icon={History}
+          title="Lead Audit Trail"
+          description="Reads the populated lead activity tables directly. The legacy lead_audit_trail table is currently empty, so this page uses activity_events and lead_activity_log instead."
+          actions={<button className={buttonSecondary} onClick={() => void load()} disabled={loading}>Refresh</button>}
+        />
 
-        {/* Filters */}
-        <div className="flex items-center gap-3 px-6 py-3 border-b border-border bg-card/50 shrink-0">
-          <div className="relative flex-1 max-w-xs">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by lead, field, user..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </div>
-          <div className="relative">
-            <button
-              onClick={() => setShowFilterMenu((v) => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground hover:bg-muted transition-all"
-            >
-              <Filter size={12} />
-              {EVENT_TYPE_OPTIONS.find((o) => o.value === eventTypeFilter)?.label ?? 'All Events'}
-              <ChevronDown size={11} className="text-muted-foreground" />
-            </button>
-            {showFilterMenu && (
-              <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-20 min-w-[160px] overflow-hidden">
-                {EVENT_TYPE_OPTIONS.map((opt) => (
+        {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+
+        <StatGrid
+          stats={[
+            { label: 'activity_events rows', value: counts.activityEvents, hint: 'Lead creates + import summaries + timeline events', icon: GitCommit, tone: 'primary' },
+            { label: 'lead_activity_log rows', value: counts.leadActivityLog, hint: 'Enrichment and lead-level activity records', icon: Activity, tone: 'success' },
+            { label: 'Legacy lead_audit_trail', value: counts.legacyLeadAuditTrail, hint: counts.legacyLeadAuditTrail === 0 ? 'No rows recorded' : 'Legacy table still has data', icon: Database, tone: counts.legacyLeadAuditTrail === 0 ? 'warning' : 'default' },
+            { label: 'Loaded into this view', value: entries.length, hint: 'Recent live rows from both active sources', icon: Sparkles, tone: 'default' },
+          ]}
+        />
+
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+          <Panel title="Filter the live trail" icon={Search}>
+            <div className="space-y-3">
+              <div className="relative">
+                <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  className={`${inputClass} pl-9`}
+                  placeholder="Search address, actor, event type, metadata, or lead id"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ['all', `All (${entries.length})`],
+                  ['activity_events', `activity_events (${entries.filter((entry) => entry.sourceTable === 'activity_events').length})`],
+                  ['lead_activity_log', `lead_activity_log (${entries.filter((entry) => entry.sourceTable === 'lead_activity_log').length})`],
+                ] as Array<[SourceFilter, string]>).map(([value, label]) => (
                   <button
-                    key={opt.value}
-                    onClick={() => { setEventTypeFilter(opt.value as AuditEventType | 'all'); setShowFilterMenu(false); }}
-                    className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-all ${eventTypeFilter === opt.value ? 'text-primary font-semibold' : 'text-foreground'}`}
+                    key={value}
+                    type="button"
+                    onClick={() => setSourceFilter(value)}
+                    className={sourceFilter === value ? buttonSecondary.replace('bg-card', 'bg-primary').replace('text-foreground', 'text-primary-foreground').replace('border-border', 'border-primary') : buttonSecondary}
                   >
-                    {opt.label}
+                    {label}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          </Panel>
+
+          <Panel title="What is actually populated" icon={Info}>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p><span className="font-medium text-foreground">activity_events</span> is currently populated mostly by lead creation and CSV/live-sync summary events.</p>
+              <p><span className="font-medium text-foreground">lead_activity_log</span> currently contains enrichment and admin-style lead activity records.</p>
+              <p><span className="font-medium text-foreground">lead_audit_trail</span> exists in schema but has {counts.legacyLeadAuditTrail} rows, so showing it here would be misleading.</p>
+            </div>
+          </Panel>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <Panel title="Recent lead audit timeline" icon={History}>
           {loading ? (
-            <div className="flex items-center justify-center h-40">
-              <Loader2 size={20} className="animate-spin text-muted-foreground" />
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-60 gap-3 text-center">
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                <History size={20} className="text-muted-foreground" />
-              </div>
-              <p className="text-sm font-semibold text-foreground">No audit events found</p>
-              <p className="text-xs text-muted-foreground">Lead mutations will appear here as they happen — stage changes, field edits, notes, and enrichment events.</p>
-            </div>
+            <LoadingState label="Loading populated audit sources…" />
+          ) : filteredEntries.length === 0 ? (
+            <EmptyState
+              icon={History}
+              title="No audit rows match the current filters"
+              hint="Try a broader search or switch back to all populated sources."
+            />
           ) : (
-            <div className="max-w-3xl space-y-6">
-              {Object.entries(grouped).map(([date, dayEntries]) => (
-                <div key={date}>
-                  <div className="flex items-center gap-3 mb-3">
+            <div className="space-y-6">
+              {Object.entries(groupedEntries).map(([date, dayEntries]) => (
+                <div key={date} className="space-y-3">
+                  <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-border" />
-                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{date}</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{date}</span>
                     <div className="h-px flex-1 bg-border" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {dayEntries.map((entry) => (
-                      <div key={entry.id} className="flex gap-3 p-3.5 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors">
-                        <div className="flex flex-col items-center gap-1 shrink-0 pt-0.5">
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${EVENT_TYPE_COLORS[entry.event_type] ?? 'bg-muted text-muted-foreground'}`}>
-                            <GitCommit size={12} />
+                      <div key={`${entry.sourceTable}-${entry.id}`} className="rounded-2xl border border-border bg-card p-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <StatusPill tone={entry.sourceTable === 'activity_events' ? 'primary' : 'success'}>{entry.sourceTable}</StatusPill>
+                              <StatusPill tone="default">{prettyLabel(entry.eventType)}</StatusPill>
+                              {entry.leadState && <StatusPill tone="default">{entry.leadState}</StatusPill>}
+                            </div>
+                            <div>
+                              <h2 className="text-sm font-semibold text-foreground">{entry.title}</h2>
+                              <p className="text-xs text-muted-foreground">
+                                {entry.leadAddress || entry.leadId || 'No lead id on this row'}
+                              </p>
+                            </div>
+                            {entry.detail && <p className="text-sm text-muted-foreground">{entry.detail}</p>}
                           </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-xs font-semibold text-foreground leading-snug">{formatAuditEventLabel(entry)}</p>
-                            <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${EVENT_TYPE_COLORS[entry.event_type] ?? 'bg-muted text-muted-foreground'}`}>
-                              {entry.event_type.replace(/_/g, ' ')}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                              <GitCommit size={10} />
-                              Lead: <span className="font-mono text-foreground">{entry.lead_id.slice(0, 12)}…</span>
-                            </span>
-                            {entry.changed_by_email && (
-                              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                                <User size={10} />
-                                {entry.changed_by_email}
-                              </span>
+                          <div className="space-y-2 text-xs text-muted-foreground lg:text-right">
+                            <div>{formatRelativeTime(entry.timestamp)}</div>
+                            <div>{new Date(entry.timestamp).toLocaleString()}</div>
+                            {entry.actorName && (
+                              <div className="inline-flex items-center gap-1 lg:justify-end">
+                                <User size={12} />
+                                <span>{entry.actorName}</span>
+                              </div>
                             )}
-                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                              <Clock size={10} />
-                              {timeAgo(entry.created_at)}
-                            </span>
                           </div>
-                          {entry.metadata && Object.keys(entry.metadata).length > 0 && (
-                            <p className="text-[11px] text-muted-foreground mt-1 font-mono bg-muted/40 px-2 py-1 rounded">
-                              {JSON.stringify(entry.metadata).slice(0, 120)}
-                            </p>
-                          )}
                         </div>
+                        {Object.keys(entry.metadata).length > 0 && (
+                          <details className="mt-3 rounded-xl border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+                            <summary className="cursor-pointer font-medium text-foreground">Show raw metadata</summary>
+                            <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words">{JSON.stringify(entry.metadata, null, 2)}</pre>
+                          </details>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -199,7 +335,7 @@ export default function AuditTrailPage() {
               ))}
             </div>
           )}
-        </div>
+        </Panel>
       </div>
     </AppLayout>
   );

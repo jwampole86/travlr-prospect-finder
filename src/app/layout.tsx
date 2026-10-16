@@ -8,6 +8,7 @@ import { PortfolioProvider } from '@/contexts/PortfolioContext';
 import MixpanelProvider from '@/components/MixpanelProvider';
 import RealtimeProvider from '@/components/RealtimeProvider';
 import ThemeWrapper from '@/components/ThemeWrapper';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -44,6 +45,7 @@ export default function RootLayout({
         />
 </head>
       <body>
+        <LanguageProvider>
         <AuthProvider>
           <NotificationProvider>
             <PortfolioProvider>
@@ -57,6 +59,7 @@ export default function RootLayout({
             </PortfolioProvider>
           </NotificationProvider>
         </AuthProvider>
+        </LanguageProvider>
         <Toaster
           position="bottom-right"
           toastOptions={{

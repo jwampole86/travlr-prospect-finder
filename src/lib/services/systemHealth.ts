@@ -173,14 +173,28 @@ export async function runChecks(db: Db): Promise<Record<string, CheckResult>> {
 }
 
 let lastRun = 0;
-/** Runs every check, stores the results and trims history older than 120 days. */
+
+async function record(db: Db, at: string, results: Record<string, CheckResult>) {
+  await db.from('system_health_checks').insert(Object.entries(results).map(([service, r]) => ({ checked_at: at, service, status: r.status, response_ms: r.responseMs, detail: r.detail.slice(0, 400) })));
+}
+
+/**
+ * Runs every check (re-checking flaky provider checks once), stores the results and trims history older than 120 days.
+ * Returns the results so callers can hand degraded services to `repairDegraded`.
+ */
 export async function runAndRecord(db: Db) {
   lastRun = Date.now();
-  const results = await runChecks(db);
+  const { recheckTransient } = await import('@/lib/services/systemHealthRepair');
+  const results = await recheckTransient(db, await runChecks(db));
   const at = new Date().toISOString();
-  await db.from('system_health_checks').insert(Object.entries(results).map(([service, r]) => ({ checked_at: at, service, status: r.status, response_ms: r.responseMs, detail: r.detail.slice(0, 400) })));
+  await record(db, at, results);
   if (Math.random() < 0.02) await db.from('system_health_checks').delete().lt('checked_at', new Date(Date.now() - 120 * 86_400_000).toISOString());
   return { at, results };
+}
+
+/** Records the re-check taken after a repair so the status page shows the service as recovered. */
+export async function recordRechecked(db: Db, rechecked: Record<string, CheckResult>) {
+  if (Object.keys(rechecked).length) await record(db, new Date().toISOString(), rechecked);
 }
 
 /** If the cron has not written a check lately, run one now (at most once a minute). */

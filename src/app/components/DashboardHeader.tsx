@@ -42,11 +42,13 @@ function formatCountdown(date: Date): string {
   return `${mins}m`;
 }
 
+const TRULIA_PAGES_PER_SYNC = 3;
+
 /**
  * Trigger a background sync for all active portfolios in PARALLEL.
  * Returns a summary of results without blocking the UI.
  *
- * Calls the same RapidAPI-backed pipeline (Trulia + Zillow) used by the
+ * Calls the same RapidAPI-backed pipeline (Trulia, PadMapper, HotPads, Zillow) used by the
  * Data Source Sync widget's per-source Retry buttons — NOT the legacy
  * /api/sync/execute route, which only discovered via Trulia, only had a
  * hardcoded state mapping for 11 of the (now 27) portfolios, and whose
@@ -62,28 +64,39 @@ async function triggerParallelSync(
 ): Promise<{ totalInserted: number; errors: string[] }> {
   const syncStart = Date.now();
 
+  const pull = (body: Record<string, unknown>) =>
+    fetch('/api/leads/rapidapi-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then((r) => r.json());
+
   async function syncOnePortfolio(p: { label: string; stateCode: string }): Promise<{ inserted: number; errors: string[] }> {
-    const [truliaRes, zillowRes] = await Promise.allSettled([
-      fetch('/api/leads/rapidapi-import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: 'trulia', location: p.stateCode, maxPages: 1 }),
-      }).then((r) => r.json()),
-      fetch('/api/leads/rapidapi-import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: 'zillow-search', region: p.stateCode.toLowerCase(), maxPages: 1 }),
-      }).then((r) => r.json()),
+    // Zillow's state search only ever returns for-sale/sold homes, so it stays at one page.
+    // Trulia (rentals) gets deeper paging, and the city-based rental sources run alongside
+    // it so no single source dominates the lead mix.
+    const [truliaRes, padMapperRes, hotPadsRes, zillowRes] = await Promise.allSettled([
+      pull({ provider: 'trulia', location: p.stateCode, maxPages: TRULIA_PAGES_PER_SYNC }),
+      pull({ provider: 'padmapper', state: p.stateCode }),
+      pull({ provider: 'hotpads', state: p.stateCode }),
+      pull({ provider: 'zillow-search', region: p.stateCode.toLowerCase(), maxPages: 1 }),
     ]);
 
     let inserted = 0;
     const errors: string[] = [];
-    for (const res of [truliaRes, zillowRes]) {
+    const results: [string, PromiseSettledResult<{ totals?: { rowsNew?: number }; error?: string }>][] = [
+      ['Trulia', truliaRes], ['PadMapper', padMapperRes], ['HotPads', hotPadsRes], ['Zillow', zillowRes],
+    ];
+    for (const [name, res] of results) {
       if (res.status === 'fulfilled') {
         inserted += Number(res.value?.totals?.rowsNew ?? 0);
-        if (res.value?.error) errors.push(`${p.label}: ${res.value.error}`);
+        // A state with no PadMapper/HotPads cities configured is not a failure.
+        const error = res.value?.error;
+        if (error && !/No (active )?(PadMapper|HotPads) cities configured/i.test(error)) {
+          errors.push(`${p.label} (${name}): ${error}`);
+        }
       } else {
-        errors.push(`${p.label}: ${res.reason?.message ?? 'Unknown sync error'}`);
+        errors.push(`${p.label} (${name}): ${res.reason?.message ?? 'Unknown sync error'}`);
       }
     }
 

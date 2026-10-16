@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
 // ─── Validate + Score + Rules Engine Check ───────────────────────────────────
 // Calls the Anthropic validation endpoint, stores confidence scores in
@@ -7,10 +8,63 @@ import { createClient } from '@/lib/supabase/client';
 // Results are memoized in enrichment_validation_cache for 7 days by fingerprint.
 
 function buildFingerprint(lead: Record<string, unknown>): string {
-  const addr = String(lead.address || '').toLowerCase().replace(/\s+/g, ' ').trim();
-  const city = String(lead.city || '').toLowerCase().trim();
-  const state = String(lead.state || '').toLowerCase().trim();
+  const addr = String(lead.address || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  const city = String(lead.city || '')
+    .toLowerCase()
+    .trim();
+  const state = String(lead.state || '')
+    .toLowerCase()
+    .trim();
   return `${addr}|${city}|${state}`;
+}
+
+function hasServiceRole() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return !!key && !/your-|placeholder|changeme|example/i.test(key);
+}
+
+async function getValidationDb() {
+  if (hasServiceRole()) {
+    return createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+  }
+
+  return createServerClient();
+}
+
+function throwIfError(error: { message: string } | null, label: string) {
+  if (error) {
+    throw new Error(`${label}: ${error.message}`);
+  }
+}
+
+async function fetchValidation(baseUrl: string, payload: Record<string, unknown>) {
+  const response = await fetch(`${baseUrl}/api/ai/validate-enrichment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      (data as { error?: string; details?: string }).details ||
+        (data as { error?: string }).error ||
+        'Validation request failed'
+    );
+  }
+
+  if (!(data as { result?: unknown }).result) {
+    throw new Error('Validation response did not include a result payload');
+  }
+
+  return data as { result: any };
 }
 
 export async function POST(req: NextRequest) {
@@ -20,25 +74,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'leadId required' }, { status: 400 });
     }
 
-    const supabase = createClient();
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const supabase = await getValidationDb();
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
 
     // ── 1. Fetch lead + enrichment data ──────────────────────────────────────
     const [leadResult, enrichmentResult] = await Promise.all([
       supabase
         .from('leads')
-        .select('id, address, city, state, source, prospect_score, listing_price, estimated_value, last_sale_price, last_sale_date, days_on_market')
+        .select(
+          'id, address, city, state, source, prospect_score, listing_price, estimated_value, last_sale_price, last_sale_date, days_on_market'
+        )
         .eq('id', leadId)
         .single(),
-      supabase
-        .from('lead_enrichments')
-        .select('*')
-        .eq('lead_id', leadId)
-        .single(),
+      supabase.from('lead_enrichments').select('*').eq('lead_id', leadId).single(),
     ]);
 
     const lead = leadResult.data;
     const enrichment = enrichmentResult.data;
+
+    throwIfError(leadResult.error, 'Failed to load lead');
+    if (enrichmentResult.error && enrichmentResult.error.code !== 'PGRST116') {
+      throwIfError(enrichmentResult.error, 'Failed to load enrichment');
+    }
 
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
@@ -48,30 +105,37 @@ export async function POST(req: NextRequest) {
 
     // ── 2. Check 7-day memoization cache ─────────────────────────────────────
     if (!skipCache) {
-      const { data: cached } = await supabase
+      const { data: cached, error: cacheReadError } = await supabase
         .from('enrichment_validation_cache')
         .select('*')
         .eq('lead_fingerprint', fingerprint)
         .gt('expires_at', new Date().toISOString())
         .single();
 
+      if (cacheReadError && cacheReadError.code !== 'PGRST116') {
+        throwIfError(cacheReadError, 'Failed to read validation cache');
+      }
+
       if (cached) {
         // Log cache hit event
-        await supabase.from('enrichment_validation_events').insert({
-          lead_id: leadId,
-          lead_fingerprint: fingerprint,
-          source: lead.source || 'Unknown',
-          validation_type: 'combined',
-          passed: (cached.overall_confidence ?? 0) >= 60,
-          overall_confidence: cached.overall_confidence,
-          ownership_confidence: cached.ownership_confidence,
-          market_comp_confidence: cached.market_comp_confidence,
-          field_confidence_scores: cached.field_confidence_scores,
-          anomalies: cached.validation_anomalies,
-          recommendation: cached.validation_recommendation,
-          cache_hit: true,
-          triggered_by: 'api_call',
-        }).then(undefined, () => {});
+        const { error: cacheEventError } = await supabase
+          .from('enrichment_validation_events')
+          .insert({
+            lead_id: leadId,
+            lead_fingerprint: fingerprint,
+            source: lead.source || 'Unknown',
+            validation_type: 'combined',
+            passed: (cached.overall_confidence ?? 0) >= 60,
+            overall_confidence: cached.overall_confidence,
+            ownership_confidence: cached.ownership_confidence,
+            market_comp_confidence: cached.market_comp_confidence,
+            field_confidence_scores: cached.field_confidence_scores,
+            anomalies: cached.validation_anomalies,
+            recommendation: cached.validation_recommendation,
+            cache_hit: true,
+            triggered_by: 'api_call',
+          });
+        throwIfError(cacheEventError, 'Failed to log cached validation event');
 
         return NextResponse.json({
           success: true,
@@ -92,44 +156,36 @@ export async function POST(req: NextRequest) {
 
     // ── 3. Run Anthropic validation in parallel ───────────────────────────────
     const [ownershipRes, marketCompRes] = await Promise.allSettled([
-      fetch(`${baseUrl}/api/ai/validate-enrichment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'ownership',
-          data: {
-            leadId,
-            address: lead.address || '',
-            city: lead.city || '',
-            state: lead.state || '',
-            ownerName: enrichment?.owner_name,
-            ownershipType: enrichment?.ownership_type,
-            ownerMailingAddress: enrichment?.owner_mailing_address,
-            ownerMailingCity: enrichment?.owner_mailing_city,
-            ownerMailingState: enrichment?.owner_mailing_state,
-          },
-        }),
-      }).then(r => r.json()),
-      fetch(`${baseUrl}/api/ai/validate-enrichment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'market_comp',
-          data: {
-            leadId,
-            address: lead.address || '',
-            city: lead.city || '',
-            state: lead.state || '',
-            listingPrice: (lead as any).listing_price,
-            estimatedValue: (lead as any).estimated_value,
-            lastSalePrice: (lead as any).last_sale_price,
-            lastSaleDate: (lead as any).last_sale_date,
-            daysOnMarket: (lead as any).days_on_market,
-            source: lead.source,
-            enrichedAt: enrichment?.last_enriched_at,
-          },
-        }),
-      }).then(r => r.json()),
+      fetchValidation(baseUrl, {
+        type: 'ownership',
+        data: {
+          leadId,
+          address: lead.address || '',
+          city: lead.city || '',
+          state: lead.state || '',
+          ownerName: enrichment?.owner_name,
+          ownershipType: enrichment?.ownership_type,
+          ownerMailingAddress: enrichment?.owner_mailing_address,
+          ownerMailingCity: enrichment?.owner_mailing_city,
+          ownerMailingState: enrichment?.owner_mailing_state,
+        },
+      }),
+      fetchValidation(baseUrl, {
+        type: 'market_comp',
+        data: {
+          leadId,
+          address: lead.address || '',
+          city: lead.city || '',
+          state: lead.state || '',
+          listingPrice: (lead as any).listing_price,
+          estimatedValue: (lead as any).estimated_value,
+          lastSalePrice: (lead as any).last_sale_price,
+          lastSaleDate: (lead as any).last_sale_date,
+          daysOnMarket: (lead as any).days_on_market,
+          source: lead.source,
+          enrichedAt: enrichment?.last_enriched_at,
+        },
+      }),
     ]);
 
     const ownershipResult =
@@ -141,12 +197,21 @@ export async function POST(req: NextRequest) {
         ? marketCompRes.value.result
         : null;
 
+    if (!ownershipResult && !marketCompResult) {
+      const ownershipError = ownershipRes.status === 'rejected' ? ownershipRes.reason : null;
+      const marketError = marketCompRes.status === 'rejected' ? marketCompRes.reason : null;
+      throw new Error(
+        `Ownership validation failed: ${ownershipError instanceof Error ? ownershipError.message : 'no result'}; ` +
+          `Market validation failed: ${marketError instanceof Error ? marketError.message : 'no result'}`
+      );
+    }
+
     const ownershipConfidence = ownershipResult?.overallConfidence ?? null;
     const marketCompConfidence = marketCompResult?.overallConfidence ?? null;
     const overallConfidence =
       ownershipConfidence !== null && marketCompConfidence !== null
         ? Math.round((ownershipConfidence + marketCompConfidence) / 2)
-        : ownershipConfidence ?? marketCompConfidence ?? null;
+        : (ownershipConfidence ?? marketCompConfidence ?? null);
 
     const allAnomalies = [
       ...(ownershipResult?.anomalies ?? []),
@@ -154,8 +219,12 @@ export async function POST(req: NextRequest) {
     ];
 
     const recommendation =
-      ownershipResult?.recommendation === 'reject' || marketCompResult?.recommendation === 'reject' ? 'reject'
-        : ownershipResult?.recommendation === 'review' || marketCompResult?.recommendation === 'review' ? 'review' : 'accept';
+      ownershipResult?.recommendation === 'reject' || marketCompResult?.recommendation === 'reject'
+        ? 'reject'
+        : ownershipResult?.recommendation === 'review' ||
+            marketCompResult?.recommendation === 'review'
+          ? 'review'
+          : 'accept';
 
     const fieldScores = [
       ...(ownershipResult?.fieldScores ?? []),
@@ -164,7 +233,7 @@ export async function POST(req: NextRequest) {
 
     // ── 4. Persist confidence scores to lead_enrichments ─────────────────────
     if (enrichment) {
-      await supabase
+      const { error: enrichmentUpdateError } = await supabase
         .from('lead_enrichments')
         .update({
           ownership_confidence: ownershipConfidence,
@@ -176,15 +245,15 @@ export async function POST(req: NextRequest) {
           validated_at: new Date().toISOString(),
         })
         .eq('lead_id', leadId);
+      throwIfError(enrichmentUpdateError, 'Failed to update enrichment validation scores');
     }
 
     // ── 5. Store in 7-day memoization cache ───────────────────────────────────
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    await supabase
-      .from('enrichment_validation_cache')
-      .upsert({
+    const { error: cacheWriteError } = await supabase.from('enrichment_validation_cache').upsert(
+      {
         lead_fingerprint: fingerprint,
         lead_id: leadId,
         ownership_confidence: ownershipConfidence,
@@ -198,11 +267,13 @@ export async function POST(req: NextRequest) {
         source: lead.source || null,
         validated_at: now.toISOString(),
         expires_at: expiresAt,
-      }, { onConflict: 'lead_fingerprint' })
-      .then(undefined, () => {});
+      },
+      { onConflict: 'lead_fingerprint' }
+    );
+    throwIfError(cacheWriteError, 'Failed to persist validation cache');
 
     // ── 6. Log validation event ───────────────────────────────────────────────
-    await supabase.from('enrichment_validation_events').insert({
+    const { error: eventError } = await supabase.from('enrichment_validation_events').insert({
       lead_id: leadId,
       lead_fingerprint: fingerprint,
       source: lead.source || 'Unknown',
@@ -216,13 +287,15 @@ export async function POST(req: NextRequest) {
       recommendation,
       cache_hit: false,
       triggered_by: 'api_call',
-    }).then(undefined, () => {});
+    });
+    throwIfError(eventError, 'Failed to log validation event');
 
     // ── 7. Run rules engine ───────────────────────────────────────────────────
-    const { data: rules } = await supabase
+    const { data: rules, error: rulesError } = await supabase
       .from('enrichment_confidence_rules')
       .select('*')
       .eq('enabled', true);
+    throwIfError(rulesError, 'Failed to load enabled rules');
 
     const violations: Array<{
       lead_id: string;
@@ -299,36 +372,37 @@ export async function POST(req: NextRequest) {
 
     // Insert violations
     if (violations.length > 0) {
-      await supabase.from('rules_engine_violations').insert(violations).then(undefined, () => {});
+      const { error: violationsError } = await supabase
+        .from('rules_engine_violations')
+        .insert(violations);
+      throwIfError(violationsError, 'Failed to persist rules engine violations');
 
       // Update enrichment with violation flags
       if (enrichment) {
-        await supabase
+        const { error: enrichmentViolationError } = await supabase
           .from('lead_enrichments')
           .update({ rules_violations: violationRuleNames })
-          .eq('lead_id', leadId)
-          .then(undefined, () => {});
+          .eq('lead_id', leadId);
+        throwIfError(enrichmentViolationError, 'Failed to update enrichment rule violations');
       }
 
       // Insert a sync_regression_event for rules violations
       if (recommendation !== 'accept') {
-        await supabase
-          .from('sync_regression_events')
-          .insert({
-            lead_id: leadId,
-            source: lead.source || 'Unknown',
-            regression_type: 'low_quality',
-            address: lead.address || '',
-            city: lead.city || '',
-            state: lead.state || '',
-            score: lead.prospect_score || 0,
-            status: 'open',
-            notes: `Rules engine: ${violationRuleNames.join(', ')}`,
-            confidence_score: overallConfidence,
-            rules_violations: violationRuleNames,
-            validation_recommendation: recommendation,
-          })
-          .then(undefined, () => {});
+        const { error: regressionError } = await supabase.from('sync_regression_events').insert({
+          lead_id: leadId,
+          source: lead.source || 'Unknown',
+          regression_type: 'low_quality',
+          address: lead.address || '',
+          city: lead.city || '',
+          state: lead.state || '',
+          score: lead.prospect_score || 0,
+          status: 'open',
+          notes: `Rules engine: ${violationRuleNames.join(', ')}`,
+          confidence_score: overallConfidence,
+          rules_violations: violationRuleNames,
+          validation_recommendation: recommendation,
+        });
+        throwIfError(regressionError, 'Failed to persist sync regression event');
       }
     }
 
@@ -341,7 +415,12 @@ export async function POST(req: NextRequest) {
       recommendation,
       anomalies: allAnomalies,
       violationsCount: violations.length,
-      violations: violations.map(v => ({ rule: v.rule_name, severity: v.severity, actual: v.actual_value, threshold: v.threshold_value })),
+      violations: violations.map((v) => ({
+        rule: v.rule_name,
+        severity: v.severity,
+        actual: v.actual_value,
+        threshold: v.threshold_value,
+      })),
       cacheHit: false,
       expiresAt,
     });

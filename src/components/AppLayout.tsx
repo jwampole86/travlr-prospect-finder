@@ -17,6 +17,8 @@ import FirstLoginPlatformGuide from './FirstLoginPlatformGuide';
 import TimeClockWidget from './TimeClockWidget';
 import TimeClockIdleMonitor from './TimeClockIdleMonitor';
 import AvyroLoader from './ui/AvyroLoader';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // ── Lazy-load FloatingDialer — Twilio Voice SDK is heavy and should only
 //    initialize when the agent actually opens the dialer, not on every page load.
@@ -31,6 +33,7 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const { user, loading, role } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -93,7 +96,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <button
             onClick={() => setMobileSidebarOpen(true)}
             className="flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors touch-manipulation"
-            aria-label="Open navigation menu"
+            aria-label={t('common.openNav')}
             style={{ minWidth: '44px', minHeight: '44px' }}
           >
             <Menu size={20} />
@@ -102,14 +105,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <button
               onClick={() => (window.history.length > 1 ? router.back() : router.push('/'))}
               className="flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors touch-manipulation"
-              aria-label="Go back"
-              title="Go back"
+              aria-label={t('common.goBack')}
+              title={t('common.goBack')}
               style={{ minWidth: '44px', minHeight: '44px' }}
             >
               <ArrowLeft size={20} />
             </button>
           )}
           <span className="text-sm font-semibold text-foreground flex-1">AVYRO AI</span>
+          <LanguageSwitcher compact />
           <TimeClockWidget />
           <BellButton />
           <InboxButton />
@@ -123,15 +127,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <button
                 onClick={() => (window.history.length > 1 ? router.back() : router.push('/'))}
                 className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                aria-label="Go back"
-                title="Go back"
+                aria-label={t('common.goBack')}
+                title={t('common.goBack')}
               >
                 <ArrowLeft size={16} />
-                <span>Back</span>
+                <span>{t('common.back')}</span>
               </button>
             )}
           </div>
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
             <TimeClockWidget />
             <BellButton />
             <InboxButton />
@@ -143,10 +148,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <footer className="border-t border-border bg-card px-6 py-4 mt-auto">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
             <span className="text-foreground/60">© 2026 AVYRO AI Inc.</span>
-            <Link href="/terms-of-service" className="hover:text-foreground transition-colors">Terms of Service</Link>
-            <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
-            <Link href="/tcpa-compliance" className="hover:text-foreground transition-colors">TCPA Compliance</Link>
-            <Link href="/gdpr-data-processing" className="hover:text-foreground transition-colors">GDPR Data Processing</Link>
+            <Link href="/terms-of-service" className="hover:text-foreground transition-colors">{t('footer.terms')}</Link>
+            <Link href="/privacy-policy" className="hover:text-foreground transition-colors">{t('footer.privacy')}</Link>
+            <Link href="/tcpa-compliance" className="hover:text-foreground transition-colors">{t('footer.tcpa')}</Link>
+            <Link href="/gdpr-data-processing" className="hover:text-foreground transition-colors">{t('footer.gdpr')}</Link>
           </div>
         </footer>
       </main>

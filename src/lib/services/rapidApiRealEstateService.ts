@@ -310,7 +310,12 @@ export async function searchTruliaRentals(
   // When `url` is set, Trulia's provider ignores page/sort/filters and always
   // returns page 1 of that exact URL — only `location` mode supports them.
 
-  const result = await rapidApiFetch(TRULIA_HOST, `/v1/search/rent?${query.toString()}`);
+  // The provider answers a small share of live requests with a transient HTTP 500
+  // ("please simply repeat the request"), so retry before reporting a failure.
+  let result = await rapidApiFetch(TRULIA_HOST, `/v1/search/rent?${query.toString()}`);
+  for (let attempt = 1; attempt < 3 && !result.ok && result.status === 500; attempt++) {
+    result = await rapidApiFetch(TRULIA_HOST, `/v1/search/rent?${query.toString()}`);
+  }
   if (!result.ok) {
     return { ok: false, listings: [], error: result.error, status: result.status };
   }

@@ -18,7 +18,7 @@ interface SourceFreshness {
   dupRate: number;
   lastSyncAt: string | null;
   freshnessHours: number;
-  status: 'fresh' | 'stale' | 'critical';
+  status: 'fresh' | 'stale' | 'critical' | 'manual';
 }
 
 interface DedupHealthMetric {
@@ -60,7 +60,12 @@ function freshnessLabel(hours: number): string {
   return `${days}d ago`;
 }
 
-function statusColor(s: 'fresh' | 'stale' | 'critical') {
+// Sources the platform pulls on a schedule. Every other source (CSV uploads, referrals, Facebook...) only
+// receives leads when someone adds them, so its age says nothing about sync health.
+const AUTO_SYNCED_SOURCES = new Set(['trulia', 'padmapper', 'hotpads', 'zillow', 'craigslist']);
+
+function statusColor(s: 'fresh' | 'stale' | 'critical' | 'manual') {
+  if (s === 'manual') return 'text-muted-foreground bg-muted border-border';
   if (s === 'fresh') return 'text-emerald-600 bg-emerald-50 border-emerald-200';
   if (s === 'stale') return 'text-amber-600 bg-amber-50 border-amber-200';
   return 'text-red-600 bg-red-50 border-red-200';
@@ -121,6 +126,20 @@ export default function DedupMonitorPage() {
       setUniqueLeads(uniqueCount);
       setTotalDuplicates(dupCount);
 
+      // Last successful scheduled pull per source: a pull that found nothing new is still a fresh sync.
+      const { data: pullEvents } = await supabase
+        .from('sync_events')
+        .select('status, payload, created_at')
+        .eq('operation_type', 'source_sync')
+        .eq('status', 'success')
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      const lastPull = new Map<string, string>();
+      for (const e of pullEvents ?? []) {
+        const name = String((e.payload as { source?: string } | null)?.source ?? '').toLowerCase();
+        if (name && !lastPull.has(name)) lastPull.set(name, e.created_at as string);
+      }
+
       // Per-source freshness
       const sourceMap = new Map<string, { total: number; fps: Set<string>; lastSync: string | null }>();
       for (const l of leads) {
@@ -130,7 +149,8 @@ export default function DedupMonitorPage() {
         entry.total++;
         const fp = `${String(l.address || '').toLowerCase().trim()}|${String(l.city || '').toLowerCase().trim()}|${String(l.state || '').toLowerCase().trim()}`;
         entry.fps.add(fp);
-        const ts = l.updated_at || l.created_at;
+        // created_at, not updated_at: enrichment and scoring touch updated_at on old leads.
+        const ts = l.created_at;
         if (!entry.lastSync || ts > entry.lastSync) entry.lastSync = ts;
       }
 
@@ -140,11 +160,15 @@ export default function DedupMonitorPage() {
           const uniqueCount = d.fps.size;
           const dupes = d.total - uniqueCount;
           const dupRate = d.total > 0 ? Math.round((dupes / d.total) * 100) : 0;
-          const lastSyncMs = d.lastSync ? new Date(d.lastSync).getTime() : 0;
+          const automated = AUTO_SYNCED_SOURCES.has(source.toLowerCase());
+          const pulled = lastPull.get(source.toLowerCase()) ?? null;
+          const lastSyncAt = automated && pulled && (!d.lastSync || pulled > d.lastSync) ? pulled : d.lastSync;
+          const lastSyncMs = lastSyncAt ? new Date(lastSyncAt).getTime() : 0;
           const freshnessHours = lastSyncMs ? (now - lastSyncMs) / 3600000 : 999;
-          const status: 'fresh' | 'stale' | 'critical' =
-            freshnessHours < 24 ? 'fresh' : freshnessHours < 72 ? 'stale' : 'critical';
-          return { source, totalLeads: d.total, uniqueLeads: uniqueCount, duplicateCount: dupes, dupRate, lastSyncAt: d.lastSync, freshnessHours, status };
+          const status: SourceFreshness['status'] = !automated
+            ? 'manual'
+            : freshnessHours < 24 ? 'fresh' : freshnessHours < 72 ? 'stale' : 'critical';
+          return { source, totalLeads: d.total, uniqueLeads: uniqueCount, duplicateCount: dupes, dupRate, lastSyncAt, freshnessHours, status };
         })
         .sort((a, b) => b.totalLeads - a.totalLeads)
         .slice(0, 15);
@@ -487,11 +511,11 @@ export default function DedupMonitorPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right text-muted-foreground text-xs">
-                          {s.lastSyncAt ? freshnessLabel(s.freshnessHours) : 'Never'}
+                          {s.status === 'manual' ? (s.lastSyncAt ? `Last added ${freshnessLabel(s.freshnessHours)}` : 'Never') : s.lastSyncAt ? freshnessLabel(s.freshnessHours) : 'Never'}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusColor(s.status)}`}>
-                            {s.status.toUpperCase()}
+                            {s.status === 'manual' ? 'MANUAL' : s.status.toUpperCase()}
                           </span>
                         </td>
                       </tr>
@@ -501,7 +525,7 @@ export default function DedupMonitorPage() {
                             <div className="flex gap-6 text-xs text-muted-foreground">
                               <span>Dedup efficiency: <strong className="text-foreground">{s.totalLeads > 0 ? ((s.uniqueLeads / s.totalLeads) * 100).toFixed(1) : 100}%</strong></span>
                               <span>Last sync: <strong className="text-foreground">{s.lastSyncAt ? new Date(s.lastSyncAt).toLocaleString() : 'N/A'}</strong></span>
-                              <span>Freshness: <strong className={s.status === 'fresh' ? 'text-emerald-600' : s.status === 'stale' ? 'text-amber-600' : 'text-red-600'}>{s.status}</strong></span>
+                              <span>Freshness: <strong className={s.status === 'fresh' ? 'text-emerald-600' : s.status === 'stale' ? 'text-amber-600' : s.status === 'manual' ? 'text-muted-foreground' : 'text-red-600'}>{s.status === 'manual' ? 'manual source (not synced)' : s.status}</strong></span>
                             </div>
                           </td>
                         </tr>

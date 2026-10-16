@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { normalizeAddress, batchDataProvider, scoreOwnerMatch } from '@/lib/services/ownerEnrichmentService';
+import {
+  normalizeAddress,
+  batchDataProvider,
+  scoreOwnerMatch,
+} from '@/lib/services/ownerEnrichmentService';
 import { skipTracingProvider } from '@/lib/services/skipTracingProvider';
 
 /**
@@ -14,10 +18,22 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
     const body = await req.json();
-    const { leadId, address, city, state, zip, apn, scope = 'MISSING_OWNER_AND_PHONE', priority = 5 } = body;
+    const {
+      leadId,
+      address,
+      city,
+      state,
+      zip,
+      apn,
+      scope = 'MISSING_OWNER_AND_PHONE',
+      priority = 5,
+    } = body;
 
     if (!leadId || !address || !city || !state || !zip) {
-      return NextResponse.json({ error: 'leadId, address, city, state, zip are required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'leadId, address, city, state, zip are required' },
+        { status: 400 }
+      );
     }
 
     // Normalize address before any lookup
@@ -32,7 +48,11 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (existingJob) {
-      return NextResponse.json({ jobId: existingJob.id, status: existingJob.job_status, message: 'Job already queued' });
+      return NextResponse.json({
+        jobId: existingJob.id,
+        status: existingJob.job_status,
+        message: 'Job already queued',
+      });
     }
 
     // Create enrichment job
@@ -68,9 +88,15 @@ export async function POST(req: NextRequest) {
     });
 
     // Run enrichment asynchronously (fire and forget pattern)
-    runEnrichmentJob(job.id, leadId, normalized, city, state, zip, apn, scope, supabase).catch(console.error);
+    runEnrichmentJob(job.id, leadId, normalized, city, state, zip, apn, scope, supabase).catch(
+      console.error
+    );
 
-    return NextResponse.json({ jobId: job.id, status: 'PENDING', message: 'Enrichment job queued' });
+    return NextResponse.json({
+      jobId: job.id,
+      status: 'PENDING',
+      message: 'Enrichment job queued',
+    });
   } catch (err) {
     console.error('Owner enrichment error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -92,10 +118,28 @@ export async function GET(req: NextRequest) {
     }
 
     const [jobsRes, matchesRes, phonesRes, reviewRes] = await Promise.all([
-      supabase.from('enrichment_jobs').select('*').eq('lead_id', leadId).order('created_at', { ascending: false }).limit(5),
-      supabase.from('property_owner_matches').select('*').eq('lead_id', leadId).order('match_score', { ascending: false }),
-      supabase.from('enrichment_phone_evidence').select('*').eq('lead_id', leadId).order('rank_order'),
-      supabase.from('enrichment_review_queue').select('*').eq('lead_id', leadId).eq('review_status', 'PENDING').limit(1),
+      supabase
+        .from('enrichment_jobs')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('created_at', { ascending: false })
+        .limit(5),
+      supabase
+        .from('property_owner_matches')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('match_score', { ascending: false }),
+      supabase
+        .from('enrichment_phone_evidence')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('rank_order'),
+      supabase
+        .from('enrichment_review_queue')
+        .select('*')
+        .eq('lead_id', leadId)
+        .eq('review_status', 'PENDING')
+        .limit(1),
     ]);
 
     return NextResponse.json({
@@ -125,12 +169,23 @@ async function runEnrichmentJob(
 ) {
   try {
     // Mark as RUNNING
-    await supabase.from('enrichment_jobs').update({ job_status: 'RUNNING', started_at: new Date().toISOString() }).eq('id', jobId);
+    const startedAt = new Date().toISOString();
+    await supabase
+      .from('enrichment_jobs')
+      .update({ job_status: 'RUNNING', started_at: startedAt })
+      .eq('id', jobId);
+
+    const { data: leadSnapshot } = await supabase
+      .from('leads')
+      .select('contact_name, owner_name, contact_phone')
+      .eq('id', leadId)
+      .maybeSingle();
 
     // Step 1: Verify property via BatchData
     let propertyVerified = false;
     let ownerOfRecord: string | undefined;
     let resolvedApn = apn;
+    let pendingReviewId: string | null = null;
 
     const propResult = await batchDataProvider.verifyProperty?.({
       address: normalized.normalizedAddress,
@@ -145,12 +200,15 @@ async function runEnrichmentJob(
       ownerOfRecord = propResult.ownerOfRecord;
       resolvedApn = propResult.apn || apn;
 
-      await supabase.from('enrichment_jobs').update({
-        property_verified: true,
-        property_verified_at: new Date().toISOString(),
-        property_provider: propResult.provider,
-        apn: resolvedApn || null,
-      }).eq('id', jobId);
+      await supabase
+        .from('enrichment_jobs')
+        .update({
+          property_verified: true,
+          property_verified_at: new Date().toISOString(),
+          property_provider: propResult.provider,
+          apn: resolvedApn || null,
+        })
+        .eq('id', jobId);
 
       // Store property evidence
       await supabase.from('enrichment_evidence_records').insert({
@@ -211,7 +269,10 @@ async function runEnrichmentJob(
         });
       }
 
-      await supabase.from('enrichment_jobs').update({ owner_resolution_done: true }).eq('id', jobId);
+      await supabase
+        .from('enrichment_jobs')
+        .update({ owner_resolution_done: true })
+        .eq('id', jobId);
     }
 
     // Step 3: Score best candidate and create match
@@ -220,15 +281,19 @@ async function runEnrichmentJob(
 
     if (ownerCandidates.length > 0) {
       // Score each candidate
-      const scored = ownerCandidates.map(c => {
+      const scored = ownerCandidates.map((c) => {
         const result = scoreOwnerMatch({
           candidateName: c.fullName,
           candidateLastName: c.lastName,
           propertyAddressMatch: propertyVerified,
           apnLinkedOwner: !!(resolvedApn && c.sourceRecordId),
-          ownerMailingAddressMatch: !!(c.mailingAddress),
-          fullNameExactMatch: !!(ownerOfRecord && c.fullName?.toLowerCase() === ownerOfRecord.toLowerCase()),
-          lastNamePropertyAssociation: !!(c.lastName && ownerOfRecord?.toLowerCase().includes(c.lastName.toLowerCase())),
+          ownerMailingAddressMatch: !!c.mailingAddress,
+          fullNameExactMatch: !!(
+            ownerOfRecord && c.fullName?.toLowerCase() === ownerOfRecord.toLowerCase()
+          ),
+          lastNamePropertyAssociation: !!(
+            c.lastName && ownerOfRecord?.toLowerCase().includes(c.lastName.toLowerCase())
+          ),
           cityStateRelationship: c.mailingState?.toUpperCase() === state.toUpperCase(),
           phoneAddressAssociation: false,
           firstNameOnlyMatch: false,
@@ -254,47 +319,68 @@ async function runEnrichmentJob(
       const shouldCreate = !existingMatch || !existingMatch.is_manual_research;
 
       if (shouldCreate && matchResult.confidence !== 'NO_MATCH') {
-        const { data: newMatch } = await supabase.from('property_owner_matches').insert({
-          lead_id: leadId,
-          owner_name: bestMatch.fullName,
-          owner_type: bestMatch.ownerType,
-          confidence: matchResult.confidence,
-          match_score: matchResult.totalScore,
-          match_status: matchResult.autoAccept ? 'AUTO_ACCEPTED' : 'PENDING_REVIEW',
-          source_provider: bestMatch.source,
-          source_record_id: bestMatch.sourceRecordId,
-          source_retrieved_at: new Date().toISOString(),
-          match_reasons: matchResult.matchReasons,
-          evidence: { signals: matchResult.signals, candidate: bestMatch },
-          verified_owner: matchResult.confidence === 'VERIFIED',
-          owner_verified_at: matchResult.confidence === 'VERIFIED' ? new Date().toISOString() : null,
-          owner_verification_source: bestMatch.source,
-          owner_verification_method: 'AUTOMATED_MULTI_SIGNAL',
-        }).select().single();
+        const { data: newMatch } = await supabase
+          .from('property_owner_matches')
+          .insert({
+            lead_id: leadId,
+            owner_name: bestMatch.fullName,
+            owner_type: bestMatch.ownerType,
+            confidence: matchResult.confidence,
+            match_score: matchResult.totalScore,
+            match_status: matchResult.autoAccept ? 'AUTO_ACCEPTED' : 'PENDING_REVIEW',
+            source_provider: bestMatch.source,
+            source_record_id: bestMatch.sourceRecordId,
+            source_retrieved_at: new Date().toISOString(),
+            match_reasons: matchResult.matchReasons,
+            evidence: { signals: matchResult.signals, candidate: bestMatch },
+            verified_owner: matchResult.confidence === 'VERIFIED',
+            owner_verified_at:
+              matchResult.confidence === 'VERIFIED' ? new Date().toISOString() : null,
+            owner_verification_source: bestMatch.source,
+            owner_verification_method: 'AUTOMATED_MULTI_SIGNAL',
+          })
+          .select()
+          .single();
 
         if (newMatch) {
           await supabase.from('enrichment_audit_events').insert({
             lead_id: leadId,
             job_id: jobId,
             event_type: 'OWNER_MATCH_FOUND',
-            event_data: { matchId: newMatch.id, confidence: matchResult.confidence, score: matchResult.totalScore },
+            event_data: {
+              matchId: newMatch.id,
+              confidence: matchResult.confidence,
+              score: matchResult.totalScore,
+            },
             provider: bestMatch.source,
           });
 
           // Add to review queue if needed
           if (matchResult.requiresReview || matchResult.confidence === 'CONFLICT') {
-            await supabase.from('enrichment_review_queue').insert({
-              lead_id: leadId,
-              job_id: jobId,
-              match_id: newMatch.id,
-              suggested_owner_name: bestMatch.fullName,
-              confidence: matchResult.confidence,
-              match_score: matchResult.totalScore,
-              evidence: { signals: matchResult.signals },
-              provider: bestMatch.source,
-              reason: matchResult.confidence === 'CONFLICT' ? 'Owner conflict detected' : 'Medium confidence — requires review',
-              review_status: 'PENDING',
-            });
+            const { data: reviewItem } = await supabase
+              .from('enrichment_review_queue')
+              .insert({
+                lead_id: leadId,
+                job_id: jobId,
+                match_id: newMatch.id,
+                current_owner_name:
+                  leadSnapshot?.contact_name || leadSnapshot?.owner_name || ownerOfRecord || null,
+                current_phone: leadSnapshot?.contact_phone || null,
+                suggested_owner_name: bestMatch.fullName,
+                confidence: matchResult.confidence,
+                match_score: matchResult.totalScore,
+                evidence: { signals: matchResult.signals },
+                provider: bestMatch.source,
+                reason:
+                  matchResult.confidence === 'CONFLICT'
+                    ? 'Owner conflict detected'
+                    : 'Medium confidence — requires review',
+                review_status: 'PENDING',
+              })
+              .select('id')
+              .single();
+
+            pendingReviewId = reviewItem?.id || null;
           }
         }
       }
@@ -342,60 +428,93 @@ async function runEnrichmentJob(
             lead_id: leadId,
             job_id: jobId,
             event_type: 'CONTACT_CONFLICT_FOUND',
-            event_data: { type: 'PHONE_CONFLICT', phone: phone.phoneE164, reason: 'Automated result conflicts with manual research' },
+            event_data: {
+              type: 'PHONE_CONFLICT',
+              phone: phone.phoneE164,
+              reason: 'Automated result conflicts with manual research',
+            },
             provider: phone.source,
           });
           continue;
         }
 
-        const phoneStatus = phone.confidence >= 80 ? 'CURRENT_HIGH_CONFIDENCE' : 'CURRENT_MEDIUM_CONFIDENCE';
+        const phoneStatus =
+          phone.confidence >= 80 ? 'CURRENT_HIGH_CONFIDENCE' : 'CURRENT_MEDIUM_CONFIDENCE';
 
-        await supabase.from('enrichment_phone_evidence').upsert({
-          lead_id: leadId,
-          phone_e164: phone.phoneE164,
-          phone_raw: phone.phoneRaw,
-          phone_type: phone.phoneType,
-          phone_status: phoneStatus,
-          provider: phone.source,
-          provider_record_id: phone.providerRecordId,
-          confidence: phone.confidence,
-          association_type: phone.associationType,
-          rank_order: phone.rankOrder || 99,
-          is_selected: phone.rankOrder === 1,
-          last_verified_at: new Date().toISOString(),
-          verified_number: phone.confidence >= 80,
-          freshness_status: 'CURRENT',
-        }, { onConflict: 'lead_id,phone_e164' });
+        await supabase.from('enrichment_phone_evidence').upsert(
+          {
+            lead_id: leadId,
+            phone_e164: phone.phoneE164,
+            phone_raw: phone.phoneRaw,
+            phone_type: phone.phoneType,
+            phone_status: phoneStatus,
+            provider: phone.source,
+            provider_record_id: phone.providerRecordId,
+            confidence: phone.confidence,
+            association_type: phone.associationType,
+            rank_order: phone.rankOrder || 99,
+            is_selected: phone.rankOrder === 1,
+            last_verified_at: new Date().toISOString(),
+            verified_number: phone.confidence >= 80,
+            freshness_status: 'CURRENT',
+          },
+          { onConflict: 'lead_id,phone_e164' }
+        );
 
         await supabase.from('enrichment_audit_events').insert({
           lead_id: leadId,
           job_id: jobId,
           event_type: 'PHONE_FOUND',
-          event_data: { phone: phone.phoneE164, type: phone.phoneType, confidence: phone.confidence },
+          event_data: {
+            phone: phone.phoneE164,
+            type: phone.phoneType,
+            confidence: phone.confidence,
+          },
           provider: phone.source,
         });
       }
 
-      await supabase.from('enrichment_jobs').update({ phone_enrichment_done: true }).eq('id', jobId);
+      const suggestedPhone =
+        phones.find((phone) => phone.rankOrder === 1 && phone.phoneE164)?.phoneE164 ||
+        phones.find((phone) => phone.phoneE164)?.phoneE164 ||
+        null;
+
+      if (pendingReviewId) {
+        await supabase
+          .from('enrichment_review_queue')
+          .update({ suggested_phone: suggestedPhone, updated_at: new Date().toISOString() })
+          .eq('id', pendingReviewId);
+      }
+
+      await supabase
+        .from('enrichment_jobs')
+        .update({ phone_enrichment_done: true })
+        .eq('id', jobId);
     }
 
     // Finalize job
-    const finalStatus = (ownerCandidates.length > 0 || scope === 'MISSING_PHONE') ? 'FOUND' : 'NO_MATCH';
+    const finalStatus =
+      ownerCandidates.length > 0 || scope === 'MISSING_PHONE' ? 'FOUND' : 'NO_MATCH';
     const hasReview = matchResult?.requiresReview || matchResult?.confidence === 'CONFLICT';
 
-    await supabase.from('enrichment_jobs').update({
-      job_status: hasReview ? 'REVIEW_REQUIRED' : finalStatus,
-      match_score: matchResult?.totalScore || 0,
-      match_confidence: matchResult?.confidence || 'NO_MATCH',
-      completed_at: new Date().toISOString(),
-    }).eq('id', jobId);
-
+    await supabase
+      .from('enrichment_jobs')
+      .update({
+        job_status: hasReview ? 'REVIEW_REQUIRED' : finalStatus,
+        match_score: matchResult?.totalScore || 0,
+        match_confidence: matchResult?.confidence || 'NO_MATCH',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', jobId);
   } catch (err) {
     console.error('Enrichment job runner error:', err);
-    await supabase.from('enrichment_jobs').update({
-      job_status: 'FAILED',
-      error_message: err instanceof Error ? err.message : 'Unknown error',
-      completed_at: new Date().toISOString(),
-    }).eq('id', jobId);
+    await supabase
+      .from('enrichment_jobs')
+      .update({
+        job_status: 'FAILED',
+        error_message: err instanceof Error ? err.message : 'Unknown error',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', jobId);
   }
 }

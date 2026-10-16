@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { MessageSquare, X, ChevronDown, Send, CheckCircle, Phone, AlertCircle, RefreshCw, Eye, ClipboardCheck, ShieldX, TrendingUp, AlertTriangle, XCircle, Info } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { SMS_OPT_OUT_LINE, withOptOutLanguage } from '@/lib/smsOptOut';
 import EmailPreviewPanel from '@/app/lead-management/components/EmailPreviewPanel';
 import PreSendChecklist from '@/app/lead-management/components/PreSendChecklist';
 
@@ -167,13 +168,16 @@ export default function SMSSendModal({ leadId, leadName, recipientPhone, onClose
   const [step, setStep] = useState<Step>('compose');
   const [selectedTemplateId, setSelectedTemplateId] = useState('intro');
   const [phone, setPhone] = useState(recipientPhone || '');
-  const [body, setBody] = useState(() => fillTemplate(SMS_TEMPLATES[0].body, leadName, 'your TRAVLR agent'));
+  const [rawBody, setBody] = useState(() => fillTemplate(SMS_TEMPLATES[0].body, leadName, 'your TRAVLR agent'));
   const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
   const [showDeliveryDetails, setShowDeliveryDetails] = useState(false);
   const [tcpaAcknowledged, setTcpaAcknowledged] = useState(false);
   const supabase = createClient();
+
+  const body = useMemo(() => withOptOutLanguage(rawBody), [rawBody]);
+  const optOutAdded = body !== rawBody;
 
   const isBulkSend = bulkCount !== undefined && bulkCount > 1;
   const tcpaBlocked = isBulkSend && !tcpaAcknowledged;
@@ -392,14 +396,14 @@ export default function SMSSendModal({ leadId, leadName, recipientPhone, onClose
                 Message
               </label>
               <textarea
-                value={body}
+                value={rawBody}
                 onChange={e => setBody(e.target.value)}
                 rows={5}
                 placeholder="Type your message..."
                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card outline-none focus:ring-1 focus:ring-primary/30 resize-none"
               />
               <div className="flex items-center justify-between mt-1">
-                <p className="text-[10px] text-muted-foreground">{charCount} chars · {smsCount} SMS segment{smsCount > 1 ? 's' : ''}</p>
+                <p className="text-[10px] text-muted-foreground">{optOutAdded ? `"${SMS_OPT_OUT_LINE}" will be added automatically · ` : ''}{charCount} chars · {smsCount} SMS segment{smsCount > 1 ? 's' : ''}</p>
                 <p className="text-[10px] text-muted-foreground">Lead: {leadName}</p>
               </div>
             </div>

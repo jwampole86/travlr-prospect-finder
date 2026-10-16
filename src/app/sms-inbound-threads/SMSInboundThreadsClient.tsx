@@ -9,6 +9,7 @@ import {
   XCircle, ArrowLeft, User, Search, BarChart2, MessageCircle,
 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import Icon from '@/components/ui/AppIcon';
 
 
@@ -154,41 +155,49 @@ export default function SMSInboundThreadsClient() {
     return () => { supabase.removeChannel(channel); };
   }, [selectedThread, loadThreads]);
 
-  const sendReply = async () => {
+  const sendReply = async (force = false) => {
     if (!selectedThread || !replyBody.trim() || sending) return;
+    if (!selectedThread.lead_id) {
+      toast.error('This thread is not linked to a lead, so it cannot be sent from here. Open the lead and send from its profile.');
+      return;
+    }
     setSending(true);
     const body = replyBody.trim();
-    setReplyBody('');
 
     try {
-      const { data: msgData } = await supabase
-        .from('sms_thread_messages')
-        .insert({ thread_id: selectedThread.id, direction: 'outbound', body, status: 'queued' })
-        .select()
-        .single();
-
-      if (msgData) setMessages(prev => [...prev, msgData as ThreadMessage]);
-
       const res = await fetch('/api/sms/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: selectedThread.phone, body, leadId: selectedThread.lead_id }),
+        body: JSON.stringify({ to: selectedThread.phone, message: body, leadId: selectedThread.lead_id, ...(force ? { force: true } : {}) }),
       });
-      const result = await res.json();
-      const sid = result.messageSid ?? result.sid ?? null;
-
-      if (msgData && sid) {
-        await supabase.from('sms_thread_messages').update({ twilio_message_sid: sid, status: 'sent' }).eq('id', (msgData as ThreadMessage).id);
-        setMessages(prev => prev.map(m => m.id === (msgData as ThreadMessage).id ? { ...m, twilio_message_sid: sid, status: 'sent' } : m));
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || !result.success || result.placeholderMode) {
+        if (result.status === 'duplicate_text' && result.canForce && window.confirm(`${result.error}\n\nSend anyway?`)) {
+          setSending(false);
+          await sendReply(true);
+          return;
+        }
+        throw new Error(result.error || 'SMS provider is not configured. Message was not sent.');
       }
+
+      setReplyBody('');
+      const sid = result.messageSid ?? null;
+      const { data: msgData } = await supabase
+        .from('sms_thread_messages')
+        .insert({ thread_id: selectedThread.id, direction: 'outbound', body, status: 'sent', twilio_message_sid: sid })
+        .select()
+        .single();
+      if (msgData) setMessages(prev => [...prev, msgData as ThreadMessage]);
 
       await supabase.from('sms_conversation_threads').update({
         last_outbound_at: new Date().toISOString(),
         last_message_preview: body.slice(0, 100),
         updated_at: new Date().toISOString(),
       }).eq('id', selectedThread.id);
+      toast.success('Reply sent');
     } catch (err) {
       console.error('[sendReply]', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to send SMS');
     } finally {
       setSending(false);
     }
@@ -430,7 +439,7 @@ export default function SMSInboundThreadsClient() {
                   className="flex-1 text-sm bg-muted border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                 />
                 <button
-                  onClick={sendReply}
+                  onClick={() => sendReply()}
                   disabled={sending || !replyBody.trim()}
                   className="p-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
                 >

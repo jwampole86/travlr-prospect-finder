@@ -1,365 +1,260 @@
 'use client';
 
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, Clipboard, Eye, LayoutTemplate, Mail, RefreshCw, ShieldCheck, TableProperties } from 'lucide-react';
+import AppLayout from '@/components/AppLayout';
 import BackButton from '@/components/ui/BackButton';
-import React, { useState } from 'react';
+import {
+  buttonPrimary,
+  buttonSecondary,
+  ErrorBanner,
+  LoadingState,
+  PageHeader,
+  Panel,
+  SegmentedTabs,
+  StatGrid,
+  StatusPill,
+} from '@/components/ops';
+import { createClient } from '@/lib/supabase/client';
+import { AUTH_EMAIL_TEMPLATES, buildEmailHtml } from './templates';
 
-const LOGO_URL = 'https://app.staytrvlr.com/assets/images/app_logo.png';
-const PRIMARY = '#1a5276';
-const SECONDARY = '#2e86c1';
+type ContentTab = 'preview' | 'html';
 
-const baseWrapper = (content: string) => `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TRAVLR Vacation Homes</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f4f6f9;font-family:'DM Sans',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+type InventoryState = {
+  checkedAt: string;
+  publicTemplateCount: number | null;
+};
 
-          <!-- Header -->
-          <tr>
-            <td style="background-color:${PRIMARY};padding:32px 40px;text-align:center;">
-              <img src="${LOGO_URL}" alt="TRAVLR Vacation Homes" width="140" style="display:block;margin:0 auto 12px auto;max-width:140px;" />
-              <p style="margin:0;color:#ffffff;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;opacity:0.85;">Vacation Home Management</p>
-            </td>
-          </tr>
-
-          <!-- Body -->
-          <tr>
-            <td style="padding:40px 40px 32px 40px;">
-${content}
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background-color:#f4f6f9;padding:24px 40px;text-align:center;border-top:1px solid #dde3ec;">
-              <p style="margin:0 0 6px 0;font-size:13px;color:#64748b;">TRAVLR Vacation Homes &bull; <a href="https://app.staytrvlr.com" style="color:${SECONDARY};text-decoration:none;">app.staytrvlr.com</a></p>
-              <p style="margin:0;font-size:12px;color:#94a3b8;">You received this email because you have an account with TRAVLR. If you did not request this, you can safely ignore it.</p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-
-const templates = [
-  {
-    id: 'confirm-signup',
-    name: 'Confirm Signup',
-    subject: 'Confirm your TRAVLR account',
-    description: 'Sent after a user registers — asks them to verify their email address.',
-    supabaseKey: 'Confirm signup',
-    body: `              <h1 style="margin:0 0 16px 0;font-size:24px;font-weight:700;color:#0d1b2a;">Confirm your email address</h1>
-              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#374151;">Welcome to <strong>TRAVLR Vacation Homes</strong>! We're excited to have you on board.</p>
-              <p style="margin:0 0 28px 0;font-size:15px;line-height:1.6;color:#374151;">Please confirm your email address by clicking the button below. This link will expire in 24 hours.</p>
-              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
-                <tr>
-                  <td style="background-color:#1a5276;border-radius:8px;padding:14px 32px;">
-                    <a href="{{ .ConfirmationURL }}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;display:inline-block;">Confirm Email Address</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0;font-size:13px;color:#64748b;">Or copy and paste this link into your browser:<br /><a href="{{ .ConfirmationURL }}" style="color:#2e86c1;word-break:break-all;">{{ .ConfirmationURL }}</a></p>`,
-  },
-  {
-    id: 'invite-user',name: 'Invite User',subject: "You\'ve been invited to TRAVLR",description: 'Sent when you invite someone from the Users tab to create an account.',supabaseKey: 'Invite user',
-    body: `              <h1 style="margin:0 0 16px 0;font-size:24px;font-weight:700;color:#0d1b2a;">You've been invited to TRAVLR</h1>
-              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#374151;">You've been invited to join <strong>TRAVLR Vacation Homes</strong> — a platform for managing vacation rental properties and homeowner relationships.</p>
-              <p style="margin:0 0 28px 0;font-size:15px;line-height:1.6;color:#374151;">Click the button below to accept your invitation and set up your account. This link will expire in 24 hours.</p>
-              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
-                <tr>
-                  <td style="background-color:#1a5276;border-radius:8px;padding:14px 32px;">
-                    <a href="{{ .ConfirmationURL }}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;display:inline-block;">Accept Invitation</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0;font-size:13px;color:#64748b;">Or copy and paste this link into your browser:<br /><a href="{{ .ConfirmationURL }}" style="color:#2e86c1;word-break:break-all;">{{ .ConfirmationURL }}</a></p>`,
-  },
-  {
-    id: 'magic-link',name: 'Magic Link / OTP',subject: 'Your TRAVLR sign-in link',description: 'Sends a one-time sign-in link or one-time password for passwordless login.',supabaseKey: 'Magic Link',
-    body: `              <h1 style="margin:0 0 16px 0;font-size:24px;font-weight:700;color:#0d1b2a;">Sign in to TRAVLR</h1>
-              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#374151;">Here is your one-time sign-in link for <strong>TRAVLR Vacation Homes</strong>. This link is valid for 10 minutes and can only be used once.</p>
-              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
-                <tr>
-                  <td style="background-color:#1a5276;border-radius:8px;padding:14px 32px;">
-                    <a href="{{ .ConfirmationURL }}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;display:inline-block;">Sign In to TRAVLR</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0 0 16px 0;font-size:13px;color:#64748b;">Or copy and paste this link into your browser:<br /><a href="{{ .ConfirmationURL }}" style="color:#2e86c1;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
-              <p style="margin:0;font-size:13px;color:#94a3b8;">If you did not request this sign-in link, you can safely ignore this email. Your account remains secure.</p>`,
-  },
-  {
-    id: 'change-email',name: 'Change Email Address',subject: 'Confirm your new email address — TRAVLR',description: 'Asks users to verify their new email address after changing it in settings.',supabaseKey: 'Change Email Address',
-    body: `              <h1 style="margin:0 0 16px 0;font-size:24px;font-weight:700;color:#0d1b2a;">Confirm your new email address</h1>
-              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#374151;">You recently requested to change the email address associated with your <strong>TRAVLR Vacation Homes</strong> account.</p>
-              <p style="margin:0 0 28px 0;font-size:15px;line-height:1.6;color:#374151;">Click the button below to confirm this change. If you did not make this request, please contact support immediately.</p>
-              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
-                <tr>
-                  <td style="background-color:#1a5276;border-radius:8px;padding:14px 32px;">
-                    <a href="{{ .ConfirmationURL }}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;display:inline-block;">Confirm New Email</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0;font-size:13px;color:#64748b;">Or copy and paste this link into your browser:<br /><a href="{{ .ConfirmationURL }}" style="color:#2e86c1;word-break:break-all;">{{ .ConfirmationURL }}</a></p>`,
-  },
-  {
-    id: 'reset-password',name: 'Reset Password',subject: 'Reset your TRAVLR password',description: 'Sends a password reset link or code when a user requests it.',supabaseKey: 'Reset Password',
-    body: `              <h1 style="margin:0 0 16px 0;font-size:24px;font-weight:700;color:#0d1b2a;">Reset your password</h1>
-              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#374151;">We received a request to reset the password for your <strong>TRAVLR Vacation Homes</strong> account.</p>
-              <p style="margin:0 0 28px 0;font-size:15px;line-height:1.6;color:#374151;">Click the button below to choose a new password. This link will expire in 1 hour.</p>
-              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
-                <tr>
-                  <td style="background-color:#1a5276;border-radius:8px;padding:14px 32px;">
-                    <a href="{{ .ConfirmationURL }}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;display:inline-block;">Reset Password</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0 0 16px 0;font-size:13px;color:#64748b;">Or copy and paste this link into your browser:<br /><a href="{{ .ConfirmationURL }}" style="color:#2e86c1;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
-              <p style="margin:0;font-size:13px;color:#94a3b8;">If you did not request a password reset, you can safely ignore this email. Your password will not be changed.</p>`,
-  },
-  {
-    id: 'reauthentication',name: 'Reauthentication',subject: 'Verify your identity — TRAVLR',description: 'Asks users to verify their identity before a sensitive operation.',supabaseKey: 'Reauthentication',
-    body: `              <h1 style="margin:0 0 16px 0;font-size:24px;font-weight:700;color:#0d1b2a;">Verify your identity</h1>
-              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#374151;">A sensitive action was requested on your <strong>TRAVLR Vacation Homes</strong> account and we need to verify it's really you.</p>
-              <p style="margin:0 0 28px 0;font-size:15px;line-height:1.6;color:#374151;">Click the button below to confirm your identity and proceed. This link will expire shortly.</p>
-              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
-                <tr>
-                  <td style="background-color:#1a5276;border-radius:8px;padding:14px 32px;">
-                    <a href="{{ .ConfirmationURL }}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;display:inline-block;">Verify My Identity</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0 0 16px 0;font-size:13px;color:#64748b;">Or copy and paste this link into your browser:<br /><a href="{{ .ConfirmationURL }}" style="color:#2e86c1;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
-              <p style="margin:0;font-size:13px;color:#94a3b8;">If you did not initiate this action, please contact support immediately as your account may be at risk.</p>`,
-  },
+const TAB_OPTIONS: { key: ContentTab; label: string; icon: React.ElementType }[] = [
+  { key: 'preview', label: 'Preview', icon: Eye },
+  { key: 'html', label: 'HTML', icon: TableProperties },
 ];
 
 export default function SupabaseEmailTemplatesPage() {
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'html' | 'preview'>('html');
-  const [selectedTemplate, setSelectedTemplate] = useState(templates[0].id);
+  const [selectedId, setSelectedId] = useState(AUTH_EMAIL_TEMPLATES[0].id);
+  const [contentTab, setContentTab] = useState<ContentTab>('preview');
+  const [inventory, setInventory] = useState<InventoryState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<string | null>(null);
 
-  const selected = templates.find(t => t.id === selectedTemplate)!;
-  const fullHtml = baseWrapper(selected.body);
+  const selectedTemplate = useMemo(
+    () => AUTH_EMAIL_TEMPLATES.find((template) => template.id === selectedId) ?? AUTH_EMAIL_TEMPLATES[0],
+    [selectedId],
+  );
+  const fullHtml = useMemo(() => buildEmailHtml(selectedTemplate.body), [selectedTemplate]);
+  const tokens = useMemo(
+    () => Array.from(new Set(fullHtml.match(/{{\s*\.[^}]+}}/g) ?? [])),
+    [fullHtml],
+  );
 
-  const handleCopy = async (id: string, text: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
+  const loadInventory = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const { count, error: countError } = await supabase.from('email_templates').select('*', { count: 'exact', head: true });
+      if (countError) {
+        throw new Error(`Could not verify the public email_templates table: ${countError.message}`);
+      }
+      setInventory({ checkedAt: new Date().toISOString(), publicTemplateCount: count ?? 0 });
+    } catch (loadError) {
+      setInventory({ checkedAt: new Date().toISOString(), publicTemplateCount: null });
+      setError(loadError instanceof Error ? loadError.message : 'Could not verify template storage');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadInventory();
+  }, [loadInventory]);
+
+  const handleCopy = useCallback(async (key: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyState(key);
+      window.setTimeout(() => setCopyState((current) => (current === key ? null : current)), 1800);
+    } catch {
+      setError('Clipboard access failed. Copy directly from the HTML panel instead.');
+    }
+  }, []);
+
+  const stats = [
+    {
+      label: 'Repo auth templates',
+      value: AUTH_EMAIL_TEMPLATES.length.toLocaleString(),
+      hint: 'Hardcoded HTML drafts in this route folder',
+      icon: LayoutTemplate,
+      tone: 'primary' as const,
+    },
+    {
+      label: 'Applied automatically',
+      value: '0',
+      hint: 'This page has no API wired to update Supabase auth settings',
+      icon: ShieldCheck,
+      tone: 'warning' as const,
+    },
+    {
+      label: 'Public email_templates rows',
+      value: inventory?.publicTemplateCount ?? '—',
+      hint: 'Real rows in public.email_templates for outreach templates, not auth emails',
+      icon: Mail,
+      tone: inventory?.publicTemplateCount ? 'success' as const : 'default' as const,
+    },
+    {
+      label: 'Dashboard state readable here',
+      value: 'No',
+      hint: 'Current Supabase dashboard subject/body values cannot be inspected from this route',
+      icon: CheckCircle2,
+      tone: 'danger' as const,
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl mx-auto">
-        <BackButton className="!px-0 !pt-0 mb-3" />
+    <AppLayout>
+      <div className="p-4 sm:p-6 space-y-6">
+        <BackButton className="!px-0 !pt-0" />
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Supabase Email Templates</h1>
-          <p className="text-muted-foreground text-sm">
-            Copy each template's HTML and paste it into{' '}
-            <strong>Supabase Dashboard → Authentication → Email Templates</strong>.
-            All templates include the TRAVLR logo and branded styling.
-          </p>
-        </div>
-
-        {/* Instructions Banner */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex gap-3">
-          <div className="text-blue-600 mt-0.5">
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-blue-800 mb-1">How to apply these templates</p>
-            <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-              <li>Go to your <strong>Supabase Dashboard</strong></li>
-              <li>Navigate to <strong>Authentication → Configuration → Emails → Templates</strong></li>
-              <li>Select the matching template tab (e.g. "Confirm signup")</li>
-              <li>Copy the HTML below and paste it into the <strong>Message body</strong> field</li>
-              <li>Update the <strong>Subject</strong> field with the subject shown below</li>
-              <li>Click <strong>Save</strong></li>
-            </ol>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-          {/* Template List */}
-          <div className="lg:col-span-1">
-            <div className="bg-card border border-border rounded-lg overflow-hidden">
-              <div className="px-4 py-3 border-b border-border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Templates</p>
-              </div>
-              <div className="divide-y divide-border">
-                {templates.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => setSelectedTemplate(t.id)}
-                    className={`w-full text-left px-4 py-3 transition-colors ${
-                      selectedTemplate === t.id
-                        ? 'bg-primary/10 border-l-2 border-l-primary' :'hover:bg-muted'
-                    }`}
-                  >
-                    <p className={`text-sm font-medium ${selectedTemplate === t.id ? 'text-primary' : 'text-foreground'}`}>
-                      {t.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{t.description}</p>
-                  </button>
-                ))}
-              </div>
+        <PageHeader
+          icon={Mail}
+          title="Supabase Email Templates"
+          description="Read-only reference for the repo's auth-email HTML drafts. It previews and copies template HTML, but it does not read or change the Supabase dashboard configuration."
+          actions={(
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusPill tone="warning">Manual dashboard paste required</StatusPill>
+              <button type="button" onClick={() => { void loadInventory(); }} disabled={refreshing} className={buttonSecondary}>
+                <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+                {refreshing ? 'Checking…' : 'Recheck storage'}
+              </button>
+              <button type="button" onClick={() => { void handleCopy(`${selectedTemplate.id}-html`, fullHtml); }} className={buttonPrimary}>
+                <Clipboard size={16} />
+                {copyState === `${selectedTemplate.id}-html` ? 'HTML copied' : 'Copy current HTML'}
+              </button>
             </div>
-          </div>
+          )}
+        />
 
-          {/* Template Detail */}
-          <div className="lg:col-span-3">
-            <div className="bg-card border border-border rounded-lg overflow-hidden">
+        {error && <ErrorBanner message={error} onRetry={() => { void loadInventory(); }} />}
 
-              {/* Template Header */}
-              <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">{selected.name}</h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">{selected.description}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs text-muted-foreground">Supabase tab:</span>
-                    <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded text-foreground">{selected.supabaseKey}</span>
+        {loading ? (
+          <LoadingState label="Checking live template storage…" />
+        ) : (
+          <>
+            <StatGrid stats={stats} columns={4} />
+
+            <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+              <div className="space-y-4">
+                <Panel title="What this page actually does" icon={ShieldCheck}>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <p><strong className="text-foreground">Stored here:</strong> six repo-managed HTML drafts for Supabase auth emails.</p>
+                    <p><strong className="text-foreground">Not stored here:</strong> the live Authentication → Email Templates values from your Supabase dashboard.</p>
+                    <p><strong className="text-foreground">This route can:</strong> preview HTML, copy the subject, and copy the message body.</p>
+                    <p><strong className="text-foreground">This route cannot:</strong> apply changes, verify what is currently configured in Supabase, or send any email.</p>
+                    <p className="text-xs">Last checked public.email_templates {inventory?.checkedAt ? new Date(inventory.checkedAt).toLocaleString() : '—'}.</p>
                   </div>
-                </div>
-                <button
-                  onClick={() => handleCopy(selected.id + '-html', fullHtml)}
-                  className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  style={{
-                    backgroundColor: copiedId === selected.id + '-html' ? '#16a34a' : PRIMARY,
-                    color: '#ffffff',
-                  }}
-                >
-                  {copiedId === selected.id + '-html' ? (
-                    <>
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      Copy HTML
-                    </>
+                </Panel>
+
+                <Panel title="Auth template set" icon={LayoutTemplate}>
+                  <div className="space-y-2">
+                    {AUTH_EMAIL_TEMPLATES.map((template) => {
+                      const active = template.id === selectedTemplate.id;
+                      return (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => setSelectedId(template.id)}
+                          className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors ${
+                            active ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/40'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`text-sm font-semibold ${active ? 'text-primary' : 'text-foreground'}`}>{template.name}</span>
+                            <StatusPill tone={active ? 'primary' : 'default'}>{template.supabaseKey}</StatusPill>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">{template.description}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Panel>
+              </div>
+
+              <div className="space-y-4">
+                <Panel
+                  title={selectedTemplate.name}
+                  icon={Mail}
+                  actions={(
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button type="button" onClick={() => { void handleCopy(`${selectedTemplate.id}-subject`, selectedTemplate.subject); }} className={buttonSecondary}>
+                        <Clipboard size={14} />
+                        {copyState === `${selectedTemplate.id}-subject` ? 'Subject copied' : 'Copy subject'}
+                      </button>
+                      <button type="button" onClick={() => { void handleCopy(`${selectedTemplate.id}-html-inline`, fullHtml); }} className={buttonSecondary}>
+                        <Clipboard size={14} />
+                        {copyState === `${selectedTemplate.id}-html-inline` ? 'HTML copied' : 'Copy HTML'}
+                      </button>
+                    </div>
                   )}
-                </button>
-              </div>
-
-              {/* Subject Line */}
-              <div className="px-6 py-3 bg-muted/40 border-b border-border flex items-center gap-3">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide w-16">Subject</span>
-                <span className="text-sm text-foreground font-medium flex-1">{selected.subject}</span>
-                <button
-                  onClick={() => handleCopy(selected.id + '-subject', selected.subject)}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                 >
-                  {copiedId === selected.id + '-subject' ? (
-                    <span className="text-green-600">Copied!</span>
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+                    <div className="space-y-3">
+                      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Subject</div>
+                        <div className="mt-1 text-sm font-semibold text-foreground">{selectedTemplate.subject}</div>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Supabase template tab</div>
+                        <div className="mt-1 text-sm font-semibold text-foreground">{selectedTemplate.supabaseKey}</div>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Current merge fields</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {tokens.map((token) => <StatusPill key={token} tone="default">{token}</StatusPill>)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+                      <p className="font-semibold text-foreground">Apply manually in Supabase</p>
+                      <ol className="mt-3 list-decimal space-y-2 pl-5">
+                        <li>Open Authentication → Configuration → Emails → Templates in the Supabase dashboard.</li>
+                        <li>Select the matching template tab shown here.</li>
+                        <li>Paste the subject and HTML manually.</li>
+                        <li>Save in Supabase. This page will still not know whether that save happened.</li>
+                      </ol>
+                    </div>
+                  </div>
+                </Panel>
+
+                <Panel
+                  title="Preview and HTML"
+                  icon={Eye}
+                  actions={<SegmentedTabs tabs={TAB_OPTIONS} value={contentTab} onChange={setContentTab} />}
+                  padded={false}
+                >
+                  {contentTab === 'preview' ? (
+                    <div className="bg-muted/30 p-4">
+                      <iframe
+                        srcDoc={fullHtml}
+                        title={`Preview: ${selectedTemplate.name}`}
+                        className="h-[560px] w-full rounded-2xl border border-border bg-white"
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
                   ) : (
-                    <>
-                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      Copy
-                    </>
+                    <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap break-all bg-muted/20 p-4 text-xs leading-relaxed text-foreground">
+                      {fullHtml}
+                    </pre>
                   )}
-                </button>
+                </Panel>
               </div>
-
-              {/* Tabs */}
-              <div className="flex border-b border-border">
-                <button
-                  onClick={() => setActiveTab('html')}
-                  className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
-                    activeTab === 'html' ?'border-primary text-primary' :'border-transparent text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  HTML Code
-                </button>
-                <button
-                  onClick={() => setActiveTab('preview')}
-                  className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
-                    activeTab === 'preview' ?'border-primary text-primary' :'border-transparent text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Preview
-                </button>
-              </div>
-
-              {/* Content */}
-              {activeTab === 'html' ? (
-                <div className="relative">
-                  <pre className="p-6 text-xs font-mono text-foreground bg-muted/20 overflow-auto max-h-[500px] whitespace-pre-wrap break-all leading-relaxed">
-                    {fullHtml}
-                  </pre>
-                </div>
-              ) : (
-                <div className="p-4 bg-gray-100">
-                  <iframe
-                    srcDoc={fullHtml}
-                    title={`Preview: ${selected.name}`}
-                    className="w-full rounded border border-border bg-white"
-                    style={{ height: '500px' }}
-                    sandbox="allow-same-origin"
-                  />
-                </div>
-              )}
-
             </div>
-          </div>
-        </div>
-
-        {/* Quick Reference */}
-        <div className="mt-6 bg-card border border-border rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground">All 6 Templates — Quick Reference</h3>
-          </div>
-          <div className="divide-y divide-border">
-            {templates.map(t => (
-              <div key={t.id} className="px-6 py-4 flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{t.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className="text-xs font-mono bg-muted px-2 py-1 rounded text-muted-foreground hidden sm:block">{t.supabaseKey}</span>
-                  <button
-                    onClick={() => {
-                      setSelectedTemplate(t.id);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    View →
-                  </button>
-                  <button
-                    onClick={() => handleCopy(t.id + '-quick', baseWrapper(t.body))}
-                    className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors text-foreground"
-                  >
-                    {copiedId === t.id + '-quick' ? '✓ Copied' : 'Copy HTML'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
+          </>
+        )}
       </div>
-    </div>
+    </AppLayout>
   );
 }

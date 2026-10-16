@@ -105,6 +105,8 @@ export async function POST() {
   let errors = 0;
 
   for (const lead of leads) {
+    let logId: string | null = null;
+
     try {
       // Check enrichment record
       const { data: enrichment } = await supabase
@@ -138,7 +140,7 @@ export async function POST() {
       }
 
       // Log API call
-      const logId = crypto.randomUUID();
+      logId = crypto.randomUUID();
       await supabase.from('enrichment_api_logs').insert({
         id: logId,
         lead_id: lead.id,
@@ -146,6 +148,7 @@ export async function POST() {
         stage: 'stage2',
         cost: 0.25,
         success: false,
+        error_message: null,
         called_at: new Date().toISOString(),
       }).then(undefined, () => {});
 
@@ -208,7 +211,7 @@ export async function POST() {
         .eq('lead_id', lead.id);
 
       await supabase.from('enrichment_api_logs')
-        .update({ success: !updateErr, cost: 0.25 })
+        .update({ success: !updateErr, cost: 0.25, error_message: updateErr?.message || null })
         .eq('id', logId)
         .then(undefined, () => {});
 
@@ -235,6 +238,12 @@ export async function POST() {
         } as any).then(undefined, () => {});
       }
     } catch (err) {
+      if (logId) {
+        await supabase.from('enrichment_api_logs')
+          .update({ success: false, error_message: err instanceof Error ? err.message : 'Unknown error' })
+          .eq('id', logId)
+          .then(undefined, () => {});
+      }
       errors++;
       results.push({
         id: lead.id,

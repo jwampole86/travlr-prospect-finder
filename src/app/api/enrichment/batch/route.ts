@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getDncLeadIds, TERMINAL_LEAD_STAGES } from '@/lib/services/dncLeads';
 
 /**
  * POST /api/enrichment/batch
@@ -63,10 +64,9 @@ export async function POST(req: NextRequest) {
     // Build lead query based on scope
     let query = supabase
       .from('leads')
-      .select('id, address, city, state, zip, apn, contact_phone, contact_name, prospect_score, verified_address, verified_owner, verified_number, is_synthetic, do_not_contact, lead_stage, property_reach_match_status')
+      .select('id, address, city, state, zip, apn, contact_phone, contact_name, prospect_score, verified_address, verified_owner, verified_number, is_synthetic, stage, property_reach_match_status')
       .eq('is_synthetic', false)
-      .neq('do_not_contact', true)
-      .not('lead_stage', 'in', '("EXCLUDED","TERMINAL","INVALID","DUPLICATE")')
+      .not('stage', 'in', `(${TERMINAL_LEAD_STAGES.map((s) => `"${s}"`).join(',')})`)
       .not('address', 'is', null)
       .not('city', 'is', null)
       .not('state', 'is', null)
@@ -104,9 +104,18 @@ export async function POST(req: NextRequest) {
       query = query.eq('portfolio_id', portfolioId);
     }
 
-    const { data: leads, error: leadsError } = await query.limit(5000);
+    const { data: candidates, error: leadsError } = await query.limit(5000);
     if (leadsError) return NextResponse.json({ error: leadsError.message }, { status: 500 });
-    if (!leads?.length) return NextResponse.json({ queued: 0, message: 'No eligible leads found for this scope' });
+
+    // Do-not-contact leads are never enriched (the flag lives on lead_enrichments, not leads).
+    let dncIds: Set<string>;
+    try {
+      dncIds = await getDncLeadIds(supabase);
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Could not load do-not-contact list' }, { status: 500 });
+    }
+    const leads = (candidates || []).filter((l) => !dncIds.has(l.id as string));
+    if (!leads.length) return NextResponse.json({ queued: 0, message: 'No eligible leads found for this scope' });
 
     // Priority sort: High Priority → Verified Address → Missing Phone → Score DESC
     const sorted = [...leads].sort((a, b) => {
@@ -143,7 +152,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (batchError || !batchJob) {
-      return NextResponse.json({ error: 'Failed to create batch job' }, { status: 500 });
+      return NextResponse.json({ error: `Failed to create batch job: ${batchError?.message ?? 'no row returned'}` }, { status: 500 });
     }
 
     // Create queue items for each eligible lead
@@ -158,10 +167,17 @@ export async function POST(req: NextRequest) {
     // Insert in chunks to avoid payload limits
     const chunkSize = 500;
     let totalQueued = 0;
+    let insertError: string | null = null;
     for (let i = 0; i < queueItems.length; i += chunkSize) {
       const chunk = queueItems.slice(i, i + chunkSize);
       const { error: insertErr } = await supabase.from('enrichment_queue_items').insert(chunk);
-      if (!insertErr) totalQueued += chunk.length;
+      if (insertErr) insertError = insertErr.message;
+      else totalQueued += chunk.length;
+    }
+
+    if (totalQueued === 0) {
+      await supabase.from('enrichment_batch_jobs').update({ status: 'CANCELLED', cancelled_at: new Date().toISOString(), notes: insertError }).eq('id', batchJob.id);
+      return NextResponse.json({ error: `Could not queue any leads: ${insertError ?? 'unknown error'}` }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -170,6 +186,7 @@ export async function POST(req: NextRequest) {
       total: sorted.length,
       scope,
       message: `Batch job created with ${totalQueued} leads queued`,
+      ...(insertError ? { warning: `Some leads could not be queued: ${insertError}` } : {}),
     });
   } catch (err) {
     console.error('[Batch Enrich] POST error:', err);

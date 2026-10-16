@@ -1,373 +1,397 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
-import { createClient } from '@/lib/supabase/client';
 import {
-  Clock, RefreshCw, CheckCircle2, AlertTriangle, XCircle,
-  Play, BarChart2, Zap, Database, TrendingUp, Calendar,
-  ChevronDown, ChevronUp, Activity
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Play,
+  RefreshCw,
+  ServerCog,
+  ShieldAlert,
+  TerminalSquare,
+  TimerReset,
 } from 'lucide-react';
-import Icon from '@/components/ui/AppIcon';
+import {
+  EmptyState,
+  ErrorBanner,
+  LoadingState,
+  PageHeader,
+  Panel,
+  SegmentedTabs,
+  StatGrid,
+  StatusPill,
+  buttonPrimary,
+  buttonSecondary,
+} from '@/components/ops';
+import type { CronJobSummary, CronMonitorPayload, CronRunHistoryRow } from './types';
 
+type JobTab = 'all' | 'recorded' | 'unrecorded' | 'quota';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+const tabConfig = [
+  { key: 'all', label: 'All jobs', icon: Activity },
+  { key: 'recorded', label: 'Recorded', icon: CheckCircle2 },
+  { key: 'unrecorded', label: 'Needs logging', icon: ShieldAlert },
+  { key: 'quota', label: 'Paid / confirm', icon: AlertTriangle },
+] satisfies { key: JobTab; label: string; icon: React.ElementType }[];
 
-interface CronRun {
-  id: string;
-  job_name: string;
-  run_id: string;
-  started_at: string;
-  completed_at: string | null;
-  status: 'running' | 'success' | 'partial' | 'failed';
-  leads_scanned: number;
-  scores_recalculated: number;
-  reenrichment_triggered: number;
-  property_data_refreshed: number;
-  error_count: number;
-  errors: string[];
-  created_at: string;
-}
-
-interface JobConfig {
-  key: string;
-  name: string;
-  description: string;
-  schedule: string;
-  endpoint: string;
-  icon: React.ElementType;
-  color: string;
-}
-
-const JOBS: JobConfig[] = [
-  {
-    key: 'property-refresh',
-    name: 'Property Data Refresh',
-    description: 'Refreshes property data, recalculates prospect scores, and triggers re-enrichment on leads not contacted in 7+ days.',
-    schedule: 'Every hour',
-    endpoint: '/api/cron/property-refresh',
-    icon: Database,
-    color: 'text-blue-600 bg-blue-500/10',
-  },
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmtTime(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
+function formatTimestamp(value: string | null) {
+  if (!value) return 'No run recorded';
+  return new Date(value).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
-function fmtDuration(start: string, end: string | null): string {
-  if (!end) return 'Running…';
-  const ms = new Date(end).getTime() - new Date(start).getTime();
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
+function formatRelative(value: string | null) {
+  if (!value) return 'No run recorded';
+  const diffMinutes = Math.round((Date.now() - Date.parse(value)) / 60000);
+  if (diffMinutes < 1) return 'just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays}d ago`;
 }
 
-function StatusBadge({ status }: { status: CronRun['status'] }) {
-  const cfg = {
-    success: { label: 'Success', cls: 'bg-emerald-500/10 text-emerald-600', icon: CheckCircle2 },
-    partial: { label: 'Partial', cls: 'bg-amber-500/10 text-amber-600', icon: AlertTriangle },
-    failed: { label: 'Failed', cls: 'bg-red-500/10 text-red-600', icon: XCircle },
-    running: { label: 'Running', cls: 'bg-blue-500/10 text-blue-600', icon: RefreshCw },
-  }[status];
-  const Icon = cfg.icon;
+function formatDuration(ms: number | null) {
+  if (ms == null) return '—';
+  if (ms < 1000) return `${ms} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
+  return `${(ms / 60_000).toFixed(1)} min`;
+}
+
+function toneForStatus(status: CronJobSummary['lastRun']['status']) {
+  switch (status) {
+    case 'success':
+      return 'success' as const;
+    case 'partial':
+      return 'warning' as const;
+    case 'failed':
+      return 'danger' as const;
+    case 'running':
+      return 'primary' as const;
+    default:
+      return 'default' as const;
+  }
+}
+
+function labelForStatus(status: CronJobSummary['lastRun']['status']) {
+  switch (status) {
+    case 'success':
+      return 'Healthy';
+    case 'partial':
+      return 'Partial';
+    case 'failed':
+      return 'Failed';
+    case 'running':
+      return 'Running';
+    default:
+      return 'No run recorded';
+  }
+}
+
+function HistorySourcePill({ source }: { source: CronJobSummary['historySource'] }) {
+  if (source === 'cron_job_runs') return <StatusPill tone="primary">cron_job_runs</StatusPill>;
+  if (source === 'system_health_checks') return <StatusPill tone="success">system_health_checks</StatusPill>;
+  return <StatusPill tone="warning">No history source</StatusPill>;
+}
+
+function ConfirmModal({
+  job,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  job: CronJobSummary | null;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: (job: CronJobSummary) => void;
+}) {
+  if (!job) return null;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${cfg.cls}`}>
-      <Icon size={10} className={status === 'running' ? 'animate-spin' : ''} />
-      {cfg.label}
-    </span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl">
+        <div className="flex items-start gap-3">
+          <div className="rounded-2xl bg-warning/10 p-3 text-warning">
+            <AlertTriangle size={20} />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-foreground">Confirm manual run</h2>
+            <p className="text-sm text-muted-foreground">{job.confirmationMessage}</p>
+            <p className="text-xs text-muted-foreground">
+              Route: <span className="font-mono text-foreground">{job.path}</span>
+            </p>
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className={buttonSecondary} disabled={pending}>
+            Cancel
+          </button>
+          <button type="button" onClick={() => onConfirm(job)} className={buttonPrimary} disabled={pending}>
+            {pending ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} />}
+            Run now
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function CronMonitorPage() {
-  const [runs, setRuns] = useState<CronRun[]>([]);
+  const [tab, setTab] = useState<JobTab>('all');
+  const [payload, setPayload] = useState<CronMonitorPayload | null>(null);
   const [loading, setLoading] = useState(true);
-  const [triggering, setTriggering] = useState<string | null>(null);
-  const [expandedRun, setExpandedRun] = useState<string | null>(null);
-  const [triggerResult, setTriggerResult] = useState<{ job: string; result: Record<string, unknown> } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [runningPath, setRunningPath] = useState<string | null>(null);
+  const [confirmJob, setConfirmJob] = useState<CronJobSummary | null>(null);
+  const [lastResult, setLastResult] = useState<{ job: string; ok: boolean; status: number; result: unknown } | null>(null);
 
-  const loadRuns = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('cron_job_runs')
-        .select('*')
-        .order('started_at', { ascending: false })
-        .limit(50);
-      setRuns((data ?? []) as CronRun[]);
+      const response = await fetch('/cron-monitor/data', { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Failed to load cron jobs');
+      setPayload(data as CronMonitorPayload);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load cron jobs');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadRuns();
-    // Auto-refresh every 30s
-    const interval = setInterval(loadRuns, 30000);
-    return () => clearInterval(interval);
-  }, [loadRuns]);
+    load();
+    const timer = window.setInterval(load, 30000);
+    return () => window.clearInterval(timer);
+  }, [load]);
 
-  const triggerJob = async (job: JobConfig) => {
-    setTriggering(job.key);
-    setTriggerResult(null);
+  const runJob = useCallback(async (job: CronJobSummary) => {
+    setRunningPath(job.path);
+    setLastResult(null);
     try {
-      const res = await fetch(job.endpoint, {
+      const response = await fetch('/cron-monitor/run', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: job.path }),
       });
-      const json = await res.json();
-      setTriggerResult({ job: job.name, result: json });
-      await loadRuns();
-    } catch (err) {
-      setTriggerResult({ job: job.name, result: { error: String(err) } });
+      const data = await response.json();
+      setLastResult({
+        job: job.name,
+        ok: Boolean(data?.ok),
+        status: Number(data?.status || response.status),
+        result: data?.result ?? data,
+      });
+      await load();
+    } catch (runError) {
+      setLastResult({
+        job: job.name,
+        ok: false,
+        status: 500,
+        result: { error: runError instanceof Error ? runError.message : 'Manual run failed' },
+      });
     } finally {
-      setTriggering(null);
+      setRunningPath(null);
+      setConfirmJob(null);
     }
-  };
+  }, [load]);
 
-  // ── Derived stats ──────────────────────────────────────────────────────────
-  const last24h = runs.filter(r => new Date(r.started_at).getTime() > Date.now() - 86400000);
-  const successCount = last24h.filter(r => r.status === 'success').length;
-  const failCount = last24h.filter(r => r.status === 'failed' || r.status === 'partial').length;
-  const totalLeadsProcessed = last24h.reduce((acc, r) => acc + r.leads_scanned, 0);
-  const totalReenriched = last24h.reduce((acc, r) => acc + r.reenrichment_triggered, 0);
+  const filteredJobs = useMemo(() => {
+    const jobs = payload?.jobs || [];
+    switch (tab) {
+      case 'recorded':
+        return jobs.filter((job) => job.lastRun.status !== 'unrecorded');
+      case 'unrecorded':
+        return jobs.filter((job) => job.lastRun.status === 'unrecorded');
+      case 'quota':
+        return jobs.filter((job) => job.spendsQuota || job.requiresConfirmation);
+      default:
+        return jobs;
+    }
+  }, [payload, tab]);
+
+  const history = payload?.recordedRuns || [];
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-full overflow-y-auto bg-background">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0">
-          <div>
-            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Activity size={18} className="text-primary" />
-              Cron Job Monitor
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Background job execution history — auto-refreshes every 30s
-            </p>
-          </div>
-          <button
-            onClick={loadRuns}
-            disabled={loading}
-            className="p-2 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
+      <div className="space-y-6 p-6">
+        <PageHeader
+          icon={ServerCog}
+          title="Cron Job Monitor"
+          description="Reads the real Vercel cron schedule and only shows recorded history when a route actually writes it."
+          actions={
+            <button type="button" onClick={load} className={buttonSecondary} disabled={loading}>
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          }
+        />
 
-        <div className="flex-1 p-6 space-y-6">
-          {/* KPI strip */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Runs (24h)', value: last24h.length.toString(), icon: Clock, color: 'bg-blue-500/10 text-blue-600' },
-              { label: 'Successful', value: successCount.toString(), icon: CheckCircle2, color: 'bg-emerald-500/10 text-emerald-600' },
-              { label: 'Errors / Partial', value: failCount.toString(), icon: AlertTriangle, color: 'bg-amber-500/10 text-amber-600' },
-              { label: 'Leads Processed', value: totalLeadsProcessed.toLocaleString(), icon: TrendingUp, color: 'bg-purple-500/10 text-purple-600' },
-            ].map(kpi => (
-              <div key={kpi.label} className="bg-card border border-border rounded-xl p-4 flex items-start gap-3">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${kpi.color}`}>
-                  <kpi.icon size={16} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{kpi.label}</p>
-                  <p className="text-xl font-bold text-foreground mt-0.5">{kpi.value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+        {error && <ErrorBanner message={error} onRetry={load} />}
 
-          {/* Job cards */}
-          <div className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Zap size={12} />Registered Jobs
-            </h2>
-            {JOBS.map(job => {
-              const lastRun = runs.find(r => r.job_name === job.key);
-              const Icon = job.icon;
-              return (
-                <div key={job.key} className="bg-card border border-border rounded-xl p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${job.color}`}>
-                        <Icon size={16} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-foreground text-sm">{job.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{job.description}</p>
-                        <div className="flex items-center gap-3 mt-2">
-                          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                            <Calendar size={10} />{job.schedule}
-                          </span>
-                          {lastRun && (
-                            <>
-                              <span className="text-[10px] text-muted-foreground">
-                                Last run: {fmtTime(lastRun.started_at)}
-                              </span>
-                              <StatusBadge status={lastRun.status} />
-                            </>
+        {loading && !payload ? (
+          <LoadingState label="Loading cron jobs…" />
+        ) : payload ? (
+          <>
+            <StatGrid
+              columns={5}
+              stats={[
+                { label: 'Scheduled jobs', value: payload.summary.totalJobs, hint: 'Read from vercel.json', icon: Activity, tone: 'primary' },
+                { label: 'Recorded jobs', value: payload.summary.recordedJobs, hint: 'Have a real history source', icon: CheckCircle2, tone: 'success' },
+                { label: 'Need logging', value: payload.summary.unrecordedJobs, hint: 'Show “No run recorded”', icon: ShieldAlert, tone: 'warning' },
+                { label: 'Failing / partial', value: payload.summary.failingJobs, hint: 'Latest run not fully successful', icon: AlertTriangle, tone: payload.summary.failingJobs ? 'danger' : 'default' },
+                { label: 'Paid / confirm', value: payload.summary.quotaJobs, hint: 'Manual runs require confirmation', icon: TimerReset, tone: 'warning' },
+              ]}
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <SegmentedTabs
+                tabs={tabConfig.map((item) => ({
+                  key: item.key,
+                  label: item.label,
+                  icon: item.icon,
+                  badge:
+                    item.key === 'recorded'
+                      ? payload.summary.recordedJobs
+                      : item.key === 'unrecorded'
+                        ? payload.summary.unrecordedJobs
+                        : undefined,
+                }))}
+                value={tab}
+                onChange={setTab}
+              />
+              <p className="text-xs text-muted-foreground">
+                Updated {formatRelative(payload.fetchedAt)} · {filteredJobs.length} job{filteredJobs.length === 1 ? '' : 's'} shown
+              </p>
+            </div>
+
+            <Panel title="Scheduled cron jobs" icon={Clock3}>
+              {filteredJobs.length === 0 ? (
+                <EmptyState icon={ShieldAlert} title="No jobs match this view" hint="Try a different tab or refresh the monitor." />
+              ) : (
+                <div className="space-y-3">
+                  {filteredJobs.map((job) => (
+                    <div key={job.path} className="rounded-2xl border border-border bg-muted/20 p-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-base font-semibold text-foreground">{job.name}</h2>
+                            <StatusPill tone={toneForStatus(job.lastRun.status)}>{labelForStatus(job.lastRun.status)}</StatusPill>
+                            {job.spendsQuota && <StatusPill tone="warning">Paid quota</StatusPill>}
+                            {!job.routeExists && <StatusPill tone="danger">Route missing</StatusPill>}
+                          </div>
+                          <p className="max-w-3xl text-sm text-muted-foreground">{job.description}</p>
+                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <span className="rounded-full border border-border bg-card px-2 py-1 font-mono text-foreground">{job.schedule}</span>
+                            <span className="rounded-full border border-border bg-card px-2 py-1">{job.scheduleLabel}</span>
+                            <span className="rounded-full border border-border bg-card px-2 py-1 font-mono text-foreground">{job.path}</span>
+                            <HistorySourcePill source={job.historySource} />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-start gap-2 lg:items-end">
+                          <button
+                            type="button"
+                            className={buttonPrimary}
+                            disabled={runningPath === job.path || !job.routeExists}
+                            onClick={() => (job.requiresConfirmation ? setConfirmJob(job) : runJob(job))}
+                          >
+                            {runningPath === job.path ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} />}
+                            {runningPath === job.path ? 'Running…' : 'Run now'}
+                          </button>
+                          {job.requiresConfirmation && (
+                            <p className="text-[11px] text-muted-foreground">Confirmation required before manual execution.</p>
                           )}
-                          {!lastRun && (
-                            <span className="text-[10px] text-muted-foreground italic">Never run</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-4">
+                        <div className="rounded-2xl border border-border bg-card p-3">
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Last run</p>
+                          <p className="mt-1 text-sm font-semibold text-foreground">{formatTimestamp(job.lastRun.startedAt)}</p>
+                          <p className="text-xs text-muted-foreground">{formatRelative(job.lastRun.startedAt)}</p>
+                        </div>
+                        <div className="rounded-2xl border border-border bg-card p-3">
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Duration</p>
+                          <p className="mt-1 text-sm font-semibold text-foreground">{formatDuration(job.lastRun.durationMs)}</p>
+                          <p className="text-xs text-muted-foreground">Errors: {job.lastRun.errorCount}</p>
+                        </div>
+                        <div className="rounded-2xl border border-border bg-card p-3 md:col-span-2">
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Recorded summary</p>
+                          <p className="mt-1 text-sm text-foreground">{job.lastRun.summary}</p>
+                          {job.lastRun.status === 'unrecorded' && (
+                            <p className="mt-1 text-xs text-muted-foreground">This job needs explicit run logging before the monitor can show a real last-run result.</p>
                           )}
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => triggerJob(job)}
-                      disabled={triggering === job.key}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
-                    >
-                      {triggering === job.key ? (
-                        <RefreshCw size={12} className="animate-spin" />
-                      ) : (
-                        <Play size={12} />
-                      )}
-                      {triggering === job.key ? 'Running…' : 'Run Now'}
-                    </button>
-                  </div>
-
-                  {/* Last run stats */}
-                  {lastRun && (
-                    <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {[
-                        { label: 'Leads Scanned', value: lastRun.leads_scanned },
-                        { label: 'Scores Updated', value: lastRun.scores_recalculated },
-                        { label: 'Re-Enriched', value: lastRun.reenrichment_triggered },
-                        { label: 'Duration', value: fmtDuration(lastRun.started_at, lastRun.completed_at) },
-                      ].map(stat => (
-                        <div key={stat.label} className="text-center">
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{stat.label}</p>
-                          <p className="text-sm font-bold text-foreground mt-0.5">{stat.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  ))}
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </Panel>
 
-          {/* Trigger result */}
-          {triggerResult && (
-            <div className="bg-card border border-border rounded-xl p-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                <BarChart2 size={12} />Last Trigger Result — {triggerResult.job}
-              </h3>
-              <pre className="text-xs text-foreground bg-muted/40 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
-                {JSON.stringify(triggerResult.result, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {/* Run history table */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Clock size={12} />Run History
-              </h2>
-              <span className="text-[10px] text-muted-foreground">{runs.length} runs</span>
-            </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <RefreshCw size={16} className="animate-spin text-muted-foreground" />
-              </div>
-            ) : runs.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-sm">
-                <Activity size={28} className="mx-auto mb-2 opacity-20" />
-                No runs yet. Click "Run Now" to trigger a job.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider">Job</th>
-                      <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider">Started</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider">Duration</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider">Leads</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider">Scores</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider">Re-Enrich</th>
-                      <th className="text-center px-3 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                      <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider">Details</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {runs.map((run, idx) => (
-                      <React.Fragment key={run.id}>
-                        <tr className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}>
-                          <td className="px-4 py-3 font-medium text-foreground">{run.job_name}</td>
-                          <td className="px-3 py-3 text-muted-foreground">{fmtTime(run.started_at)}</td>
-                          <td className="px-3 py-3 text-right text-muted-foreground">{fmtDuration(run.started_at, run.completed_at)}</td>
-                          <td className="px-3 py-3 text-right font-semibold text-foreground">{run.leads_scanned}</td>
-                          <td className="px-3 py-3 text-right text-emerald-600 font-semibold">{run.scores_recalculated}</td>
-                          <td className="px-3 py-3 text-right text-blue-600 font-semibold">{run.reenrichment_triggered}</td>
-                          <td className="px-3 py-3 text-center"><StatusBadge status={run.status} /></td>
-                          <td className="px-4 py-3 text-center">
-                            {run.errors?.length > 0 && (
-                              <button
-                                onClick={() => setExpandedRun(expandedRun === run.id ? null : run.id)}
-                                className="text-muted-foreground hover:text-foreground transition-colors"
-                              >
-                                {expandedRun === run.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                              </button>
-                            )}
+            <Panel title="Instrumented run history" icon={TerminalSquare}>
+              {history.length === 0 ? (
+                <EmptyState
+                  icon={TerminalSquare}
+                  title="No instrumented scheduled runs yet"
+                  hint="Jobs only appear here after they write to cron_job_runs. System health currently falls back to system_health_checks until its next recorded run."
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                        <th className="px-3 py-2">Job</th>
+                        <th className="px-3 py-2">Started</th>
+                        <th className="px-3 py-2">Status</th>
+                        <th className="px-3 py-2">Errors</th>
+                        <th className="px-3 py-2">Summary</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map((row: CronRunHistoryRow) => (
+                        <tr key={`${row.key}-${row.startedAt}`} className="border-b border-border/60 align-top">
+                          <td className="px-3 py-3 font-medium text-foreground">{row.name}</td>
+                          <td className="px-3 py-3 text-muted-foreground">
+                            <div>{formatTimestamp(row.startedAt)}</div>
+                            <div className="text-xs">{formatRelative(row.startedAt)}</div>
                           </td>
+                          <td className="px-3 py-3">
+                            <StatusPill tone={toneForStatus(row.status)}>{labelForStatus(row.status)}</StatusPill>
+                          </td>
+                          <td className="px-3 py-3 tabular-nums text-foreground">{row.errorCount}</td>
+                          <td className="px-3 py-3 text-muted-foreground">{row.summary}</td>
                         </tr>
-                        {expandedRun === run.id && run.errors?.length > 0 && (
-                          <tr className="bg-red-500/5">
-                            <td colSpan={8} className="px-4 py-3">
-                              <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wider mb-1">Errors</p>
-                              <ul className="space-y-1">
-                                {run.errors.map((e, i) => (
-                                  <li key={i} className="text-xs text-red-600 font-mono">{e}</li>
-                                ))}
-                              </ul>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Setup instructions */}
-          <div className="bg-card border border-border rounded-xl p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Zap size={12} />External Cron Setup
-            </h3>
-            <p className="text-xs text-muted-foreground mb-3">
-              To run automatically, configure an external cron scheduler (e.g., cron-job.org, GitHub Actions, Vercel Cron) to POST to the endpoints below every hour.
-            </p>
-            <div className="space-y-2">
-              {JOBS.map(job => (
-                <div key={job.key} className="bg-muted/40 rounded-lg p-3">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{job.name} — {job.schedule}</p>
-                  <code className="text-xs text-foreground font-mono">
-                    POST {process.env.NEXT_PUBLIC_SITE_URL ?? 'https://your-app.com'}{job.endpoint}
-                  </code>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    Header: <code className="font-mono">x-job-secret: YOUR_SEQUENCE_JOB_SECRET</code>
-                  </p>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
+              )}
+            </Panel>
+
+            {lastResult && (
+              <Panel title={`Last manual run · ${lastResult.job}`} icon={Play}>
+                <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <StatusPill tone={lastResult.ok ? 'success' : 'danger'}>{lastResult.ok ? 'Completed' : 'Failed'}</StatusPill>
+                  <span>HTTP {lastResult.status}</span>
+                </div>
+                <pre className="overflow-x-auto rounded-2xl border border-border bg-muted/30 p-4 text-xs text-foreground">
+                  {JSON.stringify(lastResult.result, null, 2)}
+                </pre>
+              </Panel>
+            )}
+          </>
+        ) : null}
       </div>
+
+      <ConfirmModal job={confirmJob} pending={Boolean(runningPath)} onClose={() => setConfirmJob(null)} onConfirm={runJob} />
     </AppLayout>
   );
 }

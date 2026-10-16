@@ -52,6 +52,10 @@
     {
       "path": "/api/cron/docusign-reconcile",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/source-sync?states=2&trulia_pages=2",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

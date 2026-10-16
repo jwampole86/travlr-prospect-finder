@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+function getErrorDetails(err: unknown) {
+  if (err && typeof err === 'object') {
+    const maybeMessage = 'message' in err ? err.message : null;
+    const maybeCode = 'code' in err ? err.code : null;
+    return { message: String(maybeMessage || 'Unknown error'), code: maybeCode ? String(maybeCode) : undefined };
+  }
+  return { message: String(err) };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -27,7 +36,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ candidates: data || [] });
   } catch (err) {
     console.error('[candidates GET]', err);
-    return NextResponse.json({ error: 'Failed to fetch candidates' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch candidates', details: getErrorDetails(err) }, { status: 500 });
   }
 }
 
@@ -54,6 +63,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ candidate: data });
   } catch (err) {
     console.error('[candidates POST]', err);
-    return NextResponse.json({ error: 'Failed to create candidate' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create candidate', details: getErrorDetails(err) }, { status: 500 });
   }
 }

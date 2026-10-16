@@ -6,6 +6,7 @@ import { upsertHomeownerLead, logHomeownerActivity, createFollowUpTask } from '@
 import { deliverReportEmail } from '@/lib/homeownerReportDelivery';
 import { validateContact } from '@/lib/contactValidation';
 import { allowRequest, clientIp } from '@/lib/publicRateLimit';
+import { resolveBrand } from '@/lib/brands';
 import { parseEquipment, EQUIPMENT } from '@/lib/homeownerReportContent';
 
 export const maxDuration = 30;
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
   }
 
   const address = clean(body.address, 300);
+  const brand = resolveBrand(clean(body.brand, 20)).key;
   const contact = {
     firstName: clean(body.contact?.firstName, 60),
     lastName: clean(body.contact?.lastName, 60),
@@ -91,7 +93,7 @@ export async function POST(req: NextRequest) {
       summary = `Homeowner self-submitted via the estimate page for ${address}. Property type: ${qualification.propertyType || 'unspecified'}. Timeline: ${qualification.timelineInterest || 'unspecified'}.`;
     }
 
-    const lead = await upsertHomeownerLead(db, { address, report, contact, origin: 'estimate_form', qualification, summary, validation });
+    const lead = await upsertHomeownerLead(db, { address, report, contact, origin: 'estimate_form', brand, qualification, summary, validation });
 
     const phoneLine = contact.phone ? `Phone: ${contact.phone}` : 'No phone given';
     await Promise.allSettled([
@@ -100,7 +102,7 @@ export async function POST(req: NextRequest) {
         description: `${summary}\nEmail: ${contact.email}\n${phoneLine}\nTimeline: ${qualification.timelineInterest || 'not specified'}\nExisting equipment: ${equipmentLine}`,
         type: 'call', due: nextBusinessDay(),
       }),
-      logHomeownerActivity(db, lead, { title: 'Homeowner self-submitted via estimate page', body: summary, kind: 'homeowner_estimate_submitted', metadata: { merged: lead.merged } }),
+      logHomeownerActivity(db, lead, { title: 'Homeowner self-submitted via estimate page', body: summary, kind: 'homeowner_estimate_submitted', metadata: { merged: lead.merged, brand } }),
     ]);
 
     if (!lead.merged) {

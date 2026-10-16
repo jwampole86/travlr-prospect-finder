@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getDncLeadIds } from '@/lib/services/dncLeads';
 
 /**
  * POST /api/enrichment/bulk-enrich
@@ -15,25 +16,34 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { scope = 'MISSING_OWNER_AND_PHONE', leadIds, portfolioId, limit = 50 } = body;
 
-    let query = supabase.from('leads').select('id, address, city, state, zip, apn, contact_phone, contact_name, prospect_score, is_synthetic, do_not_contact, enrichment_status').limit(limit);
+    let query = supabase.from('leads').select('id, address, city, state, zip, apn, contact_phone, contact_name, prospect_score, is_synthetic, enrichment_status').limit(limit);
 
     if (leadIds?.length) {
       query = query.in('id', leadIds);
     } else if (scope === 'MISSING_PHONE') {
-      query = query.is('contact_phone', null).eq('is_synthetic', false).neq('do_not_contact', true);
+      query = query.is('contact_phone', null).eq('is_synthetic', false);
     } else if (scope === 'MISSING_OWNER') {
-      query = query.is('contact_name', null).eq('is_synthetic', false).neq('do_not_contact', true);
+      query = query.is('contact_name', null).eq('is_synthetic', false);
     } else if (scope === 'HIGH_PRIORITY') {
-      query = query.gte('prospect_score', 70).eq('is_synthetic', false).neq('do_not_contact', true);
+      query = query.gte('prospect_score', 70).eq('is_synthetic', false);
     } else {
       // MISSING_OWNER_AND_PHONE
-      query = query.is('contact_phone', null).is('contact_name', null).eq('is_synthetic', false).neq('do_not_contact', true);
+      query = query.is('contact_phone', null).is('contact_name', null).eq('is_synthetic', false);
     }
 
     if (portfolioId) query = query.eq('portfolio_id', portfolioId);
 
-    const { data: leads, error } = await query;
+    const { data: candidates, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // The do-not-contact flag lives on lead_enrichments, not leads; fail closed if it can't be read.
+    let dncIds: Set<string>;
+    try {
+      dncIds = await getDncLeadIds(supabase);
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Could not load do-not-contact list' }, { status: 500 });
+    }
+    const leads = (candidates || []).filter((l) => !dncIds.has(l.id as string));
     if (!leads?.length) return NextResponse.json({ queued: 0, message: 'No eligible leads found' });
 
     // Prioritize: high priority + missing phone first

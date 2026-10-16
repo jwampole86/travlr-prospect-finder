@@ -1,5 +1,6 @@
 'use client';
 
+import { withOptOutLanguage } from '@/lib/smsOptOut';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MessageSquare, X, Send, CheckCircle, AlertCircle, Clock, Calendar, Eye, ShieldCheck, Zap, RefreshCw, ChevronRight, ChevronLeft, ChevronDown, Users, BarChart2, User, MapPin, Phone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -140,7 +141,7 @@ export default function BulkSMSDispatchModal({
   }, []);
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId) ?? templates[0];
-  const messageBody = selectedTemplateId === 'custom' ? customBody : (selectedTemplate?.body ?? '');
+  const messageBody = withOptOutLanguage(selectedTemplateId === 'custom' ? customBody : (selectedTemplate?.body ?? ''));
 
   // Build recipients for personalization engine
   const smsRecipients: SmsRecipient[] = useMemo(() => selectedLeads.map(l => ({

@@ -14,6 +14,16 @@ export const REFRESH_SOURCES = [
     label: 'Zillow (RapidAPI)',
   },
   {
+    name: 'PadMapper',
+    url: '/lead-management?source=PadMapper',
+    label: 'PadMapper (RapidAPI)',
+  },
+  {
+    name: 'HotPads',
+    url: '/lead-management?source=HotPads',
+    label: 'HotPads (RapidAPI)',
+  },
+  {
     name: 'Direct',
     url: '/lead-management',
     label: 'Manual & Master Uploads',

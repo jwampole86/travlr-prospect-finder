@@ -3,6 +3,30 @@ import { createClient } from '@supabase/supabase-js';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 
+type LeadRow = {
+  id: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  priority_tier: number | null;
+  is_high_priority: boolean | null;
+  estimated_net_monthly: number | null;
+  verified_owner: boolean | null;
+  verified_number: boolean | null;
+  verified_address: string | null;
+  prospect_score: number | null;
+  stage: string | null;
+};
+
+type AgentProfile = {
+  id: string;
+  owner_user_id: string | null;
+  full_name: string | null;
+  email: string | null;
+};
+
 const PRIORITY_LABELS: Record<number, string> = {
   1: 'Low',
   2: 'Medium',
@@ -19,7 +43,47 @@ function getPriorityLabel(tier?: number | null, isHighPriority?: boolean): strin
 
 function formatCurrency(n?: number | null): string {
   if (!n) return 'N/A';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
+async function resolveTargetAgent(
+  supabase: any,
+  agentId?: string | null,
+  agentEmail?: string | null,
+  agentName?: string | null,
+): Promise<AgentProfile | null> {
+  if (agentId) {
+    const { data } = await supabase
+      .from('agent_profiles')
+      .select('id, owner_user_id, full_name, email')
+      .eq('id', agentId)
+      .maybeSingle();
+    if (data) return data as AgentProfile;
+  }
+
+  if (agentEmail) {
+    const { data } = await supabase
+      .from('agent_profiles')
+      .select('id, owner_user_id, full_name, email')
+      .eq('email', agentEmail)
+      .maybeSingle();
+    if (data) return data as AgentProfile;
+  }
+
+  if (agentName) {
+    const { data } = await supabase
+      .from('agent_profiles')
+      .select('id, owner_user_id, full_name, email')
+      .eq('full_name', agentName)
+      .maybeSingle();
+    if (data) return data as AgentProfile;
+  }
+
+  return null;
 }
 
 export async function POST(req: NextRequest) {
@@ -28,61 +92,58 @@ export async function POST(req: NextRequest) {
     if (!authorization.actor) {
       return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
     }
+
     const body = await req.json();
-    const {
-      leadIds,
-      agentId,
-      agentName,
-      agentEmail,
-      assignedBy,
-      assignedByName,
-    } = body;
+    const { leadIds, agentId, agentName, agentEmail, assignedByName } = body as {
+      leadIds?: string[];
+      agentId?: string;
+      agentName?: string;
+      agentEmail?: string;
+      assignedByName?: string;
+    };
 
     if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
       return NextResponse.json({ success: false, error: 'leadIds array required' }, { status: 400 });
     }
-    if (!agentId && !agentName) {
-      return NextResponse.json({ success: false, error: 'agentId or agentName required' }, { status: 400 });
-    }
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
-    const { data: targetProfile } = await supabase
-      .from('agent_profiles')
-      .select('id, email')
-      .eq('id', agentId)
-      .maybeSingle();
-    const targetEmail = targetProfile?.email || agentEmail;
-    const { data: targetUser } = targetEmail
-      ? await supabase.from('user_profiles').select('id').eq('email', targetEmail).maybeSingle()
-      : { data: null };
-    const targetUserId = targetUser?.id || agentId;
+    const targetProfile = await resolveTargetAgent(supabase, agentId, agentEmail, agentName);
+    const targetUserId = targetProfile?.owner_user_id || targetProfile?.id || agentId || null;
+    const resolvedAgentName = targetProfile?.full_name || agentName || 'Assigned Agent';
+    const resolvedAgentEmail = targetProfile?.email || agentEmail || null;
 
     if (!targetUserId) {
-      return NextResponse.json({ success: false, error: 'Assigned agent has no user profile' }, { status: 422 });
+      return NextResponse.json({ success: false, error: 'Assigned agent not found' }, { status: 422 });
     }
 
     const now = new Date().toISOString();
+    const actorName = assignedByName || authorization.actor.user.email || 'Admin';
 
-    // ── 1. Fetch lead details ─────────────────────────────────
     const { data: leads, error: leadsErr } = await supabase
       .from('leads')
-      .select('id, address, city, state, contact_name, contact_phone, priority_tier, is_high_priority, estimated_net_monthly, verified_owner, verified_number, verified_address, prospect_score')
+      .select('id, address, city, state, contact_name, contact_phone, priority_tier, is_high_priority, estimated_net_monthly, verified_owner, verified_number, verified_address, prospect_score, stage')
       .in('id', leadIds);
 
     if (leadsErr) {
       return NextResponse.json({ success: false, error: leadsErr.message }, { status: 500 });
     }
 
-    // ── 2. Update leads with agent assignment ─────────────────
+    const leadsData = (leads || []) as LeadRow[];
+    if (leadsData.length === 0) {
+      return NextResponse.json({ success: false, error: 'No matching leads found' }, { status: 404 });
+    }
+
     const { error: updateErr } = await supabase
       .from('leads')
       .update({
         primary_agent_id: targetUserId,
-        primary_agent_name: agentName,
+        primary_agent_name: resolvedAgentName,
+        assigned_agent_id: targetUserId,
+        assigned_agent_name: resolvedAgentName,
         assigned_at: now,
         assigned_by: authorization.actor.user.id,
         updated_at: now,
@@ -93,106 +154,189 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: updateErr.message }, { status: 500 });
     }
 
-    // ── 3. Log to lead_assignment_log ─────────────────────────
-    const assignmentLogs = leadIds.map((leadId: string) => ({
-      lead_id: leadId,
-      agent_id: targetUserId,
-      agent_name: agentName,
-      assigned_by: authorization.actor.user.id,
+    const { data: existingTargetAssignments, error: existingAssignmentsError } = await supabase
+      .from('lead_agent_assignments')
+      .select('id, lead_id')
+      .in('lead_id', leadIds)
+      .eq('agent_id', targetUserId)
+      .is('unassigned_at', null);
+
+    if (existingAssignmentsError) {
+      return NextResponse.json({ success: false, error: existingAssignmentsError.message }, { status: 500 });
+    }
+
+    const existingTargetLeadIds = new Set((existingTargetAssignments || []).map((row) => row.lead_id as string));
+
+    const { error: closeAssignmentsError } = await supabase
+      .from('lead_agent_assignments')
+      .update({
+        is_primary: false,
+        unassigned_at: now,
+      })
+      .in('lead_id', leadIds)
+      .is('unassigned_at', null)
+      .neq('agent_id', targetUserId);
+
+    if (closeAssignmentsError) {
+      return NextResponse.json({ success: false, error: closeAssignmentsError.message }, { status: 500 });
+    }
+
+    const rowsToInsert = leadIds
+      .filter((leadId) => !existingTargetLeadIds.has(leadId))
+      .map((leadId) => ({
+        lead_id: leadId,
+        agent_id: targetUserId,
+        agent_name: resolvedAgentName,
+        is_primary: true,
+        assigned_at: now,
+        assigned_by: authorization.actor.user.id,
+        assigned_by_name: actorName,
+        note: 'Assigned via lead queue',
+      }));
+
+    if (rowsToInsert.length > 0) {
+      const { error } = await supabase.from('lead_agent_assignments').insert(rowsToInsert);
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      }
+    }
+
+    if (existingTargetAssignments && existingTargetAssignments.length > 0) {
+      const { error } = await supabase
+        .from('lead_agent_assignments')
+        .update({
+          is_primary: true,
+          assigned_at: now,
+          assigned_by: authorization.actor.user.id,
+          assigned_by_name: actorName,
+          unassigned_at: null,
+          note: 'Assigned via lead queue',
+        })
+        .in('id', existingTargetAssignments.map((row) => row.id as string));
+
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      }
+    }
+
+    const assignmentLogs = leadsData.map((lead) => ({
+      lead_id: lead.id,
+      lead_address: lead.address,
+      assigned_to_agent_id: targetUserId,
+      assigned_to_agent_name: resolvedAgentName,
+      region: lead.state,
+      stage: lead.stage,
+      score: lead.prospect_score,
+      reason: 'Manual assignment via lead queue',
       assigned_at: now,
-      notes: `Assigned via Lead Management bulk assignment`,
+      is_override: false,
+      portfolio: lead.state,
     }));
 
-    await supabase.from('lead_assignment_log').insert(assignmentLogs).then(undefined, () => {});
+    const { error: assignmentLogError } = await supabase.from('lead_assignment_log').insert(assignmentLogs);
+    if (assignmentLogError) {
+      return NextResponse.json({ success: false, error: assignmentLogError.message }, { status: 500 });
+    }
 
-    // ── 4. Log activity events ────────────────────────────────
-    const activityEvents = leadIds.map((leadId: string) => ({
-      lead_id: leadId,
+    const leadActivityRows = leadsData.map((lead) => ({
+      lead_id: lead.id,
       activity_type: 'ASSIGNMENT',
-      description: `Lead assigned to ${agentName}`,
-      metadata: { agentId: targetUserId, agentName, assignedBy: authorization.actor.user.id, assignedByName },
+      activity_data: {
+        agentId: targetUserId,
+        agentName: resolvedAgentName,
+        assignedBy: authorization.actor.user.id,
+        assignedByName: actorName,
+        source: 'lead_queue',
+      },
+      performed_by: authorization.actor.user.id,
+      performed_by_name: actorName,
       created_at: now,
     }));
 
-    await supabase.from('lead_activity_log').insert(activityEvents).then(undefined, () => {});
+    const { error: leadActivityError } = await supabase.from('lead_activity_log').insert(leadActivityRows);
+    if (leadActivityError) {
+      return NextResponse.json({ success: false, error: leadActivityError.message }, { status: 500 });
+    }
 
-    // ── 5. Send in-app notifications ──────────────────────────
-    // Find the agent's user_id to send them a notification
-    let agentUserId: string | null = null;
-    agentUserId = targetUserId;
+    const activityEvents = leadsData.map((lead) => ({
+      user_id: authorization.actor.user.id,
+      lead_id: lead.id,
+      lead_address: lead.address,
+      lead_state: lead.state,
+      event_type: 'lead_assigned',
+      description: `Lead assigned to ${resolvedAgentName}`,
+      detail: `${actorName} assigned ${lead.contact_name || lead.address || 'lead'} to ${resolvedAgentName}`,
+      previous_value: null,
+      new_value: resolvedAgentName,
+      actor_user_id: authorization.actor.user.id,
+      actor_email: authorization.actor.user.email ?? null,
+      source: 'lead_queue',
+      metadata: {
+        agentId: targetUserId,
+        agentName: resolvedAgentName,
+      },
+      event_timestamp: now,
+      created_at: now,
+    }));
 
-    // Also notify the assigner (admin)
-    const notificationTargets: string[] = [];
-    if (agentUserId) notificationTargets.push(agentUserId);
-    if (authorization.actor.user.id !== agentUserId) notificationTargets.push(authorization.actor.user.id);
+    const { error: activityEventsError } = await supabase.from('activity_events').insert(activityEvents);
+    if (activityEventsError) {
+      return NextResponse.json({ success: false, error: activityEventsError.message }, { status: 500 });
+    }
 
-    const leadsData = (leads || []) as Array<{
-      id: string;
-      address: string;
-      city: string;
-      state: string;
-      contact_name: string | null;
-      contact_phone: string | null;
-      priority_tier: number | null;
-      is_high_priority: boolean | null;
-      estimated_net_monthly: number | null;
-      verified_owner: boolean | null;
-      verified_number: boolean | null;
-      verified_address: string | null;
-      prospect_score: number | null;
-    }>;
+    const notificationTargets = [targetUserId];
+    if (authorization.actor.user.id !== targetUserId) {
+      notificationTargets.push(authorization.actor.user.id);
+    }
 
     const leadCount = leadIds.length;
     const firstLead = leadsData[0];
     const priorityLabel = getPriorityLabel(firstLead?.priority_tier, firstLead?.is_high_priority ?? false);
     const revenueOpp = firstLead?.estimated_net_monthly;
 
-    // Build notification message
-    let notifTitle: string;
-    let notifMessage: string;
+    const notifTitle = leadCount === 1 && firstLead
+      ? `Lead Assigned: ${firstLead.contact_name || firstLead.address || 'Property'}`
+      : `${leadCount} Leads Assigned to ${resolvedAgentName}`;
+    const notifMessage = leadCount === 1 && firstLead
+      ? `${firstLead.contact_name || firstLead.address || 'Lead'} — ${priorityLabel} — ${formatCurrency(revenueOpp)}/mo assigned to ${resolvedAgentName}`
+      : `${leadCount} leads have been assigned to ${resolvedAgentName} for follow-up.`;
 
-    if (leadCount === 1 && firstLead) {
-      const prospectName = firstLead.contact_name || firstLead.address || 'Unknown Prospect';
-      const phone = firstLead.contact_phone || 'No phone';
-      notifTitle = `Lead Assigned: ${prospectName}`;
-      notifMessage = `${prospectName} (${phone}) — ${priorityLabel} — ${formatCurrency(revenueOpp)}/mo opportunity assigned to ${agentName}`;
-    } else {
-      notifTitle = `${leadCount} Leads Assigned to ${agentName}`;
-      notifMessage = `${leadCount} leads have been assigned to ${agentName} for follow-up.`;
+    if (notificationTargets.length > 0) {
+      const { error: appNotificationError } = await supabase.from('app_notifications').insert(
+        notificationTargets.map((userId) => ({
+          user_id: userId,
+          type: 'new_lead',
+          title: notifTitle,
+          message: notifMessage,
+          metadata: {
+            leadIds,
+            agentId: targetUserId,
+            agentName: resolvedAgentName,
+            assignedByName: actorName,
+            leadCount,
+            priorityLabel,
+            revenueOpp,
+          },
+          read: false,
+        })),
+      );
+
+      if (appNotificationError) {
+        return NextResponse.json({ success: false, error: appNotificationError.message }, { status: 500 });
+      }
     }
 
-    // Insert in-app notifications for all targets
-    for (const userId of notificationTargets) {
-      await supabase.from('app_notifications').insert({
-        user_id: userId,
-        type: 'new_lead',
-        title: notifTitle,
-        message: notifMessage,
-        metadata: {
-          leadIds,
-          agentId,
-          agentName,
-          assignedBy,
-          leadCount,
-          priorityLabel,
-          revenueOpp,
-        },
-        read: false,
-      }).then(undefined, () => {});
-    }
-
-    // ── 6. Send Resend email to agent ─────────────────────────
     let emailSent = false;
     let emailError: string | null = null;
 
-    if (agentEmail) {
+    if (resolvedAgentEmail) {
       try {
-        const leadsTableRows = leadsData.slice(0, 10).map((l) => {
-          const name = l.contact_name || l.address || 'Unknown';
-          const phone = l.contact_phone || '—';
-          const priority = getPriorityLabel(l.priority_tier, l.is_high_priority ?? false);
-          const revenue = formatCurrency(l.estimated_net_monthly);
-          const location = [l.city, l.state].filter(Boolean).join(', ') || l.address;
+        const leadsTableRows = leadsData.slice(0, 10).map((lead) => {
+          const name = lead.contact_name || lead.address || 'Unknown';
+          const phone = lead.contact_phone || '—';
+          const priority = getPriorityLabel(lead.priority_tier, lead.is_high_priority ?? false);
+          const revenue = formatCurrency(lead.estimated_net_monthly);
+          const location = [lead.city, lead.state].filter(Boolean).join(', ') || lead.address;
           return `
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 10px 12px; font-size: 13px; color: #111827; font-weight: 500;">${name}</td>
@@ -212,13 +356,12 @@ export async function POST(req: NextRequest) {
 
         await getResendClient().emails.send({
           from: getResendFrom(),
-          to: [agentEmail],
+          to: [resolvedAgentEmail],
           subject: leadCount === 1
             ? `🎯 New Lead Assigned: ${firstLead?.contact_name || firstLead?.address || 'Property'}`
             : `🎯 ${leadCount} New Leads Assigned to You`,
           html: `
             <div style="font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; background: #ffffff;">
-              <!-- Header -->
               <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 16px; padding: 28px 32px; margin-bottom: 28px;">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
                   <span style="font-size: 28px;">🎯</span>
@@ -227,11 +370,9 @@ export async function POST(req: NextRequest) {
                   </h1>
                 </div>
                 <p style="color: rgba(255,255,255,0.85); margin: 0; font-size: 14px;">
-                  Assigned by ${assignedByName || 'Admin'} · ${new Date(now).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                  Assigned by ${actorName} · ${new Date(now).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
                 </p>
               </div>
-
-              <!-- Lead Table -->
               <div style="background: #f9fafb; border-radius: 12px; overflow: hidden; margin-bottom: 24px; border: 1px solid #e5e7eb;">
                 <table style="width: 100%; border-collapse: collapse;">
                   <thead>
@@ -243,22 +384,16 @@ export async function POST(req: NextRequest) {
                       <th style="padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Revenue Opp.</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    ${leadsTableRows}
-                  </tbody>
+                  <tbody>${leadsTableRows}</tbody>
                 </table>
                 ${moreLeadsNote}
               </div>
-
-              <!-- CTA -->
               <div style="text-align: center; margin-bottom: 24px;">
-                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new'}/lead-management?assignmentStatus=assigned&ownerAgentId=${agentId || ''}"
+                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new'}/lead-management?assignmentStatus=assigned&ownerAgentId=${targetUserId}"
                    style="display: inline-block; background: #1e40af; color: white; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-size: 14px; font-weight: 600; letter-spacing: 0.01em;">
                   View My Leads in TRAVLR →
                 </a>
               </div>
-
-              <!-- Footer -->
               <p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 0;">
                 TRAVLR Pro · Lead Management Platform · You are receiving this because a lead was assigned to you.
               </p>
@@ -272,26 +407,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 7. Log notification record ────────────────────────────
-    const notifLogs = leadsData.map((l) => ({
-      lead_id: l.id,
-      agent_id: agentId || null,
-      agent_name: agentName,
-      agent_email: agentEmail || null,
-      assigned_by: assignedBy || null,
-      assigned_by_name: assignedByName || null,
-      prospect_name: l.contact_name || l.address,
-      prospect_phone: l.contact_phone,
-      prospect_address: l.address,
-      priority_tier: l.priority_tier,
-      priority_label: getPriorityLabel(l.priority_tier, l.is_high_priority ?? false),
-      revenue_opportunity: l.estimated_net_monthly,
+    const notifLogs = leadsData.map((lead) => ({
+      lead_id: lead.id,
+      agent_id: targetUserId,
+      agent_name: resolvedAgentName,
+      agent_email: resolvedAgentEmail,
+      assigned_by: authorization.actor.user.id,
+      assigned_by_name: actorName,
+      prospect_name: lead.contact_name || lead.address,
+      prospect_phone: lead.contact_phone,
+      prospect_address: lead.address,
+      priority_tier: lead.priority_tier,
+      priority_label: getPriorityLabel(lead.priority_tier, lead.is_high_priority ?? false),
+      revenue_opportunity: lead.estimated_net_monthly,
       email_sent: emailSent,
       in_app_sent: notificationTargets.length > 0,
       email_error: emailError,
     }));
 
-    await supabase.from('lead_assignment_notifications').insert(notifLogs).then(undefined, () => {});
+    const { error: notificationLogError } = await supabase.from('lead_assignment_notifications').insert(notifLogs);
+    if (notificationLogError) {
+      return NextResponse.json({ success: false, error: notificationLogError.message }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { runFsboSkipTrace } from '@/lib/services/fsboSkipTraceService';
+import { recordSourcePull, sourceNameForProvider, stateCodeFromImportBody } from '@/lib/services/sourceSyncRecorder';
 import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, searchPadMapperRentals, searchHotPadsRentals, searchCraigslistRentals, toPadMapperLocation, getZillowPropertyDetails, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
 
 const CHUNK_SIZE = 50;
@@ -12,23 +13,47 @@ const HOTPADS_MAX_LOCATIONS = 20;
 // Craigslist returns 5 listings per region and the plan allows only ~124 requests/month.
 const CRAIGSLIST_MAX_REGIONS = 5;
 
-/** "City, ST" locations configured for HotPads in sync_source_coverage for one state. */
+/** City zones configured in sync_source_coverage for one state, across the given sources. */
+async function coverageZonesForState(stateCode: string, sourceNames: string[]): Promise<string[]> {
+  const supabase = getSupabaseAdmin();
+  const { data: registry } = await supabase
+    .from('portfolio_registry')
+    .select('state_name')
+    .eq('state_code', stateCode.trim().toUpperCase())
+    .maybeSingle();
+  if (!registry?.state_name) return [];
+  const { data } = await supabase
+    .from('sync_source_coverage')
+    .select('zone')
+    .eq('portfolio', registry.state_name)
+    .in('source_name', sourceNames)
+    .in('status', ['active', 'unconfirmed']);
+  return [...new Set((data || []).map((r) => (r.zone || '').trim()).filter(Boolean))];
+}
+
+/**
+ * "City, ST" locations for HotPads in one state. HotPads only returns 5 listings per city, so
+ * every market configured for HotPads, PadMapper or Trulia counts — not just the HotPads rows.
+ */
 async function hotPadsLocationsForState(stateCode: string): Promise<string[]> {
   const st = stateCode.trim().toLowerCase();
+  const out = new Set<string>();
   const { data } = await getSupabaseAdmin()
     .from('sync_source_coverage')
     .select('zone, sync_url')
     .eq('source_name', 'HotPads')
     .in('status', ['active', 'unconfirmed']);
-  const out = new Set<string>();
   for (const row of data || []) {
     const slug = /hotpads\.com\/([a-z0-9-]+)\//i.exec(row.sync_url || '')?.[1]?.toLowerCase();
     if (row.zone && slug?.endsWith(`-${st}`)) out.add(`${row.zone}, ${st.toUpperCase()}`);
   }
+  for (const zone of await coverageZonesForState(stateCode, ['HotPads', 'PadMapper', 'Trulia'])) {
+    out.add(`${zone}, ${st.toUpperCase()}`);
+  }
   return [...out];
 }
 
-/** City slugs (e.g. "aspen-co") configured for PadMapper in sync_source_coverage for one state. */
+/** City slugs (e.g. "aspen-co") configured for PadMapper, or any market shared with HotPads/Trulia, for one state. */
 async function padMapperSlugsForState(stateCode: string): Promise<string[]> {
   const st = stateCode.trim().toLowerCase();
   const { data } = await getSupabaseAdmin()
@@ -40,6 +65,9 @@ async function padMapperSlugsForState(stateCode: string): Promise<string[]> {
   for (const row of data || []) {
     const slug = /padmapper\.com\/apartments\/([a-z0-9-]+)/i.exec(row.sync_url || '')?.[1]?.toLowerCase();
     if (slug && slug.endsWith(`-${st}`)) slugs.add(slug);
+  }
+  for (const zone of await coverageZonesForState(stateCode, ['HotPads', 'Trulia'])) {
+    slugs.add(toPadMapperLocation(zone, st));
   }
   return [...slugs];
 }
@@ -133,7 +161,7 @@ function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
  *   importedBy?: string,
  * }
  */
-export async function POST(req: NextRequest) {
+async function runImport(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const provider = body?.provider as string;
   const maxPages = Math.min(MAX_PAGES, Math.max(1, Number(body?.maxPages) || 1));
@@ -405,4 +433,28 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ fetched: allListings.length, imported: rows.length, totals, importBatchId });
+}
+
+export async function POST(req: NextRequest) {
+  const body = await req.clone().json().catch(() => ({}));
+  const response = await runImport(req);
+
+  // Config problems (400/404: unknown provider, no cities configured) are not source failures.
+  const source = sourceNameForProvider(String(body?.provider || ''));
+  if (source && response.status !== 400 && response.status !== 404) {
+    const data = await response.clone().json().catch(() => null);
+    const ok = response.ok && !data?.error;
+    after(() =>
+      recordSourcePull({
+        source,
+        stateCode: stateCodeFromImportBody(body),
+        ok,
+        fetched: Number(data?.fetched) || 0,
+        imported: Number(data?.imported) || 0,
+        newLeads: Number(data?.totals?.rowsNew) || 0,
+        error: ok ? null : data?.error || `HTTP ${response.status}`,
+      })
+    );
+  }
+  return response;
 }

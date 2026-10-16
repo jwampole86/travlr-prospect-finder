@@ -1,69 +1,102 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+type InviteRole = 'owner' | 'team_lead' | 'agent' | 'analyst';
+
+const ROLE_DEFAULTS: Record<InviteRole, {
+  appRole: 'admin' | 'agent';
+  permissions: {
+    leadAccess: boolean;
+    export: boolean;
+    sync: boolean;
+    pipeline: boolean;
+    analytics: boolean;
+    settings: boolean;
+  };
+}> = {
+  owner: { appRole: 'admin', permissions: { leadAccess: true, export: true, sync: true, pipeline: true, analytics: true, settings: true } },
+  team_lead: { appRole: 'agent', permissions: { leadAccess: true, export: true, sync: false, pipeline: true, analytics: true, settings: false } },
+  agent: { appRole: 'agent', permissions: { leadAccess: true, export: false, sync: false, pipeline: true, analytics: false, settings: false } },
+  analyst: { appRole: 'agent', permissions: { leadAccess: false, export: true, sync: false, pipeline: false, analytics: true, settings: false } },
+};
+
+function initials(fullName: string) {
+  return fullName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('') || 'NA';
+}
 
 export async function POST(req: NextRequest) {
   try {
     const { token, password, firstName, lastName } = await req.json();
-
     if (!token || !password) {
       return NextResponse.json({ error: 'Token and password are required.' }, { status: 400 });
     }
 
-    // Validate token
-    const { data: invite, error: inviteErr } = await supabaseAdmin
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data: invite, error: inviteError } = await supabaseAdmin
       .from('agent_invites')
       .select('*')
       .eq('invite_token', token)
-      .single();
+      .maybeSingle();
 
-    if (inviteErr || !invite) {
+    if (inviteError || !invite) {
       return NextResponse.json({ error: 'Invalid invite token.' }, { status: 404 });
     }
-
     if (invite.status === 'completed') {
       return NextResponse.json({ error: 'This invite has already been used.' }, { status: 410 });
     }
-
     if (invite.status === 'expired' || new Date(invite.expires_at) < new Date()) {
       return NextResponse.json({ error: 'This invite has expired. Contact your admin for a new one.' }, { status: 410 });
     }
 
+    const workspaceRole = (['owner', 'team_lead', 'agent', 'analyst'].includes(invite.role) ? invite.role : 'agent') as InviteRole;
+    const defaults = ROLE_DEFAULTS[workspaceRole];
     const fullName = `${firstName || invite.first_name} ${lastName || invite.last_name}`.trim();
+    const metadataRole = defaults.appRole;
 
-    // Create the Supabase auth user
-    const { data: authData, error: signUpErr } = await supabaseAdmin.auth.admin.createUser({
+    const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       email: invite.email,
       password,
       email_confirm: true,
       user_metadata: {
         full_name: fullName,
-        role: 'agent',
+        role: metadataRole,
+        workspace_role: workspaceRole,
         invite_token: token,
       },
     });
 
-    if (signUpErr || !authData.user) {
-      return NextResponse.json({ error: signUpErr?.message || 'Failed to create account.' }, { status: 500 });
+    if (createUserError || !authData.user) {
+      return NextResponse.json({ error: createUserError?.message || 'Failed to create account.' }, { status: 500 });
     }
 
     const userId = authData.user.id;
 
-    // Upsert user_profiles with agent role
-    await supabaseAdmin.from('user_profiles').upsert({
+    const { error: profileError } = await supabaseAdmin.from('user_profiles').upsert({
       id: userId,
       email: invite.email,
       full_name: fullName,
-      app_role: 'agent',
+      app_role: defaults.appRole,
+      role: defaults.appRole,
       tour_view_count: 0,
+      is_active: true,
+      perm_lead_access: defaults.permissions.leadAccess,
+      perm_export: defaults.permissions.export,
+      perm_sync: defaults.permissions.sync,
+      perm_pipeline: defaults.permissions.pipeline,
+      perm_analytics: defaults.permissions.analytics,
+      perm_settings: defaults.permissions.settings,
     }, { onConflict: 'id' });
 
-    // Mark invite as completed
-    await supabaseAdmin
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message }, { status: 500 });
+    }
+
+    const { error: inviteUpdateError } = await supabaseAdmin
       .from('agent_invites')
       .update({
         status: 'completed',
@@ -72,20 +105,28 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', invite.id);
 
-    // Create agent_profile record (mirrors existing agent management)
-    const initials = fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-    await supabaseAdmin.from('agent_profiles').insert({
-      owner_user_id: invite.invited_by || userId,
-      full_name: fullName,
-      email: invite.email,
-      role: 'agent',
-      status: 'active',
-      avatar_initials: initials,
-      bio: '',
-    }).then(undefined, () => {}); // Non-fatal if already exists
+    if (inviteUpdateError) {
+      return NextResponse.json({ error: inviteUpdateError.message }, { status: 500 });
+    }
+
+    if (defaults.appRole === 'agent') {
+      const { error: agentProfileError } = await supabaseAdmin.from('agent_profiles').upsert({
+        id: userId,
+        owner_user_id: userId,
+        full_name: fullName,
+        email: invite.email,
+        role: workspaceRole,
+        status: 'active',
+        avatar_initials: initials(fullName),
+        bio: '',
+      }, { onConflict: 'id' });
+      if (agentProfileError) {
+        return NextResponse.json({ error: agentProfileError.message }, { status: 500 });
+      }
+    }
 
     return NextResponse.json({ success: true, userId, email: invite.email });
-  } catch (err: unknown) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }
