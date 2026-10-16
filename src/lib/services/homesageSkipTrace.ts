@@ -1,5 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { fetchAllRows } from '@/lib/services/pagedRows';
 import { isEntityName } from '@/lib/services/ownerVerification';
 import { toE164 } from '@/lib/services/smsConsent';
 
@@ -75,12 +76,11 @@ export interface HomesageQueueItem { property_id: string; market: string | null;
  * Each at most once. ELITE first, then LUXURY, then by potential earnings (commission).
  */
 export async function homesageQueue(db: SupabaseClient): Promise<HomesageQueueItem[]> {
-  const { data } = await db.from('str_listings').select('property_id,market,matched_address,matched_owner,is_elite,is_luxury,revenue_potential_ltm,pipeline_stage')
-    .eq('match_status', 'unique').not('matched_owner', 'is', null).not('pipeline_stage', 'in', '(declined,not_a_fit)').limit(5000);
-  const rows = data ?? [];
+  const rows = await fetchAllRows<Record<string, any>>(() => db.from('str_listings').select('property_id,market,matched_address,matched_owner,is_elite,is_luxury,revenue_potential_ltm,pipeline_stage')
+    .eq('match_status', 'unique').not('matched_owner', 'is', null).not('pipeline_stage', 'in', '(declined,not_a_fit)').order('property_id'));
   const shared = new Map<string, number>(); for (const r of rows) shared.set(r.matched_address, (shared.get(r.matched_address) ?? 0) + 1);
-  const { data: optedOut } = await db.from('cohost_offer_links').select('property_id').not('opted_out_at', 'is', null).limit(5000);
-  const out = new Set((optedOut ?? []).map(o => o.property_id as string));
+  const optedOut = await fetchAllRows(() => db.from('cohost_offer_links').select('property_id').not('opted_out_at', 'is', null).order('property_id'));
+  const out = new Set(optedOut.map(o => o.property_id as string));
   return rows.filter(r => {
     const o = r.matched_owner as Record<string, any>;
     if (o.homesage || (shared.get(r.matched_address) ?? 1) > 1 || out.has(r.property_id) || !r.matched_address) return false;

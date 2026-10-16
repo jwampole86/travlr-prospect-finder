@@ -1,5 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { fetchAllRows } from '@/lib/services/pagedRows';
 import { skipTraceEligibility, skipTraceListing } from '@/lib/services/strSkipTrace';
 
 const RETRY_AFTER_DAYS = 30;
@@ -13,12 +14,11 @@ export interface QueueItem { property_id: string; market: string | null; matched
  * and anyone who opted out of the offer page.
  */
 export async function cohostTraceQueue(db: SupabaseClient): Promise<QueueItem[]> {
-  const { data } = await db.from('str_listings').select('property_id,market,matched_address,matched_owner,is_elite,is_luxury,revenue_potential_ltm,pipeline_stage')
-    .eq('match_status', 'unique').not('matched_owner', 'is', null).not('pipeline_stage', 'in', '(declined,not_a_fit)').limit(5000);
-  const rows = data ?? [];
+  const rows = await fetchAllRows<Record<string, any>>(() => db.from('str_listings').select('property_id,market,matched_address,matched_owner,is_elite,is_luxury,revenue_potential_ltm,pipeline_stage')
+    .eq('match_status', 'unique').not('matched_owner', 'is', null).not('pipeline_stage', 'in', '(declined,not_a_fit)').order('property_id'));
   const shared = new Map<string, number>(); for (const r of rows) shared.set(r.matched_address, (shared.get(r.matched_address) ?? 0) + 1);
-  const { data: optedOut } = await db.from('cohost_offer_links').select('property_id').not('opted_out_at', 'is', null).limit(5000);
-  const out = new Set((optedOut ?? []).map(o => o.property_id as string));
+  const optedOut = await fetchAllRows(() => db.from('cohost_offer_links').select('property_id').not('opted_out_at', 'is', null).order('property_id'));
+  const out = new Set(optedOut.map(o => o.property_id as string));
   const now = Date.now();
   return rows.filter(r => {
     const o = r.matched_owner as Record<string, any>;
