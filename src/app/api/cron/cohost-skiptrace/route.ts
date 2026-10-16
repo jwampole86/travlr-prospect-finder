@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { runCohostSkipTrace } from '@/lib/services/cohostSkipTraceQueue';
+import { enqueueCohostCrmLeads, runCohostSkipTrace } from '@/lib/services/cohostSkipTraceQueue';
 import { runHomesageCandidateLookups, runHomesageLookups } from '@/lib/services/homesageSkipTrace';
 
 export const maxDuration = 300;
 
 /**
- * GET /api/cron/cohost-skiptrace  Traces the next co-host owners in the queue, ELITE first, then looks up ELITE and business or trust owners on Homesage.
+ * GET /api/cron/cohost-skiptrace  Traces the next co-host owners in the queue, ELITE first (one search per home, shared with its other listings), queues CRM co-host leads for the lead skip-trace job, then looks up ELITE and business or trust owners on Homesage.
  * Query: max (default 6, up to 30) for the main skip-trace, homesage (default 2, up to 10) for Homesage lookups.
  */
 export async function GET(request: NextRequest) {
@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
   const hsMax = Math.min(10, Math.max(0, q.get('homesage') == null ? 2 : Number(q.get('homesage')) || 0));
   const db = getSupabaseAdmin();
   const skipTrace = await runCohostSkipTrace(db, { max, deadlineMs: 200_000 });
+  const crmQueued = await enqueueCohostCrmLeads(db);
   const homesage = hsMax > 0 ? await runHomesageLookups(db, { max: hsMax }) : null;
   const candidates = hsMax > 0 ? await runHomesageCandidateLookups(db, { max: hsMax }) : null;
-  return NextResponse.json({ ok: true, ...skipTrace, homesage, candidates });
+  return NextResponse.json({ ok: true, ...skipTrace, crmQueued, homesage, candidates });
 }
