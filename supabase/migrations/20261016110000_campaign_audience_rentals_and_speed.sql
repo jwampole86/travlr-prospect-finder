@@ -3,6 +3,7 @@
 -- The 'broad' audience took about 8 seconds, right at the database statement timeout, so reading its second page timed out.
 -- The new function is created under another name and compared with the current one for every existing audience. If the two
 -- ever return different people the whole migration is rolled back and nothing changes. Only then does campaign_audience switch.
+-- The copy keeps every rule of the live function, including the stage exclusion (Not a Fit, Under Contract, Live, human_outreach).
 -- 'rentals' = real leads with a phone and an address whose listing is a rental; every other rule is unchanged.
 
 -- The comparison below runs the current 'broad' audience, which takes about 8 seconds: switch the timeout off for this script only.
@@ -28,6 +29,7 @@ AS $$
       AND l.sms_opted_out_at IS NULL
       AND NOT (coalesce(l.tags, ARRAY[]::text[]) && ARRAY['sms:phone:landline', 'sms:phone:invalid'])
       AND coalesce(l.address, '') !~ ',\s*[A-Za-z]{2}\s+\d{5}\s*$'
+      AND coalesce(l.stage, 'New Lead') NOT IN ('Not a Fit', 'Under Contract', 'Live', 'human_outreach')
       AND NOT EXISTS (
         SELECT 1 FROM public.outreach_history o
         WHERE o.lead_id = f.lead_id AND o.channel = 'sms' AND o.metadata->>'kind' = 'estimate_outreach'
