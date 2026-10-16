@@ -107,7 +107,9 @@ async function computeSummaries(db: Db) {
   // One at a time: the audience function is heavy and running all five together hits the database statement timeout.
   const out = [];
   for (const a of AUDIENCES) {
-    const c = await audienceCandidates(db, a.id);
+    // One audience timing out in the database must not take the whole picker down with it.
+    const c = await audienceCandidates(db, a.id).catch((e: unknown) => { console.error(`audience ${a.id} failed`, e); return null; });
+    if (!c) { out.push({ ...a, blurb: `${a.blurb} Temporarily unavailable: the database timed out counting this audience.`, size: 0, avgScore: 0, points: [] as Array<[string, number]>, topStates: [] as Array<{ state: string; count: number }> }); continue; }
     const byState = new Map<string, number>(); for (const x of c) if (x.state) byState.set(x.state, (byState.get(x.state) ?? 0) + 1);
     out.push({
       ...a, size: c.length, avgScore: c.length ? Math.round(c.reduce((s, x) => s + x.score, 0) / c.length) : 0,
