@@ -3,7 +3,8 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 const PAGE_SIZE = 1000;
 const QUALITY_SCORE_THRESHOLD = 70;
-const CONVERSION_STAGES = ['human_outreach', 'Interested', 'Qualified', 'Appointment Scheduled', 'Proposal Sent', 'Under Contract', 'Live'];
+// Only values of the lead_stage enum: a stage the enum does not have makes the whole count query fail with a 400.
+const CONVERSION_STAGES = ['human_outreach', 'Interested', 'Proposal Sent', 'Under Contract', 'Live'];
 const LIVE_STAGES = ['Under Contract', 'Live'];
 
 function pct(part: number, whole: number): number {
@@ -112,8 +113,9 @@ export async function GET() {
       })),
     }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to load source intelligence',
-    }, { status: 500 });
+    // Supabase errors are plain objects, not Error instances.
+    const message = (error as { message?: string } | null)?.message;
+    console.error('source intelligence failed', error);
+    return NextResponse.json({ error: message || 'Failed to load source intelligence' }, { status: 500 });
   }
 }
