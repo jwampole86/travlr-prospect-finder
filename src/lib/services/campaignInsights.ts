@@ -142,9 +142,9 @@ export async function generateInsights(overview: Overview): Promise<{ insights: 
   if (!key) return { error: 'Anthropic is not configured' };
   const { hotLeads: _h, replies, chatQuestions, ...stats } = overview;
   const payload = { stats, replyTexts: replies.map(r => ({ intent: r.intent, text: r.text })).slice(0, 30), chatQuestions: chatQuestions.slice(0, 40) };
-  const client = new Anthropic({ apiKey: key, maxRetries: 2, timeout: 90_000 });
+  const client = new Anthropic({ apiKey: key, maxRetries: 1, timeout: 100_000 });
   const res = await client.messages.create({
-    model: INSIGHT_MODEL, max_tokens: 1800, temperature: 0.3,
+    model: INSIGHT_MODEL, max_tokens: 3500, temperature: 0.3,
     system: `You are a direct-response marketing analyst for TRAVLR Vacation Homes, a vacation-rental management company. It texted homeowners a short message with a personalized revenue estimate and a link to a free estimate page. Analyze the campaign results and tell the team how to improve the next text and email campaigns and how to use the data in their CRM.
 Rules:
 - Ground every statement in the numbers provided. Quote the figures. Never invent data.
@@ -152,10 +152,11 @@ Rules:
 - skipTrace compares phone-data quality across audiences: landline/invalid share found before sending, delivery, replies saying wrong person, and engagement. Say plainly how accurate each audience's phone numbers look, and that wrong-person replies only capture people who answered.
 - Counts of clicks exclude link-preview bots. "hot" means the homeowner submitted the form, asked for a call or replied YES.
 - Be specific and practical: concrete copy ideas, audiences, timing, follow-up steps. No filler.
-Return ONLY JSON with exactly these keys: {"headline": string, "whatWorked": string[], "whatDidNot": string[], "objections": string[], "nextCampaign": {"audience": string, "copyTests": string[], "sendTiming": string, "followUp": string[]}, "crmActions": string[], "dataGaps": string[], "confidence": string}. Each array has at most 5 short items.`,
+Return ONLY JSON with exactly these keys: {"headline": string, "whatWorked": string[], "whatDidNot": string[], "objections": string[], "nextCampaign": {"audience": string, "copyTests": string[], "sendTiming": string, "followUp": string[]}, "crmActions": string[], "dataGaps": string[], "confidence": string}. Each array has at most 4 items, each one sentence. Output the JSON object only, with no code fence.`,
     messages: [{ role: 'user', content: JSON.stringify(payload) }],
   });
   const text = res.content.filter(b => b.type === 'text').map(b => (b as { text: string }).text).join('');
+  if (res.stop_reason === 'max_tokens') return { error: 'The AI ran out of room before finishing. Try again.' };
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return { error: 'The model did not return structured insights' };
   try {

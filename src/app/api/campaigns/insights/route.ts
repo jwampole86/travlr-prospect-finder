@@ -12,9 +12,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({})) as { batch?: string };
   const key = body.batch || 'all';
   const db = getSupabaseAdmin();
-  const overview = await buildOverview(db, key === 'all' ? 'all' : [key]);
-  const ai = await generateInsights(overview);
-  if ('error' in ai) return NextResponse.json({ error: ai.error }, { status: 422 });
-  await saveSnapshot(db, key, overview, ai);
-  return NextResponse.json({ ok: true, insights: ai.insights, model: ai.model });
+  try {
+    const overview = await buildOverview(db, key === 'all' ? 'all' : [key]);
+    const ai = await generateInsights(overview);
+    if ('error' in ai) return NextResponse.json({ error: ai.error }, { status: 422 });
+    await saveSnapshot(db, key, overview, ai);
+    return NextResponse.json({ ok: true, insights: ai.insights, model: ai.model });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown error';
+    return NextResponse.json({ error: `Could not generate insights: ${msg}` }, { status: 502 });
+  }
 }
