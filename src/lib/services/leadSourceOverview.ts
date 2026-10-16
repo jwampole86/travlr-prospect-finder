@@ -8,7 +8,7 @@ type Row = Record<string, any>;
 const WEEK_MS = 7 * 86_400_000;
 const CACHE_MS = 60_000;
 const PAGE = 1000;
-const LEAD_COLUMNS = 'source,state,city,is_synthetic,fully_verified,phone_available,verified_owner,verified_number,verified_address,luxury,prospect_score,possible_duplicate,created_at,source_config_id';
+const LEAD_COLUMNS = 'source,state,city,is_synthetic,owner_name,address,contact_phone,fully_verified,phone_available,verified_owner,verified_number,verified_address,luxury,prospect_score,possible_duplicate,created_at,source_config_id';
 
 /** "Rent.com" and "rent com" are the same source. */
 export const sourceKey = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -96,7 +96,8 @@ export async function getLeadSourceOverview(db: Db, opts: { fresh?: boolean } = 
     const syn = l.is_synthetic === true;
     if (syn) a.synthetic++; else { realAll++; if (l.phone_available) { a.phone++; phoneAll++; } if (l.verified_owner) { a.owner++; ownerAll++; } if (l.verified_address) a.address++; }
     if (l.verified_number) a.vphone++;
-    if (l.fully_verified) a.full++;
+    // Same definition as the dashboard Fully Verified tile: owner name, address and phone (skip-traced numbers included).
+    if (!syn && [l.owner_name, l.address, l.contact_phone].every(v => String(v ?? '').trim() !== '')) a.full++;
     if (l.luxury) a.luxury++;
     if (l.possible_duplicate) a.dup++;
     if (Number.isFinite(l.prospect_score)) { a.scoreSum += Number(l.prospect_score); a.scoreN++; }

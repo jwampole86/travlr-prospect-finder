@@ -63,7 +63,8 @@ export async function GET() {
         countBySource(source),
         countBySource(source, (query) => query.gte('prospect_score', QUALITY_SCORE_THRESHOLD)),
         countBySource(source, (query) => query.in('stage', CONVERSION_STAGES)),
-        countBySource(source, (query) => query.eq('fully_verified', true)),
+        // Same definition as the dashboard Fully Verified tile: owner name, address and phone (skip-traced numbers included).
+        countBySource(source, (query) => query.not('owner_name', 'is', null).neq('owner_name', '').not('address', 'is', null).neq('address', '').not('contact_phone', 'is', null).neq('contact_phone', '')),
         countBySource(source, (query) => query.in('stage', LIVE_STAGES)),
       ]);
 
