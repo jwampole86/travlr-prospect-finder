@@ -5,6 +5,9 @@
 -- ever return different people the whole migration is rolled back and nothing changes. Only then does campaign_audience switch.
 -- 'rentals' = real leads with a phone and an address whose listing is a rental; every other rule is unchanged.
 
+-- The comparison below runs the current 'broad' audience, which takes about 8 seconds: switch the timeout off for this script only.
+SET statement_timeout = 0;
+
 CREATE INDEX IF NOT EXISTS idx_outreach_history_sms_estimate_lead
   ON public.outreach_history (lead_id)
   WHERE channel = 'sms' AND metadata->>'kind' = 'estimate_outreach';
@@ -93,7 +96,6 @@ GRANT EXECUTE ON FUNCTION public.campaign_audience_next(TEXT) TO service_role;
 DO $$
 DECLARE a TEXT; diff INT;
 BEGIN
-  PERFORM set_config('statement_timeout', '0', true);
   FOREACH a IN ARRAY ARRAY['fully-verified', 'luxury-phone', 'high-score', 'allowed-markets', 'broad'] LOOP
     SELECT count(*) INTO diff FROM (
       (SELECT lead_id FROM public.campaign_audience(a) EXCEPT SELECT lead_id FROM public.campaign_audience_next(a))
@@ -113,3 +115,5 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$ SELECT * FROM public.campaign_audience_next(p_audience) $$;
+
+RESET statement_timeout;
