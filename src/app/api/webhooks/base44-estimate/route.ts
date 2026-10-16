@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
 
 // ─── POST /api/webhooks/base44-estimate ───────────────────────────────────────
 // Incoming webhook from Base44's public /estimate landing page.
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
   }
 
   const contactName = [firstName, lastName].filter(Boolean).join(' ') || email;
-  const supabase = createClient();
+  const supabase = getSupabaseAdmin();
   const receivedAt = new Date().toISOString();
 
   // ── 3. Log the raw webhook payload ───────────────────────────────────────

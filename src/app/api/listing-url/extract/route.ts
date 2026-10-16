@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerChatCompletion } from '@/lib/ai/serverChatCompletion';
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
 
 // ─── Known search-URL patterns per source ────────────────────────────────────
 // If a listing_url matches these patterns, it's a search page, not a detail page.
@@ -168,7 +169,7 @@ Respond with JSON only: {"listing_url": "https://..." or null, "confidence": "hi
     // ── Step 5: Log the Claude-assisted extraction ────────────────────────────
     if (leadId) {
       try {
-        const supabase = createClient();
+        const supabase = getSupabaseAdmin();
         await supabase.from('listing_url_extraction_log').insert({
           lead_id: leadId,
           address,
@@ -258,7 +259,7 @@ Respond with JSON only: {"match": "yes|no|uncertain", "reason": "brief explanati
     // Log verification
     if (leadId) {
       try {
-        const supabase = createClient();
+        const supabase = getSupabaseAdmin();
         await supabase.from('listing_url_extraction_log').insert({
           lead_id: leadId,
           address,

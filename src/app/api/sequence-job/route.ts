@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyJobRequest } from '@/lib/jobAuth';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
  * POST /api/sequence-job
@@ -19,10 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: auth.reason || 'Unauthorized' }, { status: 401 });
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getSupabaseAdmin();
 
   const results = {
     sequencesChecked: 0,

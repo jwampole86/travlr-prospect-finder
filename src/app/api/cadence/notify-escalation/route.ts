@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
  * POST /api/cadence/notify-escalation
@@ -11,10 +12,7 @@ import { getResendClient, getResendFrom } from '@/lib/email/resend';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
 
 export async function POST(req: NextRequest) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getSupabaseAdmin();
 
   let body: {
     lead_id: string;

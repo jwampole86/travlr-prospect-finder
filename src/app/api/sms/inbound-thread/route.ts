@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
  * POST /api/sms/inbound-thread
@@ -7,10 +8,7 @@ import { createClient } from '@supabase/supabase-js';
  * Also handles GET for thread listing and PUT for status updates.
  */
 
-const supabase = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = () => getSupabaseAdmin();
 
 export async function POST(req: NextRequest) {
   try {

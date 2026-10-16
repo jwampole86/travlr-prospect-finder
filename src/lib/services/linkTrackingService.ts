@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
 
@@ -33,10 +34,7 @@ export interface TrackLinkResult {
  * Inserts a record into link_clicks and returns the redirect URL.
  */
 export async function createTrackedLink(options: TrackLinkOptions): Promise<TrackLinkResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getSupabaseAdmin();
 
   let token = generateToken();
 
@@ -97,10 +95,7 @@ export async function fetchSequenceClickStats(sequenceIds?: string[]): Promise<
     ctr: number;
   }>
 > {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getSupabaseAdmin();
 
   let query = supabase
     .from('link_clicks')

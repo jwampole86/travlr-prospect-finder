@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
  * POST /api/cadence/log-touchpoint
@@ -9,10 +10,7 @@ import { createClient } from '@supabase/supabase-js';
  * - Records the action in cadence_send_log for audit trail
  */
 export async function POST(req: NextRequest) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getSupabaseAdmin();
 
   let body: {
     lead_id: string;

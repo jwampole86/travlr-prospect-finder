@@ -1,7 +1,8 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
 
 /**
  * Twilio recording status callback.
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     // Persist recording URL to outreach_call_log and call_sessions when available
     if (callSid && recordingUrl && recordingStatus === 'completed') {
       try {
-        const supabase = createClient();
+        const supabase = getSupabaseAdmin();
 
         // Update outreach_call_log
         await supabase

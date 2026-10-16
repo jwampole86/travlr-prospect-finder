@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+
 import { getServerChatCompletion } from '@/lib/ai/serverChatCompletion';
 import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 // ─── POST /api/leads/info-request ─────────────────────────────────────────────
 // Generate a unique info-request link tied to a specific lead record.
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     const authorization = await requireLeadAccess(req, leadId);
     if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
 
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
 
     // Verify lead exists
     const { data: lead, error: leadError } = await supabase
@@ -83,7 +84,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'linkToken, firstName, lastName, phone, and email are required' }, { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
 
     // Find the info request by token
     const { data: infoRequest, error: tokenError } = await supabase

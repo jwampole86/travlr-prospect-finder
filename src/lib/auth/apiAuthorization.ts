@@ -9,6 +9,8 @@ export type ApiActor = {
   user: User;
   role: string;
   isAdmin: boolean;
+  /** The organization this user belongs to (one per user for now); null when they have none. */
+  organizationId: string | null;
 };
 
 function getBearerToken(request: NextRequest): string | null {
@@ -43,7 +45,9 @@ export async function getApiActor(request: NextRequest): Promise<ApiActor | null
   const role = profile?.app_role || profile?.role || user.user_metadata?.role || '';
   if (!role || profile?.is_active === false) return null;
 
-  return { client, user, role, isAdmin: ADMIN_ROLES.has(role) };
+  const { data: membership } = await client.from('organization_members').select('organization_id').eq('user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle();
+
+  return { client, user, role, isAdmin: ADMIN_ROLES.has(role), organizationId: (membership?.organization_id as string | undefined) ?? null };
 }
 
 export async function requireApiActor(request: NextRequest) {

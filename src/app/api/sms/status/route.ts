@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSMSStatus, isTwilioConfigured } from '@/lib/services/twilioService';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
  * POST /api/sms/status
@@ -33,10 +34,7 @@ export async function POST(req: NextRequest) {
 
     // Update outreach_history if ID provided
     if (outreachHistoryId) {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+      const supabase = getSupabaseAdmin();
       await supabase
         .from('outreach_history')
         .update({

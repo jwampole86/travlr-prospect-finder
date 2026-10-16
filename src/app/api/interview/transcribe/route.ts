@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     // Update recording in Supabase if recordingId provided
     if (recordingId) {
-      const supabase = createClient();
+      const supabase = getSupabaseAdmin();
       await supabase
         .from('interview_audio_recordings')
         .update({

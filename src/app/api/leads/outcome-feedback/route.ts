@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+
 import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
  * POST /api/leads/outcome-feedback
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     const authorization = await requireLeadAccess(req, leadId);
     if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
 
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
 
     // 1. Fetch the lead to get its current prospect_score, region, property details
     const { data: lead } = await supabase
@@ -140,7 +141,7 @@ export async function GET(req: NextRequest) {
     const propertyType = searchParams.get('propertyType');
     const limit = parseInt(searchParams.get('limit') ?? '200');
 
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
 
     // Fetch score_weight_signals (aggregated)
     let signalsQuery = supabase

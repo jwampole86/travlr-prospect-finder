@@ -20,10 +20,7 @@ export async function POST(req: NextRequest) {
     const authorization = await requireLeadAccess(req, leadId);
     if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = getSupabaseAdmin();
 
     // ── TCPA / Do-Not-Contact compliance guard ────────────────────────────────
     // Block SMS dispatch if the enrichment record marks this lead as do_not_contact,

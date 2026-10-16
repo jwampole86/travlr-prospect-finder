@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { resolveVariables } from '@/lib/services/variableResolutionService';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 interface BulkEmailPayload {
   templateId: string;
@@ -110,10 +111,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Batch size exceeds 500 leads. Split into smaller batches.' }, { status: 400 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = getSupabaseAdmin();
 
     // Fetch template
     const { data: template, error: tplErr } = await supabase

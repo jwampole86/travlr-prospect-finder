@@ -45,11 +45,13 @@ const ownerKey = (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' ').toL
 const RECENT_DAYS = 7;
 
 /** Phones and owner names already texted (or scheduled to be texted) in the last 7 days, so the same homeowner is never texted twice in one week, even for a different property. */
-async function recentlyTexted(db: Db) {
+async function recentlyTexted(db: Db, orgId: string | null) {
   const since = new Date(Date.now() - RECENT_DAYS * 86_400_000).toISOString();
   const rows: Row[] = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await db.from('outreach_history').select('lead_id, metadata').eq('channel', 'sms').gte('sent_at', since).range(from, from + 999);
+    let q = db.from('outreach_history').select('lead_id, metadata').eq('channel', 'sms').gte('sent_at', since);
+    if (orgId) q = q.eq('organization_id', orgId);
+    const { data, error } = await q.range(from, from + 999);
     if (error) throw error;
     rows.push(...(data ?? []));
     if ((data ?? []).length < 1000) break;
@@ -65,7 +67,8 @@ async function recentlyTexted(db: Db) {
   return { phones, owners };
 }
 
-export async function audienceCandidates(db: Db, audience: string): Promise<Candidate[]> {
+/** `orgId` limits the audience to one organization's leads; jobs and scripts that serve the whole platform pass null. */
+export async function audienceCandidates(db: Db, audience: string, orgId: string | null = null): Promise<Candidate[]> {
   const out: Candidate[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db.rpc('campaign_audience', { p_audience: audience }).range(from, from + 999);
@@ -75,14 +78,14 @@ export async function audienceCandidates(db: Db, audience: string): Promise<Cand
     if (rows.length < 1000) break;
   }
   if (!out.length) return out;
-  const recent = await recentlyTexted(db);
+  const recent = await recentlyTexted(db, orgId);
   const blocked = new Set<string>();
   for (let i = 0; i < out.length; i += 100) {
-    const { data, error } = await db.from('leads').select('id, contact_phone, owner_name, contact_name, verified_owner, price_type, listing_agent_name, listing_broker_name').in('id', out.slice(i, i + 100).map(c => c.id));
+    const { data, error } = await db.from('leads').select('id, organization_id, contact_phone, owner_name, contact_name, verified_owner, price_type, listing_agent_name, listing_broker_name').in('id', out.slice(i, i + 100).map(c => c.id));
     if (error) throw error;
     for (const l of data ?? []) {
       const ph = phoneKey(l.contact_phone); const ok = ownerKey(l.owner_name);
-      if ((ph && recent.phones.has(ph)) || (ok && recent.owners.has(ok)) || isProtectedContact(l.owner_name, l.contact_name) || campaignFitReason(l as unknown as OutreachLead)) blocked.add(l.id as string);
+      if ((ph && recent.phones.has(ph)) || (ok && recent.owners.has(ok)) || isProtectedContact(l.owner_name, l.contact_name) || campaignFitReason(l as unknown as OutreachLead) || (orgId && l.organization_id !== orgId)) blocked.add(l.id as string);
     }
   }
   return out.filter(c => !blocked.has(c.id));
@@ -94,22 +97,24 @@ const filterCandidates = (c: Candidate[], p: Pick<CampaignParams, 'states' | 'mi
     .sort((a, b) => (a.rank < 0 ? 99 : a.rank) - (b.rank < 0 ? 99 : b.rank) || a.i - b.i).map(r => r.x);
 
 /** Size, average score and top states of every audience, for the picker and for the AI helper. */
-let summariesCache: { at: number; value: Promise<Awaited<ReturnType<typeof computeSummaries>>> } | null = null;
+const summariesCache = new Map<string, { at: number; value: Promise<Awaited<ReturnType<typeof computeSummaries>>> }>();
 /** Concurrent or repeated page loads share one computation for 30 seconds, since the audience function is slow. */
-export function audienceSummaries(db: Db) {
-  if (summariesCache && Date.now() - summariesCache.at < 30_000) return summariesCache.value;
-  const value = computeSummaries(db);
-  summariesCache = { at: Date.now(), value };
-  value.catch(() => { if (summariesCache?.value === value) summariesCache = null; });
+export function audienceSummaries(db: Db, orgId: string | null = null) {
+  const key = orgId ?? 'all';
+  const hit = summariesCache.get(key);
+  if (hit && Date.now() - hit.at < 30_000) return hit.value;
+  const value = computeSummaries(db, orgId);
+  summariesCache.set(key, { at: Date.now(), value });
+  value.catch(() => { if (summariesCache.get(key)?.value === value) summariesCache.delete(key); });
   return value;
 }
 
-async function computeSummaries(db: Db) {
+async function computeSummaries(db: Db, orgId: string | null) {
   // One at a time: the audience function is heavy and running all five together hits the database statement timeout.
   const out = [];
   for (const a of AUDIENCES) {
     // One audience timing out in the database must not take the whole picker down with it.
-    const c = await audienceCandidates(db, a.id).catch((e: unknown) => { console.error(`audience ${a.id} failed`, e); return null; });
+    const c = await audienceCandidates(db, a.id, orgId).catch((e: unknown) => { console.error(`audience ${a.id} failed`, e); return null; });
     if (!c) { out.push({ ...a, blurb: `${a.blurb} Temporarily unavailable: the database timed out counting this audience.`, size: 0, avgScore: 0, points: [] as Array<[string, number]>, topStates: [] as Array<{ state: string; count: number }> }); continue; }
     const byState = new Map<string, number>(); for (const x of c) if (x.state) byState.set(x.state, (byState.get(x.state) ?? 0) + 1);
     out.push({
@@ -173,20 +178,20 @@ async function batchIsBuilderOwned(db: Db, batch: string): Promise<boolean> {
 }
 
 /** Step 1: validates the settings and returns the ordered list of lead ids to work through. Nothing is sent. */
-export async function planCampaign(db: Db, p: CampaignParams) {
+export async function planCampaign(db: Db, p: CampaignParams, orgId: string | null = null) {
   const bad = checkStart(p, MIN_LEAD_MINUTES); if (bad) return { error: bad };
   const batch = batchOf(p);
   if (await batchExists(db, batch)) return { error: `A campaign named "${batch}" already exists. Change the name or the start date.` };
-  const all = filterCandidates(await audienceCandidates(db, p.audience), p);
+  const all = filterCandidates(await audienceCandidates(db, p.audience, orgId), p);
   if (!all.length) return { error: 'No leads match this audience and filters.' };
   // Some leads are dropped while scheduling (landline, no estimate), so the list is longer than the target.
   return { batch, total: all.length, target: Math.min(p.maxTexts, all.length), ids: all.slice(0, Math.min(all.length, Math.ceil(p.maxTexts * 1.6) + 20)).map(c => c.id) };
 }
 
 /** Drafts a few messages exactly as they would be sent, so the user can read them before scheduling. */
-export async function previewCampaign(db: Db, p: CampaignParams) {
+export async function previewCampaign(db: Db, p: CampaignParams, orgId: string | null = null) {
   const bad = checkStart(p, MIN_LEAD_MINUTES); if (bad) return { error: bad };
-  const all = filterCandidates(await audienceCandidates(db, p.audience), p);
+  const all = filterCandidates(await audienceCandidates(db, p.audience, orgId), p);
   if (!all.length) return { error: 'No leads match this audience and filters.' };
   const n = Math.min(6, all.length);
   const picks = Array.from({ length: n }, (_, i) => all[Math.floor((i * all.length) / n)]);
@@ -214,13 +219,13 @@ export async function previewCampaign(db: Db, p: CampaignParams) {
 }
 
 /** Step 2, called repeatedly with a few ids at a time: checks each lead again, drafts, screens the phone and schedules the text with Twilio. */
-export async function scheduleChunk(db: Db, p: CampaignParams, ids: string[], budget: number) {
+export async function scheduleChunk(db: Db, p: CampaignParams, ids: string[], budget: number, orgId: string | null = null) {
   const bad = checkStart(p, 16); if (bad) return { error: bad };
   const batch = batchOf(p);
   if (!(await batchIsBuilderOwned(db, batch))) return { error: 'That campaign was not created here and cannot be added to.' };
   const unique = [...new Set(ids.filter(i => typeof i === 'string'))].slice(0, CHUNK_SIZE);
 
-  const eligible = new Set((await audienceCandidates(db, p.audience)).map(c => c.id));
+  const eligible = new Set((await audienceCandidates(db, p.audience, orgId)).map(c => c.id));
   const { data: leadRows, error } = await db.from('leads').select(LEAD_COLUMNS).in('id', unique);
   if (error) return { error: error.message };
   const skipped: Record<string, number> = {}; const skip = (r: string) => { skipped[r] = (skipped[r] ?? 0) + 1; };
@@ -285,10 +290,12 @@ export async function finishCampaign(db: Db, p: CampaignParams, tally: { screene
 }
 
 /** Cancels every text of a campaign that has not gone out yet (Twilio holds them until their send time). */
-export async function cancelCampaign(db: Db, batch: string) {
+export async function cancelCampaign(db: Db, batch: string, orgId: string | null = null) {
   const rows: Row[] = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await db.from('outreach_history').select('id,metadata').eq('channel', 'sms').eq('metadata->>batch', batch).range(from, from + 999);
+    let q = db.from('outreach_history').select('id,metadata').eq('channel', 'sms').eq('metadata->>batch', batch);
+    if (orgId) q = q.eq('organization_id', orgId);
+    const { data, error } = await q.range(from, from + 999);
     if (error) return { error: error.message };
     rows.push(...(data ?? [])); if ((data ?? []).length < 1000) break;
   }

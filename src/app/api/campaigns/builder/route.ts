@@ -11,25 +11,28 @@ export async function POST(req: NextRequest) {
   if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const body = await req.json().catch(() => ({}));
   const db = getSupabaseAdmin();
+  // Everything below is limited to the signed-in user's organization.
+  const orgId = auth.actor.organizationId;
+  if (!orgId) return NextResponse.json({ error: 'Your account is not part of an organization.' }, { status: 403 });
   const reply = (out: object) => ('error' in out ? NextResponse.json(out, { status: 422 }) : NextResponse.json(out));
   try {
     switch (body?.action) {
-      case 'audiences': return NextResponse.json({ audiences: await audienceSummaries(db), chunkSize: CHUNK_SIZE });
+      case 'audiences': return NextResponse.json({ audiences: await audienceSummaries(db, orgId), chunkSize: CHUNK_SIZE });
       case 'cancel': {
         const batch = String(body.batch ?? '');
         if (!batch) return NextResponse.json({ error: 'Choose a campaign' }, { status: 400 });
-        return reply(await cancelCampaign(db, batch));
+        return reply(await cancelCampaign(db, batch, orgId));
       }
     }
     const parsed = parseParams(body?.params);
     if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
     switch (body.action) {
-      case 'preview': return reply(await previewCampaign(db, parsed.p));
-      case 'plan': return reply(await planCampaign(db, parsed.p));
+      case 'preview': return reply(await previewCampaign(db, parsed.p, orgId));
+      case 'plan': return reply(await planCampaign(db, parsed.p, orgId));
       case 'schedule': {
         const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
         if (!ids.length || ids.length > CHUNK_SIZE) return NextResponse.json({ error: `Send between 1 and ${CHUNK_SIZE} leads at a time` }, { status: 400 });
-        return reply(await scheduleChunk(db, parsed.p, ids, Math.max(0, Math.round(Number(body.budget) || 0))));
+        return reply(await scheduleChunk(db, parsed.p, ids, Math.max(0, Math.round(Number(body.budget) || 0)), orgId));
       }
       case 'finish': return reply(await finishCampaign(db, parsed.p, { screened: Number(body.screened) || 0, landline: Number(body.landline) || 0, invalid: Number(body.invalid) || 0 }));
       default: return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

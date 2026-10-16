@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
  * GET /api/track/[token]
@@ -16,10 +17,7 @@ export async function GET(
     return NextResponse.redirect(process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new');
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getSupabaseAdmin();
 
   try {
     // Look up the token

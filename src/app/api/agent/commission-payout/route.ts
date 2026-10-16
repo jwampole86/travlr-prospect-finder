@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
 
 // ─── GET /api/agent/commission-payout ────────────────────────────────────────
 // Returns commission payout data scoped strictly to the requesting agent.
@@ -8,7 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
 
     // Verify session
     const { data: { session } } = await supabase.auth.getSession();

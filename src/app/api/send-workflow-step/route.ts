@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,10 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing stepId or leadIds' }, { status: 400 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = getSupabaseAdmin();
 
     // Fetch the step
     const { data: step, error: stepErr } = await supabase

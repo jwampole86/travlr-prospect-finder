@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
 
 // ─── GET /api/leads/info-request/lookup ──────────────────────────────────────
 // Public endpoint: look up lead address by info-request link token.
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'token is required' }, { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
 
     // Find the info request
     const { data: infoRequest, error } = await supabase

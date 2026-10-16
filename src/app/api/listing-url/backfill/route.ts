@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerChatCompletion } from '@/lib/ai/serverChatCompletion';
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
 
 // ─── POST /api/listing-url/backfill ──────────────────────────────────────────
 // Backfill pass for existing leads with broken/generic listing_url values.
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { limit = 50, dryRun = false, useClaudeForAmbiguous = false } = body;
 
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
 
     // 1. Find leads with broken/generic listing_url
     const { data: brokenLeads, error: fetchError } = await supabase
@@ -201,7 +202,7 @@ Respond with JSON only: {"listing_url": "https://..." or null, "confidence": "hi
 // ─── GET /api/listing-url/backfill — Status check ────────────────────────────
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
 
     const { data: allLeads } = await supabase
       .from('leads')

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { completion } from '@rocketnew/llm-sdk';
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
 
 const SUMMARY_SYSTEM_PROMPT = `You are an expert call analyst for TRAVLR, a luxury short-term rental property management company. 
 Analyze the provided call transcript and return a structured JSON summary.
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Persist summary to call_sessions
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
     const { error: updateError } = await supabase
       .from('call_sessions')
       .update({

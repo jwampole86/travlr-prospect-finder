@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
 
 // ─── GET /api/listing-url/diagnostic ─────────────────────────────────────────
 // Step 1 of the diagnostic-first listing URL fix:
@@ -86,7 +87,7 @@ function classifyUrl(url: string | null | undefined, source: string): 'correct_d
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
     const report: Record<string, any> = {};
     let totalSampled = 0;
     let totalCorrect = 0;
@@ -187,7 +188,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { sources, dryRun = true } = body;
 
-    const supabase = createClient();
+    const supabase = getSupabaseAdmin();
     const results: any[] = [];
 
     const targetSources = sources ?? SOURCES;
