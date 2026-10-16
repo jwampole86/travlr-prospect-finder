@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getChatCompletion } from '@/lib/ai/chatCompletion';
+import { getServerChatCompletion } from '@/lib/ai/serverChatCompletion';
 import { createClient } from '@/lib/supabase/client';
 
 // ─── POST /api/listing-url/backfill ──────────────────────────────────────────
@@ -137,7 +137,7 @@ The URL must be from domain: ${sourceDomain}
 Respond with JSON only: {"listing_url": "https://..." or null, "confidence": "high|medium|low"}`;
 
           try {
-            const aiResponse = await getChatCompletion(
+            const aiResponse = await getServerChatCompletion(
               'ANTHROPIC',
               'claude-haiku-4-5-20251001',
               [{ role: 'user', content: prompt }],

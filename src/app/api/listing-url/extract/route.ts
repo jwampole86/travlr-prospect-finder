@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getChatCompletion } from '@/lib/ai/chatCompletion';
+import { getServerChatCompletion } from '@/lib/ai/serverChatCompletion';
 import { createClient } from '@/lib/supabase/client';
 
 // ─── Known search-URL patterns per source ────────────────────────────────────
@@ -124,7 +124,7 @@ ${pageContent.substring(0, 8000)}
 
 Respond with JSON only: {"listing_url": "https://..." or null, "confidence": "high|medium|low"}`;
 
-    const aiResponse = await getChatCompletion(
+    const aiResponse = await getServerChatCompletion(
       'ANTHROPIC',
       'claude-haiku-4-5-20251001',
       [{ role: 'user', content: prompt }],
@@ -232,7 +232,7 @@ Based on the URL structure and any address information embedded in it, answer:
 
 Respond with JSON only: {"match": "yes|no|uncertain", "reason": "brief explanation"}`;
 
-    const aiResponse = await getChatCompletion(
+    const aiResponse = await getServerChatCompletion(
       'ANTHROPIC',
       'claude-haiku-4-5-20251001',
       [{ role: 'user', content: prompt }],

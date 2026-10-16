@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { completion } from '@rocketnew/llm-sdk';
+import { requireApiActor } from '@/lib/auth/apiAuthorization';
 
 const API_KEYS: Record<string, string | undefined> = {
   OPEN_AI: process.env.OPENAI_API_KEY,
@@ -20,6 +21,9 @@ function formatErrorResponse(error: unknown, provider?: string) {
 }
 
 export async function POST(request: NextRequest) {
+  // Spends the provider credits, so only signed-in users may call it.
+  const auth = await requireApiActor(request);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
   let body: any = {};
 
   try {

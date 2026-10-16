@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getTwilioConfigStatus } from '@/lib/services/twilioService';
 import { getResendConfigStatus } from '@/lib/email/resend';
 import { getDocuSignConfigStatus, getDocuSignAccessToken } from '@/lib/services/docusignService';
@@ -232,7 +233,9 @@ const CHECKERS: Record<string, () => Promise<CheckerResult>> = {
  * Aggregates real configuration + reachability status for integrations.
  * Optional query param: ?integration=<id> to test one provider without refreshing them all.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requireAdminActor(request);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { searchParams } = new URL(request.url);
   const integrationId = searchParams.get('integration');
 

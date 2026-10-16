@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 const PAGE_SIZE = 1000;
@@ -54,7 +55,9 @@ async function fetchDistinctSources(): Promise<string[]> {
   return [...sources].sort((a, b) => a.localeCompare(b));
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAdminActor(request);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const sources = await fetchDistinctSources();
 

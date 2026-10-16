@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 const PAGE_SIZE = 1000;
@@ -26,7 +27,9 @@ interface SummaryRow {
   last_called_at: string | null;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAdminActor(request);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const supabase = getSupabaseAdmin();
     const { count, error: countError } = await supabase
