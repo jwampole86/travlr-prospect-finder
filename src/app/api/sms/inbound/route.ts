@@ -6,6 +6,7 @@ import { sendReplyAlert, sendTeamAlert } from '@/lib/services/replyAlerts';
 import { advancePipeline } from '@/lib/services/leadPipeline';
 import { scheduleYesFollowup } from '@/lib/services/yesFollowup';
 import { looksLikeQuestion, questionReply } from '@/lib/services/smsQuestionReply';
+import { hoaReply, isHoaObjection } from '@/lib/services/smsHoaReply';
 
 /**
  * POST /api/sms/inbound
@@ -108,7 +109,9 @@ export async function POST(req: NextRequest) {
   } else if (lead && toE164(from)) {
     await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['new', 'contacted']);
     // A question gets an answer right away at any hour; the team is alerted below either way.
-    if (trusted && intent === 'other' && !isWrongContact(text) && looksLikeQuestion(text)) reply = (await questionReply(db, lead.id, from, text).catch(() => null)) ?? '';
+    // "Our HOA does not allow it": answered from what our records show, never from a guess.
+    if (trusted && intent === 'other' && !isWrongContact(text) && isHoaObjection(text)) reply = (await hoaReply(db, lead.id, from).catch(() => null)) ?? '';
+    else if (trusted && intent === 'other' && !isWrongContact(text) && looksLikeQuestion(text)) reply = (await questionReply(db, lead.id, from, text).catch(() => null)) ?? '';
   }
 
   // The prospect score includes replies, so refresh it now instead of leaving the profile on the pre-reply number.
