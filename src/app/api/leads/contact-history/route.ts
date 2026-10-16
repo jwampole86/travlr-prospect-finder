@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { outreachDisplay } from '@/lib/services/smsSendState';
+import { outreachMessageText } from '@/lib/outreachMessage';
 
 export const maxDuration = 30;
 
@@ -47,11 +48,11 @@ export async function GET(req: NextRequest) {
       if (!planned) continue;
       if (d.label === 'Scheduled' || d.label === 'Due to send') { upcoming.push({ id: `o-${r.id}`, at: planned, title: KIND_TITLE[m.kind] ?? 'Text', body: m.message, due: d.label === 'Due to send' }); continue; }
       if (d.label === 'Cancelled') continue;
-      events.push({ id: `o-${r.id}`, kind: 'text', direction: 'outbound', at: planned, title: `${KIND_TITLE[m.kind] ?? 'Text'}${m.campaign_name ? ` · ${m.campaign_name}` : ''}`, body: m.message ?? r.body_preview ?? undefined, status: d.label, tone: d.tone, details: d.events.filter(e => e.label !== 'Sent at').map(e => ({ label: e.label, at: e.at })), source: 'SMS' });
+      events.push({ id: `o-${r.id}`, kind: 'text', direction: 'outbound', at: planned, title: `${KIND_TITLE[m.kind] ?? 'Text'}${m.campaign_name ? ` · ${m.campaign_name}` : ''}`, body: outreachMessageText(r) || undefined, status: d.label, tone: d.tone, details: d.events.filter(e => e.label !== 'Sent at').map(e => ({ label: e.label, at: e.at })), source: 'SMS' });
     } else if (r.channel === 'email') {
       const at = iso(r.sent_at); if (!at) continue;
       const inbound = m.direction === 'inbound';
-      events.push({ id: `o-${r.id}`, kind: 'email', direction: inbound ? 'inbound' : 'outbound', at, title: r.subject || KIND_TITLE[m.kind] || 'Email', body: r.body_preview ?? undefined, status: r.status, tone: ['bounced', 'failed'].includes(r.status) ? 'red' : r.status === 'replied' ? 'purple' : ['opened', 'clicked', 'delivered'].includes(r.status) ? 'green' : 'blue', details: [], source: 'Email' });
+      events.push({ id: `o-${r.id}`, kind: 'email', direction: inbound ? 'inbound' : 'outbound', at, title: r.subject || KIND_TITLE[m.kind] || 'Email', body: outreachMessageText(r) || undefined, status: r.status, tone: ['bounced', 'failed'].includes(r.status) ? 'red' : r.status === 'replied' ? 'purple' : ['opened', 'clicked', 'delivered'].includes(r.status) ? 'green' : 'blue', details: [], source: 'Email' });
     } else if (r.channel === 'call') {
       const at = iso(r.sent_at); if (!at) continue;
       events.push({ id: `o-${r.id}`, kind: 'call', direction: 'outbound', at, title: 'Call', body: m.message_body ?? undefined, status: r.status, tone: 'gray', details: [], source: 'Call' });

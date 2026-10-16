@@ -3,6 +3,7 @@
 import BackButton from '@/components/ui/BackButton';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { outreachMessageText } from '@/lib/outreachMessage';
 import { Mail, MessageSquare, CheckCircle, XCircle, AlertCircle, Clock, RefreshCw, ChevronDown, ChevronUp, Reply, Calendar, Search, ArrowLeft } from 'lucide-react';
 
 interface OutreachRecord {
@@ -257,7 +258,7 @@ export default function OutreachHistoryPage() {
           lead_id: leadId,
           channel: row.channel,
           subject: row.subject,
-          body_preview: row.body_preview || '',
+          body_preview: outreachMessageText(row),
           status: row.status,
           failure_reason: row.failure_reason,
           bounce_type: row.bounce_type,
@@ -496,7 +497,7 @@ export default function OutreachHistoryPage() {
                               {record.subject && (
                                 <p className="text-sm font-medium text-foreground mb-1">{record.subject}</p>
                               )}
-                              <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{record.body_preview}</p>
+                              <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words mb-2">{record.body_preview}</p>
 
                               {/* Failure / bounce reason */}
                               {record.failure_reason && (
@@ -512,7 +513,7 @@ export default function OutreachHistoryPage() {
                                   <Reply size={12} className="text-green-600 mt-0.5 shrink-0" />
                                   <div>
                                     <p className="text-[10px] text-green-700 font-semibold uppercase tracking-wide mb-0.5">Reply detected</p>
-                                    <p className="text-[11px] text-green-800 italic">"{record.reply_snippet}"</p>
+                                    <p className="text-[11px] text-green-800 italic whitespace-pre-wrap break-words">"{record.reply_snippet}"</p>
                                     {record.replied_at && (
                                       <p className="text-[10px] text-green-600 mt-0.5">{formatDateTime(record.replied_at)}</p>
                                     )}

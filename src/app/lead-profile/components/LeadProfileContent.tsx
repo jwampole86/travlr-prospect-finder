@@ -28,6 +28,7 @@ import ConfidenceBandBadge, { getConfidenceBand, CONFIDENCE_BAND_CONFIG } from '
 import Icon from '@/components/ui/AppIcon';
 import AILeadQualificationPanel from '@/components/AILeadQualificationPanel';
 import type { LeadQualificationSignals } from '@/components/AILeadQualificationPanel';
+import { outreachMessageText } from '@/lib/outreachMessage';
 
 
 interface ContactHistoryEntry {
@@ -1517,7 +1518,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    {outreachLog.map(entry => { const disp = outreachDisplay(entry); const text = entry.body_preview || (entry.metadata?.message as string | undefined) || (entry.metadata?.body as string | undefined) || null; return (
+                    {outreachLog.map(entry => { const disp = outreachDisplay(entry); const text = outreachMessageText(entry) || null; return (
                       <div key={entry.id} className="flex items-start gap-3 p-3.5 bg-muted/20 rounded-xl border border-border">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${entry.channel === 'email' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}`}>
                           {entry.channel === 'email' ? <Mail size={14} /> : <MessageSquare size={14} />}
@@ -1541,14 +1542,14 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                             <p className="text-[10px] text-muted-foreground/70 mb-1">Campaign: {String(entry.metadata?.campaign_name ?? entry.metadata?.batch)}</p>
                           ) : null}
                           {text && (
-                            <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{text}</p>
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">{text}</p>
                           )}
                           {entry.reply_detected && entry.reply_snippet && (
                             <div className="mt-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                               <p className="text-[10px] font-semibold text-emerald-600 mb-0.5 flex items-center gap-1">
                                 <CheckCircle size={9} /> Homeowner replied
                               </p>
-                              <p className="text-xs text-emerald-700 line-clamp-2">{entry.reply_snippet}</p>
+                              <p className="text-xs text-emerald-700 whitespace-pre-wrap break-words">{entry.reply_snippet}</p>
                             </div>
                           )}
                           <div className="mt-1.5 space-y-0.5">
@@ -1868,7 +1869,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                               <span className="text-[10px] text-muted-foreground">{e.direction === 'inbound' ? 'received' : 'sent'}</span>
                               {e.status && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ml-auto shrink-0 ${outreachToneColors[e.tone ?? 'gray']}`}>{e.status}</span>}
                             </div>
-                            {e.body && <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{e.body}</p>}
+                            {e.body && <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">{e.body}</p>}
                             <div className="mt-1 space-y-0.5">
                               <p className="text-[10px] text-muted-foreground/70">{e.dateOnly ? new Date(e.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : fmtLogTime(e.at)} · {e.source}</p>
                               {(e.details as Array<{ label: string; at?: string; text?: string }>).map(d => (
