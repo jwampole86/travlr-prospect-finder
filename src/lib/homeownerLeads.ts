@@ -65,7 +65,8 @@ export async function upsertHomeownerLead(db: Db, input: {
   let existing: { id: string; contact_name: string | null; contact_phone: string | null; primary_agent_id: string | null; landing_page_submission: unknown } | null = null;
   const cols = 'id,contact_name,contact_phone,primary_agent_id,landing_page_submission';
   if (fingerprint) {
-    const { data } = await db.from('leads').select(cols).eq('address_fingerprint', fingerprint).or('is_synthetic.is.null,is_synthetic.eq.false').limit(1).maybeSingle();
+    // Not limited to real leads: the fingerprint is unique across the table, so a placeholder lead at this address would otherwise make the insert below fail.
+    const { data } = await db.from('leads').select(cols).eq('address_fingerprint', fingerprint).limit(1).maybeSingle();
     existing = data ?? null;
   }
   if (!existing && a.state && /^\d+/.test(street)) {
