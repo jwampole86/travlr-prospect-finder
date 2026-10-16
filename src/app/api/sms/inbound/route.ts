@@ -7,6 +7,7 @@ import { advancePipeline } from '@/lib/services/leadPipeline';
 import { scheduleYesFollowup } from '@/lib/services/yesFollowup';
 import { looksLikeQuestion, questionReply } from '@/lib/services/smsQuestionReply';
 import { hoaReply, isHoaObjection } from '@/lib/services/smsHoaReply';
+import { isSchedulingThread, schedulingReply } from '@/lib/services/smsCallScheduler';
 
 /**
  * POST /api/sms/inbound
@@ -66,17 +67,26 @@ export async function POST(req: NextRequest) {
 
   let reply = '';
 
-  if (lead) {
-    if (intent === 'stop' || intent === 'no') await advancePipeline(db, lead.id, 'rejected');
-    else if (intent === 'yes') await advancePipeline(db, lead.id, 'callback_scheduled');
+  // A homeowner answering our request for a call time: Anthropic reads the thread, our code books or asks, and a "No" here means
+  // "not that time", not an opt-out. STOP and other refusals never reach this branch.
+  let scheduled = false;
+  if (lead && trusted && (intent === 'other' || intent === 'yes' || intent === 'no') && !isWrongContact(text) && !isHoaObjection(text) && await isSchedulingThread(db, lead.id).catch(() => false)) {
+    const r = await schedulingReply(db, lead.id, from, text).catch(() => null);
+    if (r) { reply = r; scheduled = true; }
   }
-  if (intent === 'stop' || intent === 'no') {
+  const mode: string = scheduled ? 'scheduled' : intent;
+
+  if (lead) {
+    if (mode === 'stop' || mode === 'no') await advancePipeline(db, lead.id, 'rejected');
+    else if (mode === 'yes') await advancePipeline(db, lead.id, 'callback_scheduled');
+  }
+  if (mode === 'stop' || mode === 'no') {
     await recordOptOut(db, { leadId: lead?.id ?? null, phone: from, message: text });
     if (threadId) await db.from('sms_conversation_threads').update({ conversation_status: 'opted_out' }).eq('id', threadId);
     await log('sms_opt_out', 'Lead opted out of SMS');
     // Twilio sends its own confirmation for STOP keywords; "NO" is ours to answer.
-    if (intent === 'no') reply = 'You are opted out and will not receive more texts from TRAVLR Vacation Homes.';
-  } else if (intent === 'yes') {
+    if (mode === 'no') reply = 'You are opted out and will not receive more texts from TRAVLR Vacation Homes.';
+  } else if (mode === 'yes') {
     if (lead && trusted) {
       await recordOptIn(db, { leadId: lead.id, phone: from });
       await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Replied YES to outreach text' }).eq('id', lead.id);
@@ -103,19 +113,19 @@ export async function POST(req: NextRequest) {
         metadata: { lead_id: lead.id, reason: 'sms_reply_yes_unverified' },
       });
     }
-  } else if (intent === 'help') {
+  } else if (mode === 'help') {
     await log('sms_help_request', 'Lead requested HELP via SMS');
     reply = 'TRAVLR Vacation Homes: staytrvlr.com. Reply YES for a call about your free estimate, STOP to opt out.';
-  } else if (lead && toE164(from)) {
+  } else if (mode !== 'scheduled' && lead && toE164(from)) {
     await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['new', 'contacted']);
     // A question gets an answer right away at any hour; the team is alerted below either way.
     // "Our HOA does not allow it": answered from what our records show, never from a guess.
-    if (trusted && intent === 'other' && !isWrongContact(text) && isHoaObjection(text)) reply = (await hoaReply(db, lead.id, from).catch(() => null)) ?? '';
-    else if (trusted && intent === 'other' && !isWrongContact(text) && looksLikeQuestion(text)) reply = (await questionReply(db, lead.id, from, text).catch(() => null)) ?? '';
+    if (trusted && mode === 'other' && !isWrongContact(text) && isHoaObjection(text)) reply = (await hoaReply(db, lead.id, from).catch(() => null)) ?? '';
+    else if (trusted && mode === 'other' && !isWrongContact(text) && looksLikeQuestion(text)) reply = (await questionReply(db, lead.id, from, text).catch(() => null)) ?? '';
   }
 
   // The prospect score includes replies, so refresh it now instead of leaving the profile on the pre-reply number.
-  if (lead && intent !== 'stop' && intent !== 'no') await rescoreLeadsByIds(db, [lead.id]).catch(() => 0);
+  if (lead && mode !== 'stop' && mode !== 'no') await rescoreLeadsByIds(db, [lead.id]).catch(() => 0);
 
   // Replies from a co-host prospect we texted one-to-one are tied back to their listing.
   const e164 = toE164(from);
@@ -137,7 +147,7 @@ export async function POST(req: NextRequest) {
   }
 
   // A YES or a written reply needs a person, so email and text the team instead of waiting for someone to open the app. Skipped when the webhook signature is wrong.
-  if (verified !== false && (intent === 'yes' || (intent === 'other' && !isWrongContact(text)))) {
+  if (verified !== false && !scheduled && (intent === 'yes' || (intent === 'other' && !isWrongContact(text)))) {
     await sendReplyAlert({
       kind: intent === 'yes' ? 'yes' : 'question', from, text, name: lead?.contact_name ?? null, place: cohostMarket,
       url: sentTo?.property_id ? `${site}/cohost` : lead ? `${site}/lead-profile?id=${encodeURIComponent(lead.id)}` : `${site}/sms-delivery`,

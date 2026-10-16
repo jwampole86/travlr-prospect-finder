@@ -20,7 +20,7 @@ const PLATFORMS: Record<string, string> = {
 const PLATFORM_NAMES = [...new Set(Object.values(PLATFORMS))];
 
 // One primary zone per state. Sends are limited to 9am-8pm local, narrower than the 8am-9pm legal window, to cover split-zone states.
-const STATE_TZ: Record<string, string> = {
+export const STATE_TZ: Record<string, string> = {
   AL: 'America/Chicago', AK: 'America/Anchorage', AZ: 'America/Phoenix', AR: 'America/Chicago', CA: 'America/Los_Angeles',
   CO: 'America/Denver', CT: 'America/New_York', DE: 'America/New_York', DC: 'America/New_York', FL: 'America/New_York',
   GA: 'America/New_York', HI: 'Pacific/Honolulu', ID: 'America/Denver', IL: 'America/Chicago', IN: 'America/New_York',
