@@ -16,12 +16,14 @@ interface FormState {
   primaryUseCase: string;
   estimatedLeadVolume: string;
   message: string;
+  /** Hidden field: people leave it empty, form-filling bots do not. */
+  hp: string;
 }
 
 const initialState: FormState = {
   firstName: '', lastName: '', workEmail: '', company: '', companyWebsite: '',
   propertiesManaged: '', teamMembers: '', currentSoftware: '', primaryUseCase: '',
-  estimatedLeadVolume: '', message: '',
+  estimatedLeadVolume: '', message: '', hp: '',
 };
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
@@ -37,7 +39,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 const inputClass = 'w-full px-3 py-2.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent';
 
-export default function EnterpriseInquiryForm() {
+export default function EnterpriseInquiryForm({ kind = 'enterprise' }: { kind?: 'enterprise' | 'demo' }) {
   const [form, setForm] = useState<FormState>(initialState);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -56,7 +58,7 @@ export default function EnterpriseInquiryForm() {
       const res = await fetch('/api/prospect-finder/enterprise-inquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, inquiryType: kind }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Something went wrong');
@@ -75,7 +77,7 @@ export default function EnterpriseInquiryForm() {
           <CheckCircle className="w-6 h-6 text-primary" />
         </div>
         <h2 className="text-lg font-bold text-foreground mb-1.5">Thanks — we've got your request</h2>
-        <p className="text-sm text-muted-foreground">A member of our sales team will reach out to {form.workEmail} shortly to discuss AVYRO AI Enterprise.</p>
+        <p className="text-sm text-muted-foreground">{kind === 'demo' ? `We will reach out to ${form.workEmail} shortly to set up your walkthrough.` : `A member of our sales team will reach out to ${form.workEmail} shortly to discuss AVYRO AI Enterprise.`}</p>
       </div>
     );
   }
@@ -98,6 +100,7 @@ export default function EnterpriseInquiryForm() {
       <Field label="Current Vacation Rental Software / PMS"><input className={inputClass} value={form.currentSoftware} onChange={set('currentSoftware')} /></Field>
       <Field label="Primary Use Case"><input className={inputClass} value={form.primaryUseCase} onChange={set('primaryUseCase')} /></Field>
       <Field label="Estimated Lead Volume (per month) and Markets"><input placeholder="e.g. 1,500 leads a month across 10 markets" className={inputClass} value={form.estimatedLeadVolume} onChange={set('estimatedLeadVolume')} /></Field>
+      <input type="text" name="website_url" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" value={form.hp} onChange={set('hp')} />
       <Field label="Message"><textarea rows={4} className={`${inputClass} resize-none`} value={form.message} onChange={set('message')} /></Field>
 
       <button
@@ -106,7 +109,7 @@ export default function EnterpriseInquiryForm() {
         className="w-full py-3.5 px-6 bg-foreground text-background rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-60"
       >
         {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-        {submitting ? 'Submitting…' : 'Request Enterprise Access'}
+        {submitting ? 'Submitting…' : kind === 'demo' ? 'Request a demo' : 'Request Enterprise Access'}
       </button>
     </form>
   );

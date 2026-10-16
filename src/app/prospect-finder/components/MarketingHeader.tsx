@@ -40,6 +40,8 @@ export default function MarketingHeader() {
           >
             {t('common.home')}
           </Link>
+          <Link href="/product" aria-current={pathname === '/product' ? 'page' : undefined} className={pathname === '/product' ? 'text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground transition-colors'}>{t('common.product')}</Link>
+          <Link href="/how-it-works" aria-current={pathname === '/how-it-works' ? 'page' : undefined} className={pathname === '/how-it-works' ? 'text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground transition-colors'}>{t('common.howItWorks')}</Link>
           <Link
             href="/plans"
             aria-current={isPlans ? 'page' : undefined}
@@ -47,6 +49,7 @@ export default function MarketingHeader() {
           >
             {t('common.plans')}
           </Link>
+          <Link href="/about" aria-current={pathname === '/about' ? 'page' : undefined} className={pathname === '/about' ? 'text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground transition-colors'}>{t('common.about')}</Link>
           <Link href="/plans#plan-enterprise" className="text-muted-foreground hover:text-foreground transition-colors">{t('common.enterprise')}</Link>
         </nav>
         <div className="flex items-center gap-1 sm:gap-3">
@@ -55,10 +58,10 @@ export default function MarketingHeader() {
             {t('common.signIn')}
           </Link>
           <Link
-            href="/plans"
+            href="/request-demo"
             className="px-3.5 py-2.5 text-sm bg-foreground text-background rounded-lg hover:opacity-90 transition-opacity font-medium"
           >
-            {t('common.plans')}
+            {t('common.requestDemo')}
           </Link>
           <button
             type="button"
@@ -79,7 +82,11 @@ export default function MarketingHeader() {
         <nav id="marketing-mobile-menu" className="md:hidden border-t border-border bg-card px-4 py-2 flex flex-col">
           {[
             { href: '/welcome', label: t('common.home') },
+            { href: '/product', label: t('common.product') },
+            { href: '/how-it-works', label: t('common.howItWorks') },
             { href: '/plans', label: t('common.plans') },
+            { href: '/about', label: t('common.about') },
+            { href: '/request-demo', label: t('common.requestDemo') },
             { href: '/plans#plan-enterprise', label: t('common.enterprise') },
             { href: '/prospect-finder/contact-sales', label: t('common.contactSales') },
           ].map((item) => (

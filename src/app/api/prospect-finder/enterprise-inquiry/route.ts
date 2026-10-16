@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { allowRequest, clientIp } from '@/lib/publicRateLimit';
 
 interface EnterpriseInquiryBody {
   firstName: string;
@@ -13,6 +14,8 @@ interface EnterpriseInquiryBody {
   primaryUseCase?: string;
   estimatedLeadVolume?: string;
   message?: string;
+  inquiryType?: string;
+  hp?: string;
 }
 
 function escapeHtml(value: string): string {
@@ -25,6 +28,10 @@ function escapeHtml(value: string): string {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Partial<EnterpriseInquiryBody>;
+    // A bot that fills the hidden field gets a success reply and nothing is sent.
+    if (body.hp?.toString().trim()) return NextResponse.json({ success: true });
+    if (!allowRequest(`inquiry:${clientIp(req.headers)}`, 5, 60 * 60 * 1000)) return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
+    const isDemo = body.inquiryType === 'demo';
     const required: Array<keyof EnterpriseInquiryBody> = ['firstName', 'lastName', 'workEmail', 'company'];
     const missing = required.filter((field) => !body[field]?.toString().trim());
     if (missing.length > 0) {
@@ -60,7 +67,7 @@ export async function POST(req: NextRequest) {
     const html = `
       <div style="font-family:'DM Sans',sans-serif;max-width:640px;margin:0 auto;padding:24px;">
         <div style="background:linear-gradient(135deg,#111827 0%,#374151 100%);border-radius:14px;padding:24px 28px;margin-bottom:24px;">
-          <h1 style="color:#fff;margin:0;font-size:20px;">New Enterprise Prospect Finder Inquiry</h1>
+          <h1 style="color:#fff;margin:0;font-size:20px;">${isDemo ? 'New AVYRO AI Demo Request' : 'New Enterprise Prospect Finder Inquiry'}</h1>
         </div>
         <table style="width:100%;border-collapse:collapse;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
           ${tableRows}
@@ -78,7 +85,7 @@ export async function POST(req: NextRequest) {
       from: getResendFrom(),
       to: [salesEmail],
       replyTo: body.workEmail,
-      subject: `🏢 Enterprise Inquiry: ${body.company}`,
+      subject: `${isDemo ? '📅 Demo Request' : '🏢 Enterprise Inquiry'}: ${body.company}`,
       html,
     });
 
