@@ -34,7 +34,7 @@ const STATE_TZ: Record<string, string> = {
   WY: 'America/Denver',
 };
 
-export const LEAD_COLUMNS = 'id,address,city,state,zip,owner_name,contact_name,contact_phone,verified_owner,verified_number,source,sms_opt_in,sms_opted_out_at,program,listing_url';
+export const LEAD_COLUMNS = 'id,address,city,state,zip,owner_name,contact_name,contact_phone,verified_owner,verified_number,source,sms_opt_in,sms_opted_out_at,program,listing_url,price_type,listing_agent_name,listing_broker_name';
 
 export interface OutreachLead {
   id: string; address: string | null; city: string | null; state: string | null; zip: string | null;
@@ -42,6 +42,7 @@ export interface OutreachLead {
   verified_owner: boolean | null; verified_number: boolean | null; source: string | null; sms_opt_in: boolean | null;
   sms_opted_out_at: string | null;
   program?: string | null;
+  price_type?: string | null; listing_agent_name?: string | null; listing_broker_name?: string | null;
 }
 
 export type Blocker =
@@ -80,7 +81,7 @@ export function countSegments(text: string): number {
 const kfmt = (n: number) => `$${Math.round(n / 1000)}K`;
 const COMPANY = /\b(llc|inc|corp|co|trust|lp|llp|pllc|ltd|holdings?|properties|property|realty|group|partners|invest\w*|management|mgmt|estate|living|homes?|rentals?|stays?|vacation|capital|ventures?|enterprises?|solutions|services|hospitality|lodging|bnb|association|&)\b/i;
 
-function firstNameOf(lead: OutreachLead): string | null {
+export function firstNameOf(lead: OutreachLead): string | null {
   if (lead.verified_owner !== true || !lead.owner_name || COMPANY.test(lead.owner_name) || lead.owner_name.includes(',')) return null;
   const first = lead.owner_name.trim().split(/[\s,]+/)[0] ?? '';
   return /^[A-Za-z][A-Za-z'-]{1,20}$/.test(first) ? first.charAt(0).toUpperCase() + first.slice(1).toLowerCase() : null;
@@ -115,8 +116,21 @@ const SHORT_PLACEHOLDER = 'x'.repeat(SHORT_CODE_LEN);
 const shortUrl = (site: string, code: string) => `${site.replace(/\/$/, '')}/e/${code}`;
 
 function footer(url: string): string {
-  // Own lines keep the two links visually separate; the bare domain is still linkified by phones.
-  return `Free estimate: ${url}\nVisit ${SITE_URL.replace('https://', '')}\nReply YES for info, NO to opt out`;
+  // One link only: a second link makes carrier spam filters more likely to block the text. STOP is the standard opt-out word.
+  return `Free estimate: ${url}\nReply YES for your estimate, STOP to opt out`;
+}
+
+/**
+ * Who the campaigns are for: owner-listed rentals (no listing agent or broker) whose owner we can greet by name.
+ * Homes for sale are not pitched (the owner is selling), and a listing agent's phone is not the owner's.
+ * Returns why a lead is out, or null when they fit.
+ */
+export function campaignFitReason(lead: OutreachLead): 'for_sale' | 'not_a_rental' | 'agent_listed' | 'no_owner_name' | null {
+  if (lead.price_type === 'sale') return 'for_sale';
+  if (lead.price_type !== 'rent') return 'not_a_rental';
+  if (lead.listing_agent_name?.trim() || lead.listing_broker_name?.trim()) return 'agent_listed';
+  if (!firstNameOf(lead)) return 'no_owner_name';
+  return null;
 }
 
 // ─── Copy ────────────────────────────────────────────────────────────────────

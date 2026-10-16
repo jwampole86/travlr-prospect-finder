@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     }
   } else if (intent === 'help') {
     await log('sms_help_request', 'Lead requested HELP via SMS');
-    reply = 'TRAVLR Vacation Homes: staytrvlr.com. Reply YES for a call about your free estimate, NO or STOP to opt out.';
+    reply = 'TRAVLR Vacation Homes: staytrvlr.com. Reply YES for a call about your free estimate, STOP to opt out.';
   } else if (lead && toE164(from)) {
     await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['new', 'contacted']);
     // A question gets an answer right away at any hour; the team is alerted below either way.

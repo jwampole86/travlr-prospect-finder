@@ -1,7 +1,7 @@
 import 'server-only';
 import { isProtectedContact } from '@/lib/protectedContacts';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { draftOutreach, finalizeMessage, inSendWindow, LEAD_COLUMNS, type OutreachLead } from '@/lib/services/estimateOutreachSms';
+import { campaignFitReason, draftOutreach, finalizeMessage, inSendWindow, LEAD_COLUMNS, type OutreachLead } from '@/lib/services/estimateOutreachSms';
 import { lookupPhoneNumber, smsBlockReason } from '@/lib/services/twilioService';
 import { scheduleSMS, cancelScheduled } from '@/lib/services/twilioSchedule';
 import { toE164 } from '@/lib/services/smsConsent';
@@ -18,7 +18,7 @@ export const CHUNK_SIZE = 8;
 /** Early results (2026-10-12) favored these states, so campaigns take their leads first, then the rest by score. */
 const PRIORITY_STATES = ['CO', 'FL', 'AZ'];
 
-/** Who can be texted. The database function campaign_audience applies the shared rules (real leads, never co-host, never a property already texted, never a phone or owner that opted out or said no, one lead per phone). */
+/** Who can be texted. The database function campaign_audience applies the shared rules (real leads, never co-host, never a property already texted, never a phone or owner that opted out or said no, one lead per phone). audienceCandidates then keeps only owner-listed rentals with a nameable owner (see campaignFitReason). */
 export const AUDIENCES = [
   { id: 'fully-verified', label: 'Fully verified', blurb: 'Owner, phone and address all confirmed. The cleanest data we have.' },
   { id: 'luxury-phone', label: 'Luxury homes with a phone', blurb: 'High-value homes where a rental estimate is most compelling. Phone numbers are less verified.' },
@@ -77,11 +77,11 @@ export async function audienceCandidates(db: Db, audience: string): Promise<Cand
   const recent = await recentlyTexted(db);
   const blocked = new Set<string>();
   for (let i = 0; i < out.length; i += 100) {
-    const { data, error } = await db.from('leads').select('id, contact_phone, owner_name, contact_name').in('id', out.slice(i, i + 100).map(c => c.id));
+    const { data, error } = await db.from('leads').select('id, contact_phone, owner_name, contact_name, verified_owner, price_type, listing_agent_name, listing_broker_name').in('id', out.slice(i, i + 100).map(c => c.id));
     if (error) throw error;
     for (const l of data ?? []) {
       const ph = phoneKey(l.contact_phone); const ok = ownerKey(l.owner_name);
-      if ((ph && recent.phones.has(ph)) || (ok && recent.owners.has(ok)) || isProtectedContact(l.owner_name, l.contact_name)) blocked.add(l.id as string);
+      if ((ph && recent.phones.has(ph)) || (ok && recent.owners.has(ok)) || isProtectedContact(l.owner_name, l.contact_name) || campaignFitReason(l as unknown as OutreachLead)) blocked.add(l.id as string);
     }
   }
   return out.filter(c => !blocked.has(c.id));
@@ -237,6 +237,7 @@ export async function scheduleChunk(db: Db, p: CampaignParams, ids: string[], bu
   await pool(leads, 4, async lead => {
     const to = toE164(lead.contact_phone);
     const ls = listingStatus.get(lead.id);
+    const fit = campaignFitReason(lead); if (fit) return skip(fit);
     if (ls?.blocked) return skip(`listing_${ls.reason}`);
     if (to && taken.has(to)) return skip('phone_already_texted');
     if (to) taken.add(to);
