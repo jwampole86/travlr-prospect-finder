@@ -103,21 +103,40 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
         .from('sync_events')
         .select('operation_id, status, created_at')
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(1000);
 
       if (!data) return {};
 
-      const bySource: Record<string, { status: string; ts: Date }> = {};
+      // Each pull is recorded per source and state ("Zillow WI"). One state failing must not paint the whole source red, so
+      // the status comes from the latest result of every state pulled in the last 6 hours: a rate-limited pull that was
+      // retried successfully counts as a success, and only a source whose pulls mostly fail is shown as failing.
+      const windowStart = Date.now() - 6 * 3600_000;
+      const latestPerPull = new Map<string, { source: string; status: string; ts: Date }>();
+      const newestEver: Record<string, { status: string; ts: Date }> = {};
       for (const row of data) {
-        const src = (row.operation_id as string) || '';
-        if (!src) continue;
-        const matchedSource = SYNC_WIDGET_SOURCES.find(
-          (s) => src.toLowerCase().includes(s.name.toLowerCase())
-        );
-        const key = matchedSource?.name || src;
-        if (!bySource[key]) {
-          bySource[key] = { status: row.status as string, ts: new Date(row.created_at as string) };
-        }
+        const op = (row.operation_id as string) || '';
+        if (!op) continue;
+        const matchedSource = SYNC_WIDGET_SOURCES.find((s) => op.toLowerCase().includes(s.name.toLowerCase()));
+        const source = matchedSource?.name || op;
+        const ts = new Date(row.created_at as string);
+        if (!newestEver[source]) newestEver[source] = { status: row.status as string, ts };
+        if (ts.getTime() < windowStart || latestPerPull.has(op)) continue;
+        latestPerPull.set(op, { source, status: row.status as string, ts });
+      }
+
+      const counts: Record<string, { success: number; failed: number; partial: number; newest: Date }> = {};
+      for (const { source, status, ts } of latestPerPull.values()) {
+        const c = counts[source] ?? (counts[source] = { success: 0, failed: 0, partial: 0, newest: ts });
+        if (status === 'failed') c.failed++; else if (status === 'partial') c.partial++; else c.success++;
+        if (ts > c.newest) c.newest = ts;
+      }
+
+      const bySource: Record<string, { status: string; ts: Date }> = { ...newestEver };
+      for (const [source, c] of Object.entries(counts)) {
+        const total = c.success + c.failed + c.partial;
+        const failRatio = c.failed / total;
+        const status = failRatio === 1 ? 'failed' : failRatio >= 0.25 || c.partial > 0 ? 'partial' : 'success';
+        bySource[source] = { status, ts: c.newest };
       }
       return bySource;
     } catch {

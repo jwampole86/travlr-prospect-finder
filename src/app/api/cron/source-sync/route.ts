@@ -13,6 +13,9 @@ const CALL_TIMEOUT_MS = 150_000;
 
 type ProviderBody = Record<string, unknown>;
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const RATE_LIMITED = /\b429\b|rate.?limit|too many requests/i;
+
 type PullResult = {
   state: string;
   source: string;
@@ -131,8 +134,8 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      const pulls = await Promise.all(
-        sources.map(async (source): Promise<PullResult> => {
+      // A provider that answers 429 (rate limited) is retried after a pause instead of recording a failed pull.
+      const pullOnce = async (source: string): Promise<PullResult> => {
           try {
             const response = await fetch(`${origin}/api/leads/rapidapi-import`, {
               method: 'POST',
@@ -165,6 +168,17 @@ export async function GET(req: NextRequest) {
               error: error instanceof Error ? error.message : String(error),
             };
           }
+      };
+      const pulls = await Promise.all(
+        sources.map(async (source, i): Promise<PullResult> => {
+          // Zillow's scraper is the most rate-limited, so it starts a moment after the other providers.
+          if (source === 'zillow-search') await sleep(1500);
+          let result = await pullOnce(source);
+          for (let retry = 1; retry <= 3 && !result.ok && RATE_LIMITED.test(result.error ?? '') && Date.now() - startedAt < TIME_BUDGET_MS - 40_000; retry++) {
+            await sleep(3000 * retry + Math.floor(Math.random() * 1000) + i * 250);
+            result = await pullOnce(source);
+          }
+          return result;
         })
       );
 
