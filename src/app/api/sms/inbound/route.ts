@@ -8,6 +8,7 @@ import { scheduleYesFollowup } from '@/lib/services/yesFollowup';
 import { looksLikeQuestion, questionReply } from '@/lib/services/smsQuestionReply';
 import { hoaReply, isHoaObjection } from '@/lib/services/smsHoaReply';
 import { isSchedulingThread, schedulingReply } from '@/lib/services/smsCallScheduler';
+import { objectionReply } from '@/lib/services/smsObjectionReply';
 
 /**
  * POST /api/sms/inbound
@@ -117,11 +118,13 @@ export async function POST(req: NextRequest) {
     await log('sms_help_request', 'Lead requested HELP via SMS');
     reply = 'TRAVLR Vacation Homes: staytrvlr.com. Reply YES for a call about your free estimate, STOP to opt out.';
   } else if (mode !== 'scheduled' && lead && toE164(from)) {
-    await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['new', 'contacted']);
+    await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['New Lead', 'Contacted']);
     // A question gets an answer right away at any hour; the team is alerted below either way.
     // "Our HOA does not allow it": answered from what our records show, never from a guess.
     if (trusted && mode === 'other' && !isWrongContact(text) && isHoaObjection(text)) reply = (await hoaReply(db, lead.id, from).catch(() => null)) ?? '';
     else if (trusted && mode === 'other' && !isWrongContact(text) && looksLikeQuestion(text)) reply = (await questionReply(db, lead.id, from, text).catch(() => null)) ?? '';
+    // A written statement ("I would need a second mortgage", "I already have a manager"): answered from what we know, with a brief left for the agent.
+    else if (trusted && mode === 'other' && !isWrongContact(text)) reply = (await objectionReply(db, lead.id, from, text).catch(() => null)) ?? '';
   }
 
   // The prospect score includes replies, so refresh it now instead of leaving the profile on the pre-reply number.
