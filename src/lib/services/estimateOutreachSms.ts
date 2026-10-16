@@ -121,15 +121,15 @@ function footer(url: string): string {
 }
 
 /**
- * Who the campaigns are for: owner-listed rentals (no listing agent or broker) whose owner we can greet by name.
+ * Who the campaigns are for: owner-listed rentals (no listing agent or broker).
  * Homes for sale are not pitched (the owner is selling), and a listing agent's phone is not the owner's.
+ * The greeting uses a name only for a verified owner; skip-traced names may belong to a tenant, so those leads get "Hi there".
  * Returns why a lead is out, or null when they fit.
  */
-export function campaignFitReason(lead: OutreachLead): 'for_sale' | 'not_a_rental' | 'agent_listed' | 'no_owner_name' | null {
+export function campaignFitReason(lead: OutreachLead): 'for_sale' | 'not_a_rental' | 'agent_listed' | null {
   if (lead.price_type === 'sale') return 'for_sale';
   if (lead.price_type !== 'rent') return 'not_a_rental';
   if (lead.listing_agent_name?.trim() || lead.listing_broker_name?.trim()) return 'agent_listed';
-  if (!firstNameOf(lead)) return 'no_owner_name';
   return null;
 }
 

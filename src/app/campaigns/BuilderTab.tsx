@@ -11,7 +11,7 @@ type Run = { phase: 'idle' } | { phase: 'planning' } | { phase: 'running'; plan:
 
 const SKIP_LABEL: Record<string, string> = {
   landline: 'landline', invalid_number: 'invalid number', no_estimate: 'no estimate available', no_address: 'missing address', no_phone: 'no phone', contacted_recently: 'texted recently', phone_already_texted: 'phone already texted',
-  no_send_window: 'outside local sending hours', no_longer_eligible: 'no longer eligible', for_sale: 'home is for sale', not_a_rental: 'not a rental listing', agent_listed: 'listed by an agent', no_owner_name: 'owner not named', opted_out: 'opted out', do_not_contact: 'do not contact', twilio_error: 'carrier rejected', quiet_hours: 'quiet hours', target_reached: 'target reached', too_long: 'message too long',
+  no_send_window: 'outside local sending hours', no_longer_eligible: 'no longer eligible', for_sale: 'home is for sale', not_a_rental: 'not a rental listing', agent_listed: 'listed by an agent', opted_out: 'opted out', do_not_contact: 'do not contact', twilio_error: 'carrier rejected', quiet_hours: 'quiet hours', target_reached: 'target reached', too_long: 'message too long',
 };
 const STEPS = ['Audience', 'Message and timing', 'Review and schedule'];
 

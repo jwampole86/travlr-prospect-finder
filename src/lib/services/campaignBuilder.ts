@@ -18,7 +18,7 @@ export const CHUNK_SIZE = 8;
 /** Early results (2026-10-12) favored these states, so campaigns take their leads first, then the rest by score. */
 const PRIORITY_STATES = ['CO', 'FL', 'AZ'];
 
-/** Who can be texted. The database function campaign_audience applies the shared rules (real leads, never co-host, never a property already texted, never a phone or owner that opted out or said no, one lead per phone). audienceCandidates then keeps only owner-listed rentals with a nameable owner (see campaignFitReason). */
+/** Who can be texted. The database function campaign_audience applies the shared rules (real leads, never co-host, never a property already texted, never a phone or owner that opted out or said no, one lead per phone). audienceCandidates then keeps only owner-listed rentals (see campaignFitReason). */
 export const AUDIENCES = [
   { id: 'fully-verified', label: 'Fully verified', blurb: 'Owner, phone and address all confirmed. The cleanest data we have.' },
   { id: 'luxury-phone', label: 'Luxury homes with a phone', blurb: 'High-value homes where a rental estimate is most compelling. Phone numbers are less verified.' },
