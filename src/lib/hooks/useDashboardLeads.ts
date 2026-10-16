@@ -77,6 +77,8 @@ export interface DashboardStats {
   estimatedMonthlyRevenue: number;
   // Live counts
   fullyVerified: number;
+  /** Leads with an owner name, an address and a phone, skip-traced numbers included. Shown on the Fully Verified tile; fullyVerified stays the strict manual-verification count the KPI monitor reconciles. */
+  ownerAddressPhone: number;
   unassignedPriority: number;
   assignedLeads: number;
   verifiedOwner: number;
@@ -131,6 +133,7 @@ const EMPTY_STATS: DashboardStats = {
   avgScore: 0,
   estimatedMonthlyRevenue: 0,
   fullyVerified: 0,
+  ownerAddressPhone: 0,
   unassignedPriority: 0,
   assignedLeads: 0,
   verifiedOwner: 0,
@@ -623,6 +626,12 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
           strEligible: getCount(strEligibleRes as PromiseSettledResult<{ count: number | null; error: unknown }>),
         }));
       }
+
+      let oap = supabase.from('leads').select('*', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false')
+        .not('owner_name', 'is', null).neq('owner_name', '').not('address', 'is', null).neq('address', '').not('contact_phone', 'is', null).neq('contact_phone', '');
+      if (portfolioState && portfolioState !== 'all') oap = oap.eq('state', portfolioState);
+      const { count: oapCount, error: oapError } = await oap;
+      if (!oapError && mountedRef.current) setStats(prev => ({ ...prev, ownerAddressPhone: oapCount ?? 0 }));
     } catch (e) {
       if (!mountedRef.current || isAbortError(e)) return;
       const msg = e instanceof Error ? e.message : 'Unknown error';

@@ -32,6 +32,7 @@ interface LeadQueryParams {
   verifiedOwnerOnly?: boolean | null;
   verifiedNumberOnly?: boolean | null;
   phoneAvailableOnly?: boolean | null;
+  ownerAddressPhone?: boolean | null;
   assignmentStatus?: string;
   priorityTier?: string;
   excludeTerminal?: boolean | null;
@@ -83,6 +84,12 @@ function applyLeadFilters(query: any, params: LeadQueryParams) {
       .not('verified_address', 'is', null)
       .neq('verified_address', '')
       .neq('verified_address', 'false');
+  }
+  // Owner name, address and phone all present (skip-traced numbers count), matching the dashboard Fully Verified tile.
+  if (params.ownerAddressPhone === true) {
+    filtered = filtered.not('owner_name', 'is', null).neq('owner_name', '')
+      .not('address', 'is', null).neq('address', '')
+      .not('contact_phone', 'is', null).neq('contact_phone', '');
   }
   if (params.verifiedOwnerOnly === true) filtered = filtered.eq('verified_owner', true);
   if (params.verifiedNumberOnly === true) filtered = filtered.eq('verified_number', true);
@@ -202,6 +209,7 @@ export async function GET(req: NextRequest) {
       verifiedOwnerOnly: parseBool('verifiedOwnerOnly'),
       verifiedNumberOnly: parseBool('verifiedNumberOnly'),
       phoneAvailableOnly: parseBool('phoneAvailableOnly'),
+      ownerAddressPhone: parseBool('ownerAddressPhone'),
       assignmentStatus: searchParams.get('assignmentStatus') || '',
       priorityTier: searchParams.get('priorityTier') || '',
       excludeTerminal: parseBool('excludeTerminal'),

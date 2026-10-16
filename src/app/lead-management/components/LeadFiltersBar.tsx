@@ -164,6 +164,7 @@ export default function LeadFiltersBar({ filters, onChange, leads: _leads, agent
       verifiedOwnerOnly: false,
       verifiedNumberOnly: false,
       phoneAvailableOnly: false,
+      ownerAddressPhone: false,
       manualImportOnly: false,
       outreachStatus: '',
       enrichmentStatus: '',
@@ -181,6 +182,7 @@ export default function LeadFiltersBar({ filters, onChange, leads: _leads, agent
     verifiedOwnerOnly?: boolean;
     verifiedNumberOnly?: boolean;
     phoneAvailableOnly?: boolean;
+    ownerAddressPhone?: boolean;
     manualImportOnly?: boolean;
     outreachStatus?: string;
     enrichmentStatus?: string;
@@ -207,6 +209,7 @@ export default function LeadFiltersBar({ filters, onChange, leads: _leads, agent
     (f.verifiedOwnerOnly ?? false) ||
     (f.verifiedNumberOnly ?? false) ||
     (f.phoneAvailableOnly ?? false) ||
+    (f.ownerAddressPhone ?? false) ||
     (f.manualImportOnly ?? false) ||
     (f.outreachStatus ?? '') !== '' ||
     (f.enrichmentStatus ?? '') !== '' ||
@@ -233,6 +236,7 @@ export default function LeadFiltersBar({ filters, onChange, leads: _leads, agent
     (f.verifiedOwnerOnly ?? false) ? 1 : 0,
     (f.verifiedNumberOnly ?? false) ? 1 : 0,
     (f.phoneAvailableOnly ?? false) ? 1 : 0,
+    (f.ownerAddressPhone ?? false) ? 1 : 0,
     (f.manualImportOnly ?? false) ? 1 : 0,
     (f.outreachStatus ?? '') !== '' ? 1 : 0,
     (f.enrichmentStatus ?? '') !== '' ? 1 : 0,

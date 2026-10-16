@@ -143,9 +143,9 @@ export default React.memo(function KPIBentoGrid({
 
       {/* Middle row: Fully Verified + Unassigned Priority + Assigned + High Priority */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        {/* Fully Verified → Lead Management / Fully Verified */}
+        {/* Fully Verified: owner name + address + phone (skip-traced numbers included); links to Lead Management with the same filter */}
         <Link
-          href="/lead-management?view=verified-priority&verifiedOnly=true"
+          href="/lead-management?ownerAddressPhone=true"
           className="bg-card rounded-xl border border-success/30 bg-success-bg p-3 sm:p-4 flex flex-col justify-between min-h-[90px] hover:border-success/60 transition-all cursor-pointer active:scale-[0.98]"
         >
           <div className="flex items-center justify-between">

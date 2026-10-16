@@ -463,7 +463,7 @@ export default function DashboardPage() {
               actionNeededLeads={stats.actionNeededLeads}
               estimatedMonthlyRevenue={liveRevenueError ? null : liveRevenue}
               highPriority={stats.highPriority}
-              fullyVerified={stats.fullyVerified}
+              fullyVerified={stats.ownerAddressPhone}
               unassignedPriority={stats.unassignedPriority}
               assignedLeads={stats.assignedLeads}
               verifiedOwner={stats.verifiedOwner}

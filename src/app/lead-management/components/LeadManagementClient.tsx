@@ -81,6 +81,7 @@ export interface FilterState {
   verifiedOwnerOnly?: boolean;
   verifiedNumberOnly?: boolean;
   phoneAvailableOnly?: boolean;
+  ownerAddressPhone?: boolean;
   manualImportOnly?: boolean;
   outreachStatus?: string;
   enrichmentStatus?: string;
@@ -119,6 +120,7 @@ export const defaultFilters: FilterState = {
   verifiedOwnerOnly: false,
   verifiedNumberOnly: false,
   phoneAvailableOnly: false,
+  ownerAddressPhone: false,
   manualImportOnly: false,
   outreachStatus: '',
   enrichmentStatus: '',
@@ -410,6 +412,7 @@ export default function LeadManagementClient({
       if (currentFilters.verifiedOwnerOnly) params.set('verifiedOwnerOnly', 'true');
       if (currentFilters.verifiedNumberOnly) params.set('verifiedNumberOnly', 'true');
       if (currentFilters.phoneAvailableOnly) params.set('phoneAvailableOnly', 'true');
+      if (currentFilters.ownerAddressPhone) params.set('ownerAddressPhone', 'true');
       if (currentFilters.assignmentStatus) params.set('assignmentStatus', currentFilters.assignmentStatus);
       if (currentFilters.ownerAgentId) params.set('ownerAgentId', currentFilters.ownerAgentId);
       if (currentFilters.manualImportOnly) params.set('manualImportOnly', 'true');
@@ -528,6 +531,7 @@ export default function LeadManagementClient({
     const assignmentStatusParam = searchParams.get('assignmentStatus');
     const verifiedOnlyParam = searchParams.get('verifiedOnly');
     const phoneAvailableOnlyParam = searchParams.get('phoneAvailableOnly');
+    const ownerAddressPhoneParam = searchParams.get('ownerAddressPhone');
     // Multi-value ?regulation= param (e.g. ?regulation=Allowed&regulation=Restricted)
     const regulationParams = searchParams.getAll('regulation');
     const regulationParam = searchParams.get('regulation'); // legacy single-value fallback
@@ -595,6 +599,10 @@ export default function LeadManagementClient({
 
     if (phoneAvailableOnlyParam === 'true') {
       updates.phoneAvailableOnly = true;
+    }
+
+    if (ownerAddressPhoneParam === 'true') {
+      updates.ownerAddressPhone = true;
     }
 
     if (regulationParams.length > 1) {
