@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function MarketingHeader() {
@@ -53,7 +52,6 @@ export default function MarketingHeader() {
           <Link href="/plans#plan-enterprise" className="text-muted-foreground hover:text-foreground transition-colors">{t('common.enterprise')}</Link>
         </nav>
         <div className="flex items-center gap-1 sm:gap-3">
-          <LanguageSwitcher className="hidden sm:inline-flex" />
           <Link href="/login" className="px-2.5 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             {t('common.signIn')}
           </Link>
@@ -74,9 +72,6 @@ export default function MarketingHeader() {
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
-      </div>
-      <div className="sm:hidden flex justify-end px-4 pb-2">
-        <LanguageSwitcher />
       </div>
       {menuOpen && (
         <nav id="marketing-mobile-menu" className="md:hidden border-t border-border bg-card px-4 py-2 flex flex-col">

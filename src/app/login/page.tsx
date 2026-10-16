@@ -1,6 +1,5 @@
 'use client';
 
-import LanguageSwitcher from '@/components/LanguageSwitcher';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -96,7 +95,6 @@ export default function LoginPage() {
 
   return (
     <div className="relative min-h-screen flex bg-background">
-      <LanguageSwitcher className="absolute top-4 right-4 z-10" />
       {/* Left panel — branding */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 bg-card border-r border-border">
         <div className="flex items-center justify-between">

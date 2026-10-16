@@ -18,7 +18,6 @@ import QuickRequest from '@/app/estimate/components/QuickRequest';
 import ContactRequestModal, { type ContactMode } from '@/app/estimate/components/ContactRequestModal';
 import type { HomeownerEstimate } from '@/lib/homeownerEstimateTypes';
 import { useForceLightTheme } from '@/lib/hooks/useForceLightTheme';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -434,7 +433,6 @@ function EstimateLandingContent() {
             <span>{WEBSITE_LABEL}</span>
             <ExternalLink size={10} />
           </a>
-          <LanguageSwitcher compact />
         </div>
       </header>
 

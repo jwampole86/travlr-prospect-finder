@@ -17,7 +17,6 @@ import FirstLoginPlatformGuide from './FirstLoginPlatformGuide';
 import TimeClockWidget from './TimeClockWidget';
 import TimeClockIdleMonitor from './TimeClockIdleMonitor';
 import AvyroLoader from './ui/AvyroLoader';
-import LanguageSwitcher from './LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 // ── Lazy-load FloatingDialer — Twilio Voice SDK is heavy and should only
@@ -113,7 +112,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </button>
           )}
           <span className="text-sm font-semibold text-foreground flex-1">AVYRO AI</span>
-          <LanguageSwitcher compact />
           <TimeClockWidget />
           <BellButton />
           <InboxButton />
@@ -136,7 +134,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <LanguageSwitcher />
             <TimeClockWidget />
             <BellButton />
             <InboxButton />

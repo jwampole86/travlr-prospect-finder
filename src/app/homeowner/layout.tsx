@@ -1,6 +1,5 @@
 'use client';
 
-import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -58,12 +57,8 @@ export default function HomeownerLayout({ children }: HomeownerLayoutProps) {
             </button>
           ) : <span />}
           <div className="flex items-center gap-2">
-            <LanguageSwitcher />
             <BellButton />
           </div>
-        </div>
-        <div className="md:hidden fixed top-3 right-3 z-30">
-          <LanguageSwitcher compact />
         </div>
         {children}
       </main>
