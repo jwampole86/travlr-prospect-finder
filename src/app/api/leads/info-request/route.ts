@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/client';
-import { getChatCompletion } from '@/lib/ai/chatCompletion';
+import { getServerChatCompletion } from '@/lib/ai/serverChatCompletion';
 import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 
 // ─── POST /api/leads/info-request ─────────────────────────────────────────────
@@ -116,7 +116,7 @@ export async function PUT(req: NextRequest) {
     // Use Claude to generate a brief summary
     let claudeSummary = `Homeowner self-confirmed contact info via direct info-request link. Name: ${firstName} ${lastName}. Phone: ${phone}. Email: ${email}.`;
     try {
-      const aiResponse = await getChatCompletion(
+      const aiResponse = await getServerChatCompletion(
         'ANTHROPIC',
         'claude-haiku-4-5-20251001',
         [{
