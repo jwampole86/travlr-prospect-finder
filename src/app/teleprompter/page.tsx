@@ -1408,6 +1408,22 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
     toast.error('No verified assigned leads are available to call');
   };
 
+  // A practice call to your own phone: no lead is attached, so nothing is logged against a real homeowner.
+  const [testPhone, setTestPhone] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('testPhone') || window.localStorage.getItem('travlr_teleprompter_test_phone') || '';
+  });
+  const handleTestCall = () => {
+    if (loading) { toast.error('Checking your session — please try again in a moment'); return; }
+    if (!user || !session?.access_token) { toast.error('Sign in before starting a teleprompter call'); return; }
+    const digits = testPhone.replace(/\D/g, '');
+    if (digits.length < 10) { toast.error('Enter the phone number to call for the test'); return; }
+    try { window.localStorage.setItem('travlr_teleprompter_test_phone', testPhone); } catch { /* ignore */ }
+    const name = agentName.trim() || String(user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'Test Agent');
+    const { localBlurb } = resolveVariables({ contactName: 'Test Call', address: '123 Test St', city: 'Newport Beach', state: 'CA' }, { senderName: name });
+    onStart({ contactName: 'Test Call', address: '123 Test St', city: 'Newport Beach', state: 'CA', portfolioState: 'CA', localBlurb, phone: testPhone }, name, scriptId === 'candidate_next_steps' ? 'initial_outreach' : scriptId);
+  };
+
   const handleStart = () => {
     if (loading) { toast.error('Checking your session — please try again in a moment'); return; }
     if (!user || !session?.access_token) { toast.error('Sign in before starting a teleprompter call'); return; }
@@ -1661,6 +1677,23 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
           <Headphones className="w-4 h-4" />
           Continue to Headset Setup
         </button>
+
+        <div className="mt-4 rounded-xl border border-dashed border-border p-4">
+          <p className="text-sm font-semibold text-foreground">Practice call</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Rings your own phone so you can try the teleprompter. No lead is attached and nothing is logged against a homeowner. Uses the script selected above.</p>
+          <div className="mt-3 flex gap-2">
+            <input
+              type="tel"
+              value={testPhone}
+              onChange={e => setTestPhone(e.target.value)}
+              placeholder="(949) 875-8622"
+              className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+            />
+            <button onClick={handleTestCall} className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted">
+              <Phone className="h-4 w-4" /> Start practice call
+            </button>
+          </div>
+        </div>
       </div>
 
       {showDialpad && <TouchDialpad phone={phone || prefill?.phone} onClose={() => setShowDialpad(false)} />}
