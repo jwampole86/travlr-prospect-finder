@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { CALL_SCRIPTS } from '@/lib/callScripts';
 import { matchObjection as matchObjPattern } from '@/lib/objectionLibrary';
@@ -102,7 +103,7 @@ const CONFIDENCE_THRESHOLD = 0.6;
 // Time allowed before the first word arrives; once words are flowing the answer is allowed to finish.
 const LLM_TIMEOUT_MS = Number(process.env.TELEPROMPTER_LLM_TIMEOUT_MS) || 4500;
 const LLM_TOTAL_MS = 12_000;
-const HOLD_CHARS = 70;
+const HOLD_CHARS = 48;
 
 // Bridging lines for low-confidence / pause situations
 const BRIDGING_LINES = [
@@ -275,10 +276,25 @@ async function loadBriefing(supabase: ServerClient, userId: string, leadId: unkn
   }
 }
 
+// The sign-in check is a round trip to the auth service on every request; once a session has been verified it is trusted for a minute.
+const userCache = new Map<string, { at: number; user: { id: string; user_metadata?: Record<string, any> } }>();
+async function verifiedUser(request: NextRequest, supabase: ServerClient) {
+  const cookies = (request.headers.get('cookie') ?? '').split(';').map(c => c.trim()).filter(c => /^sb-.*auth-token/.test(c)).sort().join(';');
+  const key = cookies ? crypto.createHash('sha256').update(cookies).digest('hex') : '';
+  const hit = key ? userCache.get(key) : undefined;
+  if (hit && Date.now() - hit.at < 60_000) return hit.user;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user && key) {
+    userCache.set(key, { at: Date.now(), user });
+    if (userCache.size > 200) for (const [k, v] of userCache) if (Date.now() - v.at > 60_000) userCache.delete(k);
+  }
+  return user;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await verifiedUser(request, supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const {
       transcript,

@@ -2139,6 +2139,8 @@ function TeleprompterPageInner() {
   const trackerRef = useRef<TrackerState | null>(null);
   const pendingRef = useRef<{ data: SuggestionData; id: string } | null>(null);
   const lastReadAtRef = useRef(0);
+  // When the agent was last heard talking, by any means: a line is never swapped out while they are mid-sentence.
+  const lastAgentSpeechAtRef = useRef(0);
   // Words of the sentence being spoken that matched the line on screen: three or more means the agent is reading it.
   const utteranceMatchedRef = useRef(0);
   // Where each speech source was in the script when its current sentence began, so every update can be re-read from that point.
@@ -2270,10 +2272,11 @@ function TeleprompterPageInner() {
 
   /** Whether the agent is partway through reading the line on screen. */
   const isHeld = useCallback(() => {
+    if (Date.now() - lastAgentSpeechAtRef.current < 2500) return true;
     const t = trackerRef.current;
     if (!t) return false;
     const p = trackerProgress(t);
-    return p.started && !p.done && Date.now() - lastReadAtRef.current < 5000;
+    return p.started && !p.done && Date.now() - lastReadAtRef.current < 6000;
   }, []);
 
   const commitSuggestion = useCallback((data: SuggestionData, id: string) => {
@@ -2546,7 +2549,7 @@ function TeleprompterPageInner() {
         if (suggestionDebounceRef.current) clearTimeout(suggestionDebounceRef.current);
         suggestionDebounceRef.current = setTimeout(() => {
           fetchSuggestionRef.current?.(updated, isBargeIn);
-        }, speaker === 'Homeowner' ? 300 : 800);
+        }, speaker === 'Homeowner' ? 60 : 800);
       }
       return updated;
     });
@@ -2620,6 +2623,7 @@ function TeleprompterPageInner() {
       const line = displayLineRef.current;
       const interimText = interim.trim();
       setLiveText(t => (t.Agent === interimText ? t : { ...t, Agent: interimText }));
+      if (interimText && (remoteActiveRef.current || activeSpeaker === 'Agent' || (!!line && looksLikeReading(interimText, line)))) lastAgentSpeechAtRef.current = Date.now();
       // Speech that follows the line on screen is the agent reading it, whoever the speaker switch says is talking.
       const interimIsReading = !!interimText && (utteranceMatchedRef.current >= 3 || (!!line && looksLikeReading(interimText, line)));
 
@@ -2636,17 +2640,18 @@ function TeleprompterPageInner() {
           if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
           const snapshot = interimText;
           interimTimerRef.current = setTimeout(() => {
-            if (snapshot.split(/\s+/).length < 4) return;
+            if (snapshot.split(/\s+/).length < 3) return;
             speculativeRef.current = tokenize(snapshot).join(' ');
             const partial: TranscriptEntry = { id: 'interim', speaker: 'Homeowner', text: snapshot, timestamp: '' };
             fetchSuggestionRef.current?.([...transcriptRef.current, partial], false);
-          }, 600);
+          }, /[.?!]["']?$/.test(snapshot) ? 150 : 450);
         }
       }
 
       if (final.trim()) {
         if (interimTimerRef.current) { clearTimeout(interimTimerRef.current); interimTimerRef.current = null; }
         const text = final.trim();
+        if (remoteActiveRef.current || activeSpeaker === 'Agent') lastAgentSpeechAtRef.current = Date.now();
         const reading = utteranceMatchedRef.current >= 3 || (!!line && looksLikeReading(text, line));
         utteranceMatchedRef.current = 0;
         // With the call audio transcribed separately, the microphone is only ever the agent.
@@ -2720,7 +2725,7 @@ function TeleprompterPageInner() {
           // Only speech that really follows the line moves the position, so a homeowner's reply that happens to share a few common words
           // with the script never does.
           const reading = !!line && looksLikeReading(sentence, line);
-          if (reading) follow('remote', tokenize(sentence), !!ev.is_final);
+          if (reading) { follow('remote', tokenize(sentence), !!ev.is_final); lastAgentSpeechAtRef.current = Date.now(); }
           else followBaseRef.current.remote = null;
           if (ev.is_final) {
             best = '';
@@ -2738,11 +2743,12 @@ function TeleprompterPageInner() {
             if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
             const evId = ev.id;
             interimTimerRef.current = setTimeout(() => {
-              if (sawFinalFor > evId || sentence.split(/\s+/).length < 4) return;
+              if (sawFinalFor > evId || sentence.split(/\s+/).length < 3) return;
               speculativeRef.current = tokenize(sentence).join(' ');
               const partial: TranscriptEntry = { id: 'interim', speaker: 'Homeowner', text: sentence, timestamp: '' };
               fetchSuggestionRef.current?.([...transcriptRef.current, partial], false);
-            }, 700);
+              // A finished-sounding sentence is asked for almost at once; one still in progress waits a beat for more words.
+            }, /[.?!]["']?$/.test(sentence) ? 150 : 450);
           }
         }
         // Live text that nothing has updated for a few seconds is stale.
@@ -2753,7 +2759,7 @@ function TeleprompterPageInner() {
           toast.error("The homeowner's side of the call isn't being transcribed. Use the Agent / Homeowner switch to mark who is talking.");
         }
       } catch { /* try again on the next tick */ } finally { busy = false; }
-    }, 600);
+    }, 400);
   }, []);
 
   const stopListening = useCallback(() => {
