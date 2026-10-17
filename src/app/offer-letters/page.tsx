@@ -27,7 +27,8 @@ interface OfferLetterForm {
   roleTitle: string;
   department: string;
   salary: string;
-  salaryType: 'annual' | 'hourly';
+  salaryType: 'annual' | 'hourly' | 'commission';
+  commissionTerms?: string;
   employmentType: string;
   startDate: string;
   reportingTo: string;
@@ -42,6 +43,14 @@ interface GeneratedLetter {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+// Mirrors the defaults on the Commission Rules page.
+const DEFAULT_COMMISSION_TERMS = [
+  'Compensation is commission only. No base salary or hourly wage is paid.',
+  'Standard markets (CO, NV, WA): $750 for each homeowner Partnership Agreement you source that is fully signed through DocuSign.',
+  'Luxury markets (CA): $1,500 for each signed Partnership Agreement, plus a 0.5% residual.',
+  'Clawback: if the homeowner cancels within 90 days of signing, 100% of the commission is returned; if they cancel between 90 and 180 days, 50% is returned.',
+].join('\n');
 
 const ROLE_OPTIONS = [
   'Homeowner Outreach Agent',
@@ -117,10 +126,14 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
   const expiryFormatted = form.offerExpiryDate
     ? new Date(form.offerExpiryDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : '[Expiry Date]';
-  const salaryDisplay = form.salary
+  const isCommission = form.salaryType === 'commission';
+  const commissionTerms = (form.commissionTerms?.trim() || DEFAULT_COMMISSION_TERMS);
+  const salaryDisplay = isCommission
+    ? 'Commission only (see Commission Terms)'
+    : form.salary
     ? `$${Number(form.salary.replace(/,/g, '')).toLocaleString()} ${form.salaryType === 'annual' ? 'per year' : 'per hour'}`
     : '[Compensation]';
-  const includedBenefits = benefits.filter(b => b.included);
+  const includedBenefits = isCommission ? [] : benefits.filter(b => b.included);
   const firstPayrollDate = form.startDate
     ? addDays(new Date(form.startDate + 'T00:00:00'), 14).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : '[First Payroll Date]';
@@ -150,11 +163,17 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
       <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Employment Type</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${safe(form.employmentType)}</td></tr>
       <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Compensation</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600; color: #059669;">${salaryDisplay}</td></tr>
       <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Start Date</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${startFormatted}</td></tr>
-      <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Projected First Payroll</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${firstPayrollDate}</td></tr>
+      ${isCommission ? '' : `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Projected First Payroll</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${firstPayrollDate}</td></tr>`}
       ${form.reportingTo ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Reports To</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${safe(form.reportingTo)}</td></tr>` : ''}
       ${form.workLocation ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Work Location</td><td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${safe(form.workLocation)}</td></tr>` : ''}
     </table>
   </div>
+
+  ${isCommission ? `
+  <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin: 28px 0 12px 0;">Commission Terms</h3>
+  <p style="margin-bottom: 12px; color: #374151; font-size: 14px;">${commissionTerms.split('\n').map(l => safe(l)).join('<br/><br/>')}</p>
+  <p style="margin-bottom: 20px; color: #374151; font-size: 14px;">This position does not include a salary or employee benefits.</p>
+  ` : ''}
 
   ${includedBenefits.length > 0 ? `
   <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin: 28px 0 12px 0;">Benefits Package</h3>
@@ -194,7 +213,7 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
 </div>
   `.trim();
 
-  const plain = `OFFER OF EMPLOYMENT — TRAVLR Vacation Homes\n${today}\n\nDear ${form.candidateName || '[Candidate Name]'},\n\nWe are pleased to extend this offer for the position of ${form.roleTitle || '[Role Title]'}${form.department ? ` in our ${form.department} team` : ''}.\n\nOFFER DETAILS\nPosition: ${form.roleTitle || '—'}\nEmployment Type: ${form.employmentType}\nCompensation: ${salaryDisplay}\nStart Date: ${startFormatted}\nProjected First Payroll: ${firstPayrollDate}\n${form.reportingTo ? `Reports To: ${form.reportingTo}\n` : ''}${form.workLocation ? `Work Location: ${form.workLocation}\n` : ''}\n${includedBenefits.length > 0 ? `BENEFITS\n${includedBenefits.map(b => `- ${b.label}`).join('\n')}\n\n` : ''}Please accept by ${expiryFormatted}.\n\nWarm regards,\nJennifer Wampole\nHead of People Operations · TRAVLR Inc.`;
+  const plain = `OFFER OF EMPLOYMENT — TRAVLR Vacation Homes\n${today}\n\nDear ${form.candidateName || '[Candidate Name]'},\n\nWe are pleased to extend this offer for the position of ${form.roleTitle || '[Role Title]'}${form.department ? ` in our ${form.department} team` : ''}.\n\nOFFER DETAILS\nPosition: ${form.roleTitle || '—'}\nEmployment Type: ${form.employmentType}\nCompensation: ${salaryDisplay}\nStart Date: ${startFormatted}${isCommission ? '' : `\nProjected First Payroll: ${firstPayrollDate}`}\n${form.reportingTo ? `Reports To: ${form.reportingTo}\n` : ''}${form.workLocation ? `Work Location: ${form.workLocation}\n` : ''}\n${isCommission ? `COMMISSION TERMS\n${commissionTerms}\nThis position does not include a salary or employee benefits.\n\n` : ''}${includedBenefits.length > 0 ? `BENEFITS\n${includedBenefits.map(b => `- ${b.label}`).join('\n')}\n\n` : ''}Please accept by ${expiryFormatted}.\n\nWarm regards,\nJennifer Wampole\nHead of People Operations · TRAVLR Inc.`;
 
   return { html, plain };
 }
@@ -286,7 +305,7 @@ function OfferLettersInner() {
     const candidateEmail = searchParams.get('candidateEmail');
     const roleTitle = searchParams.get('roleTitle');
     const salary = searchParams.get('salary');
-    const salaryType = searchParams.get('salaryType') as 'annual' | 'hourly' | null;
+    const salaryType = searchParams.get('salaryType') as 'annual' | 'hourly' | 'commission' | null;
     const startDate = searchParams.get('startDate');
     const score = searchParams.get('score');
     const benefitsParam = searchParams.get('benefits');
@@ -578,8 +597,16 @@ function OfferLettersInner() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-2">
                     <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
-                      <DollarSign className="w-3 h-3 inline mr-0.5" />Salary
+                      <DollarSign className="w-3 h-3 inline mr-0.5" />{form.salaryType === 'commission' ? 'Commission terms' : 'Salary'}
                     </label>
+                    {form.salaryType === 'commission' ? (
+                      <textarea
+                        rows={5}
+                        value={form.commissionTerms ?? DEFAULT_COMMISSION_TERMS}
+                        onChange={e => updateForm('commissionTerms', e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      />
+                    ) : (
                     <input
                       type="text"
                       value={form.salary}
@@ -587,6 +614,7 @@ function OfferLettersInner() {
                       placeholder="65,000"
                       className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                     />
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Type</label>
@@ -597,6 +625,7 @@ function OfferLettersInner() {
                     >
                       <option value="annual">Annual</option>
                       <option value="hourly">Hourly</option>
+                      <option value="commission">Commission only</option>
                     </select>
                   </div>
                 </div>
