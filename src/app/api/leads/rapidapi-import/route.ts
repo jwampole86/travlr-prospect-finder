@@ -444,6 +444,8 @@ export async function POST(req: NextRequest) {
   if (source && response.status !== 400 && response.status !== 404) {
     const data = await response.clone().json().catch(() => null);
     const ok = response.ok && !data?.error;
+    // City-level extras are best effort: a miss there must not mark the whole state's source as failing.
+    if (!ok && body?.quietFailures === true) return response;
     after(() =>
       recordSourcePull({
         source,
