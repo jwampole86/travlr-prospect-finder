@@ -113,7 +113,7 @@ interface SuggestionData {
 }
 
 interface SuggestionMeta {
-  source?: 'llm' | 'objection_library' | 'static_fallback';
+  source?: 'llm' | 'objection_library' | 'static_fallback' | 'script';
   degraded?: boolean;
   degradedReason?: string;
   suppressedReason?: string;
@@ -459,6 +459,15 @@ function SuggestionSourceBadge({ meta }: { meta: SuggestionMeta }) {
         <span className="text-xs text-blue-700 font-medium">
           Objection library · {meta.objectionCategory}
         </span>
+      </div>
+    );
+  }
+
+  if (meta.source === 'script') {
+    return (
+      <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-lg">
+        <FileText className="w-3 h-3 text-emerald-600" />
+        <span className="text-xs text-emerald-700 font-medium">Next line of the script</span>
       </div>
     );
   }
@@ -1740,6 +1749,24 @@ function CallEndedSummary({
   );
 }
 
+// Sections that only make sense after a specific answer, so they are reached through the conversation and not walked in order.
+const BRANCH_SECTION = /^(if_|close|not_interested|timing_not_right|still_interested)/;
+const AUTO_FULLSCREEN_KEY = 'travlr_teleprompter_auto_fullscreen';
+const readAutoFullscreen = () => {
+  try { return window.localStorage.getItem(AUTO_FULLSCREEN_KEY) !== 'off'; } catch { return true; }
+};
+
+/** The spoken lines the call walks through in order: the opening and the key points. Answers and closings come from the conversation. */
+function mainPathLines(script: CallScript, vars: ReturnType<typeof resolveVariables> | null): Array<{ text: string; sectionTitle: string }> {
+  const collect = (sections: CallScript['sections']) => sections.flatMap(section =>
+    section.lines
+      .filter(line => line.type === 'spoken')
+      .map(line => ({ text: vars ? applyVariables(line.text, vars) : line.text, sectionTitle: section.title }))
+  );
+  const main = collect(script.sections.filter(sec => sec.id === 'opening' || sec.id === 'key_points'));
+  return main.length >= 2 ? main : collect(script.sections.filter(sec => !BRANCH_SECTION.test(sec.id)));
+}
+
 const READING_SIZES = ['text-3xl sm:text-4xl lg:text-5xl', 'text-4xl sm:text-5xl lg:text-6xl', 'text-4xl sm:text-5xl lg:text-7xl', 'text-5xl sm:text-6xl lg:text-8xl'];
 const READING_SIZE_KEY = 'travlr_teleprompter_fullscreen_size';
 
@@ -1757,6 +1784,12 @@ function ReadingModeOverlay({
   onPrevious,
   onNext,
   onExit,
+  onEndCall,
+  activeSpeaker,
+  onSpeakerChange,
+  isListening,
+  onToggleListening,
+  endOfScript,
 }: {
   lead: LeadContext | null;
   script: CallScript;
@@ -1771,7 +1804,18 @@ function ReadingModeOverlay({
   onPrevious: () => void;
   onNext: () => void;
   onExit: () => void;
+  onEndCall: () => void;
+  activeSpeaker: 'Agent' | 'Homeowner';
+  onSpeakerChange: (s: 'Agent' | 'Homeowner') => void;
+  isListening: boolean;
+  onToggleListening: () => void;
+  endOfScript: boolean;
 }) {
+  const [autoFullscreen, setAutoFullscreen] = useState(readAutoFullscreen);
+  const toggleAuto = () => setAutoFullscreen(v => {
+    try { window.localStorage.setItem(AUTO_FULLSCREEN_KEY, v ? 'off' : 'on'); } catch { /* ignore */ }
+    return !v;
+  });
   const [sizeIndex, setSizeIndex] = useState(() => {
     if (typeof window === 'undefined') return 2;
     const saved = Number(window.localStorage.getItem(READING_SIZE_KEY));
@@ -1789,11 +1833,13 @@ function ReadingModeOverlay({
       else if (e.key === ' ' && hasPending) { e.preventDefault(); onSwitchPending(); }
       else if (e.key === '+' || e.key === '=') changeSize(1);
       else if (e.key === '-') changeSize(-1);
+      else if (e.key === 'ArrowRight') onNext();
+      else if (e.key === 'ArrowLeft') onPrevious();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPending, onExit, onSwitchPending]);
+  }, [hasPending, onExit, onSwitchPending, onNext, onPrevious]);
 
   const currentLine = lines[lineIndex];
   const parsed = suggestion ? parseSuggestion(suggestion) : null;
@@ -1807,6 +1853,17 @@ function ReadingModeOverlay({
           <p className="mt-1 truncate text-sm text-white/65">{lead?.contactName} · {script.label} · {elapsed}</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={onToggleListening} className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium ${isListening ? 'border-emerald-400/40 text-emerald-300 hover:bg-white/5' : 'border-amber-300/60 bg-amber-400/15 text-amber-200 hover:bg-amber-400/25'}`} title={isListening ? 'Stop listening' : 'Start listening once the disclosure has been read'}>
+            <span className={`h-2 w-2 rounded-full ${isListening ? 'animate-pulse bg-emerald-400' : 'bg-amber-300'}`} />{isListening ? 'Listening' : 'Start listening'}
+          </button>
+          <div className="hidden overflow-hidden rounded-lg border border-white/20 text-xs font-medium sm:flex" title="Who the microphone is hearing. Reading the line on screen is always counted as you.">
+            {(['Agent', 'Homeowner'] as const).map(who => (
+              <button key={who} onClick={() => onSpeakerChange(who)} className={`px-3 py-2 ${activeSpeaker === who ? 'bg-white text-[#101716]' : 'text-white/70 hover:bg-white/10'}`}>{who}</button>
+            ))}
+          </div>
+          <button onClick={toggleAuto} className="hidden h-10 rounded-lg border border-white/20 px-3 text-xs font-medium text-white/70 hover:bg-white/10 lg:block" title="Open full screen automatically when a call starts">
+            Auto full screen: {autoFullscreen ? 'on' : 'off'}
+          </button>
           <button onClick={() => changeSize(-1)} disabled={sizeIndex === 0} className="h-10 rounded-lg border border-white/20 px-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-35" title="Smaller text (-)">A−</button>
           <button onClick={() => changeSize(1)} disabled={sizeIndex === READING_SIZES.length - 1} className="h-10 rounded-lg border border-white/20 px-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-35" title="Larger text (+)">A+</button>
           <button
@@ -1819,6 +1876,10 @@ function ReadingModeOverlay({
           </button>
         </div>
       </header>
+
+      {endOfScript && !hasPending && (
+        <p className="mx-auto mt-3 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white/70">End of the main script. The screen answers when the homeowner speaks.</p>
+      )}
 
       {hasPending && (
         <button onClick={onSwitchPending} className="mx-auto mt-3 rounded-full border border-emerald-300/60 bg-emerald-400/15 px-4 py-1.5 text-sm font-medium text-emerald-200 hover:bg-emerald-400/25">
@@ -1852,9 +1913,12 @@ function ReadingModeOverlay({
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-white">{currentLine?.sectionTitle || script.label}</p>
-            <p className="mt-0.5 text-xs text-white/60">{lines.length ? `Line ${lineIndex + 1} of ${lines.length}` : 'Live call guidance'}</p>
+            <p className="mt-0.5 text-xs text-white/60">{lines.length ? `Script line ${lineIndex + 1} of ${lines.length} · the screen follows the conversation (arrow keys to skip)` : 'Live call guidance'}</p>
           </div>
           <div className="flex shrink-0 gap-2">
+            <button onClick={onEndCall} className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
+              <PhoneOff size={16} /> End call
+            </button>
             <button
               onClick={onPrevious}
               disabled={lineIndex === 0 || lines.length === 0}
@@ -1935,6 +1999,7 @@ function TeleprompterPageInner() {
   const [pending, setPending] = useState<{ data: SuggestionData; id: string } | null>(null);
   const [tracker, setTracker] = useState<TrackerState | null>(null);
   const [deviationCount, setDeviationCount] = useState(0);
+  const [flowEnded, setFlowEnded] = useState(false);
   const [suggestionMeta, setSuggestionMeta] = useState<SuggestionMeta>({});
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -1989,6 +2054,9 @@ function TeleprompterPageInner() {
   const fetchSuggestionRef = useRef<((t: TranscriptEntry[], bargeIn?: boolean, force?: boolean) => Promise<void>) | null>(null);
   const deviationQueueRef = useRef<Array<{ kind: 'ad_lib' | 'replaced'; expectedLine: string; agentSaid: string; homeownerSaid: string | null; coverage: number }>>([]);
   const deviationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flowIndexRef = useRef(0);
+  const suggestionMetaRef = useRef<SuggestionMeta>({});
+  const advancedKeyRef = useRef('');
 
   useEffect(() => {
     const supabase = createClient();
@@ -2027,11 +2095,7 @@ function TeleprompterPageInner() {
 
   useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
 
-  const scriptLines = useMemo(() => CALL_SCRIPTS[scriptId].sections.flatMap(section =>
-    section.lines
-      .filter(line => line.type === 'spoken')
-      .map(line => ({ text: resolvedVars ? applyVariables(line.text, resolvedVars) : line.text, sectionTitle: section.title }))
-  ), [scriptId, resolvedVars]);
+  const scriptLines = useMemo(() => mainPathLines(CALL_SCRIPTS[scriptId], resolvedVars), [scriptId, resolvedVars]);
 
   // The text the agent is reading right now: the AI suggestion, or in full screen with none, the current script line.
   const displayLine = suggestion ? parseSuggestion(suggestion).main : (isReadingMode ? scriptLines[readingLineIndex]?.text ?? '' : '');
@@ -2041,13 +2105,6 @@ function TeleprompterPageInner() {
     displayLineRef.current = displayLine;
     setTracker(next);
   }, [displayLine]);
-
-  // In full screen, move to the next script line once the agent has read this one.
-  useEffect(() => {
-    if (!isReadingMode || suggestion || !tracker || !trackerProgress(tracker).done) return;
-    const id = setTimeout(() => setReadingLineIndex(i => Math.min(Math.max(0, scriptLines.length - 1), i + 1)), 500);
-    return () => clearTimeout(id);
-  }, [tracker, isReadingMode, suggestion, scriptLines.length]);
 
   useEffect(() => {
     if (phase !== 'active') return;
@@ -2120,6 +2177,8 @@ function TeleprompterPageInner() {
   }, []);
 
   const commitSuggestion = useCallback((data: SuggestionData, id: string) => {
+    setFlowEnded(false);
+    advancedKeyRef.current = '';
     setSuggestion(data.suggestion);
     lastSuggestionRef.current = data.suggestion;
     setCurrentSuggestionId(id);
@@ -2241,6 +2300,59 @@ function TeleprompterPageInner() {
   }, [lead, baseScriptText, scriptId, sessionId, agentName, isHeld, commitSuggestion]);
 
   useEffect(() => { fetchSuggestionRef.current = fetchSuggestion; }, [fetchSuggestion]);
+  useEffect(() => { suggestionMetaRef.current = suggestionMeta; }, [suggestionMeta]);
+
+  /** Puts a line of the script on screen as the next thing to say. */
+  const showScriptLine = useCallback((index: number) => {
+    const line = scriptLines[index];
+    if (!line) return false;
+    const text = `Suggested next line: "${line.text}"`;
+    flowIndexRef.current = index;
+    advancedKeyRef.current = '';
+    setFlowEnded(false);
+    setReadingLineIndex(index);
+    pendingRef.current = null;
+    setPending(null);
+    setSuggestion(text);
+    lastSuggestionRef.current = text;
+    setSuggestionMeta({ source: 'script' });
+    setLastFeedback(null);
+    return true;
+  }, [scriptLines]);
+
+  /** Whether the agent has already said (nearly) this line recently, in the script's words or their own. */
+  const alreadySaid = useCallback((lineText: string) => {
+    const recent = transcriptRef.current.filter(e => e.speaker === 'Agent').slice(-4).map(e => e.text).join(' ');
+    const tokens = tokenize(recent);
+    if (tokens.length < 4) return false;
+    return trackerProgress(trackSpeech(createTracker(lineText), tokens)).coverage >= 0.7;
+  }, []);
+
+  /**
+   * Called when the agent has finished the line on screen. A reply that was waiting comes up; otherwise the next line of the script
+   * does, skipping anything the agent already covered. After a line that asks a question it waits for the homeowner instead.
+   */
+  const advanceFlow = useCallback(() => {
+    if (pendingRef.current) { switchToPending(); return; }
+    let next = flowIndexRef.current + (suggestionMetaRef.current.source === 'script' ? 1 : 0);
+    while (next < scriptLines.length && alreadySaid(scriptLines[next].text)) next++;
+    if (next < scriptLines.length) showScriptLine(next);
+    // The main script is finished: the screen waits for the homeowner, whose reply decides what comes next.
+    else setFlowEnded(true);
+  }, [scriptLines, alreadySaid, showScriptLine, switchToPending]);
+
+  useEffect(() => {
+    if (phase !== 'active' || !suggestion || !tracker || !trackerProgress(tracker).done) return;
+    const key = `${displayLineRef.current}|${suggestionsCount}|${flowIndexRef.current}`;
+    const asksQuestion = /\?["\u201d']?\s*$/.test(displayLineRef.current.trim());
+    // A question gets time for the homeowner to answer; any speech restarts the wait.
+    const id = setTimeout(() => {
+      if (advancedKeyRef.current === key) return;
+      advancedKeyRef.current = key;
+      advanceFlow();
+    }, asksQuestion ? 12_000 : 700);
+    return () => clearTimeout(id);
+  }, [tracker, suggestion, suggestionsCount, phase, advanceFlow]);
 
   const handleSuggestionFeedback = useCallback(async (signal: 'used' | 'ignored') => {
     setLastFeedback(signal);
@@ -2317,7 +2429,10 @@ function TeleprompterPageInner() {
     setTranscript(prev => {
       const updated = [...prev, entry];
       detectCoveredBeats(updated);
-      if (!alreadyAsked) {
+      // "Mm-hm" and "okay" while the agent is talking do not change what is on screen; a short answer to a question does.
+      const shortAck = speaker === 'Homeowner' && tokenize(text).length <= 2 && !/\?["\u201d']?\s*$/.test(displayLineRef.current.trim());
+      // The agent's own lines never ask for a new suggestion: the screen moves on by itself once a line is read.
+      if (!alreadyAsked && speaker === 'Homeowner' && !shortAck) {
         const isBargeIn = speaker === 'Homeowner' && isSuggestingRef.current;
         if (suggestionDebounceRef.current) clearTimeout(suggestionDebounceRef.current);
         suggestionDebounceRef.current = setTimeout(() => {
@@ -2459,6 +2574,11 @@ function TeleprompterPageInner() {
 
   const handleConsentAccepted = async () => {
     let createdSessionId: string | null = null;
+    // Full screen has to be requested straight from the click, before anything is awaited.
+    if (readAutoFullscreen()) {
+      setIsReadingMode(true);
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    }
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -2514,13 +2634,15 @@ function TeleprompterPageInner() {
     }
 
     if (resolvedVars && lead) {
-      const script = CALL_SCRIPTS[scriptId];
-      const firstLine = script.sections[0]?.lines.find(l => l.type === 'spoken');
-      if (firstLine) {
-        const suggText = `Suggested next line: "${applyVariables(firstLine.text, resolvedVars)}"`;
-        setSuggestion(suggText);
-        lastSuggestionRef.current = suggText;
-        setSuggestionMeta({ source: 'static_fallback' });
+      if (!showScriptLine(0)) {
+        const script = CALL_SCRIPTS[scriptId];
+        const firstLine = script.sections[0]?.lines.find(l => l.type === 'spoken');
+        if (firstLine) {
+          const suggText = `Suggested next line: "${applyVariables(firstLine.text, resolvedVars)}"`;
+          setSuggestion(suggText);
+          lastSuggestionRef.current = suggText;
+          setSuggestionMeta({ source: 'script' });
+        }
       }
     }
   };
@@ -3002,9 +3124,15 @@ function TeleprompterPageInner() {
           onSwitchPending={switchToPending}
           elapsed={formatElapsed(elapsed)}
           lineIndex={readingLineIndex}
-          onPrevious={() => setReadingLineIndex(index => Math.max(0, index - 1))}
-          onNext={() => setReadingLineIndex(index => Math.min(Math.max(0, readingLineCount - 1), index + 1))}
+          onPrevious={() => showScriptLine(Math.max(0, flowIndexRef.current - 1))}
+          onNext={() => showScriptLine(Math.min(Math.max(0, readingLineCount - 1), flowIndexRef.current + 1))}
           onExit={closeReadingMode}
+          onEndCall={handleEndCall}
+          activeSpeaker={activeSpeaker}
+          onSpeakerChange={setActiveSpeaker}
+          isListening={isListening}
+          onToggleListening={() => (isListening ? stopListening() : startListening())}
+          endOfScript={flowEnded}
         />
       )}
     </div>
