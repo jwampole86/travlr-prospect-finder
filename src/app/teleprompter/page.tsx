@@ -1788,6 +1788,7 @@ function CallEndedSummary({
 }
 
 // Sections that only make sense after a specific answer, so they are reached through the conversation and not walked in order.
+const RECORDING_DISCLOSURE = 'This call may be recorded for quality assurance and training purposes. By continuing, you consent to being recorded.';
 const BRANCH_SECTION = /^(if_|close|not_interested|timing_not_right|still_interested)/;
 const AUTO_FULLSCREEN_KEY = 'travlr_teleprompter_auto_fullscreen';
 const readAutoFullscreen = () => {
@@ -1829,6 +1830,7 @@ function ReadingModeOverlay({
   onToggleListening,
   endOfScript,
   isTest,
+  homeownerAudio,
 }: {
   lead: LeadContext | null;
   script: CallScript;
@@ -1850,6 +1852,7 @@ function ReadingModeOverlay({
   onToggleListening: () => void;
   endOfScript: boolean;
   isTest: boolean;
+  homeownerAudio: 'off' | 'on' | 'unavailable';
 }) {
   const [autoFullscreen, setAutoFullscreen] = useState(readAutoFullscreen);
   const toggleAuto = () => setAutoFullscreen(v => {
@@ -1896,11 +1899,17 @@ function ReadingModeOverlay({
           <button onClick={onToggleListening} className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium ${isListening ? 'border-emerald-400/40 text-emerald-300 hover:bg-white/5' : 'border-amber-300/60 bg-amber-400/15 text-amber-200 hover:bg-amber-400/25'}`} title={isListening ? 'Stop listening' : 'Start listening once the disclosure has been read'}>
             <span className={`h-2 w-2 rounded-full ${isListening ? 'animate-pulse bg-emerald-400' : 'bg-amber-300'}`} />{isListening ? 'Listening' : 'Start listening'}
           </button>
+          {homeownerAudio === 'on' ? (
+            <span className="hidden items-center gap-1.5 rounded-lg border border-emerald-400/40 px-3 py-2 text-xs font-medium text-emerald-300 sm:flex" title="The homeowner's side of the call is transcribed from the call audio, so no switch is needed.">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />Hearing the homeowner
+            </span>
+          ) : (
           <div className="hidden overflow-hidden rounded-lg border border-white/20 text-xs font-medium sm:flex" title="Who the microphone is hearing. Reading the line on screen is always counted as you.">
             {(['Agent', 'Homeowner'] as const).map(who => (
               <button key={who} onClick={() => onSpeakerChange(who)} className={`px-3 py-2 ${activeSpeaker === who ? 'bg-white text-[#101716]' : 'text-white/70 hover:bg-white/10'}`}>{who}</button>
             ))}
           </div>
+          )}
           <button onClick={toggleAuto} className="hidden h-10 rounded-lg border border-white/20 px-3 text-xs font-medium text-white/70 hover:bg-white/10 lg:block" title="Open full screen automatically when a call starts">
             Auto full screen: {autoFullscreen ? 'on' : 'off'}
           </button>
@@ -2040,6 +2049,8 @@ function TeleprompterPageInner() {
   const [tracker, setTracker] = useState<TrackerState | null>(null);
   const [deviationCount, setDeviationCount] = useState(0);
   const [flowEnded, setFlowEnded] = useState(false);
+  // Whether the homeowner's side of the call is being transcribed from the call audio itself.
+  const [homeownerAudio, setHomeownerAudio] = useState<'off' | 'on' | 'unavailable'>('off');
   const [suggestionMeta, setSuggestionMeta] = useState<SuggestionMeta>({});
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -2095,6 +2106,10 @@ function TeleprompterPageInner() {
   const deviationQueueRef = useRef<Array<{ kind: 'ad_lib' | 'replaced'; expectedLine: string; agentSaid: string; homeownerSaid: string | null; coverage: number }>>([]);
   const deviationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flowIndexRef = useRef(0);
+  const transcriptPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const remoteActiveRef = useRef(false);
+  const addEntryRef = useRef<((speaker: 'Agent' | 'Homeowner', text: string) => void) | null>(null);
+  const lastHomeownerRef = useRef<{ at: number; tokens: string[] }>({ at: 0, tokens: [] });
   const suggestionMetaRef = useRef<SuggestionMeta>({});
   const advancedKeyRef = useRef('');
 
@@ -2459,6 +2474,15 @@ function TeleprompterPageInner() {
       timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     };
 
+    if (speaker === 'Homeowner') {
+      lastHomeownerRef.current = { at: Date.now(), tokens: tokenize(text) };
+    } else if (remoteActiveRef.current && Date.now() - lastHomeownerRef.current.at < 8000) {
+      // The microphone can pick the homeowner's voice back up from the speakers; that is not the agent talking.
+      const heard = tokenize(text);
+      const theirs = new Set(lastHomeownerRef.current.tokens);
+      if (heard.length > 0 && heard.filter(t => theirs.has(t)).length / heard.length >= 0.7) return;
+    }
+
     if (speaker === 'Agent' && displayLineRef.current) noteDeviation(text, displayLineRef.current);
 
     // A suggestion already requested from the partial words of this same sentence is still the right one.
@@ -2483,6 +2507,9 @@ function TeleprompterPageInner() {
     });
     setCurrentSpeaker(null);
   }, [detectCoveredBeats, noteDeviation]);
+
+  useEffect(() => { addEntryRef.current = addTranscriptEntry; }, [addTranscriptEntry]);
+  useEffect(() => () => { if (transcriptPollRef.current) clearInterval(transcriptPollRef.current); }, []);
 
   /** Moves the reading position along with the words just spoken. Anything that is not the line on screen leaves it where it is. */
   const feedTracker = useCallback((tokens: string[]) => {
@@ -2538,8 +2565,8 @@ function TeleprompterPageInner() {
       const interimIsReading = !!interimText && (utteranceMatchedRef.current >= 3 || (!!line && looksLikeReading(interimText, line)));
 
       if (interimText) {
-        setCurrentSpeaker(interimIsReading ? 'Agent' : activeSpeaker);
-        if (activeSpeaker === 'Homeowner' && !interimIsReading) {
+        setCurrentSpeaker(remoteActiveRef.current || interimIsReading ? 'Agent' : activeSpeaker);
+        if (!remoteActiveRef.current && activeSpeaker === 'Homeowner' && !interimIsReading) {
           // The homeowner is still talking: the answer being written for the last thing they said is out of date. The text on screen stays put.
           if (isSuggestingRef.current && abortControllerRef.current) {
             abortControllerRef.current.abort();
@@ -2563,7 +2590,8 @@ function TeleprompterPageInner() {
         const text = final.trim();
         const reading = utteranceMatchedRef.current >= 3 || (!!line && looksLikeReading(text, line));
         utteranceMatchedRef.current = 0;
-        addTranscriptEntry(activeSpeaker === 'Homeowner' && reading ? 'Agent' : activeSpeaker, text);
+        // With the call audio transcribed separately, the microphone is only ever the agent.
+        addTranscriptEntry(remoteActiveRef.current || (activeSpeaker === 'Homeowner' && reading) ? 'Agent' : activeSpeaker, text);
       }
     };
 
@@ -2580,6 +2608,72 @@ function TeleprompterPageInner() {
     recognitionRef.current = recognition;
     recognition.start();
   }, [activeSpeaker, addTranscriptEntry, feedTracker]);
+
+  const stopHomeownerAudio = useCallback(() => {
+    if (transcriptPollRef.current) { clearInterval(transcriptPollRef.current); transcriptPollRef.current = null; }
+    remoteActiveRef.current = false;
+    setHomeownerAudio('off');
+  }, []);
+
+  /**
+   * The homeowner's voice comes to the browser as call audio, which the microphone's speech recognition cannot hear. Twilio transcribes
+   * the call as it happens and posts each phrase to the server; this reads them back, so the homeowner's words reach the teleprompter
+   * even when the agent wears a headset.
+   */
+  const startHomeownerAudio = useCallback((callSessionId: string | null) => {
+    if (!callSessionId) { setHomeownerAudio('unavailable'); return; }
+    if (transcriptPollRef.current) clearInterval(transcriptPollRef.current);
+    let after = 0;
+    let busy = false;
+    let sawFinalFor = 0;
+    const startedAt = Date.now();
+    let working = false;
+    transcriptPollRef.current = setInterval(async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const res = await fetch(`/api/teleprompter/transcript?sessionId=${encodeURIComponent(callSessionId)}&after=${after}`);
+        if (!res.ok) return;
+        const { events } = await res.json() as { events: Array<{ id: number; event: string; speaker: string | null; text: string | null; is_final: boolean | null }> };
+        for (const ev of events) {
+          after = Math.max(after, ev.id);
+          if (ev.event === 'transcription-started' && !working) {
+            working = true;
+            remoteActiveRef.current = true;
+            setHomeownerAudio('on');
+          }
+          if (ev.event !== 'transcription-content' || ev.speaker !== 'Homeowner' || !ev.text) continue;
+          const heard = ev.text.trim();
+          // The recording notice plays on the agent's side before the homeowner picks up; it is not the homeowner talking.
+          if (!heard || looksLikeReading(heard, RECORDING_DISCLOSURE)) continue;
+          if (!working) { working = true; remoteActiveRef.current = true; setHomeownerAudio('on'); }
+          if (ev.is_final) {
+            sawFinalFor = ev.id;
+            if (interimTimerRef.current) { clearTimeout(interimTimerRef.current); interimTimerRef.current = null; }
+            setCurrentSpeaker(null);
+            addEntryRef.current?.('Homeowner', heard);
+          } else {
+            setCurrentSpeaker('Homeowner');
+            // Start on the answer once they pause, without waiting for the phrase to be closed.
+            if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
+            const snapshot = heard;
+            const evId = ev.id;
+            interimTimerRef.current = setTimeout(() => {
+              if (sawFinalFor > evId || snapshot.split(/\s+/).length < 4) return;
+              speculativeRef.current = tokenize(snapshot).join(' ');
+              const partial: TranscriptEntry = { id: 'interim', speaker: 'Homeowner', text: snapshot, timestamp: '' };
+              fetchSuggestionRef.current?.([...transcriptRef.current, partial], false);
+            }, 700);
+          }
+        }
+        if (!working && Date.now() - startedAt > 20_000) {
+          if (transcriptPollRef.current) { clearInterval(transcriptPollRef.current); transcriptPollRef.current = null; }
+          setHomeownerAudio('unavailable');
+          toast.error("The homeowner's side of the call isn't being transcribed. Use the Agent / Homeowner switch to mark who is talking.");
+        }
+      } catch { /* try again on the next tick */ } finally { busy = false; }
+    }, 600);
+  }, []);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) { recognitionRef.current.onend = null; recognitionRef.current.stop(); recognitionRef.current = null; }
@@ -2668,9 +2762,9 @@ function TeleprompterPageInner() {
           toast.error(error || 'Unable to connect the call — you can still run the session and dial manually');
         } else {
           voiceCallRef.current = call;
-          call.on('accept', () => setVoiceCallStatus('connected'));
-          call.on('disconnect', () => { voiceCallRef.current = null; setVoiceCallStatus('idle'); });
-          call.on('error', () => { voiceCallRef.current = null; setVoiceCallStatus('error'); });
+          call.on('accept', () => { setVoiceCallStatus('connected'); startHomeownerAudio(createdSessionId); });
+          call.on('disconnect', () => { voiceCallRef.current = null; setVoiceCallStatus('idle'); stopHomeownerAudio(); });
+          call.on('error', () => { voiceCallRef.current = null; setVoiceCallStatus('error'); stopHomeownerAudio(); });
         }
       }
     }
@@ -2691,6 +2785,7 @@ function TeleprompterPageInner() {
 
   const handleEndCall = async () => {
     flushDeviations(true);
+    stopHomeownerAudio();
     if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
     setIsReadingMode(false);
     stopListening();
@@ -3176,6 +3271,7 @@ function TeleprompterPageInner() {
           onToggleListening={() => (isListening ? stopListening() : startListening())}
           endOfScript={flowEnded}
           isTest={!!lead?.isTest}
+          homeownerAudio={homeownerAudio}
         />
       )}
     </div>

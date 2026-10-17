@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireApiActor } from '@/lib/auth/apiAuthorization';
 
 /**
  * POST /api/twilio/voice/transcribe
@@ -6,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
  * Used by the ImmersiveCallView for real-time dual-channel transcription.
  */
 export async function POST(request: NextRequest) {
+  const auth = await requireApiActor(request);
+  if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -20,6 +23,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
     }
 
+    if (audioFile.size > 4_000_000) {
+      return NextResponse.json({ error: 'Audio clip is too large' }, { status: 413 });
+    }
+
     // Skip very small files (silence/noise)
     if (audioFile.size < 1000) {
       return NextResponse.json({ text: '', speaker });
@@ -27,7 +34,12 @@ export async function POST(request: NextRequest) {
 
     // Build multipart form for OpenAI Whisper
     const whisperForm = new FormData();
-    whisperForm.append('file', audioFile, 'audio.webm');
+    // Keep the real file type: the format is read from the file name.
+    const isWav = audioFile.type.includes('wav') || audioFile.name.endsWith('.wav');
+    whisperForm.append('file', audioFile, isWav ? 'audio.wav' : 'audio.webm');
+    whisperForm.append('temperature', '0');
+    // Words that come up on these calls and are easy to mishear.
+    whisperForm.append('prompt', 'A phone call about vacation rental management. Terms: TRAVLR, Airbnb, Vrbo, HOA, short-term rental, property manager, permit, mortgage, Kihei, Aspen.');
     whisperForm.append('model', 'whisper-1');
     whisperForm.append('language', 'en');
     whisperForm.append('response_format', 'json');

@@ -33,8 +33,15 @@ export async function POST(req: NextRequest) {
       .eq('id', sessionId);
   }
 
+  // Live transcription of the call for the teleprompter: only for calls started from a teleprompter session.
+  const transcriptionCallback = sessionId ? `${siteUrl}/api/twilio/voice/transcription?sessionId=${encodeURIComponent(sessionId)}` : '';
+  const transcription = transcriptionCallback
+    ? `<Start><Transcription statusCallbackUrl="${transcriptionCallback.replace(/&/g, '&amp;')}" statusCallbackMethod="POST" track="both_tracks" partialResults="true" languageCode="en-US" inboundTrackLabel="agent" outboundTrackLabel="homeowner" hints="TRAVLR,Airbnb,Vrbo,HOA,short-term rental,property manager,permit"/></Start>`
+    : '';
+
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
+  ${transcription}
   <Say voice="Polly.Joanna">This call may be recorded for quality assurance and training purposes. By continuing, you consent to being recorded.</Say>
   <Pause length="1"/>
   <Dial callerId="${process.env.TWILIO_FROM_NUMBER || ''}" record="record-from-answer-dual" recordingStatusCallback="${recordingCallback}" recordingStatusCallbackMethod="POST">
