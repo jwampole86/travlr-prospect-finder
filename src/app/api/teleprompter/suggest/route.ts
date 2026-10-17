@@ -61,6 +61,12 @@ SOUND LIKE A PERSON, NOT AN ASSISTANT
 - Do not start two lines in a row the same way. Look at how the agent's earlier lines in the transcript began and open differently.
 - Plain words a person would say on the phone. No exclamation marks, no sales adjectives (amazing, fantastic, exciting, incredible), no "I'd love to", no "I'm happy to".
 - Do not repeat the homeowner's sentence back to them.
+- Talk the way two people talk, not the way a script reads. Say the agent's name and TRAVLR's name once, in the introduction, and again only if the homeowner asks who is calling. Never sign off every line with them.
+- Use the homeowner's first name rarely: at most once every four or five lines, and never twice in a row. Most lines need no name at all. Do not repeat their address either unless it is needed.
+- Keep it short and plain: usually one sentence of 25 words or fewer, two short ones at most, shorter when they gave a short answer. Match their pace. Answer the question they asked first, then stop.
+- Avoid sales-trainer phrases: "here's the thing", "would it make sense to", "I want to understand", "walk through", "no pressure", "so you have the full picture", "a lot of owners in your situation". Say it the way you would to a neighbor.
+- Ask at most one question, and not on every line. Do not end lines with "Does that make sense?", "Fair enough?" or "Sound good?".
+- Do not restate the pitch (what TRAVLR is, 10 years, full-service) once it has been said. Move the conversation forward instead.
 
 USING THE LEAD PROFILE AND TRAVLR KNOWLEDGE
 - You are given TRAVLR KNOWLEDGE (approved facts about the company and its services) and, when available, a LEAD PROFILE for the homeowner on this call. Use them to answer the homeowner's questions directly and specifically.
@@ -392,9 +398,19 @@ LEAD CONTEXT:
 
 ${scriptId === 'candidate_next_steps' ? '' : `TRAVLR KNOWLEDGE (approved facts you may use):\n${TRAVLR_KNOWLEDGE}\n\n`}${briefing ? `${briefing}` : 'LEAD PROFILE: not available for this call. Use only the lead context above. You do not know what we have sent them or whether they opened or replied to anything, so never claim it and never deny it. If they ask, say you will pull up exactly what they received and confirm. Bridge to a follow-up for anything else you do not know.'}`;
 
-    const liveContext = `${liveFragment ? 'MODE: Live fragment — provide ultra-short next-line suggestion only, with no [Note] line.\n\n' : ''}${learned}${objectionHint ? `APPROVED RESPONSE TO THIS KIND OF OBJECTION (${objectionHint.category}): adapt it to what the homeowner actually said and to their real details in the lead profile, keep the same intent, add no new claims, drop any statement about what most owners experience or any statistic that TRAVLR KNOWLEDGE does not support, and keep it short enough to say aloud.\n${objectionHint.response}\n\n` : ''}${transcriptSection}
+    // Facts about the call so far that keep the lines from sounding like a script.
+    const agentLines: string[] = Array.isArray(transcript) ? transcript.filter((t: { speaker: string }) => t.speaker === 'Agent').map((t: { text: string }) => t.text) : [];
+    const agentFirst = String(agentName || '').split(/\s+/)[0]?.toLowerCase();
+    const introduced = agentLines.some(l => /\bthis is\b/i.test(l) || (agentFirst && agentFirst.length > 1 && l.toLowerCase().includes(agentFirst)));
+    const contactFirst = String(leadContext?.contactName || '').split(/\s+/)[0]?.toLowerCase();
+    const nameRecently = !!contactFirst && contactFirst !== 'there' && agentLines.slice(-3).some(l => l.toLowerCase().includes(contactFirst));
+    const callState = `CALL SO FAR: ${introduced ? "The agent has already introduced themselves and TRAVLR. Do not say the agent's name or TRAVLR Vacation Homes again unless the homeowner just asked who is calling." : 'The agent has not introduced themselves yet.'} ${nameRecently ? "The homeowner's name was used in the last few lines, so leave it out of this one." : ''}`.trim();
 
-Based on the transcript above and the current script stage, what should the agent say next? Provide the suggested line only — no raw variable tokens, no fabricated numbers.${liveFragment ? ' Keep it to one short sentence, or two if they asked a direct question.' : ''}`;
+    const liveContext = `${callState}
+
+${liveFragment ? 'MODE: Live fragment — provide ultra-short next-line suggestion only, with no [Note] line.\n\n' : ''}${learned}${objectionHint ? `APPROVED RESPONSE TO THIS KIND OF OBJECTION (${objectionHint.category}): adapt it to what the homeowner actually said and to their real details in the lead profile, keep the same intent, add no new claims, drop any statement about what most owners experience or any statistic that TRAVLR KNOWLEDGE does not support, and keep it short enough to say aloud.\n${objectionHint.response}\n\n` : ''}${transcriptSection}
+
+Based on the transcript above and the current script stage, what should the agent say next? Provide the suggested line only — no raw variable tokens, no fabricated numbers. Say it in 30 words or fewer, the way a person talks on the phone: no name, no pitch recap, no stock phrases.${liveFragment ? ' Keep it to one short sentence, or two if they asked a direct question.' : ''}`;
 
     const fallbackBody = (reason: string) => {
       // Slow or failed: an approved objection response is better than a generic script line.

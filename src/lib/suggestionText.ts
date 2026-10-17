@@ -36,7 +36,7 @@ const FILLER_OPENER = new RegExp(
     '(?:thank you|thanks) for (?:sharing|letting me know|that|telling me)', 'that makes (?:perfect |total )?sense',
     "that(?:'s| is) (?:a |an )?(?:really |very |such a )?(?:great|good|fair|valid|excellent|wonderful) (?:point|question|concern)",
     'what a (?:great|good) (?:point|question)', 'good (?:question|point)', '(?:totally |completely |very )?fair(?: enough| point)?',
-  ].join('|') + ')\\s*[,.!\\u2014\\u2013-]+\\s+', 'i',
+  ].join('|') + ')(?:\\s*[,.!]+\\s+|\\s*[\\u2014\\u2013]+\\s*|\\s+-+\\s+)', 'i',
 );
 
 /** Removes assistant-style acknowledgements from the start of a spoken line. Leaves the line alone if nothing real would remain. */
@@ -51,11 +51,25 @@ export function stripFillerOpener(text: string): string {
   return out.charAt(0).toUpperCase() + out.slice(1);
 }
 
+/** Keeps a spoken line short: whole sentences up to about `max` words (always at least the first one). */
+export function limitSpokenWords(text: string, max = 38): string {
+  const count = (t: string) => t.split(/\s+/).filter(Boolean).length;
+  if (count(text) <= max) return text;
+  const sentences = text.split(/(?<=[.?!])\s+/);
+  let out = '';
+  for (const sentence of sentences) {
+    const next = out ? `${out} ${sentence}` : sentence;
+    if (out && count(next) > max) break;
+    out = next;
+  }
+  return out;
+}
+
 /** Applies stripFillerOpener to every spoken line in a suggestion block, keeping its labels. */
 export function cleanSuggestion(raw: string): string {
   return raw.split('\n').map(line => {
     const m = /^((?:Suggested next line|Option [AB]):\s*["\u201c]?)(.*?)(["\u201d]?)$/.exec(line.trim());
     if (!m) return line;
-    return `${m[1]}${stripFillerOpener(m[2])}${m[3]}`;
+    return `${m[1]}${limitSpokenWords(stripFillerOpener(m[2]))}${m[3]}`;
   }).join('\n');
 }

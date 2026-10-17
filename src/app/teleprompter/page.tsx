@@ -1103,19 +1103,44 @@ function DisplaySettingsPopover({
   );
 }
 
-/** A line of script with the words already read dimmed and the next word underlined. */
+/**
+ * A line of script as it is read aloud: sentences already read fade back, the sentence being read has a soft highlight, and the
+ * word to say next is marked solid. Sentences still to come stay bright.
+ */
 function TrackedText({ text, tracker, className, style }: { text: string; tracker: TrackerState | null; className?: string; style?: React.CSSProperties }) {
   const words = splitWords(text);
   const t = tracker && tracker.words.length === words.length ? tracker : null;
+
+  // Group the words into sentences.
+  const sentences: Array<{ from: number; to: number }> = [];
+  let from = 0;
+  words.forEach((w, i) => {
+    if (/[.?!\u2026]["'\u201d\u2019)]*$/.test(w.raw) || i === words.length - 1) { sentences.push({ from, to: i }); from = i + 1; }
+  });
+  const pos = t ? t.pos : 0;
+  const currentSentence = t && pos >= words.length ? -1 : sentences.findIndex(sn => pos >= sn.from && pos <= sn.to);
+
   return (
     <span className={className} style={style}>
-      {words.map((w, i) => {
-        const read = !!t && (t.matched[i] || t.skipped[i]);
-        const current = !!t && t.heard > 0 && i === t.pos;
+      {sentences.map((sn, si) => {
+        const isCurrent = si === currentSentence;
+        const isDone = !!t && (currentSentence === -1 || sn.to < pos);
         return (
-          <React.Fragment key={i}>
-            <span className={`transition-opacity duration-200 ${read ? 'opacity-35' : ''} ${current ? 'underline decoration-2 underline-offset-[6px] decoration-emerald-400' : ''}`}>{w.raw}</span>
-            {i < words.length - 1 ? ' ' : ''}
+          <React.Fragment key={si}>
+            <span className={`box-decoration-clone rounded-md transition-all duration-200 ${isCurrent ? 'bg-emerald-400/20 px-1 -mx-1' : ''} ${isDone ? 'opacity-35' : ''}`}>
+              {words.slice(sn.from, sn.to + 1).map((w, k) => {
+                const i = sn.from + k;
+                const read = !!t && (t.matched[i] || t.skipped[i]);
+                const next = isCurrent && !!t && i === pos;
+                return (
+                  <React.Fragment key={i}>
+                    <span className={`transition-colors duration-150 ${next ? 'box-decoration-clone rounded bg-emerald-400 px-1 -mx-0.5 text-[#0b1d16]' : ''} ${isCurrent && read ? 'opacity-50' : ''}`}>{w.raw}</span>
+                    {i < sn.to ? ' ' : ''}
+                  </React.Fragment>
+                );
+              })}
+            </span>
+            {si < sentences.length - 1 ? ' ' : ''}
           </React.Fragment>
         );
       })}
