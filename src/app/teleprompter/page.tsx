@@ -1815,7 +1815,8 @@ function ReadingModeOverlay({
   lines,
   suggestion,
   tracker,
-  lastHomeowner,
+  transcript,
+  liveText,
   hasPending,
   onSwitchPending,
   elapsed,
@@ -1837,7 +1838,8 @@ function ReadingModeOverlay({
   lines: Array<{ text: string; sectionTitle: string }>;
   suggestion: string;
   tracker: TrackerState | null;
-  lastHomeowner: string;
+  transcript: TranscriptEntry[];
+  liveText: { Agent: string; Homeowner: string };
   hasPending: boolean;
   onSwitchPending: () => void;
   elapsed: string;
@@ -1854,6 +1856,8 @@ function ReadingModeOverlay({
   isTest: boolean;
   homeownerAudio: 'off' | 'on' | 'unavailable';
 }) {
+  const transcriptRef = useRef<HTMLElement | null>(null);
+  useEffect(() => { transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight }); }, [transcript.length, liveText.Homeowner, liveText.Agent]);
   const [autoFullscreen, setAutoFullscreen] = useState(readAutoFullscreen);
   const toggleAuto = () => setAutoFullscreen(v => {
     try { window.localStorage.setItem(AUTO_FULLSCREEN_KEY, v ? 'off' : 'on'); } catch { /* ignore */ }
@@ -1952,11 +1956,24 @@ function ReadingModeOverlay({
         </div>
       </main>
 
-      {lastHomeowner && (
-        <div className="border-t border-white/10 px-5 py-2 sm:px-12 lg:px-24">
-          <p className="mx-auto max-w-6xl truncate text-sm text-white/50"><span className="mr-2 font-semibold uppercase tracking-wide text-white/35">Homeowner</span>{lastHomeowner}</p>
+      <section ref={transcriptRef} className="max-h-[32vh] min-h-[7rem] overflow-y-auto border-t border-white/10 bg-black/25 px-5 py-3 sm:px-12 lg:px-24" aria-label="Live transcript">
+        <div className="mx-auto max-w-6xl space-y-1.5">
+          {transcript.length === 0 && !liveText.Homeowner && !liveText.Agent && (
+            <p className="text-sm text-white/40">The conversation appears here as it happens.</p>
+          )}
+          {transcript.slice(-8).map(entry => (
+            <p key={entry.id} className={entry.speaker === 'Homeowner' ? 'text-lg leading-snug text-white' : 'text-sm leading-snug text-white/50'}>
+              <span className={`mr-2 text-xs font-semibold uppercase tracking-wide ${entry.speaker === 'Homeowner' ? 'text-sky-300' : 'text-white/35'}`}>{entry.speaker === 'Homeowner' ? 'Homeowner' : 'You'}</span>{entry.text}
+            </p>
+          ))}
+          {liveText.Homeowner && (
+            <p className="text-lg italic leading-snug text-white/90"><span className="mr-2 text-xs font-semibold not-italic uppercase tracking-wide text-sky-300">Homeowner</span>{liveText.Homeowner}…</p>
+          )}
+          {liveText.Agent && (
+            <p className="text-sm italic leading-snug text-white/45"><span className="mr-2 text-xs font-semibold not-italic uppercase tracking-wide text-white/30">You</span>{liveText.Agent}…</p>
+          )}
         </div>
-      )}
+      </section>
 
       <footer className="border-t border-white/15 px-4 py-4 sm:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
@@ -2049,6 +2066,8 @@ function TeleprompterPageInner() {
   const [tracker, setTracker] = useState<TrackerState | null>(null);
   const [deviationCount, setDeviationCount] = useState(0);
   const [flowEnded, setFlowEnded] = useState(false);
+  // What each side is saying right now, before the sentence is finished.
+  const [liveText, setLiveText] = useState({ Agent: '', Homeowner: '' });
   // Whether the homeowner's side of the call is being transcribed from the call audio itself.
   const [homeownerAudio, setHomeownerAudio] = useState<'off' | 'on' | 'unavailable'>('off');
   const [suggestionMeta, setSuggestionMeta] = useState<SuggestionMeta>({});
@@ -2097,7 +2116,9 @@ function TeleprompterPageInner() {
   const lastReadAtRef = useRef(0);
   // Words of the sentence being spoken that matched the line on screen: three or more means the agent is reading it.
   const utteranceMatchedRef = useRef(0);
-  const consumedRef = useRef<Map<number, number>>(new Map());
+  // Where each speech source was in the script when its current sentence began, so every update can be re-read from that point.
+  const followBaseRef = useRef<{ mic: { state: TrackerState; line: string; ignore: number; seen: number } | null; remote: { state: TrackerState; line: string; ignore: number; seen: number } | null }>({ mic: null, remote: null });
+  const remoteGainRef = useRef(0);
   const transcriptRef = useRef<TranscriptEntry[]>([]);
   const displayLineRef = useRef('');
   const interimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2511,17 +2532,28 @@ function TeleprompterPageInner() {
   useEffect(() => { addEntryRef.current = addTranscriptEntry; }, [addTranscriptEntry]);
   useEffect(() => () => { if (transcriptPollRef.current) clearInterval(transcriptPollRef.current); }, []);
 
-  /** Moves the reading position along with the words just spoken. Anything that is not the line on screen leaves it where it is. */
-  const feedTracker = useCallback((tokens: string[]) => {
-    const t = trackerRef.current;
-    if (!t || tokens.length === 0) return;
-    const next = trackSpeech(t, tokens);
-    if (next === t) return;
+  /**
+   * Moves the reading position along with the words spoken in the current sentence. Recognition keeps revising a sentence as it
+   * grows, so each update is read again from where the sentence began instead of adding to what was counted before.
+   * Returns how many more words of the line were heard.
+   */
+  const follow = useCallback((source: 'mic' | 'remote', tokens: string[], isFinal: boolean): number => {
+    const current = trackerRef.current;
+    if (!current || tokens.length === 0) return 0;
+    const line = displayLineRef.current;
+    let base = followBaseRef.current[source];
+    if (!base || base.line !== line) {
+      // The line on screen changed partway through a sentence: words already spoken belong to the old line.
+      base = { state: current, line, ignore: base ? Math.min(base.seen, tokens.length) : 0, seen: 0 };
+    }
+    const next = trackSpeech(base.state, tokens.slice(Math.min(base.ignore, tokens.length)));
     const count = (x: TrackerState) => x.matched.reduce((n, m) => n + (m ? 1 : 0), 0);
-    const gained = count(next) - count(t);
-    if (gained > 0) { lastReadAtRef.current = Date.now(); utteranceMatchedRef.current += gained; }
+    const gained = Math.max(0, count(next) - count(current));
+    if (gained > 0) lastReadAtRef.current = Date.now();
     trackerRef.current = next;
     setTracker(next);
+    followBaseRef.current[source] = isFinal ? null : { ...base, seen: tokens.length };
+    return gained;
   }, []);
 
   const startListening = useCallback(() => {
@@ -2538,18 +2570,14 @@ function TeleprompterPageInner() {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    recognition.onstart = () => { setIsListening(true); consumedRef.current.clear(); };
+    recognition.onstart = () => { setIsListening(true); followBaseRef.current.mic = null; };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interim = '';
       let final = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
-        // Each result is sent again as it grows, so only the words not yet seen are passed to the reading tracker.
-        const tokens = tokenize(result[0].transcript);
-        const seen = consumedRef.current.get(i) ?? 0;
-        if (tokens.length > seen) feedTracker(tokens.slice(seen));
-        consumedRef.current.set(i, tokens.length);
+        utteranceMatchedRef.current += follow('mic', tokenize(result[0].transcript), result.isFinal);
         if (result.isFinal) {
           final += result[0].transcript;
           const confidence = result[0].confidence;
@@ -2561,6 +2589,7 @@ function TeleprompterPageInner() {
 
       const line = displayLineRef.current;
       const interimText = interim.trim();
+      setLiveText(t => (t.Agent === interimText ? t : { ...t, Agent: interimText }));
       // Speech that follows the line on screen is the agent reading it, whoever the speaker switch says is talking.
       const interimIsReading = !!interimText && (utteranceMatchedRef.current >= 3 || (!!line && looksLikeReading(interimText, line)));
 
@@ -2607,7 +2636,7 @@ function TeleprompterPageInner() {
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [activeSpeaker, addTranscriptEntry, feedTracker]);
+  }, [activeSpeaker, addTranscriptEntry, follow]);
 
   const stopHomeownerAudio = useCallback(() => {
     if (transcriptPollRef.current) { clearInterval(transcriptPollRef.current); transcriptPollRef.current = null; }
@@ -2628,6 +2657,8 @@ function TeleprompterPageInner() {
     let sawFinalFor = 0;
     const startedAt = Date.now();
     let working = false;
+    let best = '';
+    let lastEventAt = Date.now();
     transcriptPollRef.current = setInterval(async () => {
       if (busy) return;
       busy = true;
@@ -2635,6 +2666,7 @@ function TeleprompterPageInner() {
         const res = await fetch(`/api/teleprompter/transcript?sessionId=${encodeURIComponent(callSessionId)}&after=${after}`);
         if (!res.ok) return;
         const { events } = await res.json() as { events: Array<{ id: number; event: string; speaker: string | null; text: string | null; is_final: boolean | null }> };
+        if (events.length > 0) lastEventAt = Date.now();
         for (const ev of events) {
           after = Math.max(after, ev.id);
           if (ev.event === 'transcription-started' && !working) {
@@ -2647,26 +2679,43 @@ function TeleprompterPageInner() {
           // The recording notice plays on the agent's side before the homeowner picks up; it is not the homeowner talking.
           if (!heard || looksLikeReading(heard, RECORDING_DISCLOSURE)) continue;
           if (!working) { working = true; remoteActiveRef.current = true; setHomeownerAudio('on'); }
+          const line = displayLineRef.current;
+          if (!ev.is_final) {
+            // Partial results arrive both as the whole sentence so far and as small pieces of it; the longest one is the sentence.
+            if (tokenize(heard).length >= tokenize(best).length) best = heard;
+          }
+          const sentence = ev.is_final ? heard : best;
+          // Whoever is on the phone line may also be reading the script aloud (a practice call does exactly this): words that follow
+          // the line on screen move the reading position and are counted as the agent, not as a homeowner reply.
+          remoteGainRef.current += follow('remote', tokenize(sentence), !!ev.is_final);
+          const reading = remoteGainRef.current >= 3 || (!!line && looksLikeReading(sentence, line));
           if (ev.is_final) {
+            best = '';
+            remoteGainRef.current = 0;
             sawFinalFor = ev.id;
             if (interimTimerRef.current) { clearTimeout(interimTimerRef.current); interimTimerRef.current = null; }
             setCurrentSpeaker(null);
-            addEntryRef.current?.('Homeowner', heard);
+            setLiveText({ Agent: '', Homeowner: '' });
+            addEntryRef.current?.(reading ? 'Agent' : 'Homeowner', heard);
+          } else if (reading) {
+            setLiveText(t => ({ ...t, Agent: sentence, Homeowner: '' }));
           } else {
             setCurrentSpeaker('Homeowner');
+            setLiveText(t => ({ ...t, Homeowner: sentence }));
             // Start on the answer once they pause, without waiting for the phrase to be closed.
             if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
-            const snapshot = heard;
             const evId = ev.id;
             interimTimerRef.current = setTimeout(() => {
-              if (sawFinalFor > evId || snapshot.split(/\s+/).length < 4) return;
-              speculativeRef.current = tokenize(snapshot).join(' ');
-              const partial: TranscriptEntry = { id: 'interim', speaker: 'Homeowner', text: snapshot, timestamp: '' };
+              if (sawFinalFor > evId || sentence.split(/\s+/).length < 4) return;
+              speculativeRef.current = tokenize(sentence).join(' ');
+              const partial: TranscriptEntry = { id: 'interim', speaker: 'Homeowner', text: sentence, timestamp: '' };
               fetchSuggestionRef.current?.([...transcriptRef.current, partial], false);
             }, 700);
           }
         }
-        if (!working && Date.now() - startedAt > 20_000) {
+        // Live text that nothing has updated for a few seconds is stale.
+        if (Date.now() - lastEventAt > 4000) setLiveText(t => (t.Agent || t.Homeowner ? { Agent: '', Homeowner: '' } : t));
+        if (!working && Date.now() - startedAt > 30_000) {
           if (transcriptPollRef.current) { clearInterval(transcriptPollRef.current); transcriptPollRef.current = null; }
           setHomeownerAudio('unavailable');
           toast.error("The homeowner's side of the call isn't being transcribed. Use the Agent / Homeowner switch to mark who is talking.");
@@ -3256,7 +3305,8 @@ function TeleprompterPageInner() {
           lines={readingLines}
           suggestion={suggestion}
           tracker={tracker}
-          lastHomeowner={[...transcript].reverse().find(e => e.speaker === 'Homeowner')?.text ?? ''}
+          transcript={transcript}
+          liveText={liveText}
           hasPending={!!pending}
           onSwitchPending={switchToPending}
           elapsed={formatElapsed(elapsed)}

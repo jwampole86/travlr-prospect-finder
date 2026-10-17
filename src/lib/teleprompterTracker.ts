@@ -58,6 +58,19 @@ function editDistanceAtMost(a: string, b: string, max: number): boolean {
   return prev[b.length] <= max;
 }
 
+/** A rough sound-alike key: same first letter, then the consonant sounds without vowels or doubled letters. */
+function soundKey(w: string): string {
+  const map: Record<string, string> = { b: '1', f: '1', p: '1', v: '1', c: '2', g: '2', j: '2', k: '2', q: '2', s: '2', x: '2', z: '2', d: '3', t: '3', l: '4', m: '5', n: '5', r: '6' };
+  let out = w[0];
+  let last = map[w[0]] ?? '';
+  for (let i = 1; i < w.length; i++) {
+    const code = map[w[i]] ?? '';
+    if (code && code !== last) out += code;
+    last = code || (/[aeiouy]/.test(w[i]) ? '' : last);
+  }
+  return out.slice(0, 5);
+}
+
 /** Same word, allowing for the small differences speech recognition introduces (plurals, endings, a wrong letter). */
 export function wordsMatch(expected: string, spoken: string): boolean {
   if (!expected || !spoken) return false;
@@ -65,7 +78,9 @@ export function wordsMatch(expected: string, spoken: string): boolean {
   const short = Math.min(expected.length, spoken.length);
   if (short < 4) return false;
   if (Math.abs(expected.length - spoken.length) <= 3 && (expected.startsWith(spoken) || spoken.startsWith(expected))) return true;
-  return editDistanceAtMost(expected, spoken, short >= 8 ? 2 : 1);
+  if (editDistanceAtMost(expected, spoken, short >= 8 ? 2 : 1)) return true;
+  // Recognition often spells names and unusual words differently from how they sound.
+  return short >= 5 && Math.abs(expected.length - spoken.length) <= 2 && soundKey(expected) === soundKey(spoken);
 }
 
 export function createTracker(text: string): TrackerState {

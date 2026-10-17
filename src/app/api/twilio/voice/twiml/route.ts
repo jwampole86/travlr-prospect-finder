@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       .eq('id', sessionId);
   }
 
-  // Live transcription of the homeowner's side (what Twilio sends to the agent's browser) for the teleprompter; only for calls started from a teleprompter session.
+  // Starts after the recording notice (which plays on the agent's leg) so the notice is not transcribed as the homeowner. Live transcription of the homeowner's side (what Twilio sends to the agent's browser) for the teleprompter; only for calls started from a teleprompter session.
   const transcriptionCallback = sessionId ? `${siteUrl}/api/twilio/voice/transcription?sessionId=${encodeURIComponent(sessionId)}` : '';
   const transcription = transcriptionCallback
     ? `<Start><Transcription statusCallbackUrl="${transcriptionCallback.replace(/&/g, '&amp;')}" statusCallbackMethod="POST" track="outbound_track" partialResults="true" languageCode="en-US" hints="TRAVLR,Airbnb,Vrbo,HOA,short-term rental,property manager,permit"/></Start>`
@@ -41,9 +41,9 @@ export async function POST(req: NextRequest) {
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  ${transcription}
   <Say voice="Polly.Joanna">This call may be recorded for quality assurance and training purposes. By continuing, you consent to being recorded.</Say>
   <Pause length="1"/>
+  ${transcription}
   <Dial callerId="${process.env.TWILIO_FROM_NUMBER || ''}" record="record-from-answer-dual" recordingStatusCallback="${recordingCallback}" recordingStatusCallbackMethod="POST">
     ${to ? `<Number>${to}</Number>` : '<Client>agent</Client>'}
   </Dial>
