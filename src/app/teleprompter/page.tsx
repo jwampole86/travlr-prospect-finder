@@ -67,6 +67,8 @@ interface LeadContext {
   interviewSummary?: string | null;
   overallFit?: number | null;
   hireRecommendation?: string | null;
+  /** A practice call to your own phone, not a homeowner call. */
+  isTest?: boolean;
 }
 
 interface CandidateFollowUpContext {
@@ -1409,10 +1411,13 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
   };
 
   // A practice call to your own phone: no lead is attached, so nothing is logged against a real homeowner.
-  const [testPhone, setTestPhone] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    return new URLSearchParams(window.location.search).get('testPhone') || window.localStorage.getItem('travlr_teleprompter_test_phone') || '';
-  });
+  const [testPhone, setTestPhone] = useState('');
+  const [practiceLink, setPracticeLink] = useState(false);
+  useEffect(() => {
+    const fromLink = new URLSearchParams(window.location.search).get('testPhone');
+    setPracticeLink(fromLink !== null);
+    setTestPhone(fromLink || window.localStorage.getItem('travlr_teleprompter_test_phone') || '');
+  }, []);
   const handleTestCall = () => {
     if (loading) { toast.error('Checking your session — please try again in a moment'); return; }
     if (!user || !session?.access_token) { toast.error('Sign in before starting a teleprompter call'); return; }
@@ -1421,7 +1426,7 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
     try { window.localStorage.setItem('travlr_teleprompter_test_phone', testPhone); } catch { /* ignore */ }
     const name = agentName.trim() || String(user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'Test Agent');
     const { localBlurb } = resolveVariables({ contactName: 'Test Call', address: '123 Test St', city: 'Newport Beach', state: 'CA' }, { senderName: name });
-    onStart({ contactName: 'Test Call', address: '123 Test St', city: 'Newport Beach', state: 'CA', portfolioState: 'CA', localBlurb, phone: testPhone }, name, scriptId === 'candidate_next_steps' ? 'initial_outreach' : scriptId);
+    onStart({ contactName: 'Test Call', address: '123 Test St', city: 'Newport Beach', state: 'CA', portfolioState: 'CA', localBlurb, phone: testPhone, isTest: true }, name, scriptId === 'candidate_next_steps' ? 'initial_outreach' : scriptId);
   };
 
   const handleStart = () => {
@@ -1541,8 +1546,8 @@ function CallSetupForm({ onStart, prefill }: CallSetupFormProps) {
       )}
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Live Call Teleprompter</h1>
-        <p className="text-sm text-muted-foreground">Enter the lead details and select the call script to load, then start the session.</p>
+        <h1 className="text-2xl font-bold text-foreground mb-2">{practiceLink ? 'Teleprompter Practice Call' : 'Live Call Teleprompter'}</h1>
+        <p className="text-sm text-muted-foreground">{practiceLink ? 'Pick a script, then use Start practice call at the bottom to ring your phone. No homeowner is called.' : 'Enter the lead details and select the call script to load, then start the session.'}</p>
       </div>
 
       {/* Interview Mode Entry Card — admin only */}
@@ -1823,6 +1828,7 @@ function ReadingModeOverlay({
   isListening,
   onToggleListening,
   endOfScript,
+  isTest,
 }: {
   lead: LeadContext | null;
   script: CallScript;
@@ -1843,6 +1849,7 @@ function ReadingModeOverlay({
   isListening: boolean;
   onToggleListening: () => void;
   endOfScript: boolean;
+  isTest: boolean;
 }) {
   const [autoFullscreen, setAutoFullscreen] = useState(readAutoFullscreen);
   const toggleAuto = () => setAutoFullscreen(v => {
@@ -1882,7 +1889,7 @@ function ReadingModeOverlay({
     <div className="fixed inset-0 z-[100] flex flex-col bg-[#101716] text-white">
       <header className="flex items-center justify-between gap-4 border-b border-white/15 px-4 py-3 sm:px-8">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300">Live Reading Mode</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300">{isTest ? 'Practice call' : 'Live Reading Mode'}</p>
           <p className="mt-1 truncate text-sm text-white/65">{lead?.contactName} · {script.label} · {elapsed}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -1922,7 +1929,7 @@ function ReadingModeOverlay({
 
       <main className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-5 py-8 sm:px-12 lg:px-24">
         <div className="mx-auto w-full max-w-6xl">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-emerald-300">{parsed ? 'Live suggestion' : 'Script line'}</p>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-emerald-300">{parsed ? (isTest ? 'Suggestion' : 'Live suggestion') : 'Script line'}</p>
           <p className={`font-semibold leading-tight text-white ${READING_SIZES[sizeIndex]}`}>
             <TrackedText text={displayText} tracker={tracker} />
           </p>
@@ -2641,6 +2648,8 @@ function TeleprompterPageInner() {
     }
 
     setPhase('active');
+    // The recording disclosure is played to the homeowner by the call itself, so listening starts with the call.
+    try { startListening(); } catch { /* the Start listening button is the fallback */ }
     const now = new Date();
     setCallStartTime(now);
     setCoveredBeats(new Set());
@@ -2868,8 +2877,8 @@ function TeleprompterPageInner() {
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <BackButton variant="icon" confirmMessage="Leave the live call screen?" />
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-sm font-semibold text-foreground">Live</span>
+            <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${lead?.isTest ? 'bg-amber-500' : 'bg-red-500'}`} />
+            <span className="text-sm font-semibold text-foreground">{lead?.isTest ? 'Practice call' : 'Live'}</span>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-shrink-0">
             <Clock className="w-3.5 h-3.5" />
@@ -3166,6 +3175,7 @@ function TeleprompterPageInner() {
           isListening={isListening}
           onToggleListening={() => (isListening ? stopListening() : startListening())}
           endOfScript={flowEnded}
+          isTest={!!lead?.isTest}
         />
       )}
     </div>
