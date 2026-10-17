@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -89,6 +90,11 @@ export async function PATCH(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // The call's outcome tells the suggestion engine which off-script moments belonged to calls that went well.
+    if (typeof outcome === 'string' && outcome) {
+      await getSupabaseAdmin().from('teleprompter_script_deviations').update({ outcome }).eq('session_id', sessionId).eq('user_id', session.user.id);
     }
 
     return NextResponse.json({ success: true });

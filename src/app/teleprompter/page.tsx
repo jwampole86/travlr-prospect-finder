@@ -1,7 +1,7 @@
 'use client';
 
 import BackButton from '@/components/ui/BackButton';
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Mic, MicOff, PhoneOff, Phone, AlertTriangle, CheckCircle, Clock, User, Home, ChevronLeft, ChevronRight, Loader2, Volume2, RefreshCw, FileText, Headphones, Settings, WifiOff, Radio, AlertCircle, ChevronDown, CheckSquare, Square, BookOpen, Zap, AlertOctagon, ThumbsUp, ThumbsDown, BarChart2, Hash, X, List, PhoneCall, PhoneMissed, PhoneIncoming, Delete, Briefcase, Brain, PanelRightOpen, Shield, DollarSign, Maximize2, Minimize2 } from 'lucide-react';
 import Link from 'next/link';
@@ -22,6 +22,8 @@ import TeleprompterRegulationPanel from './components/TeleprompterRegulationPane
 import PropertyEstimatePanel from './components/PropertyEstimatePanel';
 import { PORTFOLIO_STATES } from '@/lib/localBlurbs';
 import { checkDoNotContact, connectVoiceCall } from '@/lib/services/twilioVoiceService';
+import { createTracker, trackSpeech, progress as trackerProgress, tokenize, looksLikeReading, splitWords, retargetTracker, type TrackerState } from '@/lib/teleprompterTracker';
+import { parseSuggestion } from '@/lib/suggestionText';
 import type { Call } from '@twilio/voice-sdk';
 
 type BrowserSpeechRecognition = typeof window extends never ? never : {
@@ -97,6 +99,17 @@ interface HeadsetState {
   permissionError: string;
   inputConnected: boolean;
   outputConnected: boolean;
+}
+
+interface SuggestionData {
+  suggestion: string;
+  source?: string;
+  degraded?: boolean;
+  degradedReason?: string;
+  suppressedReason?: string;
+  objectionId?: string;
+  objectionCategory?: string;
+  note?: string;
 }
 
 interface SuggestionMeta {
@@ -1079,6 +1092,26 @@ function DisplaySettingsPopover({
   );
 }
 
+/** A line of script with the words already read dimmed and the next word underlined. */
+function TrackedText({ text, tracker, className, style }: { text: string; tracker: TrackerState | null; className?: string; style?: React.CSSProperties }) {
+  const words = splitWords(text);
+  const t = tracker && tracker.words.length === words.length ? tracker : null;
+  return (
+    <span className={className} style={style}>
+      {words.map((w, i) => {
+        const read = !!t && (t.matched[i] || t.skipped[i]);
+        const current = !!t && t.heard > 0 && i === t.pos;
+        return (
+          <React.Fragment key={i}>
+            <span className={`transition-opacity duration-200 ${read ? 'opacity-35' : ''} ${current ? 'underline decoration-2 underline-offset-[6px] decoration-emerald-400' : ''}`}>{w.raw}</span>
+            {i < words.length - 1 ? ' ' : ''}
+          </React.Fragment>
+        );
+      })}
+    </span>
+  );
+}
+
 function SuggestionPanel({
   suggestion,
   isLoading,
@@ -1087,6 +1120,11 @@ function SuggestionPanel({
   onFeedback,
   lastFeedback,
   lowConfidenceCount,
+  tracker,
+  hasPending,
+  onSwitchPending,
+  onFullscreen,
+  learnedCount,
 }: {
   suggestion: string;
   isLoading: boolean;
@@ -1095,6 +1133,11 @@ function SuggestionPanel({
   onFeedback: (signal: 'used' | 'ignored') => void;
   lastFeedback: 'used' | 'ignored' | null;
   lowConfidenceCount: number;
+  tracker: TrackerState | null;
+  hasPending: boolean;
+  onSwitchPending: () => void;
+  onFullscreen: () => void;
+  learnedCount: number;
 }) {
   const lines = suggestion.split('\n').filter(l => l.trim());
   const [displaySettings, setDisplaySettings] = useState(loadDisplaySettings);
@@ -1114,6 +1157,14 @@ function SuggestionPanel({
       <div className="flex items-center justify-between px-4 py-3 border-b border-border relative">
         <h3 className="text-sm font-semibold text-foreground">AI Suggestion</h3>
         <div className="flex items-center gap-1">
+          {learnedCount > 0 && (
+            <span className="mr-1 text-[10px] text-muted-foreground" title="Moments on this call where you went off script. They are saved so suggestions can learn from them.">
+              {learnedCount} off-script saved
+            </span>
+          )}
+          <button onClick={onFullscreen} className="p-1.5 rounded-lg hover:bg-muted transition-colors touch-manipulation" title="Full screen (F)">
+            <Maximize2 className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
           <button onClick={() => setShowSettings(v => !v)} className="p-1.5 rounded-lg hover:bg-muted transition-colors touch-manipulation" title="Display settings">
             <Settings className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
@@ -1139,6 +1190,11 @@ function SuggestionPanel({
       )}
 
       <div className="flex-1 p-4 overflow-y-auto">
+        {hasPending && (
+          <button onClick={onSwitchPending} className="mb-3 w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-left text-xs font-medium text-emerald-800 hover:bg-emerald-100">
+            New suggestion ready. It will appear when you finish this line. <span className="underline">Switch now</span>
+          </button>
+        )}
         {isLoading && !suggestion && (
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
@@ -1179,7 +1235,7 @@ function SuggestionPanel({
                       className={`leading-relaxed font-medium ${isOptionA || isOptionB ? 'text-foreground' : activeTheme.text}`}
                       style={isMain ? { fontSize: `${displaySettings.fontSize}px` } : undefined}
                     >
-                      "{text}"
+                      &ldquo;{isMain ? <TrackedText text={text} tracker={tracker} /> : text}&rdquo;
                     </p>
                   </div>
                 );
@@ -1684,11 +1740,18 @@ function CallEndedSummary({
   );
 }
 
+const READING_SIZES = ['text-3xl sm:text-4xl lg:text-5xl', 'text-4xl sm:text-5xl lg:text-6xl', 'text-4xl sm:text-5xl lg:text-7xl', 'text-5xl sm:text-6xl lg:text-8xl'];
+const READING_SIZE_KEY = 'travlr_teleprompter_fullscreen_size';
+
 function ReadingModeOverlay({
   lead,
   script,
   lines,
   suggestion,
+  tracker,
+  lastHomeowner,
+  hasPending,
+  onSwitchPending,
   elapsed,
   lineIndex,
   onPrevious,
@@ -1699,16 +1762,42 @@ function ReadingModeOverlay({
   script: CallScript;
   lines: Array<{ text: string; sectionTitle: string }>;
   suggestion: string;
+  tracker: TrackerState | null;
+  lastHomeowner: string;
+  hasPending: boolean;
+  onSwitchPending: () => void;
   elapsed: string;
   lineIndex: number;
   onPrevious: () => void;
   onNext: () => void;
   onExit: () => void;
 }) {
+  const [sizeIndex, setSizeIndex] = useState(() => {
+    if (typeof window === 'undefined') return 2;
+    const saved = Number(window.localStorage.getItem(READING_SIZE_KEY));
+    return Number.isInteger(saved) && saved >= 0 && saved < READING_SIZES.length ? saved : 2;
+  });
+  const changeSize = (delta: number) => setSizeIndex(i => {
+    const next = Math.max(0, Math.min(READING_SIZES.length - 1, i + delta));
+    try { window.localStorage.setItem(READING_SIZE_KEY, String(next)); } catch { /* ignore */ }
+    return next;
+  });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onExit();
+      else if (e.key === ' ' && hasPending) { e.preventDefault(); onSwitchPending(); }
+      else if (e.key === '+' || e.key === '=') changeSize(1);
+      else if (e.key === '-') changeSize(-1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasPending, onExit, onSwitchPending]);
+
   const currentLine = lines[lineIndex];
-  const displayText = suggestion
-    ? suggestion.replace(/^(Suggested next line:|Option [AB]:)/gm, '').replace(/^"|"$/g, '').trim()
-    : currentLine?.text || 'Listen for the homeowner, then continue with the next line.';
+  const parsed = suggestion ? parseSuggestion(suggestion) : null;
+  const displayText = parsed?.main || currentLine?.text || 'Listen for the homeowner, then continue with the next line.';
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-[#101716] text-white">
@@ -1717,24 +1806,47 @@ function ReadingModeOverlay({
           <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300">Live Reading Mode</p>
           <p className="mt-1 truncate text-sm text-white/65">{lead?.contactName} · {script.label} · {elapsed}</p>
         </div>
-        <button
-          onClick={onExit}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/20 text-white hover:bg-white/10"
-          title="Exit reading mode"
-          aria-label="Exit reading mode"
-        >
-          <Minimize2 size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => changeSize(-1)} disabled={sizeIndex === 0} className="h-10 rounded-lg border border-white/20 px-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-35" title="Smaller text (-)">A−</button>
+          <button onClick={() => changeSize(1)} disabled={sizeIndex === READING_SIZES.length - 1} className="h-10 rounded-lg border border-white/20 px-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-35" title="Larger text (+)">A+</button>
+          <button
+            onClick={onExit}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/20 text-white hover:bg-white/10"
+            title="Exit full screen (Esc)"
+            aria-label="Exit full screen"
+          >
+            <Minimize2 size={18} />
+          </button>
+        </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col justify-center px-5 py-8 sm:px-12 lg:px-24">
+      {hasPending && (
+        <button onClick={onSwitchPending} className="mx-auto mt-3 rounded-full border border-emerald-300/60 bg-emerald-400/15 px-4 py-1.5 text-sm font-medium text-emerald-200 hover:bg-emerald-400/25">
+          New suggestion ready. It appears when you finish this line. Press Space to switch now
+        </button>
+      )}
+
+      <main className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-5 py-8 sm:px-12 lg:px-24">
         <div className="mx-auto w-full max-w-6xl">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-emerald-300">{suggestion ? 'Live suggestion' : 'Script line'}</p>
-          <p className="text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-7xl">
-            {displayText}
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-emerald-300">{parsed ? 'Live suggestion' : 'Script line'}</p>
+          <p className={`font-semibold leading-tight text-white ${READING_SIZES[sizeIndex]}`}>
+            <TrackedText text={displayText} tracker={tracker} />
           </p>
+          {parsed && parsed.options.length > 0 && (
+            <div className="mt-8 space-y-3 border-t border-white/10 pt-6">
+              {parsed.options.map(o => (
+                <p key={o.label} className="text-xl leading-snug text-white/70 sm:text-2xl"><span className="mr-2 text-sm font-semibold uppercase tracking-wide text-white/40">{o.label.replace(':', '')}</span>{o.text}</p>
+              ))}
+            </div>
+          )}
         </div>
       </main>
+
+      {lastHomeowner && (
+        <div className="border-t border-white/10 px-5 py-2 sm:px-12 lg:px-24">
+          <p className="mx-auto max-w-6xl truncate text-sm text-white/50"><span className="mr-2 font-semibold uppercase tracking-wide text-white/35">Homeowner</span>{lastHomeowner}</p>
+        </div>
+      )}
 
       <footer className="border-t border-white/15 px-4 py-4 sm:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
@@ -1819,6 +1931,10 @@ function TeleprompterPageInner() {
   const [baseScriptText, setBaseScriptText] = useState('');
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [suggestion, setSuggestion] = useState('');
+  // A newer suggestion waits here while the agent is partway through reading the current one, so the text never changes under them.
+  const [pending, setPending] = useState<{ data: SuggestionData; id: string } | null>(null);
+  const [tracker, setTracker] = useState<TrackerState | null>(null);
+  const [deviationCount, setDeviationCount] = useState(0);
   const [suggestionMeta, setSuggestionMeta] = useState<SuggestionMeta>({});
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -1860,6 +1976,19 @@ function TeleprompterPageInner() {
   const [voiceCallStatus, setVoiceCallStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const lastSuggestionRef = useRef<string>('');
   const isSuggestingRef = useRef(false);
+  const trackerRef = useRef<TrackerState | null>(null);
+  const pendingRef = useRef<{ data: SuggestionData; id: string } | null>(null);
+  const lastReadAtRef = useRef(0);
+  // Words of the sentence being spoken that matched the line on screen: three or more means the agent is reading it.
+  const utteranceMatchedRef = useRef(0);
+  const consumedRef = useRef<Map<number, number>>(new Map());
+  const transcriptRef = useRef<TranscriptEntry[]>([]);
+  const displayLineRef = useRef('');
+  const interimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speculativeRef = useRef('');
+  const fetchSuggestionRef = useRef<((t: TranscriptEntry[], bargeIn?: boolean, force?: boolean) => Promise<void>) | null>(null);
+  const deviationQueueRef = useRef<Array<{ kind: 'ad_lib' | 'replaced'; expectedLine: string; agentSaid: string; homeownerSaid: string | null; coverage: number }>>([]);
+  const deviationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -1895,6 +2024,44 @@ function TeleprompterPageInner() {
   useEffect(() => {
     setReadingLineIndex(0);
   }, [scriptId, phase]);
+
+  useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
+
+  const scriptLines = useMemo(() => CALL_SCRIPTS[scriptId].sections.flatMap(section =>
+    section.lines
+      .filter(line => line.type === 'spoken')
+      .map(line => ({ text: resolvedVars ? applyVariables(line.text, resolvedVars) : line.text, sectionTitle: section.title }))
+  ), [scriptId, resolvedVars]);
+
+  // The text the agent is reading right now: the AI suggestion, or in full screen with none, the current script line.
+  const displayLine = suggestion ? parseSuggestion(suggestion).main : (isReadingMode ? scriptLines[readingLineIndex]?.text ?? '' : '');
+  useEffect(() => {
+    const next = displayLine ? retargetTracker(trackerRef.current, displayLine) : null;
+    trackerRef.current = next;
+    displayLineRef.current = displayLine;
+    setTracker(next);
+  }, [displayLine]);
+
+  // In full screen, move to the next script line once the agent has read this one.
+  useEffect(() => {
+    if (!isReadingMode || suggestion || !tracker || !trackerProgress(tracker).done) return;
+    const id = setTimeout(() => setReadingLineIndex(i => Math.min(Math.max(0, scriptLines.length - 1), i + 1)), 500);
+    return () => clearTimeout(id);
+  }, [tracker, isReadingMode, suggestion, scriptLines.length]);
+
+  useEffect(() => {
+    if (phase !== 'active') return;
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.metaKey || e.ctrlKey || e.altKey) return;
+      if ((e.key === 'f' || e.key === 'F') && !document.fullscreenElement) {
+        setIsReadingMode(true);
+        document.documentElement.requestFullscreen?.().catch(() => {});
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [phase]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -1944,20 +2111,60 @@ function TeleprompterPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead?.leadId, lead?.address, scriptId]);
 
-  const fetchSuggestion = useCallback(async (currentTranscript: TranscriptEntry[], isBargeIn = false) => {
+  /** Whether the agent is partway through reading the line on screen. */
+  const isHeld = useCallback(() => {
+    const t = trackerRef.current;
+    if (!t) return false;
+    const p = trackerProgress(t);
+    return p.started && !p.done && Date.now() - lastReadAtRef.current < 5000;
+  }, []);
+
+  const commitSuggestion = useCallback((data: SuggestionData, id: string) => {
+    setSuggestion(data.suggestion);
+    lastSuggestionRef.current = data.suggestion;
+    setCurrentSuggestionId(id);
+    setLastFeedback(null);
+    setSuggestionMeta({
+      source: data.source as SuggestionMeta['source'],
+      degraded: data.degraded,
+      degradedReason: data.degradedReason,
+      suppressedReason: data.suppressedReason,
+      objectionId: data.objectionId,
+      objectionCategory: data.objectionCategory,
+      note: data.note,
+    });
+    setSuggestionsCount(c => c + 1);
+    if (data.suppressedReason === 'low_confidence') setLowConfidenceCount(c => c + 1);
+  }, []);
+
+  const switchToPending = useCallback(() => {
+    const next = pendingRef.current;
+    if (!next) return;
+    pendingRef.current = null;
+    setPending(null);
+    commitSuggestion(next.data, next.id);
+  }, [commitSuggestion]);
+
+  // A waiting suggestion appears as soon as the agent has finished the line (or stopped reading it).
+  useEffect(() => {
+    if (!pending) return;
+    const id = setInterval(() => { if (!isHeld()) switchToPending(); }, 400);
+    return () => clearInterval(id);
+  }, [pending, isHeld, switchToPending]);
+
+  const fetchSuggestion = useCallback(async (currentTranscript: TranscriptEntry[], isBargeIn = false, force = false) => {
     if (!lead || !baseScriptText || currentTranscript.length === 0) return;
 
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    if (isBargeIn) { setSuggestion(''); setSuggestionMeta({}); }
-
     setIsSuggesting(true);
     isSuggestingRef.current = true;
     const newSuggestionId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setCurrentSuggestionId(newSuggestionId);
-    setLastFeedback(null);
+    const shownBefore = lastSuggestionRef.current;
+    // Whether this request is writing onto the screen as the words arrive. Not while the agent is reading the previous line.
+    let ownsDisplay = false;
 
     try {
       const res = await fetch('/api/teleprompter/suggest', {
@@ -1983,29 +2190,57 @@ function TeleprompterPageInner() {
 
       if (controller.signal.aborted) return;
 
-      const data = await res.json();
-      if (data.suggestion) {
-        setSuggestion(data.suggestion);
-        lastSuggestionRef.current = data.suggestion;
-        setSuggestionMeta({
-          source: data.source,
-          degraded: data.degraded,
-          degradedReason: data.degradedReason,
-          suppressedReason: data.suppressedReason,
-          objectionId: data.objectionId,
-          objectionCategory: data.objectionCategory,
-          note: data.note,
-        });
-        setSuggestionsCount(c => c + 1);
-        if (data.suppressedReason === 'low_confidence') setLowConfidenceCount(c => c + 1);
+      let final: SuggestionData | null = null;
+      if ((res.headers.get('content-type') || '').includes('ndjson') && res.body) {
+        // The server sends the text as it is written, one JSON object per line.
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = buffer.indexOf('\n')) >= 0) {
+            const line = buffer.slice(0, nl).trim();
+            buffer = buffer.slice(nl + 1);
+            if (!line) continue;
+            let event: { t?: string; text?: string } & Partial<SuggestionData>;
+            try { event = JSON.parse(line); } catch { continue; }
+            if (event.t === 'text' && typeof event.text === 'string') {
+              if (!ownsDisplay && (force || !isHeld())) ownsDisplay = true;
+              if (ownsDisplay) setSuggestion(event.text);
+            } else if (event.t === 'done') {
+              final = event as SuggestionData;
+            }
+          }
+        }
+      } else {
+        final = await res.json();
+      }
+
+      if (controller.signal.aborted || !final?.suggestion) return;
+      if (ownsDisplay || force || !isHeld()) {
+        pendingRef.current = null;
+        setPending(null);
+        commitSuggestion(final, newSuggestionId);
+      } else {
+        pendingRef.current = { data: final, id: newSuggestionId };
+        setPending(pendingRef.current);
       }
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'AbortError') return;
+      if (err instanceof Error && err.name === 'AbortError') {
+        // Cancelled partway through: put back the line that was on screen rather than leave half a sentence.
+        if (ownsDisplay) setSuggestion(shownBefore);
+        return;
+      }
     } finally {
       if (!controller.signal.aborted) { setIsSuggesting(false); isSuggestingRef.current = false; }
       if (abortControllerRef.current === controller) abortControllerRef.current = null;
     }
-  }, [lead, baseScriptText, scriptId, sessionId]);
+  }, [lead, baseScriptText, scriptId, sessionId, agentName, isHeld, commitSuggestion]);
+
+  useEffect(() => { fetchSuggestionRef.current = fetchSuggestion; }, [fetchSuggestion]);
 
   const handleSuggestionFeedback = useCallback(async (signal: 'used' | 'ignored') => {
     setLastFeedback(signal);
@@ -2029,6 +2264,41 @@ function TeleprompterPageInner() {
     }
   }, [sessionId, currentSuggestionId, suggestionMeta, scriptId, lead]);
 
+  const flushDeviations = useCallback((keepalive = false) => {
+    if (deviationTimerRef.current) { clearTimeout(deviationTimerRef.current); deviationTimerRef.current = null; }
+    const items = deviationQueueRef.current.splice(0);
+    if (items.length === 0 || !lead) return;
+    fetch('/api/teleprompter/deviations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive,
+      body: JSON.stringify({ sessionId, leadId: lead.leadId, scriptId, items }),
+    }).catch(() => {});
+  }, [lead, sessionId, scriptId]);
+
+  /**
+   * The agent said something other than the line on screen. That is usually deliberate, so it is saved with what the homeowner had
+   * just said, and the suggestion engine learns from it later. It never changes what the agent sees.
+   */
+  const noteDeviation = useCallback((text: string, line: string) => {
+    if (scriptId === 'candidate_next_steps') return;
+    const tokens = tokenize(text);
+    if (tokens.length < 6) return;
+    const current = trackerRef.current;
+    if (current && trackerProgress(current).done) return;
+    const sim = trackSpeech(createTracker(line), tokens);
+    const heard = sim.words.filter((w, i) => w.token && sim.matched[i]).length;
+    const ratio = heard / tokens.length;
+    const homeowner = [...transcriptRef.current].reverse().find(e => e.speaker === 'Homeowner')?.text ?? null;
+    let kind: 'ad_lib' | 'replaced' | null = null;
+    if (ratio < 0.25) kind = 'replaced';
+    else if (sim.adLibs.length > 0 || sim.offScript.length >= 4) kind = 'ad_lib';
+    if (!kind) return;
+    deviationQueueRef.current.push({ kind, expectedLine: line, agentSaid: text, homeownerSaid: homeowner, coverage: ratio });
+    setDeviationCount(c => c + 1);
+    if (!deviationTimerRef.current) deviationTimerRef.current = setTimeout(() => flushDeviations(), 10_000);
+  }, [scriptId, flushDeviations]);
+
   const addTranscriptEntry = useCallback((speaker: 'Agent' | 'Homeowner', text: string) => {
     const entry: TranscriptEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -2037,18 +2307,40 @@ function TeleprompterPageInner() {
       timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     };
 
+    if (speaker === 'Agent' && displayLineRef.current) noteDeviation(text, displayLineRef.current);
+
+    // A suggestion already requested from the partial words of this same sentence is still the right one.
+    const said = tokenize(text).join(' ');
+    const alreadyAsked = speaker === 'Homeowner' && speculativeRef.current !== '' && said.startsWith(speculativeRef.current) && said.length - speculativeRef.current.length < 25;
+    if (speaker === 'Homeowner') speculativeRef.current = '';
+
     setTranscript(prev => {
       const updated = [...prev, entry];
       detectCoveredBeats(updated);
-      const isBargeIn = speaker === 'Homeowner' && isSuggestingRef.current;
-      if (suggestionDebounceRef.current) clearTimeout(suggestionDebounceRef.current);
-      suggestionDebounceRef.current = setTimeout(() => {
-        fetchSuggestion(updated, isBargeIn);
-      }, speaker === 'Homeowner' ? 400 : 800);
+      if (!alreadyAsked) {
+        const isBargeIn = speaker === 'Homeowner' && isSuggestingRef.current;
+        if (suggestionDebounceRef.current) clearTimeout(suggestionDebounceRef.current);
+        suggestionDebounceRef.current = setTimeout(() => {
+          fetchSuggestionRef.current?.(updated, isBargeIn);
+        }, speaker === 'Homeowner' ? 300 : 800);
+      }
       return updated;
     });
     setCurrentSpeaker(null);
-  }, [fetchSuggestion, detectCoveredBeats]);
+  }, [detectCoveredBeats, noteDeviation]);
+
+  /** Moves the reading position along with the words just spoken. Anything that is not the line on screen leaves it where it is. */
+  const feedTracker = useCallback((tokens: string[]) => {
+    const t = trackerRef.current;
+    if (!t || tokens.length === 0) return;
+    const next = trackSpeech(t, tokens);
+    if (next === t) return;
+    const count = (x: TrackerState) => x.matched.reduce((n, m) => n + (m ? 1 : 0), 0);
+    const gained = count(next) - count(t);
+    if (gained > 0) { lastReadAtRef.current = Date.now(); utteranceMatchedRef.current += gained; }
+    trackerRef.current = next;
+    setTracker(next);
+  }, []);
 
   const startListening = useCallback(() => {
     const SpeechRecognitionCtor = (window as typeof window & {
@@ -2064,30 +2356,60 @@ function TeleprompterPageInner() {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    recognition.onstart = () => setIsListening(true);
+    recognition.onstart = () => { setIsListening(true); consumedRef.current.clear(); };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interim = '';
       let final = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
+        // Each result is sent again as it grows, so only the words not yet seen are passed to the reading tracker.
+        const tokens = tokenize(result[0].transcript);
+        const seen = consumedRef.current.get(i) ?? 0;
+        if (tokens.length > seen) feedTracker(tokens.slice(seen));
+        consumedRef.current.set(i, tokens.length);
         if (result.isFinal) {
           final += result[0].transcript;
           const confidence = result[0].confidence;
           if (typeof confidence === 'number' && confidence < 0.6) setLowConfidenceCount(c => c + 1);
         } else {
           interim += result[0].transcript;
-          if (activeSpeaker === 'Homeowner' && isSuggestingRef.current) {
-            if (abortControllerRef.current) {
-              abortControllerRef.current.abort();
-              setSuggestion('');
-              setSuggestionMeta({});
-            }
-          }
         }
       }
-      if (interim) setCurrentSpeaker(activeSpeaker);
-      if (final.trim()) addTranscriptEntry(activeSpeaker, final.trim());
+
+      const line = displayLineRef.current;
+      const interimText = interim.trim();
+      // Speech that follows the line on screen is the agent reading it, whoever the speaker switch says is talking.
+      const interimIsReading = !!interimText && (utteranceMatchedRef.current >= 3 || (!!line && looksLikeReading(interimText, line)));
+
+      if (interimText) {
+        setCurrentSpeaker(interimIsReading ? 'Agent' : activeSpeaker);
+        if (activeSpeaker === 'Homeowner' && !interimIsReading) {
+          // The homeowner is still talking: the answer being written for the last thing they said is out of date. The text on screen stays put.
+          if (isSuggestingRef.current && abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            setIsSuggesting(false);
+            isSuggestingRef.current = false;
+          }
+          // Start on the answer once they pause, without waiting for the recognizer to close the sentence.
+          if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
+          const snapshot = interimText;
+          interimTimerRef.current = setTimeout(() => {
+            if (snapshot.split(/\s+/).length < 4) return;
+            speculativeRef.current = tokenize(snapshot).join(' ');
+            const partial: TranscriptEntry = { id: 'interim', speaker: 'Homeowner', text: snapshot, timestamp: '' };
+            fetchSuggestionRef.current?.([...transcriptRef.current, partial], false);
+          }, 600);
+        }
+      }
+
+      if (final.trim()) {
+        if (interimTimerRef.current) { clearTimeout(interimTimerRef.current); interimTimerRef.current = null; }
+        const text = final.trim();
+        const reading = utteranceMatchedRef.current >= 3 || (!!line && looksLikeReading(text, line));
+        utteranceMatchedRef.current = 0;
+        addTranscriptEntry(activeSpeaker === 'Homeowner' && reading ? 'Agent' : activeSpeaker, text);
+      }
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -2102,10 +2424,11 @@ function TeleprompterPageInner() {
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [activeSpeaker, addTranscriptEntry]);
+  }, [activeSpeaker, addTranscriptEntry, feedTracker]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) { recognitionRef.current.onend = null; recognitionRef.current.stop(); recognitionRef.current = null; }
+    if (interimTimerRef.current) { clearTimeout(interimTimerRef.current); interimTimerRef.current = null; }
     setIsListening(false);
     setCurrentSpeaker(null);
   }, []);
@@ -2203,6 +2526,7 @@ function TeleprompterPageInner() {
   };
 
   const handleEndCall = async () => {
+    flushDeviations(true);
     if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
     setIsReadingMode(false);
     stopListening();
@@ -2371,11 +2695,7 @@ function TeleprompterPageInner() {
   }
 
   const activeScript = CALL_SCRIPTS[scriptId];
-  const readingLines = activeScript.sections.flatMap(section =>
-    section.lines
-      .filter(line => line.type === 'spoken')
-      .map(line => ({ text: resolvedVars ? applyVariables(line.text, resolvedVars) : line.text, sectionTitle: section.title }))
-  );
+  const readingLines = scriptLines;
   const openReadingMode = async () => {
     setIsReadingMode(true);
     await document.documentElement.requestFullscreen?.().catch(() => {});
@@ -2598,11 +2918,16 @@ function TeleprompterPageInner() {
                 <SuggestionPanel
                   suggestion={suggestion}
                   isLoading={isSuggesting}
-                  onRefresh={() => fetchSuggestion(transcript)}
+                  onRefresh={() => fetchSuggestion(transcript, false, true)}
                   meta={suggestionMeta}
                   onFeedback={handleSuggestionFeedback}
                   lastFeedback={lastFeedback}
                   lowConfidenceCount={lowConfidenceCount}
+                  tracker={tracker}
+                  hasPending={!!pending}
+                  onSwitchPending={switchToPending}
+                  onFullscreen={openReadingMode}
+                  learnedCount={deviationCount}
                 />
               </div>
             </>
@@ -2671,6 +2996,10 @@ function TeleprompterPageInner() {
           script={activeScript}
           lines={readingLines}
           suggestion={suggestion}
+          tracker={tracker}
+          lastHomeowner={[...transcript].reverse().find(e => e.speaker === 'Homeowner')?.text ?? ''}
+          hasPending={!!pending}
+          onSwitchPending={switchToPending}
           elapsed={formatElapsed(elapsed)}
           lineIndex={readingLineIndex}
           onPrevious={() => setReadingLineIndex(index => Math.max(0, index - 1))}

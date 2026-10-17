@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { completion } from '@rocketnew/llm-sdk';
+import Anthropic from '@anthropic-ai/sdk';
 import { CALL_SCRIPTS } from '@/lib/callScripts';
 import { matchObjection as matchObjPattern } from '@/lib/objectionLibrary';
 import { createClient } from '@/lib/supabase/server';
@@ -7,6 +7,9 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { buildLeadBriefing } from '@/lib/services/teleprompterBriefing';
 import { TRAVLR_KNOWLEDGE } from '@/lib/teleprompterKnowledge';
 import { properName } from '@/lib/agentIdentity';
+import { cleanSuggestion, stripFillerOpener } from '@/lib/suggestionText';
+import { getApiActor } from '@/lib/auth/apiAuthorization';
+import { tokenize } from '@/lib/teleprompterTracker';
 
 const TELEPROMPTER_SYSTEM_PROMPT = `You are TRAVLR's real-time AI Teleprompter and Conversation Coach for live homeowner outreach calls. Your sole purpose is to help the agent stay on script while sounding natural, warm, and adaptive — never scripted-sounding or robotic.
 
@@ -51,6 +54,14 @@ TONE & STYLE
 - Natural spoken English: contractions, short sentences, no corporate jargon.
 - Never robotic, never overly formal.
 
+SOUND LIKE A PERSON, NOT AN ASSISTANT
+- Never open a line with a stock acknowledgement. Banned openers: Great, Absolutely, Certainly, Of course, Sure, Definitely, Totally, Perfect, Awesome, Wonderful, Excellent, Fantastic, Understood, Got it, No problem, "I completely understand", "I hear you", "That makes sense", "I appreciate that", "Thank you for sharing", "That's a great question", "Good point".
+- Start with the substance: answer what they asked, or pick up the specific thing they said and respond to it.
+- Acknowledge only when it helps, and make it specific to what they actually said ("A second mortgage on top of the first, that does change the math."), never generic. Most turns need no acknowledgement at all.
+- Do not start two lines in a row the same way. Look at how the agent's earlier lines in the transcript began and open differently.
+- Plain words a person would say on the phone. No exclamation marks, no sales adjectives (amazing, fantastic, exciting, incredible), no "I'd love to", no "I'm happy to".
+- Do not repeat the homeowner's sentence back to them.
+
 USING THE LEAD PROFILE AND TRAVLR KNOWLEDGE
 - You are given TRAVLR KNOWLEDGE (approved facts about the company and its services) and, when available, a LEAD PROFILE for the homeowner on this call. Use them to answer the homeowner's questions directly and specifically.
 - Questions about TRAVLR or what we do: answer from TRAVLR KNOWLEDGE in plain spoken words.
@@ -82,14 +93,17 @@ const SCRIPT_GOALS: Record<string, string> = {
 const CONFIDENCE_THRESHOLD = 0.6;
 
 // LLM call timeout in ms — fall back to static script if exceeded
-const LLM_TIMEOUT_MS = Number(process.env.TELEPROMPTER_LLM_TIMEOUT_MS) || 6000;
+// Time allowed before the first word arrives; once words are flowing the answer is allowed to finish.
+const LLM_TIMEOUT_MS = Number(process.env.TELEPROMPTER_LLM_TIMEOUT_MS) || 4500;
+const LLM_TOTAL_MS = 12_000;
+const HOLD_CHARS = 70;
 
 // Bridging lines for low-confidence / pause situations
 const BRIDGING_LINES = [
-  'Suggested next line: "Mm-hm, go on…"',
-  'Suggested next line: "I hear you — tell me more."',
-  'Suggested next line: "Sure, absolutely."',
-  'Suggested next line: "Of course — go ahead."',
+  'Suggested next line: "Mm-hm, go on."',
+  'Suggested next line: "Okay. Tell me a bit more about that."',
+  'Suggested next line: "Take your time."',
+  'Suggested next line: "What are you thinking?"',
 ];
 
 function getRandomBridgingLine(): string {
@@ -98,7 +112,7 @@ function getRandomBridgingLine(): string {
 
 /** Sections that only make sense after a specific answer, so they are never picked blindly. */
 const BRANCH_SECTION = /^(if_|close|not_interested|timing_not_right|still_interested)/;
-const NEUTRAL_BRIDGE = 'Suggested next line: "That\'s a fair point. Let me make sure I give you an accurate answer on that."';
+const NEUTRAL_BRIDGE = 'Suggested next line: "Let me make sure I give you an accurate answer on that."';
 
 /**
  * Next static fallback line from the base script, used when the AI is slow or fails.
@@ -163,6 +177,57 @@ async function loadAgentName(supabase: ServerClient, userId: string, userMeta: R
   if (name) agentNameCache.set(userId, { at: Date.now(), name });
   return name;
 }
+
+const POSITIVE_OUTCOMES = new Set(['questionnaire_sent', 'follow_up_scheduled', 'proposal_conversation']);
+const LEARNED_TTL_MS = 2 * 60_000;
+const learnedCache = new Map<string, { at: number; rows: Array<{ homeowner_said: string | null; agent_said: string; outcome: string | null }> }>();
+const LEARN_STOP = new Set(['that', 'this', 'with', 'have', 'what', 'about', 'they', 'them', 'there', 'would', 'could', 'should', 'just', 'like', 'your', 'from', 'been', 'were', 'will', 'dont', 'thats', 'then', 'than']);
+
+/**
+ * Phrasing agents actually chose when they went off script on earlier calls, preferring calls that ended well and moments where the
+ * homeowner said something similar. It is style guidance only: the model keeps the intent and never takes facts from it.
+ */
+async function loadLearnedPhrasing(organizationId: string | null, scriptId: unknown, homeownerText: string): Promise<string> {
+  if (typeof scriptId !== 'string' || scriptId === 'candidate_next_steps') return '';
+  try {
+    const key = `${organizationId ?? 'none'}:${scriptId}`;
+    let hit = learnedCache.get(key);
+    if (!hit || Date.now() - hit.at > LEARNED_TTL_MS) {
+      let q = getSupabaseAdmin().from('teleprompter_script_deviations').select('homeowner_said, agent_said, outcome')
+        .eq('script_id', scriptId).in('kind', ['ad_lib', 'replaced']).order('created_at', { ascending: false }).limit(120);
+      if (organizationId) q = q.eq('organization_id', organizationId);
+      const { data } = await q;
+      hit = { at: Date.now(), rows: (data ?? []) as Array<{ homeowner_said: string | null; agent_said: string; outcome: string | null }> };
+      learnedCache.set(key, hit);
+    }
+    const said = new Set(tokenize(homeownerText).filter(t => t.length > 3 && !LEARN_STOP.has(t)));
+    const scored = hit.rows
+      .filter(r => r.agent_said && r.agent_said.split(/\s+/).length >= 5)
+      .map((r, i) => {
+        const overlap = tokenize(r.homeowner_said ?? '').filter(t => said.has(t)).length;
+        return { r, score: Math.min(overlap, 3) * 2 + (r.outcome && POSITIVE_OUTCOMES.has(r.outcome) ? 2 : 0) - i * 0.01 };
+      })
+      .filter(x => x.score >= 2)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4);
+    if (scored.length === 0) return '';
+    const clip = (t: string) => (t.length > 220 ? `${t.slice(0, 217)}...` : t);
+    return `HOW OUR AGENTS ACTUALLY SAY IT (real wording from earlier calls where the agent chose to go off the script, so there was a reason. Use it only as a hint about tone and approach. Keep your own wording, never copy it word for word, never take facts from it, and never repeat a claim about what other owners do or earn):\n${scored.map(x => `- Homeowner: "${clip(x.r.homeowner_said ?? '(no reply)')}" -> Agent: "${clip(x.r.agent_said)}"`).join('\n')}\n\n`;
+  } catch {
+    return '';
+  }
+}
+
+const orgCache = new Map<string, { at: number; id: string | null }>();
+async function loadOrganizationId(request: NextRequest, userId: string): Promise<string | null> {
+  const hit = orgCache.get(userId);
+  if (hit && Date.now() - hit.at < 10 * 60_000) return hit.id;
+  const id = (await getApiActor(request))?.organizationId ?? null;
+  orgCache.set(userId, { at: Date.now(), id });
+  return id;
+}
+
+const polish = (t: string) => (/^(Suggested next line|Option [AB]):/m.test(t) ? cleanSuggestion(t) : stripFillerOpener(t));
 
 const BRIEFING_TTL_MS = 5 * 60_000;
 const BRIEFING_TIMEOUT_MS = 2500;
@@ -291,8 +356,13 @@ export async function POST(request: NextRequest) {
     const objectionMeta = objectionHint ? { objectionId: objectionHint.id, objectionCategory: objectionHint.category, note: objectionHint.note } : {};
 
     const scriptGoal = SCRIPT_GOALS[scriptId] || SCRIPT_GOALS['initial_outreach'];
-    const briefing = await loadBriefing(supabase, user.id, leadId, scriptId, leadContext?.address, leadContext?.portfolioState);
-    const agentName = await loadAgentName(supabase, user.id, user.user_metadata, claimedAgentName);
+    // Everything the model needs besides the transcript loads at the same time (all of it is cached after the first request of a call).
+    const [briefing, agentName, organizationId] = await Promise.all([
+      loadBriefing(supabase, user.id, leadId, scriptId, leadContext?.address, leadContext?.portfolioState),
+      loadAgentName(supabase, user.id, user.user_metadata, claimedAgentName),
+      loadOrganizationId(request, user.id),
+    ]);
+    const learned = latestSpeaker === 'Homeowner' || liveFragment ? await loadLearnedPhrasing(organizationId, scriptId, latestText || '') : '';
 
     // Build transcript section
     let transcriptSection: string;
@@ -305,9 +375,10 @@ export async function POST(request: NextRequest) {
       transcriptSection = `LIVE CALL TRANSCRIPT SO FAR:\n${(transcript as Array<{ speaker: string; text: string }>).map(t => `${t.speaker}: ${t.text}`).join('\n')}`;
     }
 
-    const userMessage = `CURRENT SCRIPT: ${scriptId ? scriptId.replace(/_/g, ' ').toUpperCase() : 'INITIAL OUTREACH'}
+    // The first block is identical for the whole call, so the provider can cache it and answer sooner on every later request.
+    const stableContext = `CURRENT SCRIPT: ${scriptId ? scriptId.replace(/_/g, ' ').toUpperCase() : 'INITIAL OUTREACH'}
 SCRIPT GOAL: ${scriptGoal}
-${liveFragment ? 'MODE: Live fragment — provide ultra-short next-line suggestion only, with no [Note] line.\n' : ''}
+
 BASE CALL SCRIPT (variables already resolved):
 ${baseScript}
 
@@ -319,58 +390,67 @@ LEAD CONTEXT:
 - Portfolio/State: ${leadContext?.portfolioState || 'Unknown'}
 - Local Blurb: ${leadContext?.localBlurb || ''}
 
-${scriptId === 'candidate_next_steps' ? '' : `TRAVLR KNOWLEDGE (approved facts you may use):\n${TRAVLR_KNOWLEDGE}\n\n`}${briefing ? `${briefing}\n\n` : 'LEAD PROFILE: not available for this call. Use only the lead context above. You do not know what we have sent them or whether they opened or replied to anything, so never claim it and never deny it. If they ask, say you will pull up exactly what they received and confirm. Bridge to a follow-up for anything else you do not know.\n\n'}${objectionHint ? `APPROVED RESPONSE TO THIS KIND OF OBJECTION (${objectionHint.category}): adapt it to what the homeowner actually said and to their real details in the lead profile, keep the same intent, add no new claims, drop any statement about what most owners experience or any statistic that TRAVLR KNOWLEDGE does not support, and keep it short enough to say aloud.\n${objectionHint.response}\n\n` : ''}${transcriptSection}
+${scriptId === 'candidate_next_steps' ? '' : `TRAVLR KNOWLEDGE (approved facts you may use):\n${TRAVLR_KNOWLEDGE}\n\n`}${briefing ? `${briefing}` : 'LEAD PROFILE: not available for this call. Use only the lead context above. You do not know what we have sent them or whether they opened or replied to anything, so never claim it and never deny it. If they ask, say you will pull up exactly what they received and confirm. Bridge to a follow-up for anything else you do not know.'}`;
+
+    const liveContext = `${liveFragment ? 'MODE: Live fragment — provide ultra-short next-line suggestion only, with no [Note] line.\n\n' : ''}${learned}${objectionHint ? `APPROVED RESPONSE TO THIS KIND OF OBJECTION (${objectionHint.category}): adapt it to what the homeowner actually said and to their real details in the lead profile, keep the same intent, add no new claims, drop any statement about what most owners experience or any statistic that TRAVLR KNOWLEDGE does not support, and keep it short enough to say aloud.\n${objectionHint.response}\n\n` : ''}${transcriptSection}
 
 Based on the transcript above and the current script stage, what should the agent say next? Provide the suggested line only — no raw variable tokens, no fabricated numbers.${liveFragment ? ' Keep it to one short sentence, or two if they asked a direct question.' : ''}`;
 
-    // ── LLM Call with Timeout + Graceful Degradation ──────────────────────────
-    let suggestion = '';
-    let source = 'llm';
-    
-    try {
-      const llmPromise = completion({
-        model: 'claude-haiku-4-5-20251001',
-        messages: [
-          { role: 'system', content: TELEPROMPTER_SYSTEM_PROMPT },
-          { role: 'user', content: userMessage },
-        ],
-        stream: false,
-        api_key: apiKey,
-        temperature: liveFragment ? 0.3 : 0.4,
-        max_tokens: liveFragment ? 220 : 320,
-      } as any);
-
-      const timeoutPromise = new Promise<null>((_, reject) =>
-        setTimeout(() => reject(new Error('LLM_TIMEOUT')), LLM_TIMEOUT_MS)
-      );
-
-      let response = await Promise.race([llmPromise, timeoutPromise]);
-      suggestion = (response as any)?.choices?.[0]?.message?.content || '';
-      
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      
-      const reason = errMsg === 'LLM_TIMEOUT' ? 'llm_timeout' : 'llm_error';
+    const fallbackBody = (reason: string) => {
       // Slow or failed: an approved objection response is better than a generic script line.
-      if (objectionHint) {
-        return NextResponse.json({ suggestion: objectionHint.response, sessionId: sessionId || null, source: 'objection_library', degraded: true, degradedReason: reason, ...objectionMeta });
-      }
+      if (objectionHint) return { suggestion: polish(objectionHint.response), sessionId: sessionId || null, source: 'objection_library', degraded: true, degradedReason: reason, ...objectionMeta };
       const fallback = getStaticFallbackLine(scriptId || 'initial_outreach', Array.isArray(transcript) ? transcript : [], leadContext, agentName);
-      return NextResponse.json({
-        suggestion: fallback,
-        sessionId: sessionId || null,
-        source: 'static_fallback',
-        degraded: true,
-        degradedReason: reason,
-      });
-    }
+      return { suggestion: polish(fallback), sessionId: sessionId || null, source: 'static_fallback', degraded: true, degradedReason: reason };
+    };
 
-    return NextResponse.json({
-      suggestion,
-      sessionId: sessionId || null,
-      source: objectionHint ? 'llm_objection' : source,
-      ...objectionMeta,
+    // ── Streamed LLM call ─────────────────────────────────────────────────────
+    // Lines are sent as they are written (newline-delimited JSON) so the first words reach the screen in a fraction of the time the
+    // whole answer takes. {t:'text'} carries the text so far; {t:'done'} carries the final text and details.
+    const client = new Anthropic({ apiKey, maxRetries: 0 });
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (o: unknown) => { try { controller.enqueue(encoder.encode(`${JSON.stringify(o)}\n`)); } catch { /* client went away */ } };
+        const abort = new AbortController();
+        const firstWordTimer = setTimeout(() => abort.abort(), LLM_TIMEOUT_MS);
+        const overallTimer = setTimeout(() => abort.abort(), LLM_TOTAL_MS);
+        let text = '';
+        let timedOut = false;
+        try {
+          const events = await client.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: liveFragment ? 200 : 260,
+            temperature: liveFragment ? 0.3 : 0.4,
+            stream: true,
+            system: [{ type: 'text', text: TELEPROMPTER_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+            messages: [{ role: 'user', content: [
+              { type: 'text', text: stableContext, cache_control: { type: 'ephemeral' } },
+              { type: 'text', text: liveContext },
+            ] }],
+          }, { signal: abort.signal });
+          let began = false;
+          for await (const ev of events) {
+            if (ev.type !== 'content_block_delta' || ev.delta.type !== 'text_delta') continue;
+            if (!began) { began = true; clearTimeout(firstWordTimer); }
+            text += ev.delta.text;
+            // Wait for enough text to tidy the opening words before anything is shown, so the line does not change under the reader.
+            if (text.length >= HOLD_CHARS || text.includes('\n')) send({ t: 'text', text: polish(text) });
+          }
+        } catch (err) {
+          timedOut = abort.signal.aborted || (err instanceof Error && /abort|timeout/i.test(err.message));
+          if (!text.trim()) {
+            send({ t: 'done', ...fallbackBody(timedOut ? 'llm_timeout' : 'llm_error') });
+            clearTimeout(firstWordTimer); clearTimeout(overallTimer); controller.close();
+            return;
+          }
+        }
+        clearTimeout(firstWordTimer); clearTimeout(overallTimer);
+        if (!text.trim()) send({ t: 'done', ...fallbackBody('llm_error') });
+        else send({ t: 'done', suggestion: polish(text), sessionId: sessionId || null, source: objectionHint ? 'llm_objection' : 'llm', ...objectionMeta });
+        controller.close();
+      },
     });
+    return new Response(stream, { headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' } });
 
   } catch (error) {
     console.error('[teleprompter/suggest] error:', error);
