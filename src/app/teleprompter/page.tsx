@@ -2118,7 +2118,6 @@ function TeleprompterPageInner() {
   const utteranceMatchedRef = useRef(0);
   // Where each speech source was in the script when its current sentence began, so every update can be re-read from that point.
   const followBaseRef = useRef<{ mic: { state: TrackerState; line: string; ignore: number; seen: number } | null; remote: { state: TrackerState; line: string; ignore: number; seen: number } | null }>({ mic: null, remote: null });
-  const remoteGainRef = useRef(0);
   const transcriptRef = useRef<TranscriptEntry[]>([]);
   const displayLineRef = useRef('');
   const interimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2577,7 +2576,13 @@ function TeleprompterPageInner() {
       let final = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
-        utteranceMatchedRef.current += follow('mic', tokenize(result[0].transcript), result.isFinal);
+        // With the call audio transcribed separately (or the switch on Agent) the microphone is the agent; otherwise only speech that
+        // really follows the line is counted, so the homeowner's voice from the speakers cannot move the position.
+        const spoken = result[0].transcript;
+        const lineNow = displayLineRef.current;
+        if (remoteActiveRef.current || activeSpeaker === 'Agent' || (!!lineNow && looksLikeReading(spoken, lineNow))) {
+          utteranceMatchedRef.current += follow('mic', tokenize(spoken), result.isFinal);
+        }
         if (result.isFinal) {
           final += result[0].transcript;
           const confidence = result[0].confidence;
@@ -2687,11 +2692,13 @@ function TeleprompterPageInner() {
           const sentence = ev.is_final ? heard : best;
           // Whoever is on the phone line may also be reading the script aloud (a practice call does exactly this): words that follow
           // the line on screen move the reading position and are counted as the agent, not as a homeowner reply.
-          remoteGainRef.current += follow('remote', tokenize(sentence), !!ev.is_final);
-          const reading = remoteGainRef.current >= 3 || (!!line && looksLikeReading(sentence, line));
+          // Only speech that really follows the line moves the position, so a homeowner's reply that happens to share a few common words
+          // with the script never does.
+          const reading = !!line && looksLikeReading(sentence, line);
+          if (reading) follow('remote', tokenize(sentence), !!ev.is_final);
+          else followBaseRef.current.remote = null;
           if (ev.is_final) {
             best = '';
-            remoteGainRef.current = 0;
             sawFinalFor = ev.id;
             if (interimTimerRef.current) { clearTimeout(interimTimerRef.current); interimTimerRef.current = null; }
             setCurrentSpeaker(null);
