@@ -102,16 +102,31 @@ export default React.memo(function TopLeadsTable({ leads }: TopLeadsTableProps) 
 
   // Leads with no saved net per month get the same model estimate the lead profile shows (-1 means none could be built).
   const [fill, setFill] = useState<Record<string, number>>({});
+  // Estimated monthly rent for homes listed for sale that have none saved, so the Price column never shows the selling price as a monthly figure.
+  const [rentFill, setRentFill] = useState<Record<string, number>>({});
   const requested = useRef(new Set<string>());
   useEffect(() => {
     for (const l of topLeads) {
-      if (l.estimatedNetMonthly > 0 || requested.current.has(l.id)) continue;
+      const needsNet = !(l.estimatedNetMonthly > 0);
+      const needsRent = l.priceType === 'sale' && !(Number(l.estimatedMonthlyRent) > 0);
+      if ((!needsNet && !needsRent) || requested.current.has(l.id)) continue;
       requested.current.add(l.id);
       fetch(`/api/leads/fill?leadId=${encodeURIComponent(l.id)}`, { cache: 'no-store' }).then(r => (r.ok ? r.json() : null))
-        .then(j => { const n = Number(j?.fill?.netMonthly); setFill(f => ({ ...f, [l.id]: n > 0 ? Math.round(n) : -1 })); })
-        .catch(() => setFill(f => ({ ...f, [l.id]: -1 })));
+        .then(j => {
+          const n = Number(j?.fill?.netMonthly); const rent = Number(j?.fill?.marketRent);
+          setFill(f => ({ ...f, [l.id]: n > 0 ? Math.round(n) : -1 }));
+          setRentFill(f => ({ ...f, [l.id]: rent > 0 ? Math.round(rent) : -1 }));
+        })
+        .catch(() => { setFill(f => ({ ...f, [l.id]: -1 })); setRentFill(f => ({ ...f, [l.id]: -1 })); });
     }
   }, [topLeads]);
+  // What the Price column shows. A home for sale shows its estimated monthly rent, never the selling price as the headline figure.
+  const priceOf = (l: Lead) => {
+    if (l.priceType !== 'sale' || Number(l.estimatedMonthlyRent) > 0) return leadPriceDisplay(l);
+    const rent = rentFill[l.id];
+    if (rent > 0) return leadPriceDisplay({ ...l, estimatedMonthlyRent: rent });
+    return rent === -1 ? { primary: '\u2014', secondary: 'no rent estimate yet' } : { primary: '\u2026', secondary: 'estimating rent' };
+  };
   const netText = (l: Lead) => (l.estimatedNetMonthly > 0 ? formatCurrency(l.estimatedNetMonthly) : fill[l.id] > 0 ? `~${formatCurrency(fill[l.id])}` : fill[l.id] === -1 ? '\u2014' : '\u2026');
   const netTitle = (l: Lead) => (l.estimatedNetMonthly > 0 ? undefined : fill[l.id] > 0 ? 'Model estimate: this lead has no saved booking data yet' : fill[l.id] === -1 ? 'No estimate available for this address yet' : 'Calculating an estimate');
 
@@ -214,10 +229,10 @@ export default React.memo(function TopLeadsTable({ leads }: TopLeadsTableProps) 
                 </td>
                 <td className="px-4 py-3">
                   <span className="font-mono-data text-xs text-foreground">
-                    {leadPriceDisplay(lead).primary}
+                    {priceOf(lead).primary}
                   </span>
-                  {leadPriceDisplay(lead).secondary && (
-                    <p className="text-[10px] text-muted-foreground">{leadPriceDisplay(lead).secondary}</p>
+                  {priceOf(lead).secondary && (
+                    <p className="text-[10px] text-muted-foreground">{priceOf(lead).secondary}</p>
                   )}
                 </td>
                 <td className="px-4 py-3">
