@@ -15,8 +15,12 @@ const MESSAGING_SERVICE = process.env.TWILIO_MESSAGING_SERVICE_SID || 'MG9c28a48
 const MIN_LEAD_MINUTES = 30; // at plan time; Twilio itself needs 15 minutes
 const MAX_TEXTS = 500;
 export const CHUNK_SIZE = 8;
-/** Early results (2026-10-12) favored these states, so campaigns take their leads first, then the rest by score. */
-const PRIORITY_STATES = ['CO', 'FL', 'AZ'];
+/**
+ * States ranked by link clicks across the first 1,300 delivered texts (2026-10-12 to 10-16): TX 9.4%, MT 7.0%, NM 6.3%, NV 5.5%,
+ * ND 5.4%, CA 4.4%, NE 4.2%, OR 4.0%. CO is kept near the top because it produced two YES replies. FL and AZ led the first day's
+ * results but got no clicks in about 100 texts since, so they are no longer prioritized. Campaigns take these first, then the rest by score.
+ */
+const PRIORITY_STATES = ['TX', 'MT', 'NM', 'NV', 'ND', 'CA', 'NE', 'OR', 'CO'];
 
 /** Who can be texted. The database function campaign_audience applies the shared rules (real leads, never co-host, never a property already texted, never a phone or owner that opted out or said no, one lead per phone). audienceCandidates then keeps only owner-listed rentals (see campaignFitReason). */
 export const AUDIENCES = [
