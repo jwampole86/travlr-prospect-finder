@@ -121,6 +121,8 @@ export interface UseDashboardLeadsResult {
   error: string | null;
   refresh: () => void;
   refreshTopLeads: () => void;
+  /** When the Top Scored Leads list was last checked successfully. */
+  topLeadsCheckedAt: Date | null;
   refreshStats: () => void;
 }
 
@@ -189,6 +191,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
 
   // Independent error states
   const [topLeadsError, setTopLeadsError] = useState<string | null>(null);
+  const [topLeadsCheckedAt, setTopLeadsCheckedAt] = useState<Date | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   /**
    * @deprecated live_revenue is now handled by useLiveRevenue (separate hook).
@@ -263,7 +266,10 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
       const leads: DashboardLead[] = body.leads ?? [];
 
       if (mountedRef.current) {
-        setTopLeads(leads);
+        // Same leads in the same order: keep the current list so the table does not redraw (and flicker) on every check.
+        const signature = (rows: DashboardLead[]) => rows.map(r => `${r.id}:${r.prospect_score ?? ''}:${r.stage ?? ''}:${r.contact_phone ?? ''}`).join('|');
+        setTopLeads(prev => (signature(prev) === signature(leads) ? prev : leads));
+        setTopLeadsCheckedAt(new Date());
         setTopLeadsError(null);
         // SUCCESS with empty array = no qualifying leads (not an error)
       }
@@ -687,6 +693,7 @@ export function useDashboardLeads(portfolioState?: string, enabled = true): UseD
     topLoading,
     statsLoading,
     topLeadsError,
+    topLeadsCheckedAt,
     statsError,
     liveRevenueError,
     error,

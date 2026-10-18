@@ -232,6 +232,19 @@ function dashboardLeadToLead(dl: DashboardLead): Lead {
   };
 }
 
+/** "Updated 2m ago" that ticks on its own, so it is clear the list is being kept current. */
+function CheckedAgo({ at }: { at: Date | null }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick(n => n + 1), 15_000);
+    return () => clearInterval(id);
+  }, []);
+  if (!at) return null;
+  const secs = Math.max(0, Math.round((Date.now() - at.getTime()) / 1000));
+  const text = secs < 20 ? 'just now' : secs < 90 ? `${secs}s ago` : `${Math.round(secs / 60)}m ago`;
+  return <span className="ml-2 text-[11px] text-muted-foreground/70">· Updated {text}</span>;
+}
+
 export default function DashboardPage() {
   const { selectedPortfolio } = usePortfolio();
   const { role, user, loading: authLoading } = useAuth();
@@ -266,7 +279,7 @@ export default function DashboardPage() {
 
   const dashboardDataEnabled = !authLoading && Boolean(user);
 
-  const { topLeads: rawTopLeads, stats, stageBreakdown, regulationBreakdown, topLoading, statsLoading, topLeadsError, statsError, refresh, refreshTopLeads, refreshStats } = useDashboardLeads(portfolioState, dashboardDataEnabled);
+  const { topLeads: rawTopLeads, topLeadsCheckedAt, stats, stageBreakdown, regulationBreakdown, topLoading, statsLoading, topLeadsError, statsError, refresh, refreshTopLeads, refreshStats } = useDashboardLeads(portfolioState, dashboardDataEnabled);
 
   // Independent live revenue hook — never blocks other Dashboard sections
   const {
@@ -336,11 +349,15 @@ export default function DashboardPage() {
     if (authLoading) return;
     const supabase = createClient();
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastRealtimeRefresh = 0;
     const channel = supabase
       .channel('dashboard-leads-direct')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        // A sync or campaign changes hundreds of leads in a few minutes; refresh once things settle, and at most every 20 seconds, so
+        // the dashboard keeps up without redrawing nonstop.
         if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => refresh(), 5000);
+        const wait = Math.max(5000, 20_000 - (Date.now() - lastRealtimeRefresh));
+        debounceTimer = setTimeout(() => { lastRealtimeRefresh = Date.now(); refresh(); }, wait);
       })
       .subscribe();
     return () => {
@@ -520,6 +537,7 @@ export default function DashboardPage() {
           <div className="px-1 mb-2">
             <span className="text-sm font-semibold text-foreground">Top Scored Leads</span>
             <span className="ml-2 text-xs text-muted-foreground">Highest priority properties for outreach</span>
+            <CheckedAgo at={topLeadsCheckedAt} />
           </div>
           {topLoading ? (
             <div className="bg-card rounded-xl border border-border overflow-hidden animate-pulse">
