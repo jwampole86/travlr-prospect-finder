@@ -1,5 +1,6 @@
 'use client';
 
+import { gatedZillowPull } from '@/lib/zillowPullGate';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RefreshCw, Download, Plus, Clock, ExternalLink, Building2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -79,7 +80,7 @@ async function triggerParallelSync(
       pull({ provider: 'trulia', location: p.stateCode, maxPages: TRULIA_PAGES_PER_SYNC }),
       pull({ provider: 'padmapper', state: p.stateCode }),
       pull({ provider: 'hotpads', state: p.stateCode }),
-      pull({ provider: 'zillow-search', region: p.stateCode.toLowerCase(), maxPages: 1 }),
+      gatedZillowPull(() => pull({ provider: 'zillow-search', region: p.stateCode.toLowerCase(), maxPages: 1 })),
     ]);
 
     let inserted = 0;

@@ -4,6 +4,8 @@ import { runFsboSkipTrace } from '@/lib/services/fsboSkipTraceService';
 import { recordSourcePull, sourceNameForProvider, stateCodeFromImportBody } from '@/lib/services/sourceSyncRecorder';
 import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, searchPadMapperRentals, searchHotPadsRentals, searchCraigslistRentals, toPadMapperLocation, getZillowPropertyDetails, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
 
+export const maxDuration = 120;
+
 const CHUNK_SIZE = 50;
 const MAX_PAGES = 5;
 // PadMapper returns 20 listings per slug, so one import fans out over several slugs.

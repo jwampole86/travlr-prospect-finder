@@ -68,7 +68,9 @@ function sleep(ms: number): Promise<void> {
 // floor between requests, plus retry once with backoff if the message still
 // slips through.
 const MIN_INTERVAL_MS = 1100;
-const lastCallAtByHost = new Map<string, number>();
+// The next free moment to call each host. Every caller reserves its own slot before waiting, so a burst of simultaneous requests
+// is spread out one interval apart instead of all waking up together and tripping the per-second cap.
+const nextSlotByHost = new Map<string, number>();
 
 function isRateLimitMessage(data: unknown): boolean {
   const msg = (data as { message?: string } | null)?.message;
@@ -76,12 +78,10 @@ function isRateLimitMessage(data: unknown): boolean {
 }
 
 async function throttleHost(host: string): Promise<void> {
-  const last = lastCallAtByHost.get(host);
-  if (last != null) {
-    const wait = MIN_INTERVAL_MS - (Date.now() - last);
-    if (wait > 0) await sleep(wait);
-  }
-  lastCallAtByHost.set(host, Date.now());
+  const now = Date.now();
+  const slot = Math.max(now, nextSlotByHost.get(host) ?? 0);
+  nextSlotByHost.set(host, slot + MIN_INTERVAL_MS);
+  if (slot > now) await sleep(slot - now);
 }
 
 async function rapidApiFetch(host: string, path: string, init: RequestInit = {}): Promise<RapidApiFetchResult> {
@@ -94,9 +94,10 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {})
   let lastError: string | undefined;
 
   for (const key of keys) {
-    // Up to 2 attempts per key: the provider's per-second rate-limit message
-    // (HTTP 200, not 429) is transient — a short backoff almost always clears it.
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    // Several attempts per key: the provider's per-second rate limit (an HTTP 429, or a 200 with a rate-limit message) is transient,
+    // and a short backoff almost always clears it. Other instances of this server share the same limit and cannot see each other's
+    // calls, so spacing alone is not enough when many pulls start at once.
+    for (let attempt = 1; attempt <= 4; attempt++) {
       await throttleHost(host);
       try {
         const res = await fetch(`https://${host}${path}`, {
@@ -107,6 +108,12 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {})
 
         // Only rotate to the next key on auth/quota failures — any other response
         // (including the provider's own 4xx/5xx) is a real answer, not a bad key.
+        if (res.status === 429 && attempt < 4) {
+          lastStatus = res.status;
+          lastError = `HTTP ${res.status}`;
+          await sleep(1500 * attempt + Math.floor(Math.random() * 800));
+          continue; // same key again after a pause
+        }
         if (res.status === 401 || res.status === 403 || res.status === 429) {
           lastStatus = res.status;
           lastError = `HTTP ${res.status}`;

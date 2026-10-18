@@ -1,3 +1,5 @@
+import { gatedZillowPull } from '@/lib/zillowPullGate';
+
 export type SourceKey = 'trulia' | 'padmapper' | 'hotpads' | 'zillow';
 
 export interface SourceDef {
@@ -38,11 +40,13 @@ export async function pullSource(def: SourceDef, stateCode: string): Promise<Sou
   const t0 = Date.now();
   const base = { source: def.key, fetched: 0, newLeads: 0, updated: 0, duplicates: 0, rowErrors: 0 };
   try {
-    const res = await fetch('/api/leads/rapidapi-import', {
+    const body = def.body(stateCode);
+    const send = () => fetch('/api/leads/rapidapi-import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(def.body(stateCode)),
+      body: JSON.stringify(body),
     });
+    const res = await ((body as { provider?: string }).provider === 'zillow-search' ? gatedZillowPull(send) : send());
     const data = await res.json().catch(() => ({}));
     const durationMs = Date.now() - t0;
 
