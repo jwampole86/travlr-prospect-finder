@@ -39,6 +39,8 @@ export interface Candidate { id: string; score: number; state: string | null }
 export interface CampaignParams {
   name: string; audience: AudienceId; states: string[]; minScore: number; maxTexts: number;
   tone: 'friendly' | 'direct' | 'mix'; startAt: string; spreadHours: 0 | 1 | 2 | 4;
+  /** Also text homes listed for sale. Off by default: their phone is often the listing agent's, and the owner may be selling. */
+  includeForSale?: boolean;
 }
 
 const hash = (s: string) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
@@ -72,7 +74,7 @@ async function recentlyTexted(db: Db, orgId: string | null) {
 }
 
 /** `orgId` limits the audience to one organization's leads; jobs and scripts that serve the whole platform pass null. */
-export async function audienceCandidates(db: Db, audience: string, orgId: string | null = null): Promise<Candidate[]> {
+export async function audienceCandidates(db: Db, audience: string, orgId: string | null = null, includeForSale = false): Promise<Candidate[]> {
   const out: Candidate[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db.rpc('campaign_audience', { p_audience: audience }).range(from, from + 999);
@@ -89,11 +91,14 @@ export async function audienceCandidates(db: Db, audience: string, orgId: string
     if (error) throw error;
     for (const l of data ?? []) {
       const ph = phoneKey(l.contact_phone); const ok = ownerKey(l.owner_name);
-      if ((ph && recent.phones.has(ph)) || (ok && recent.owners.has(ok)) || isProtectedContact(l.owner_name, l.contact_name) || campaignFitReason(l as unknown as OutreachLead) || (orgId && l.organization_id !== orgId)) blocked.add(l.id as string);
+      if ((ph && recent.phones.has(ph)) || (ok && recent.owners.has(ok)) || isProtectedContact(l.owner_name, l.contact_name) || fitBlock(l as unknown as OutreachLead, includeForSale) || (orgId && l.organization_id !== orgId)) blocked.add(l.id as string);
     }
   }
   return out.filter(c => !blocked.has(c.id));
 }
+
+/** The campaign rule (owner-listed rentals only), unless this campaign was explicitly opened to for-sale homes. */
+const fitBlock = (l: OutreachLead, includeForSale: boolean) => { const r = campaignFitReason(l); return includeForSale && r === 'for_sale' ? null : r; };
 
 const filterCandidates = (c: Candidate[], p: Pick<CampaignParams, 'states' | 'minScore'>) =>
   c.filter(x => (!p.states.length || (x.state && p.states.includes(x.state.toUpperCase()))) && x.score >= p.minScore)
@@ -144,7 +149,7 @@ export function parseParams(raw: unknown): { p: CampaignParams } | { error: stri
   const start = Date.parse(String(r.startAt));
   if (Number.isNaN(start)) return { error: 'Choose a start date and time.' };
   const spreadHours = [0, 1, 2, 4].includes(Number(r.spreadHours)) ? Number(r.spreadHours) as 0 | 1 | 2 | 4 : 0;
-  return { p: { name, audience: r.audience, states, minScore, maxTexts, tone, startAt: new Date(start).toISOString(), spreadHours } };
+  return { p: { name, audience: r.audience, states, minScore, maxTexts, tone, startAt: new Date(start).toISOString(), spreadHours, ...(r.includeForSale === true ? { includeForSale: true } : {}) } };
 }
 
 export const batchOf = (p: CampaignParams) => `${p.startAt.slice(0, 10)}-${slug(p.name)}`;
@@ -186,7 +191,7 @@ export async function planCampaign(db: Db, p: CampaignParams, orgId: string | nu
   const bad = checkStart(p, MIN_LEAD_MINUTES); if (bad) return { error: bad };
   const batch = batchOf(p);
   if (await batchExists(db, batch)) return { error: `A campaign named "${batch}" already exists. Change the name or the start date.` };
-  const all = filterCandidates(await audienceCandidates(db, p.audience, orgId), p);
+  const all = filterCandidates(await audienceCandidates(db, p.audience, orgId, !!p.includeForSale), p);
   if (!all.length) return { error: 'No leads match this audience and filters.' };
   // Some leads are dropped while scheduling (landline, no estimate), so the list is longer than the target.
   return { batch, total: all.length, target: Math.min(p.maxTexts, all.length), ids: all.slice(0, Math.min(all.length, Math.ceil(p.maxTexts * 1.6) + 20)).map(c => c.id) };
@@ -195,7 +200,7 @@ export async function planCampaign(db: Db, p: CampaignParams, orgId: string | nu
 /** Drafts a few messages exactly as they would be sent, so the user can read them before scheduling. */
 export async function previewCampaign(db: Db, p: CampaignParams, orgId: string | null = null) {
   const bad = checkStart(p, MIN_LEAD_MINUTES); if (bad) return { error: bad };
-  const all = filterCandidates(await audienceCandidates(db, p.audience, orgId), p);
+  const all = filterCandidates(await audienceCandidates(db, p.audience, orgId, !!p.includeForSale), p);
   if (!all.length) return { error: 'No leads match this audience and filters.' };
   const n = Math.min(6, all.length);
   const picks = Array.from({ length: n }, (_, i) => all[Math.floor((i * all.length) / n)]);
@@ -229,7 +234,7 @@ export async function scheduleChunk(db: Db, p: CampaignParams, ids: string[], bu
   if (!(await batchIsBuilderOwned(db, batch))) return { error: 'That campaign was not created here and cannot be added to.' };
   const unique = [...new Set(ids.filter(i => typeof i === 'string'))].slice(0, CHUNK_SIZE);
 
-  const eligible = new Set((await audienceCandidates(db, p.audience, orgId)).map(c => c.id));
+  const eligible = new Set((await audienceCandidates(db, p.audience, orgId, !!p.includeForSale)).map(c => c.id));
   const { data: leadRows, error } = await db.from('leads').select(LEAD_COLUMNS).in('id', unique);
   if (error) return { error: error.message };
   const skipped: Record<string, number> = {}; const skip = (r: string) => { skipped[r] = (skipped[r] ?? 0) + 1; };
@@ -249,7 +254,7 @@ export async function scheduleChunk(db: Db, p: CampaignParams, ids: string[], bu
   await pool(leads, 4, async lead => {
     const to = toE164(lead.contact_phone);
     const ls = listingStatus.get(lead.id);
-    const fit = campaignFitReason(lead); if (fit) return skip(fit);
+    const fit = fitBlock(lead, !!p.includeForSale); if (fit) return skip(fit);
     if (ls?.blocked) return skip(`listing_${ls.reason}`);
     if (to && taken.has(to)) return skip('phone_already_texted');
     if (to) taken.add(to);
