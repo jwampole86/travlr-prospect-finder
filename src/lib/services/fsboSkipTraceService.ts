@@ -63,10 +63,26 @@ export async function runFsboSkipTrace(
   const queueFilter = `skip_trace_status.eq.PENDING,and(skip_trace_status.eq.RUNNING,skip_traced_at.lt.${staleCutoff})`;
   const columns = 'id,address,city,state,zip,contact_name,contact_phone,listing_agent_phone,secondary_phones,price_type,is_fsbo';
 
-  const candidateQuery = db.from('leads').select(columns);
-  const { data: candidates, error } = opts.leadId
-    ? await candidateQuery.eq('id', opts.leadId)
-    : await candidateQuery.or(queueFilter).order('luxury', { ascending: false, nullsFirst: false }).order('created_at').limit(limit);
+  let candidates: Array<Record<string, any>> | null = null;
+  let error: unknown = null;
+  if (opts.leadId) {
+    ({ data: candidates, error } = await db.from('leads').select(columns).eq('id', opts.leadId));
+  } else {
+    // Owner-listed rentals are traced first, best prospects first, because they are the leads campaigns can text. Luxury homes and
+    // for-sale homes follow. Earlier the queue went by luxury then age, so for-sale homes used up most of the monthly allowance.
+    const rentals = await db.from('leads').select(columns).or(queueFilter).eq('price_type', 'rent')
+      .is('listing_agent_name', null).is('listing_broker_name', null)
+      .order('prospect_score', { ascending: false, nullsFirst: false }).order('price', { ascending: false, nullsFirst: false }).limit(limit);
+    error = rentals.error;
+    candidates = rentals.data ?? [];
+    if (!error && candidates.length < limit) {
+      const seen = new Set(candidates.map(c => c.id));
+      const others = await db.from('leads').select(columns).or(queueFilter)
+        .order('luxury', { ascending: false, nullsFirst: false }).order('created_at').limit(limit + seen.size);
+      error = others.error;
+      candidates = [...candidates, ...(others.data ?? []).filter(c => !seen.has(c.id))].slice(0, limit);
+    }
+  }
   if (error || !candidates) return summary;
 
   for (const lead of candidates) {
