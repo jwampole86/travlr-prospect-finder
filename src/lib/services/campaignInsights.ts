@@ -108,8 +108,15 @@ export async function buildOverview(db: Db, batches: string[] | 'all') {
   const replyRows = rows.filter(r => r.reply_at).sort((a, b) => Date.parse(b.reply_at) - Date.parse(a.reply_at)).slice(0, 40);
   const replies = replyRows.map(r => ({ leadId: r.lead_id, batch: r.batch as string, at: r.reply_at, intent: r.reply_intent, text: redact(String(r.reply_text ?? '')) }));
 
-  const { data: journey } = await db.from('estimate_journey_events').select('data').eq('event', 'chat_question').in('lead_id', rows.map(r => r.lead_id)).order('created_at', { ascending: false }).limit(200);
-  const chat = (journey ?? []).map(j => redact(String(j.data?.text ?? ''))).filter(Boolean).slice(0, 60);
+  // The ids go in the request URL, so a large campaign (or all of them) has to be asked about a hundred leads at a time.
+  const chatLeadIds = [...new Set(rows.map(r => r.lead_id as string))];
+  const asked: Array<{ at: string; text: string }> = [];
+  for (let i = 0; i < chatLeadIds.length; i += 100) {
+    const { data: journey, error } = await db.from('estimate_journey_events').select('data, created_at').eq('event', 'chat_question').in('lead_id', chatLeadIds.slice(i, i + 100)).order('created_at', { ascending: false }).limit(100);
+    if (error) { console.error('chat questions query failed', error.message); continue; }
+    for (const j of journey ?? []) asked.push({ at: String(j.created_at), text: redact(String((j.data as Row | null)?.text ?? '')) });
+  }
+  const chat = asked.filter(q => q.text).sort((a, b) => b.at.localeCompare(a.at)).map(q => q.text).slice(0, 60);
 
   const lastUpdated = rows.map(r => Date.parse(r.updated_at)).sort((a, b) => b - a)[0];
   return {
