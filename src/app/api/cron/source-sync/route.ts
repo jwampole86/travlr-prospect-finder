@@ -153,12 +153,11 @@ export async function GET(req: NextRequest) {
 
     // Scheduled runs can arrive on a deployment-specific hostname; the public production domain is the stable place to call back.
     const prodHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-    // The custom domain is tried first; if it cannot be reached at all (for example its DNS is down) the sync falls back to the
-    // project's own vercel.app addresses so leads keep flowing.
+    // The stable vercel.app address is tried first, then the production domain if that cannot be reached.
     const origins = [...new Set([
-      process.env.VERCEL_ENV === 'production' && prodHost ? `https://${prodHost}` : req.nextUrl.origin,
-      // The project's stable vercel.app address. Per-deployment addresses are not used: they sit behind Vercel's deployment protection.
+      // The project's stable vercel.app address answers even while the custom domain is down. Per-deployment addresses are not used: they sit behind Vercel's deployment protection.
       'https://travlr-prospect-finder.vercel.app',
+      process.env.VERCEL_ENV === 'production' && prodHost ? `https://${prodHost}` : req.nextUrl.origin,
     ].filter(Boolean))];
     let originIndex = 0;
     const results: PullResult[] = [];
