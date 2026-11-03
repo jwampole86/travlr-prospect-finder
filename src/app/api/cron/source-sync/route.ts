@@ -153,7 +153,16 @@ export async function GET(req: NextRequest) {
 
     // Scheduled runs can arrive on a deployment-specific hostname; the public production domain is the stable place to call back.
     const prodHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-    const origin = process.env.VERCEL_ENV === 'production' && prodHost ? `https://${prodHost}` : req.nextUrl.origin;
+    // The custom domain is tried first; if it cannot be reached at all (for example its DNS is down) the sync falls back to the
+    // project's own vercel.app addresses so leads keep flowing.
+    const origins = [...new Set([
+      process.env.VERCEL_ENV === 'production' && prodHost ? `https://${prodHost}` : req.nextUrl.origin,
+      req.nextUrl.origin,
+      process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : '',
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
+      'https://travlr-prospect-finder.vercel.app',
+    ].filter(Boolean))];
+    let originIndex = 0;
     const results: PullResult[] = [];
     const cityResults: PullResult[] = [];
     const skipped: string[] = [];
@@ -167,12 +176,22 @@ export async function GET(req: NextRequest) {
       // A provider that answers 429 (rate limited) is retried after a pause instead of recording a failed pull.
       const pullOnce = async (source: string, state: string, body: ProviderBody = PROVIDERS[source](state, truliaPages)): Promise<PullResult> => {
           try {
-            const response = await fetch(`${origin}/api/leads/rapidapi-import`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-              signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
-            });
+            let response!: Response;
+            for (;;) {
+              try {
+                response = await fetch(`${origins[originIndex]}/api/leads/rapidapi-import`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(body),
+                  signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+                });
+                break;
+              } catch (networkError) {
+                // Only an unreachable address moves on to the next one; a slow or failed answer is a real result.
+                if (/timeout|abort/i.test(String((networkError as Error)?.name) + String((networkError as Error)?.message)) || originIndex >= origins.length - 1) throw networkError;
+                originIndex++;
+              }
+            }
             const data = await response.json().catch(() => ({}));
 
             if (response.status === 400 || response.status === 404) {
