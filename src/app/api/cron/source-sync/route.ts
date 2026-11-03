@@ -157,7 +157,6 @@ export async function GET(req: NextRequest) {
     // project's own vercel.app addresses so leads keep flowing.
     const origins = [...new Set([
       process.env.VERCEL_ENV === 'production' && prodHost ? `https://${prodHost}` : req.nextUrl.origin,
-      req.nextUrl.origin,
       // The project's stable vercel.app address. Per-deployment addresses are not used: they sit behind Vercel's deployment protection.
       'https://travlr-prospect-finder.vercel.app',
     ].filter(Boolean))];
@@ -177,8 +176,9 @@ export async function GET(req: NextRequest) {
           try {
             let response!: Response;
             for (;;) {
+              const tried = originIndex;
               try {
-                response = await fetch(`${origins[originIndex]}/api/leads/rapidapi-import`, {
+                response = await fetch(`${origins[tried]}/api/leads/rapidapi-import`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(body),
@@ -187,8 +187,9 @@ export async function GET(req: NextRequest) {
                 break;
               } catch (networkError) {
                 // Only an unreachable address moves on to the next one; a slow or failed answer is a real result.
-                if (/timeout|abort/i.test(String((networkError as Error)?.name) + String((networkError as Error)?.message)) || originIndex >= origins.length - 1) throw networkError;
-                originIndex++;
+                if (/timeout|abort/i.test(String((networkError as Error)?.name) + String((networkError as Error)?.message)) || tried >= origins.length - 1) throw networkError;
+                // Parallel pulls share the index, so only the first one to fail on an address advances it.
+                if (originIndex === tried) originIndex++;
               }
             }
             const data = await response.json().catch(() => ({}));
