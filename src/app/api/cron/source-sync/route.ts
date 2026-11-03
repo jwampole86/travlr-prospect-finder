@@ -158,8 +158,7 @@ export async function GET(req: NextRequest) {
     const origins = [...new Set([
       process.env.VERCEL_ENV === 'production' && prodHost ? `https://${prodHost}` : req.nextUrl.origin,
       req.nextUrl.origin,
-      process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : '',
-      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
+      // The project's stable vercel.app address. Per-deployment addresses are not used: they sit behind Vercel's deployment protection.
       'https://travlr-prospect-finder.vercel.app',
     ].filter(Boolean))];
     let originIndex = 0;
