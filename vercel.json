@@ -10,7 +10,7 @@
       "schedule": "*/15 * * * *"
     },
     {
-      "path": "/api/cron/fsbo-skip-trace",
+      "path": "/api/cron/fsbo-skip-trace?limit=40",
       "schedule": "*/10 * * * *"
     },
     {
@@ -42,7 +42,7 @@
       "schedule": "30 */4 * * *"
     },
     {
-      "path": "/api/cron/cohost-skiptrace",
+      "path": "/api/cron/cohost-skiptrace?max=20",
       "schedule": "*/20 * * * *"
     },
     {
