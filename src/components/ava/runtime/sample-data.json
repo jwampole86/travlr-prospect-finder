@@ -1,0 +1,89 @@
+{
+  "version": "sample-kb-2026.11",
+  "leads": [
+    {
+      "name": "Hartwell Residence",
+      "tier": "Luxury",
+      "score": 96,
+      "status": "Verified"
+    },
+    {
+      "name": "Okafor Estate",
+      "tier": "Luxury",
+      "score": 91,
+      "status": "Verified"
+    },
+    {
+      "name": "Lindqvist Villa",
+      "tier": "Luxury",
+      "score": 88,
+      "status": "Pending"
+    }
+  ],
+  "knowledge": [
+    {
+      "id": "verification",
+      "title": "How lead verification works",
+      "keywords": [
+        "verification",
+        "verified",
+        "pending",
+        "unverified",
+        "ownership signals"
+      ],
+      "answer": "Lead verification checks contact details and ownership signals, then labels each lead Verified, Pending or Unverified. Freshness is shown next to every lead.",
+      "source": "Help: Lead verification"
+    },
+    {
+      "id": "filtering",
+      "title": "Filtering properties by tier",
+      "keywords": [
+        "filter",
+        "luxury",
+        "property tier",
+        "standard",
+        "saved view"
+      ],
+      "answer": "Open the Filters panel and set Property tier to Luxury. Results update immediately and can be saved as a view.",
+      "source": "Help: Filtering properties"
+    },
+    {
+      "id": "partner-onboarding",
+      "title": "Partner onboarding",
+      "keywords": [
+        "partner",
+        "onboarding",
+        "setup",
+        "service areas",
+        "payout details",
+        "resume"
+      ],
+      "answer": "Partners get a guided setup: profile, service areas, then payout details. You can resume it at any time from Settings.",
+      "source": "Help: Partner onboarding"
+    },
+    {
+      "id": "followups",
+      "title": "Creating a follow-up",
+      "keywords": [
+        "follow-up",
+        "follow up",
+        "reminder",
+        "task"
+      ],
+      "answer": "Select a lead and choose Create follow-up. AVA can also create one for you; she always asks you to confirm first and only reports success once the backend confirms it.",
+      "source": "Help: Follow-ups"
+    },
+    {
+      "id": "scores",
+      "title": "What the lead score means",
+      "keywords": [
+        "score",
+        "priority",
+        "highest-priority",
+        "ranking"
+      ],
+      "answer": "The lead score ranks how promising a lead is, from 0 to 100. Higher scores are listed first in your results.",
+      "source": "Help: Lead scores"
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+/* Synced from ava-assistant. Do not edit here: change it there and run tools/sync-to-travlr.mjs. */
+/* Everything is scoped under .ava-root so it can live inside any host app without touching its styles. */
+.ava-root {
+  --ava-blue:#00B2FF; --ava-accent:#3D5AF1; --ava-accent-2:#3650E6; --ava-ink:#1B2440; --ava-muted:#55607A; --ava-soft:#DCE8FB; --ava-line:#E3E9F7;
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--ava-ink); font-size: 14px; line-height: 1.45;
+}
+.ava-root *, .ava-root *::before, .ava-root *::after { box-sizing: border-box; }
+.ava-root button { font: inherit; color: var(--ava-ink); border: 1px solid var(--ava-line); background: #fff; border-radius: 999px; padding: 6px 12px; cursor: pointer; line-height: 1.2; transition: background .15s, box-shadow .15s, transform .15s, border-color .15s; }
+.ava-root button:hover { background: #F2F5FF; border-color: #C9D5F5; }
+.ava-root button:active { transform: scale(.97); }
+.ava-root button:focus-visible, .ava-root input:focus-visible { outline: 3px solid var(--ava-blue); outline-offset: 2px; }
+
+/* Placement */
+.ava-root .ava { position: fixed; right: 16px; bottom: 16px; z-index: 9990; display: flex; align-items: flex-end; gap: 10px; }
+.ava-root .ava-stage { position: relative; }
+.ava-root .ava.expanded .ava-stage { width: 340px; height: 400px; }
+.ava-root .ava.mini .ava-stage { width: 190px; height: 230px; cursor: pointer; }
+.ava-root .stage-canvas, .ava-root .stage-canvas > div { width: 100%; height: 100%; }
+.ava-root .stage-host { width: 100%; height: 100%; }
+/* Where the 3D stage waits, fully laid out but out of sight, while AVA is closed. */
+.ava-root .ava-park { position: fixed; left: -10000px; top: 0; width: 340px; height: 400px; visibility: hidden; pointer-events: none; }
+.ava-root .ava-park .stage-host { width: 100%; height: 100%; }
+.ava-root .stage-hit { position: absolute; inset: 0; z-index: 2; } /* the stage is portalled, so clicks on it need their own target */
+.ava-root .stage-loading { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.ava-root .stage-loading i { width: 38%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(0,178,255,.35), rgba(0,178,255,0) 70%); animation: ava-loading 1.2s ease-in-out infinite; }
+@keyframes ava-loading { 50% { transform: scale(1.25); opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .ava-root .stage-loading i { animation: none; } }
+
+.ava-root .try3d { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 3; font-size: 12px; font-weight: 600; padding: 6px 14px; color: var(--ava-accent); border-color: #C7D3FB; box-shadow: 0 4px 14px rgba(61,70,140,.18); }
+/* State pill under the character */
+.ava-root .badge { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,.86); color: var(--ava-ink); padding: 3px 11px 3px 9px; border: 1px solid var(--ava-line); border-radius: 999px; white-space: nowrap; pointer-events: none; backdrop-filter: blur(6px); box-shadow: 0 4px 14px rgba(61,90,241,.12); }
+.ava-root .badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+.ava-root .badge.thinking::before, .ava-root .badge.searching::before, .ava-root .badge.listening::before, .ava-root .badge.explaining::before, .ava-root .badge.guiding::before { background: var(--ava-blue); }
+.ava-root .badge.warning, .ava-root .badge.error, .ava-root .badge.micDenied { background: #FFF1D6; border-color: #F5D38C; color: #6b4400; }
+.ava-root .badge.warning::before, .ava-root .badge.error::before, .ava-root .badge.micDenied::before { background: #E69A00; }
+.ava-root .badge.sleeping { color: var(--ava-muted); } .ava-root .badge.sleeping::before { background: #9aa6c2; }
+.ava-root .badge.success { background: #E4F8EC; border-color: #9fdcb7; color: #0b5d36; }
+.ava-root .caption { position: absolute; left: 6px; right: 6px; bottom: 34px; background: rgba(27,36,64,.9); color: #fff; font-size: 13px; line-height: 1.35; padding: 7px 12px; border-radius: 14px; text-align: center; pointer-events: none; }
+
+.ava-root .zzz { position: absolute; left: 54%; top: 4%; width: 90px; height: 78px; pointer-events: none; }
+.ava-root .zzz span { position: absolute; left: 0; bottom: 0; font-weight: 800; color: var(--ava-accent); text-shadow: 0 0 8px rgba(0,178,255,.6), 0 1px 0 #fff; opacity: 0; animation: ava-zzz-float 3.6s ease-in infinite; }
+.ava-root .zzz span:nth-child(1) { font-size: 16px; animation-delay: 0s; }
+.ava-root .zzz span:nth-child(2) { font-size: 22px; animation-delay: 1.2s; }
+.ava-root .zzz span:nth-child(3) { font-size: 30px; animation-delay: 2.4s; }
+.ava-root .zzz.reduced span { animation: none; opacity: .9; }
+.ava-root .zzz.reduced span:nth-child(2) { left: 18px; bottom: 22px; }
+.ava-root .zzz.reduced span:nth-child(3) { left: 38px; bottom: 46px; }
+@keyframes ava-zzz-float {
+  0% { transform: translate(0, 0) rotate(-8deg) scale(.7); opacity: 0; }
+  15% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translate(40px, -46px) rotate(10deg) scale(1.1); opacity: 0; }
+}
+
+/* Chat panel */
+.ava-root .panel { width: 380px; height: 500px; display: flex; flex-direction: column; overflow: hidden; border-radius: 28px; border: 1px solid rgba(255,255,255,.9); background: linear-gradient(165deg, #ffffff 0%, #F4F1FF 48%, #FDEEF3 100%); box-shadow: 0 28px 70px rgba(61,70,140,.24), 0 2px 8px rgba(61,70,140,.08); }
+.ava-root .panel-head { display: flex; align-items: center; gap: 8px; padding: 14px 14px 10px; }
+.ava-root .panel-head .title { flex: 1; text-align: left; padding-left: 4px; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.ava-root .panel-head .title strong { font-size: 17px; font-weight: 700; letter-spacing: .01em; }
+.ava-root .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ava-muted); }
+.ava-root .status .dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+.ava-root .status.busy .dot { background: var(--ava-blue); animation: ava-pulse 1.2s ease-in-out infinite; }
+.ava-root .status.warn .dot { background: #E69A00; }
+.ava-root .status.asleep .dot { background: #9aa6c2; }
+.ava-root .head-actions { display: flex; gap: 6px; }
+.ava-root .icon-btn { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(255,255,255,.8); font-size: 15px; }
+@keyframes ava-pulse { 50% { opacity: .35; transform: scale(.8); } }
+
+.ava-root .messages:focus-visible { outline: 3px solid var(--ava-blue); outline-offset: -3px; border-radius: 16px; }
+.ava-root .messages { flex: 1; overflow-y: auto; padding: 6px 14px 10px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; }
+.ava-root .msg { display: flex; flex-direction: column; gap: 3px; max-width: 86%; }
+.ava-root .msg p { margin: 0; padding: 10px 14px; font-size: 13.5px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.ava-root .msg-user { align-self: flex-end; }
+.ava-root .msg-user p { background: linear-gradient(135deg, var(--ava-accent) 0%, var(--ava-accent-2) 100%); color: #fff; border-radius: 20px 20px 6px 20px; box-shadow: 0 6px 16px rgba(61,90,241,.28); }
+.ava-root .msg-ava { align-self: flex-start; }
+.ava-root .msg-ava p { background: var(--ava-soft); color: var(--ava-ink); border-radius: 20px 20px 20px 6px; }
+.ava-root .msg-system { align-self: center; max-width: 94%; }
+.ava-root .msg-system p { background: #FFF4D6; color: #6b4400; font-size: 12px; border-radius: 14px; text-align: center; }
+.ava-root .sources { font-size: 11px; color: var(--ava-muted); padding: 0 8px; }
+
+/* Voice mode, like a call screen */
+.ava-root .voice-view { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 10px 24px; text-align: center; }
+.ava-root .voice-label { margin: 0; font-size: 13px; color: var(--ava-muted); }
+.ava-root .voice-view h2 { margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700; color: var(--ava-ink); }
+.ava-root .orb { position: relative; width: 84px; height: 84px; padding: 0; margin-top: 12px; border-radius: 50%; border: 0; background: linear-gradient(135deg, #5b78ff, var(--ava-accent-2)); color: #fff; font-size: 30px; box-shadow: 0 10px 30px rgba(61,90,241,.4); }
+.ava-root .orb:hover { background: linear-gradient(135deg, #4c6af5, #2d46d6); }
+.ava-root .orb::before, .ava-root .orb::after { content: ''; position: absolute; inset: -14px; border-radius: 50%; border: 2px solid rgba(61,90,241,.28); animation: ava-ring 2.4s ease-out infinite; }
+.ava-root .orb::after { animation-delay: 1.2s; }
+@keyframes ava-ring { from { transform: scale(.8); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+.ava-root .orb-hint { font-size: 12px; color: var(--ava-muted); }
+
+/* Quick actions */
+.ava-root .chips-wrap { position: relative; flex-shrink: 0; margin-bottom: 8px; }
+.ava-root .chips { display: flex; gap: 8px; padding: 0 14px; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; }
+.ava-root .chips::-webkit-scrollbar { display: none; }
+.ava-root .chip-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 26px; height: 26px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.62); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); border: 1px solid rgba(199,211,251,.8); color: var(--ava-accent); box-shadow: 0 2px 8px rgba(61,70,140,.16); }
+.ava-root .chip-arrow:hover, .ava-root .chip-arrow:focus-visible { background: rgba(255,255,255,.95); }
+.ava-root .chip-arrow:active { transform: translateY(-50%) scale(.94); }
+.ava-root .chip-arrow.left { left: 4px; } .ava-root .chip-arrow.right { right: 4px; }
+.ava-root .chip-arrow svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.ava-root .chip { flex: 0 0 auto; font-size: 12.5px; font-weight: 600; padding: 7px 13px; background: #fff; border-color: var(--ava-line); box-shadow: 0 2px 8px rgba(61,70,140,.08); white-space: nowrap; }
+.ava-root .chip.tour { color: var(--ava-accent); border-color: #C7D3FB; }
+
+.ava-root .confirm { display: flex; gap: 8px; align-items: center; margin: 0 14px 8px; padding: 10px 12px; background: #fff; border: 1px solid #C7D3FB; border-radius: 18px; font-size: 13px; box-shadow: 0 6px 18px rgba(61,90,241,.14); }
+.ava-root .confirm span { flex: 1; }
+.ava-root button.primary { background: linear-gradient(135deg, var(--ava-accent) 0%, var(--ava-accent-2) 100%); color: #fff; border-color: transparent; font-weight: 600; }
+.ava-root button.primary:hover { background: linear-gradient(135deg, #3350e0, #2a43cf); border-color: transparent; }
+
+.ava-root .stop-row { display: flex; justify-content: center; padding: 0 14px 6px; }
+.ava-root .stop-btn { font-size: 12px; font-weight: 600; padding: 5px 14px; color: #8a2d2d; border-color: #f0c6c6; background: #fff; }
+
+.ava-root .composer { display: flex; align-items: center; gap: 8px; margin: 0 12px; padding: 6px 6px 6px 16px; background: #fff; border: 1px solid var(--ava-line); border-radius: 999px; box-shadow: 0 8px 24px rgba(61,70,140,.1); }
+.ava-root .composer input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--ava-ink); padding: 8px 0; }
+.ava-root .composer input::placeholder { color: #667089; }
+.ava-root .composer:focus-within { border-color: #9db0f7; box-shadow: 0 8px 24px rgba(61,90,241,.18); }
+.ava-root .composer input:focus-visible { outline: 0; }
+.ava-root .round { width: 38px; height: 38px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ava-root .round svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ava-root .round.soft { background: #EAF0FF; border-color: transparent; color: var(--ava-accent); }
+.ava-root .round.soft:hover { background: #DCE6FF; }
+.ava-root .round.primary { box-shadow: 0 6px 14px rgba(61,90,241,.35); }
+.ava-root .round.primary svg { fill: #fff; stroke: #fff; }
+
+.ava-root .toggles { display: flex; gap: 16px; justify-content: center; padding: 10px 14px 14px; }
+.ava-root .switch { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ava-muted); cursor: pointer; }
+.ava-root .switch input { appearance: none; -webkit-appearance: none; width: 32px; height: 18px; margin: 0; border-radius: 999px; background: #B7C3E3; position: relative; cursor: pointer; transition: background .15s; flex-shrink: 0; }
+.ava-root .switch input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .15s; }
+.ava-root .switch input:checked { background: var(--ava-accent); }
+.ava-root .switch input:checked::after { transform: translateX(14px); }
+.ava-root .switch input:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Launcher */
+.ava-root .launcher { position: fixed; right: 20px; bottom: 20px; z-index: 9990; width: 64px; height: 64px; border-radius: 50%; padding: 0; background: linear-gradient(135deg, #5b78ff, var(--ava-accent-2)); color: #fff; border: 3px solid #fff; font-weight: 800; letter-spacing: .02em; box-shadow: 0 10px 28px rgba(61,90,241,.45); }
+.ava-root .launcher:hover, .ava-root .launcher:focus-visible { background: linear-gradient(135deg, #3350e0, #2a43cf); color: #fff; border-color: #fff; box-shadow: 0 0 0 3px var(--ava-accent), 0 12px 30px rgba(61,90,241,.55); transform: scale(1.06); }
+.ava-root .launcher:focus-visible { outline: 3px solid var(--ava-blue); outline-offset: 4px; }
+
+@media (max-width: 720px) {
+  .ava-root .panel { width: calc(100vw - 32px); }
+  .ava-root .ava.expanded { flex-direction: column; align-items: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ava-root .launcher, .ava-root button { transition: none; }
+  .ava-root .zzz span, .ava-root .status.busy .dot, .ava-root .orb::before, .ava-root .orb::after { animation: none; }
+  .ava-root .zzz span { opacity: .9; }
+}

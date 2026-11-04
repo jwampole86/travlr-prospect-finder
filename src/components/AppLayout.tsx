@@ -18,6 +18,7 @@ import TimeClockWidget from './TimeClockWidget';
 import TimeClockIdleMonitor from './TimeClockIdleMonitor';
 import AvyroLoader from './ui/AvyroLoader';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { AVA_CLIENT_ENABLED } from './ava/avaFlags';
 
 // ── Lazy-load FloatingDialer — Twilio Voice SDK is heavy and should only
 //    initialize when the agent actually opens the dialer, not on every page load.
@@ -67,6 +68,19 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   // Landing pages have nowhere meaningful to go "back" to within the app.
   const isLandingPage = pathname === '/' || pathname === '/agent-workspace';
+  // With AVA on, its button owns the bottom-right corner the floating phone button used to occupy, so the dialer opens from the top bar.
+  const dialerInTopBar = AVA_CLIENT_ENABLED;
+  const dialerButton = (size: number) => (
+    <button
+      onClick={() => setDialerOpen((open) => !open)}
+      className="flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors touch-manipulation"
+      aria-label="Open dialer"
+      title="Open Dialer"
+      style={{ minWidth: size, minHeight: size }}
+    >
+      <Phone size={18} />
+    </button>
+  );
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -113,6 +127,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           )}
           <span className="text-sm font-semibold text-foreground flex-1">AVYRO AI</span>
           <TimeClockWidget />
+          {dialerInTopBar && dialerButton(44)}
           <BellButton />
           <InboxButton />
           <ProfileMenu />
@@ -135,6 +150,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
           <div className="flex items-center gap-2">
             <TimeClockWidget />
+            {dialerInTopBar && dialerButton(36)}
             <BellButton />
             <InboxButton />
             <ProfileMenu />
@@ -163,7 +179,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           The FloatingDialer component (and Twilio SDK) is lazy-loaded via
           next/dynamic so it does NOT add to the initial bundle. The button
           itself is always rendered so agents can open the dialer at any time. */}
-      {!dialerOpen && (
+      {!dialerOpen && !dialerInTopBar && (
         <button
           onClick={() => setDialerOpen(true)}
           className="fixed bottom-6 right-4 md:right-6 z-[9998] rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 touch-manipulation"

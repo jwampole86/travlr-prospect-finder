@@ -1,0 +1,525 @@
+{
+  "version": "2026-11-04-a8444c1f",
+  "generatedFrom": [
+    "src/app/help-center/page.tsx",
+    "src/components/OnboardingTourEngine.tsx",
+    "src/app/how-it-works/page.tsx"
+  ],
+  "entries": [
+    {
+      "id": "faq-how-long-does-initial-data-sync-take",
+      "title": "How long does initial data sync take?",
+      "keywords": [],
+      "answer": "First-time syncs typically complete within 5–15 minutes depending on lead volume. You can monitor progress in the Sync Health dashboard.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-can-i-import-leads-from-a-csv-file",
+      "title": "Can I import leads from a CSV file?",
+      "keywords": [],
+      "answer": "Yes. Go to Lead Management → Bulk Actions → CSV Upload. The system maps columns automatically and flags duplicates before import.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-what-is-the-difference-between-an-agent-and-a-ma",
+      "title": "What is the difference between an Agent and a Manager role?",
+      "keywords": [],
+      "answer": "Agents see only their assigned leads. Managers see all leads across their portfolio and can reassign, bulk-act, and view team analytics.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-how-do-i-clock-in-and-track-breaks",
+      "title": "How do I clock in and track breaks?",
+      "keywords": [],
+      "answer": "Click \"Clock In\" in the top-bar widget next to your profile menu, or go to /time-clock. A live timer starts immediately. Use Start Break/End Break to pause the visible timer without ending your shift, and Clock Out when you finish. Your worked time always excludes break time.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-can-i-see-who-is-currently-clocked-in",
+      "title": "Can I see who is currently clocked in?",
+      "keywords": [],
+      "answer": "Admins and owners see a \"Team Status\" tab on the Time Clock page listing everyone currently clocked in or on break, with a live running timer and an idle indicator for each person.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-what-happens-if-i-forget-to-take-a-break-or-step",
+      "title": "What happens if I forget to take a break or step away?",
+      "keywords": [],
+      "answer": "After 8 minutes of no mouse/keyboard/touch activity while clocked in, you get an on-screen \"Are you still working?\" prompt. If there's no response within 2 more minutes, the system automatically starts a break so idle time never counts as worked hours. Coming back and using the app again automatically resumes your timer. If you stay away for 45+ minutes total, the system automatically clocks you out.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-how-do-i-resurface-warm-leads-before-agents-call",
+      "title": "How do I resurface warm leads before agents call?",
+      "keywords": [],
+      "answer": "Use the ML Prospect Scoring page. The \"Warm Leads\" panel automatically surfaces high-engagement prospects with a blended score above your threshold.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-can-i-assign-leads-to-multiple-agents",
+      "title": "Can I assign leads to multiple agents?",
+      "keywords": [],
+      "answer": "Yes. The bulk reassign workflow supports assigning to a single agent or moving to a territory, which then distributes based on your assignment rules.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-what-does-the-regulation-badge-mean",
+      "title": "What does the regulation badge mean?",
+      "keywords": [],
+      "answer": "The regulation badge shows the STR compliance status for the property's city/state. Green = compliant, Yellow = restricted, Red = prohibited.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-what-is-the-stop-rate-and-why-does-it-matter",
+      "title": "What is the STOP rate and why does it matter?",
+      "keywords": [],
+      "answer": "The STOP rate is the percentage of SMS recipients who replied STOP to opt out. A rate above 2% signals your messaging may feel spammy — review template tone and frequency.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-how-do-escalation-triggers-work",
+      "title": "How do escalation triggers work?",
+      "keywords": [],
+      "answer": "When a lead replies or clicks a link, the system automatically escalates them out of the automated sequence and flags them for agent follow-up in the Escalated Leads view.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-can-i-a-b-test-templates",
+      "title": "Can I A/B test templates?",
+      "keywords": [],
+      "answer": "Yes. Create two template variants and assign them to separate sequences. Compare engagement rates in the Template Performance dashboard.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-how-do-i-share-a-report-with-a-homeowner",
+      "title": "How do I share a report with a homeowner?",
+      "keywords": [],
+      "answer": "Use Scheduled Exports in Advanced Reports. Add the homeowner's email as a recipient and set the frequency. They receive a formatted PDF without needing portal access.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-what-is-the-executive-overview-vs-analytics",
+      "title": "What is the Executive Overview vs Analytics?",
+      "keywords": [],
+      "answer": "Executive Overview shows high-level KPIs for leadership. Analytics provides granular breakdowns by source, stage, agent, and time period for operational decisions.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-why-are-some-leads-showing-as-stale",
+      "title": "Why are some leads showing as \"stale\"?",
+      "keywords": [],
+      "answer": "Leads are marked stale when their enrichment data is older than your configured freshness threshold (default: 30 days). Re-enrich them from the Lead Data Quality page.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-how-do-i-reconnect-a-disconnected-integration",
+      "title": "How do I reconnect a disconnected integration?",
+      "keywords": [],
+      "answer": "Go to Integration Hub, find the disconnected service, and click \"Re-authenticate\". This restarts the OAuth flow without losing your existing configuration.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-can-homeowners-see-agent-contact-details",
+      "title": "Can homeowners see agent contact details?",
+      "keywords": [],
+      "answer": "No. The homeowner portal is scoped to portfolio-level metrics only. Agent names, emails, and internal notes are never exposed.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "faq-how-do-i-export-the-compliance-audit-log",
+      "title": "How do I export the compliance audit log?",
+      "keywords": [],
+      "answer": "Go to Compliance Audit → Export. You can filter by date range, agent, and action type before downloading as CSV or PDF.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
+    {
+      "id": "article-gs-1",
+      "title": "Platform Overview & First Steps",
+      "keywords": [],
+      "answer": "A complete walkthrough of the dashboard, sidebar navigation, and core concepts to get your team productive on day one.",
+      "source": "Help Center article: Platform Overview & First Steps",
+      "kind": "article"
+    },
+    {
+      "id": "article-gs-2",
+      "title": "Connecting Your Data Sources",
+      "keywords": [],
+      "answer": "How to link Zillow, Realtor.com, Craigslist, and SalesGenie to start pulling leads automatically into your pipeline.",
+      "source": "Help Center article: Connecting Your Data Sources",
+      "kind": "article"
+    },
+    {
+      "id": "article-gs-3",
+      "title": "Inviting Team Members & Setting Roles",
+      "keywords": [],
+      "answer": "Add agents, managers, and viewers. Understand role-based permissions and how they affect data visibility.",
+      "source": "Help Center article: Inviting Team Members & Setting Roles",
+      "kind": "article"
+    },
+    {
+      "id": "article-gs-4",
+      "title": "Running the Team Onboarding Wizard",
+      "keywords": [],
+      "answer": "Use the 4-step onboarding wizard to configure data sources, seed cadence templates, define assignment rules, and connect SMS/email services.",
+      "source": "Help Center article: Running the Team Onboarding Wizard",
+      "kind": "article"
+    },
+    {
+      "id": "article-gs-5",
+      "title": "Clocking In, Out, and Tracking Breaks",
+      "keywords": [],
+      "answer": "Use the Time Clock widget in the top bar to clock in/out and manage breaks with a live running timer. Admins can see everyone's live status from the Team Status tab.",
+      "source": "Help Center article: Clocking In, Out, and Tracking Breaks",
+      "kind": "article"
+    },
+    {
+      "id": "article-lm-1",
+      "title": "Filtering & Saved Presets",
+      "keywords": [],
+      "answer": "Build complex filter combinations with date ranges, score thresholds, lead source, and stage — then save them as one-click presets.",
+      "source": "Help Center article: Filtering & Saved Presets",
+      "kind": "article"
+    },
+    {
+      "id": "article-lm-2",
+      "title": "Bulk Reassign & Agent Assignment Rules",
+      "keywords": [],
+      "answer": "Reassign hundreds of leads at once. Set conditional rules by agent capacity, property type, geography, and custom tags.",
+      "source": "Help Center article: Bulk Reassign & Agent Assignment Rules",
+      "kind": "article"
+    },
+    {
+      "id": "article-lm-3",
+      "title": "Duplicate Detection & Merge",
+      "keywords": [],
+      "answer": "Identify duplicate properties across data sources and merge them with field-level conflict resolution before confirming.",
+      "source": "Help Center article: Duplicate Detection & Merge",
+      "kind": "article"
+    },
+    {
+      "id": "article-lm-4",
+      "title": "ML Prospect Scoring Explained",
+      "keywords": [],
+      "answer": "Understand how the blended score combines base prospect score with ML conversion probability from cadence engagement signals.",
+      "source": "Help Center article: ML Prospect Scoring Explained",
+      "kind": "article"
+    },
+    {
+      "id": "article-co-1",
+      "title": "Building Your First Cadence Sequence",
+      "keywords": [],
+      "answer": "Step-by-step guide to creating multi-touch sequences with SMS, email, and call steps — including timing, delays, and escalation triggers.",
+      "source": "Help Center article: Building Your First Cadence Sequence",
+      "kind": "article"
+    },
+    {
+      "id": "article-co-2",
+      "title": "Template AI Suggestions Workflow",
+      "keywords": [],
+      "answer": "How OpenAI analyzes your template performance and generates compliance-safe improvement suggestions with a human review step before applying.",
+      "source": "Help Center article: Template AI Suggestions Workflow",
+      "kind": "article"
+    },
+    {
+      "id": "article-co-3",
+      "title": "Understanding Delivery KPIs",
+      "keywords": [],
+      "answer": "Carrier rejection codes, DND opt-outs, bounce rates, and spam complaints — what they mean and how to improve them.",
+      "source": "Help Center article: Understanding Delivery KPIs",
+      "kind": "article"
+    },
+    {
+      "id": "article-co-4",
+      "title": "Cadence AI Insights & Optimization",
+      "keywords": [],
+      "answer": "Use Anthropic to analyze sequence performance, get cohort engagement insights, and receive early-warning signals for stalled leads.",
+      "source": "Help Center article: Cadence AI Insights & Optimization",
+      "kind": "article"
+    },
+    {
+      "id": "article-an-1",
+      "title": "Advanced Reports: Filters & Saved Templates",
+      "keywords": [],
+      "answer": "Build custom date-range reports with multi-select filters, score thresholds, and save them as reusable templates for your team.",
+      "source": "Help Center article: Advanced Reports: Filters & Saved Templates",
+      "kind": "article"
+    },
+    {
+      "id": "article-an-2",
+      "title": "Agent Leaderboard & Best Practices",
+      "keywords": [],
+      "answer": "How the leaderboard ranks agents by conversion rate and days-to-close, and how AI extracts winning templates and talk tracks from top performers.",
+      "source": "Help Center article: Agent Leaderboard & Best Practices",
+      "kind": "article"
+    },
+    {
+      "id": "article-an-3",
+      "title": "Scheduled Email Exports",
+      "keywords": [],
+      "answer": "Set up weekly or monthly automated report exports to admin and homeowner mailboxes in CSV or PDF format.",
+      "source": "Help Center article: Scheduled Email Exports",
+      "kind": "article"
+    },
+    {
+      "id": "article-di-1",
+      "title": "Integration Hub: Connect & Manage Services",
+      "keywords": [],
+      "answer": "Connect Twilio, Resend, DocuSign, and data sources via OAuth. View verification status, usage quotas, and manage API keys in one place.",
+      "source": "Help Center article: Integration Hub: Connect & Manage Services",
+      "kind": "article"
+    },
+    {
+      "id": "article-di-2",
+      "title": "Lead Data Quality Dashboard",
+      "keywords": [],
+      "answer": "Monitor enrichment completeness, source reliability scores, data freshness age, and missing field trends to surface stale records.",
+      "source": "Help Center article: Lead Data Quality Dashboard",
+      "kind": "article"
+    },
+    {
+      "id": "article-di-3",
+      "title": "Sync Health & Troubleshooting",
+      "keywords": [],
+      "answer": "Diagnose sync failures, review error logs, and manually trigger re-syncs for specific data sources from the Sync Health dashboard.",
+      "source": "Help Center article: Sync Health & Troubleshooting",
+      "kind": "article"
+    },
+    {
+      "id": "article-ac-1",
+      "title": "Subscription Plans & Seat Management",
+      "keywords": [],
+      "answer": "Switch plans, manage team seats, view invoices, and update payment methods from the Subscription & Billing page.",
+      "source": "Help Center article: Subscription Plans & Seat Management",
+      "kind": "article"
+    },
+    {
+      "id": "article-ac-2",
+      "title": "TCPA Compliance & Audit Trail",
+      "keywords": [],
+      "answer": "How the platform logs every outreach action for TCPA compliance, and how to export audit reports for legal review.",
+      "source": "Help Center article: TCPA Compliance & Audit Trail",
+      "kind": "article"
+    },
+    {
+      "id": "article-ac-3",
+      "title": "Homeowner Portal & White-Label Dashboard",
+      "keywords": [],
+      "answer": "Give property owners access to their portfolio performance, lease-up status, and revenue estimates without admin interface access.",
+      "source": "Help Center article: Homeowner Portal & White-Label Dashboard",
+      "kind": "article"
+    },
+    {
+      "id": "guide-dashboard",
+      "title": "Dashboard — Your Command Center",
+      "keywords": [
+        "Dashboard"
+      ],
+      "answer": "The Dashboard gives you a real-time snapshot of your entire STR lead pipeline. KPI cards surface total leads, active pipeline, high-priority prospects, and your personal commission payout — all scoped to your selected portfolio. Key features: KPI cards: total leads, active pipeline, action-needed count, your commission payout; Stage Funnel Chart showing conversion across pipeline stages; Top Leads Table with prospect scores and regulation status; Activity Feed for recent team actions and system events; Portfolio switcher to scope all data to a specific market. Tip: Pin your most-used portfolio in the sidebar switcher to load it by default every session.",
+      "source": "In-app guide: Dashboard",
+      "route": "/",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-data-sync-admin",
+      "title": "Data Sync & Quality — Keep Lead Data Current",
+      "keywords": [
+        "Data Sync",
+        "data-sync"
+      ],
+      "answer": "Admins control the data engine that feeds every outreach workflow. Use Data Sync, Source Intelligence, duplicate detection, freshness checks, and enrichment review queues to keep lead records accurate before agents call or message homeowners. Key features: Run and monitor lead-source sync jobs across configured markets; Review import quality, duplicate detection, and address mismatch reports; Track data freshness so agents are not working stale listings; Use enrichment review queues before accepting owner/contact updates; Watch system health and retry queues for failed sync or provider events. Tip: Data quality is upstream of every call and campaign. Fix duplicate, stale, or mismatched leads before assigning them to agents.",
+      "source": "In-app guide: Data Sync",
+      "route": "/data-sync",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-lead-pipeline",
+      "title": "Lead & Homeowner Pipeline — Work Your Prospects",
+      "keywords": [
+        "Lead Pipeline",
+        "lead-management"
+      ],
+      "answer": "Lead Management is where you spend most of your time. Browse, filter, enrich, and act on every lead. Leads tagged \"Inbound — Self-Qualified\" are warm homeowners who opted in via the TRAVLR estimate page — prioritize these above cold sync-sourced leads. Key features: \"Inbound — Self-Qualified\" tag = homeowner opted in via estimate landing page (warm lead); Full-text search across names, addresses, notes, and tags; Saved filter presets for instant recall of common views; Bulk SMS dispatch and sequence assignment; Inline enrichment panel: owner lookup (Stage 1) and contact enrichment (Stage 2). Tip: Filter by \"Inbound — Self-Qualified\" first — these leads already expressed interest and convert at a higher rate than cold outreach.",
+      "source": "In-app guide: Lead Pipeline",
+      "route": "/lead-management",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-map-view",
+      "title": "Map View — Check Market Coverage and Pin Accuracy",
+      "keywords": [
+        "Map View",
+        "map-view"
+      ],
+      "answer": "Map View shows where your non-synthetic leads are located across active markets. Use it to spot market concentration, verify that pins match the lead city/state, and select properties before drilling into the full lead record. Key features: Shows all available map-ready leads, not only the first 1,000; Filters by regulation status, minimum score, and bedroom count; Pin color reflects STR regulation status for quick market scanning; Lead list and detail panel stay synced with the selected map pin; Use map clustering patterns to guide assignment and outreach strategy. Tip: If a pin looks wrong, check the lead address, city, state, zip, and coordinate fields before assigning that lead for outreach.",
+      "source": "In-app guide: Map View",
+      "route": "/map-view",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-dialer",
+      "title": "Dialer & Teleprompter — Your Highest-Frequency Daily Action",
+      "keywords": [
+        "Dialer",
+        "teleprompter"
+      ],
+      "answer": "The Teleprompter is your live call companion. It auto-fills lead details into your script, surfaces objection responses in real time, and logs every call to the Activity Timeline automatically — no manual entry needed. Key features: One-tap call start from any lead record; script auto-fills with lead name, address, and property details; Live objection library: pre-built responses surface before falling back to AI generation; Call disposition capture: outcome logged and lead stage updated automatically on hang-up; Every call auto-logged to Activity Timeline (duration, outcome, timestamp, recording link); Post-call summary generated and saved without manual entry; Call recording consent disclosure and state-specific guidance appear before live transcription starts. Tip: Use the \"warm inbound\" script variant for \"Inbound — Self-Qualified\" leads — it opens by acknowledging they reached out, not re-introducing TRAVLR from scratch.",
+      "source": "In-app guide: Dialer",
+      "route": "/teleprompter",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-messaging",
+      "title": "Messaging Tools — SMS, Email & Follow-Up Sequencing",
+      "keywords": [
+        "Messaging",
+        "templates"
+      ],
+      "answer": "SMS and email templates share the same merge-field resolution system as the Teleprompter — one unified system, not three separate implementations. Follow-up sequences extend the cadence engine with SMS and call as additional channel options per stage. Key features: SMS and email templates with merge-field autofill (same system as Teleprompter); Follow-up sequencing: add SMS/call steps to any cadence stage; A2P 10DLC brand/campaign registration required before SMS goes live (hard blocker); Pre-send compliance checklist: DNC check, time-of-day restrictions, TCPA consent; Template performance tracking: open rates, click rates, reply rates per template. Tip: Check A2P 10DLC registration status in Settings before sending any SMS — unregistered numbers will be blocked by carriers.",
+      "source": "In-app guide: Messaging",
+      "route": "/templates",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-scheduling",
+      "title": "Scheduling & Calendar — Manage Follow-Ups",
+      "keywords": [
+        "Scheduling",
+        "follow-up-sequences"
+      ],
+      "answer": "The follow-up sequencing engine handles automated cadence scheduling across email, SMS, and call steps. Leads auto-advance through stages based on call outcomes — interested leads move to follow-up, no-answers queue for retry. Key features: Auto-trigger cadences when leads hit stage thresholds (interested → follow-up, no-answer → retry); Scheduled queue panel showing upcoming touchpoints per lead; Manual override: reschedule or skip any step from the lead record; Cadence performance metrics: completion rate, escalation rate, per-step engagement; Calendar view of all scheduled outreach across your lead portfolio. Tip: Sort cadence performance by escalation rate descending to find your highest-converting sequences and clone their structure.",
+      "source": "In-app guide: Scheduling",
+      "route": "/follow-up-sequences",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-documents",
+      "title": "Documents & E-Signature — DocuSign from a Lead Record",
+      "keywords": [
+        "Documents",
+        "lead-record"
+      ],
+      "answer": "Trigger the DocuSign Partnership Agreement flow directly from any lead record. Once the homeowner signs, the system auto-logs the completion, updates the lead stage, and triggers your commission calculation. Key features: Send Partnership Agreement via DocuSign from the lead's detail view — one click; Signing status tracked in real time: sent → viewed → signed → completed; DocuSign completion = commission trigger (system-verifiable event); Embedded signing portal: homeowner can sign without leaving the TRAVLR flow; Void and resend available if the homeowner needs a corrected document. Tip: After sending a DocuSign, check the Activity Timeline on the lead record — signing events are logged there in real time so you know exactly when the homeowner opens and signs.",
+      "source": "In-app guide: Documents",
+      "route": "/lead-record",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-hiring-admin",
+      "title": "Hiring & Offer Letters — Recruit and Onboard the Team",
+      "keywords": [
+        "Hiring",
+        "candidate-pipeline"
+      ],
+      "answer": "Admins can manage candidate profiles, interview scripts, scorecards, pipeline stages, offer letters, and DocuSign signing for new hires. Interview Mode is admin-only and should be used to standardize candidate evaluation. Key features: Candidate Profiles store parsed resumes, strengths, concerns, and scorecards; Interview Mode gives admins structured interview scripts and role-play prompts; Candidate Pipeline tracks ready, interviewed, follow-up, move-forward, hired, and rejected stages; Moving a candidate to Hired opens a branded offer-letter draft; Offer letters can route through DocuSign once credentials are configured. Tip: Keep Interview Mode restricted to admins so hiring notes, scorecards, and candidate data stay separated from agent outreach tools.",
+      "source": "In-app guide: Hiring",
+      "route": "/candidate-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-performance",
+      "title": "Performance & Reporting — Your KPIs & Commission Status",
+      "keywords": [
+        "Performance",
+        "agent commissions"
+      ],
+      "answer": "Your personal performance dashboard shows only your own numbers — leads worked, calls made, conversion rates, and commission payout. Portfolio-wide revenue figures are not shown here; you see only what's owed to you. Key features: Commission payout card: pending payout, next scheduled payout date and amount; Total commission earned: current period and lifetime (toggleable); Payout via Stripe Connect on the schedule defined in your commission agreement; Commission triggered by DocuSign completion of the Partnership Agreement; Call analytics: your personal volume, conversion rate, and outcome breakdown. Tip: Commission calculations are tied to DocuSign completion — if a payout looks wrong, check the lead's Activity Timeline to confirm the signing event was captured.",
+      "source": "In-app guide: Performance",
+      "route": "/agent/commissions",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-team-admin",
+      "title": "Team Admin — Roles, Assignments, and Agent Readiness",
+      "keywords": [
+        "Team Admin",
+        "agent-management"
+      ],
+      "answer": "Admin tools control who can access what, which leads agents receive, and whether agents are ready to work. New agents should complete their mandatory orientation before they start calling leads. Key features: Invite agents and monitor whether their onboarding tour is complete; Assign high-priority or fully verified leads to the right agent queue; Use role management to keep admin-only pages away from agents and homeowners; Review agent workload, performance, productivity, and coaching views; Use audit logs and compliance reports to trace sensitive changes. Tip: Before assigning call volume, confirm the agent is active, has completed onboarding, and has verified leads with phone numbers in their queue.",
+      "source": "In-app guide: Team Admin",
+      "route": "/agent-management",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-time-clock",
+      "title": "Time Clock — Shift Tracking for Every Team Member",
+      "keywords": [
+        "Time Clock",
+        "time-clock"
+      ],
+      "answer": "Every admin and agent can clock in/out and track breaks from the top bar or the Time Clock page. A live timer runs continuously while clocked in and pauses visually during breaks — no separate timesheet tool needed. Key features: Clock In / Start Break / End Break / Clock Out from the top-bar widget on every page; Live HH:MM:SS timer visible at all times once clocked in; Personal 14-day shift history and this-week total on the Time Clock page; Admins/owners get a \"Team Status\" tab showing everyone currently clocked in or on break in real time; Only one open shift per person is allowed at a time — clock out before starting a new one. Tip: Use the Team Status tab to spot agents who forgot to clock out — a stuck shift keeps accumulating hours until it is closed.",
+      "source": "In-app guide: Time Clock",
+      "route": "/time-clock",
+      "kind": "guide"
+    },
+    {
+      "id": "guide-help-center",
+      "title": "Q&A / Help Center — Your Ongoing Support Resource",
+      "keywords": [
+        "Help Center",
+        "help-center"
+      ],
+      "answer": "The Help Center is your go-to after this tour. Ask questions about your own leads, stats, and how any module works — the AI assistant answers from your actual dashboard data and TRAVLR's internal documentation, not from guesses. Key features: AI assistant answers from your dashboard data and TRAVLR's how-to documentation; Ask about your own leads, stats, commission status, or any module's features; Compliance or legal questions route to a human admin — AI will not guess on those; Search TRAVLR's internal documentation for step-by-step module guides; This is your primary support resource after completing this tour. Tip: After this tour, the Help Center is your first stop for any question. The AI assistant has context about your specific leads and stats — ask it directly rather than searching generic docs.",
+      "source": "In-app guide: Help Center",
+      "route": "/help-center",
+      "kind": "guide"
+    },
+    {
+      "id": "how-find",
+      "title": "Find: how AVYRO works",
+      "keywords": [
+        "Find"
+      ],
+      "answer": "AVYRO builds your owner pipeline from property and listing data, then enriches and scores every lead. Owner and phone data is verified, bad numbers are screened out, and the leads worth a call float to the top. Includes: Lead scoring and prioritization; Verified owner and phone data; Co-Host matching from public license records.",
+      "source": "How it works: Find",
+      "kind": "overview"
+    },
+    {
+      "id": "how-onboard",
+      "title": "Onboard: how AVYRO works",
+      "keywords": [
+        "Onboard"
+      ],
+      "answer": "Compliant text and email outreach opens the conversation, replies are read and routed, and calls are scheduled by text. When an owner says yes, checklists, agreements and DocuSign take them to signed. Includes: Campaigns with quiet hours, opt-outs and a no-repeat window; Call scheduling by text; Onboarding checklists and e-signature.",
+      "source": "How it works: Onboard",
+      "kind": "overview"
+    },
+    {
+      "id": "how-operate",
+      "title": "Operate: how AVYRO works",
+      "keywords": [
+        "Operate"
+      ],
+      "answer": "Once a property is live, tasks, alerts and coordination tools keep the work moving, and owners follow their progress in a portal. Includes: Follow-up tasks and personal alerts; Cleaner and job coordination; Owner portal for progress and documents.",
+      "source": "How it works: Operate",
+      "kind": "overview"
+    },
+    {
+      "id": "how-grow",
+      "title": "Grow: how AVYRO works",
+      "keywords": [
+        "Grow"
+      ],
+      "answer": "See what is actually converting: the acquisition funnel, agent performance and market data, with every number tied back to the people behind it. Includes: Acquisition funnel and campaign results; Agent performance and coaching; Market and regulation intelligence.",
+      "source": "How it works: Grow",
+      "kind": "overview"
+    }
+  ]
+}

@@ -132,7 +132,7 @@ export default function PipelinePage() {
               <button onClick={() => void load()} disabled={refreshing} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted disabled:opacity-50"><RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />Refresh</button>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div data-ava-anchor="pipeline-filters" className="flex items-center gap-2 flex-wrap">
             <div className="relative"><Search size={13} className="absolute left-2.5 top-2 text-muted-foreground" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search address, city, owner or ZIP" aria-label="Search leads" className={`${sel} pl-8 pr-7 w-64`} />{search && <button onClick={() => setSearch('')} className="absolute right-2 top-2" aria-label="Clear search"><X size={13} className="text-muted-foreground" /></button>}</div>
             <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} className={sel} aria-label="State"><option value="">{selectedPortfolio.stateCode !== 'all' && /^[A-Z]{2}$/.test(selectedPortfolio.stateCode) ? `${selectedPortfolio.stateCode} (portfolio)` : 'All states'}</option>{STATES.map(s => <option key={s}>{s}</option>)}</select>
             <select value={program} onChange={e => setProgram(e.target.value)} className={sel} aria-label="Program"><option value="">All programs</option><option value="str_conversion">STR conversion</option><option value="co_host">Co-Host</option></select>
@@ -144,7 +144,7 @@ export default function PipelinePage() {
             {filtersOn && <button onClick={() => { setSearch(''); setStateFilter(''); setProgram(''); setMinScore(0); setHasPhone(false); setLuxury(false); }} className="text-xs text-primary hover:underline">Clear filters</button>}
           </div>
           {!loading && columns.length > 0 && (
-            <div className="flex gap-1 overflow-x-auto" aria-label="Pipeline funnel">
+            <div data-ava-anchor="pipeline-funnel" className="flex gap-1 overflow-x-auto" aria-label="Pipeline funnel">
               {columns.map(c => <button key={c.key} onClick={() => jump(c.key)} title={c.hint} className="flex-1 min-w-[84px] text-left rounded-lg bg-muted/40 hover:bg-muted px-2.5 py-1.5 transition"><p className="text-[10px] text-muted-foreground truncate">{c.label}</p><p className="text-sm font-bold text-foreground leading-tight">{c.count.toLocaleString()}</p><div className="h-1 rounded-full bg-border mt-1 overflow-hidden"><div className={`h-full ${STAGE_STYLE[c.key].dot}`} style={{ width: `${total ? Math.max(c.count ? 4 : 0, (c.count / total) * 100) : 0}%` }} /></div></button>)}
             </div>
           )}
@@ -152,7 +152,7 @@ export default function PipelinePage() {
 
         {error && <div className="mx-4 mt-3 flex items-center gap-3 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-700 dark:text-red-300"><AlertTriangle size={14} /><span className="flex-1">{error}</span><button onClick={() => void load()} className="font-semibold underline">Retry</button></div>}
 
-        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+        <div data-ava-anchor="pipeline-board" className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
           <div className="flex gap-3 p-4 h-full min-w-max">
             {loading ? Array.from({ length: 6 }).map((_, i) => <div key={i} className="w-72 shrink-0 rounded-xl border border-border bg-muted/30 p-3 space-y-2">{[0, 1, 2].map(j => <div key={j} className="h-24 bg-muted animate-pulse rounded-xl" />)}</div>) : visible.map(col => {
               const st = STAGE_STYLE[col.key]; const isCollapsed = collapsed.has(col.key);

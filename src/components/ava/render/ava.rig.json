@@ -1,0 +1,60 @@
+{
+  "source": "Tripo scan, single fused mesh, segmented geometrically (tools/segment.mjs)",
+  "coordinate": {
+    "up": "+Y",
+    "forward": "+Z",
+    "note": "AVA's LEFT side is +X (she faces +Z, toward the viewer)"
+  },
+  "pivots": {
+    "shoulderL": [
+      0.2466888427734375,
+      0.3733940124511719,
+      0.037227604538202286
+    ],
+    "shoulderR": [
+      -0.2277679443359375,
+      0.37127113342285156,
+      0.03826048970222473
+    ],
+    "neck": [
+      -0.00003816559910774231,
+      0.515,
+      0.016242988407611847
+    ]
+  },
+  "visor": {
+    "cx": -0.002,
+    "cy": 0.72,
+    "rx": 0.243,
+    "ry": 0.146,
+    "aspect": 1.6643835616438356
+  },
+  "ear": {
+    "cz": 0,
+    "cy": 0.73,
+    "r": 0.16,
+    "minAbsXNeg": 0.285,
+    "minAbsXPos": 0.245
+  },
+  "chest": {
+    "x": [
+      -0.12,
+      0.13
+    ],
+    "y": [
+      0.24,
+      0.44
+    ]
+  },
+  "triangles": {
+    "head": 41999,
+    "neck": 1500,
+    "torso": 29995,
+    "joints": 2499,
+    "arm": 11999,
+    "face": 5999,
+    "earL": 3499,
+    "earR": 3500,
+    "chest": 4999
+  }
+}

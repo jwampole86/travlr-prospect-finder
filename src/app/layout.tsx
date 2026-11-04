@@ -9,6 +9,7 @@ import MixpanelProvider from '@/components/MixpanelProvider';
 import RealtimeProvider from '@/components/RealtimeProvider';
 import ThemeWrapper from '@/components/ThemeWrapper';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import AvaMount from '@/components/ava/AvaMount';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -53,6 +54,7 @@ export default function RootLayout({
                 <RealtimeProvider>
                   <ThemeWrapper>
                     {children}
+                    <AvaMount />
                   </ThemeWrapper>
                 </RealtimeProvider>
               </MixpanelProvider>

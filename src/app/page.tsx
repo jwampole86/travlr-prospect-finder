@@ -461,7 +461,7 @@ export default function DashboardPage() {
         </nav>
 
         {/* ── 1. KPI SUMMARY CARDS ──────────────────────────────────────── */}
-        {dash.showKPIs && <div id="section-overview" className="scroll-mt-20">
+        {dash.showKPIs && <div id="section-overview" data-ava-anchor="dashboard-overview" className="scroll-mt-20">
           {statsLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -517,7 +517,7 @@ export default function DashboardPage() {
         </CollapsibleSection>
 
         {/* ── 4. PIPELINE BY STAGE ──────────────────────────────────────── */}
-        {dash.showFunnel && <div id="section-pipeline" className="scroll-mt-20">
+        {dash.showFunnel && <div id="section-pipeline" data-ava-anchor="dashboard-pipeline" className="scroll-mt-20">
           <div className="px-1 mb-2">
             <span className="text-sm font-semibold text-foreground">Pipeline by Stage</span>
             <span className="ml-2 text-xs text-muted-foreground">Lead distribution across funnel</span>
@@ -533,7 +533,7 @@ export default function DashboardPage() {
         </div>}
 
         {/* ── 5. TOP SCORED LEADS ───────────────────────────────────────── */}
-        {dash.showTopLeads && <div id="section-top-leads" className="scroll-mt-20">
+        {dash.showTopLeads && <div id="section-top-leads" data-ava-anchor="dashboard-top-leads" className="scroll-mt-20">
           <div className="px-1 mb-2">
             <span className="text-sm font-semibold text-foreground">Top Scored Leads</span>
             <span className="ml-2 text-xs text-muted-foreground">Highest priority properties for outreach</span>
@@ -577,7 +577,7 @@ export default function DashboardPage() {
         </CollapsibleSection>
 
         {/* ── 7. RECENT ACTIVITY ────────────────────────────────────────── */}
-        {dash.showActivityFeed && <div id="section-activity" className="scroll-mt-20">
+        {dash.showActivityFeed && <div id="section-activity" data-ava-anchor="dashboard-activity" className="scroll-mt-20">
           <div className="px-1 mb-2">
             <span className="text-sm font-semibold text-foreground">Recent Activity</span>
             <span className="ml-2 text-xs text-muted-foreground">Latest changes across all leads</span>

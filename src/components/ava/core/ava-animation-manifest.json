@@ -1,0 +1,245 @@
+{
+  "manifestVersion": "2.0.0",
+  "specVersion": "2.0",
+  "status": "proposed-baseline",
+  "note": "All numeric values are proposed starting targets for the DIGITAL avatar only. Validate against the real GLB rig. Never apply to a physical or levitating robot.",
+  "coordinateConvention": {
+    "up": "+Y",
+    "forward": "+Z (faces viewer)",
+    "left": "+X is AVA's LEFT (she faces +Z toward the viewer); ARM_L/SHOULDER_L/EAR_L live at +X",
+    "note": "Artist must record the actual exported GLB convention and apply one transform adapter if different."
+  },
+  "palette": {
+    "primaryWhite": "#FFFFFF",
+    "softWhite": "#E6EDF7",
+    "visorBlack": "#0A0F1A",
+    "primaryBlue": "#00B2FF",
+    "accentBlue": "#0066FF",
+    "lightBlue": "#7FD1FF",
+    "warningAmber": "#FFB020"
+  },
+  "paletteNotes": {
+    "warningAmber": "NOT in the approved brand palette. Proposed per Game Plan section 3 ('calm amber or subdued'). Requires design sign-off (decision D-1)."
+  },
+  "rigNodes": [
+    "AVA_ROOT",
+    "BODY_CTRL",
+    "NECK_YAW",
+    "NECK_PITCH",
+    "HEAD_SHELL",
+    "FACE_DISPLAY",
+    "EAR_L",
+    "EAR_R",
+    "SHOULDER_L",
+    "ARM_L",
+    "SHOULDER_R",
+    "ARM_R",
+    "TORSO_FRONT",
+    "TORSO_BACK",
+    "CHEST_A"
+  ],
+  "channels": ["face", "faceOverlay", "head", "armLeft", "armRight", "body"],
+  "faceStates": {
+    "idle": {
+      "label": "Happy / Idle",
+      "referenceIndex": 4,
+      "eyes": { "shape": "crescent_up", "color": "primaryBlue", "opacity": 1 },
+      "animation": { "blink": { "intervalMs": [3000, 6000], "durationMs": 140 } },
+      "typicalDurationMs": [0, 3000],
+      "enter": "No active task",
+      "exit": "Any higher-priority state"
+    },
+    "listening": {
+      "label": "Listening",
+      "referenceIndex": 1,
+      "eyes": { "shape": "waveform", "color": "primaryBlue", "opacity": 1 },
+      "animation": {
+        "bars": 17,
+        "envelope": { "source": "microphone-level", "attackMs": 40, "releaseMs": 160 }
+      },
+      "typicalDurationMs": [500, 3000],
+      "enter": "Microphone capture actually active and permission granted",
+      "exit": "Capture ends, permission denied, or higher-priority state"
+    },
+    "thinking": {
+      "label": "Thinking",
+      "referenceIndex": 2,
+      "eyes": { "shape": "dash_pair", "color": "primaryBlue", "opacity": 1 },
+      "animation": { "pulse": { "periodMs": 1500, "opacityRange": [0.65, 1] } },
+      "typicalDurationMs": [1000, 2000],
+      "enter": "Intent interpretation / permission check",
+      "exit": "Tool starts, answer starts, or reasoning ends"
+    },
+    "searching": {
+      "label": "Searching",
+      "referenceIndex": 3,
+      "eyes": { "shape": "dotted_ring_pair", "color": "primaryBlue", "opacity": 1 },
+      "animation": { "scan": { "rotationPeriodMs": 2000 } },
+      "typicalDurationMs": [1500, 3000],
+      "enter": "At least one tool call in flight",
+      "exit": "All tool calls resolved, failed, or timed out"
+    },
+    "explaining": {
+      "label": "Explaining",
+      "referenceIndex": 5,
+      "eyes": { "shape": "crescent_up", "color": "primaryBlue", "opacity": 1 },
+      "animation": { "blink": { "intervalMs": [3000, 6000], "durationMs": 140 } },
+      "typicalDurationMs": [2000, 6000],
+      "enter": "Answer or explanation is being presented",
+      "exit": "Answer ends or interrupted"
+    },
+    "guiding": {
+      "label": "Guiding",
+      "referenceIndex": 6,
+      "eyes": { "shape": "crescent_up", "color": "primaryBlue", "opacity": 1 },
+      "animation": { "gazeOffset": { "maxFractionOfVisorWidth": 0.12, "durationMs": 250 } },
+      "typicalDurationMs": [1000, 4000],
+      "enter": "Tour step active AND its UI anchor resolved to a visible element",
+      "exit": "Tour step advanced / tour ended / anchor lost"
+    },
+    "success": {
+      "label": "Success",
+      "referenceIndex": 8,
+      "eyes": { "shape": "crescent_up", "color": "lightBlue", "opacity": 1 },
+      "animation": { "sparkle": { "count": 4, "color": "lightBlue", "durationMs": 1200 } },
+      "typicalDurationMs": [1000, 2000],
+      "enter": "Backend-confirmed completion of the current request",
+      "exit": "Window elapses (never loops)"
+    },
+    "warning": {
+      "label": "Warning / Error",
+      "referenceIndex": 9,
+      "eyes": { "shape": "dash_pair", "color": "warningAmber", "opacity": 0.85 },
+      "animation": { "pulse": null },
+      "typicalDurationMs": [2000, 4000],
+      "enter": "Failure, timeout, permission denied or blocked action",
+      "exit": "Hold elapses, or next user input/request",
+      "a11y": "Always pair with text and an icon; color alone is not sufficient."
+    },
+    "confirming": {
+      "label": "Confirming",
+      "referenceIndex": 10,
+      "eyes": { "shape": "dot_pair", "color": "primaryBlue", "opacity": 1 },
+      "animation": { "pulse": { "periodMs": 2400, "opacityRange": [0.8, 1] } },
+      "typicalDurationMs": [0, null],
+      "enter": "Awaiting explicit user approval",
+      "exit": "Approval accepted or rejected"
+    },
+    "greeting": {
+      "label": "Greeting",
+      "extension": "v2.1",
+      "eyes": { "shape": "crescent_up", "color": "primaryBlue", "opacity": 1, "scale": 1.18 },
+      "animation": { "blink": { "intervalMs": [3000, 6000], "durationMs": 140 } },
+      "typicalDurationMs": [1000, 1800],
+      "enter": "Assistant just opened; idle with the welcome window active",
+      "exit": "Window elapses or any real activity begins"
+    },
+    "error": {
+      "label": "Error",
+      "extension": "v2.1",
+      "eyes": { "shape": "x_pair", "color": "warningAmber", "opacity": 0.9 },
+      "animation": { "pulse": null },
+      "typicalDurationMs": [2000, 4000],
+      "enter": "A tool call failed (ava.tool.failed)",
+      "exit": "Hold elapses, or next user input/request",
+      "a11y": "Distinct shape (crosses), so it is not conveyed by colour alone; always pair with text and an icon."
+    },
+    "micDenied": {
+      "label": "Microphone denied",
+      "extension": "v2.1",
+      "eyes": { "shape": "flatline", "color": "warningAmber", "opacity": 0.85 },
+      "animation": { "pulse": null },
+      "typicalDurationMs": [2000, 4000],
+      "enter": "Microphone permission denied",
+      "exit": "Hold elapses, or next user input/request",
+      "a11y": "A flat line of dots, never an animated waveform; always pair with text and an icon."
+    },
+    "sleeping": {
+      "label": "Sleeping",
+      "extension": "v2.1",
+      "eyes": { "shape": "crescent_down", "color": "primaryBlue", "opacity": 0.9 },
+      "animation": { "breathe": { "periodMs": 4000, "opacityRange": [0.7, 1] } },
+      "typicalDurationMs": [0, null],
+      "enter": "Idle with no activity for timing.sleepAfterMs",
+      "exit": "Any event"
+    }
+  },
+  "overlays": {
+    "speaking": {
+      "clip": "ava.speak.loop",
+      "effect": { "target": "eyeEmission", "amplitudeFraction": 0.15, "smoothingMs": 80 },
+      "enter": "TTS/audio playback actually active",
+      "exit": "Playback ends or is interrupted",
+      "note": "No mouth. Combines with any base face state except disabled."
+    },
+    "sparkle": {
+      "enter": "Only with face=success and motion=full"
+    }
+  },
+  "faceRendering": {
+    "technique": "Single curved visor mesh; emissive texture atlas, CanvasTexture or shader drives eyes",
+    "crossfadeMs": [120, 250],
+    "normalizedFaceSpace": "Visor UV; eye centers symmetric about u=0.5. Same shape definitions scale between Mini and Expanded.",
+    "legibilityMinPx": 128
+  },
+  "envelopes": {
+    "headYawDeg": { "routine": 18, "max": 25, "maxSpeedDegPerSec": 45 },
+    "headPitchDeg": { "min": -8, "max": 10, "maxSpeedDegPerSec": 30 },
+    "headRollDeg": { "max": 5 },
+    "shoulderDeg": { "min": -15, "max": 45, "maxSpeedDegPerSec": 70, "celebrationMaxSpeedDegPerSec": 90 },
+    "bodyYawDeg": { "max": 8, "maxSpeedDegPerSec": 20 },
+    "bodyPitchRollDeg": { "max": 3, "maxSpeedDegPerSec": 10 },
+    "hoverMm": { "amplitude": 6, "referenceHeadWidthMm": 300, "cycleMs": [3000, 5000] },
+    "poseBlendMs": [250, 600],
+    "gestureHoldMs": [200, 900],
+    "interruptBlendOutMs": [150, 300]
+  },
+  "timing": {
+    "greetMs": 1800,
+    "successMs": 1800,
+    "warningHoldMs": 4000,
+    "cancelMs": 600,
+    "sleepAfterMs": 45000,
+    "explainGestureCooldownMs": 2000,
+    "armSettleMs": [300, 600],
+    "minVisibleDwellMs": 250,
+    "seenEventIdCapacity": 256
+  },
+  "priority": {
+    "face": ["disabled", "error", "micDenied", "warning", "confirming", "listening", "success", "searching", "thinking", "guiding", "explaining", "greeting", "idle", "sleeping"],
+    "note": "Amends v1: verified success is promoted above searching/thinking/guiding/explaining because the window is <=1.8 s and the face for those states is crescent-based. Requires approval (decision D-3)."
+  },
+  "clips": [
+    { "id": "ava.idle.loop", "channels": ["armLeft", "armRight", "body"], "loop": true, "durationMs": [3000, 5000], "description": "Relaxed arms, gentle hover" },
+    { "id": "ava.listen.enter", "channels": ["head"], "loop": false, "durationMs": [250, 400], "description": "2-3 deg head incline as waveform appears" },
+    { "id": "ava.listen.loop", "channels": ["head"], "loop": true, "durationMs": null, "description": "Nearly still while mic active" },
+    { "id": "ava.think.loop", "channels": ["head"], "loop": true, "durationMs": [1000, 2000], "description": "Minimal head motion" },
+    { "id": "ava.search.loop", "channels": ["head"], "loop": true, "durationMs": [1500, 2500], "description": "Subtle scanning head motion; arms neutral" },
+    { "id": "ava.speak.loop", "channels": ["head", "armLeft", "armRight"], "loop": true, "durationMs": null, "fill": true, "description": "Subtle speaking motion; drives only channels not occupied by a higher-priority clip" },
+    { "id": "ava.explain.left", "channels": ["armLeft", "head"], "loop": false, "durationMs": [1200, 2000], "description": "Left arm lifts <=30 deg, head follows" },
+    { "id": "ava.explain.right", "channels": ["armRight", "head"], "loop": false, "durationMs": [1200, 2000], "description": "Right arm lifts <=30 deg, head follows" },
+    { "id": "ava.guide.left", "channels": ["armLeft", "head"], "loop": false, "durationMs": [800, 1500], "description": "Left arm indicates resolved UI anchor" },
+    { "id": "ava.guide.right", "channels": ["armRight", "head"], "loop": false, "durationMs": [800, 1500], "description": "Right arm indicates resolved UI anchor" },
+    { "id": "ava.greet", "channels": ["armRight", "head"], "loop": false, "durationMs": [1000, 1800], "description": "One short welcoming wave" },
+    { "id": "ava.success", "channels": ["armLeft", "armRight", "head"], "loop": false, "durationMs": [1000, 1800], "description": "Both arms lift briefly, settle" },
+    { "id": "ava.warning", "channels": ["armLeft", "armRight", "body"], "loop": false, "durationMs": [300, 300], "holdUntilExit": true, "description": "Arms lower, hover minimized" },
+    { "id": "ava.confirm", "channels": ["head"], "loop": false, "durationMs": [250, 400], "holdUntilExit": true, "description": "Slight attentive head tilt; arms neutral" },
+    { "id": "ava.cancel", "channels": ["head", "armLeft", "armRight"], "loop": false, "durationMs": [400, 700], "description": "Smooth cancel, return to neutral" },
+    { "id": "ava.return_neutral", "channels": ["head", "armLeft", "armRight", "body"], "loop": false, "durationMs": [400, 800], "description": "Return head and arms to rest" }
+  ],
+  "gestureClips": {
+    "greet": { "left": "ava.greet", "right": "ava.greet", "both": "ava.greet" },
+    "explain": { "left": "ava.explain.left", "right": "ava.explain.right" },
+    "guide": { "left": "ava.guide.left", "right": "ava.guide.right" },
+    "success": { "both": "ava.success" },
+    "warning": { "both": "ava.warning" },
+    "cancel": { "both": "ava.cancel" }
+  },
+  "headClips": {
+    "listen": "ava.listen.loop",
+    "think": "ava.think.loop",
+    "search": "ava.search.loop",
+    "confirm": "ava.confirm",
+    "cancel": "ava.cancel"
+  }
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { setAvaSelection } from '@/components/ava/selection';
 import type { Lead, LeadStage } from '@/data/mockLeads';
 import type { RegulationRule } from '@/data/regulations';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -307,6 +308,11 @@ export default function LeadManagementClient({
   const [csvAssignModalOpen, setCsvAssignModalOpen] = useState(false);
   const [regulationCity, setRegulationCity] = useState<string | null>(null);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
+  // Tell AVA which lead is open so "create a follow-up for this lead" knows which one.
+  useEffect(() => {
+    setAvaSelection(detailLead ? { leadId: detailLead.id, leadName: [detailLead.address, detailLead.city].filter(Boolean).join(', ') } : null);
+    return () => setAvaSelection(null);
+  }, [detailLead]);
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
   const [assignSequenceModalOpen, setAssignSequenceModalOpen] = useState(false);
@@ -1332,14 +1338,18 @@ export default function LeadManagementClient({
           </div>
         )}
 
-        <LeadOverview stateCode={selectedPortfolio.stateCode || ''} filters={filters} refreshKey={serverTotal} onApply={applySmartView} />
+        <div data-ava-anchor="lead-overview">
+          <LeadOverview stateCode={selectedPortfolio.stateCode || ''} filters={filters} refreshKey={serverTotal} onApply={applySmartView} />
+        </div>
 
-        <LeadFiltersBar
-          filters={filters}
-          onChange={(f) => { setFilters(f); setCurrentPage(1); }}
-          leads={leads}
-          agents={agents}
-        />
+        <div data-ava-anchor="lead-filters">
+          <LeadFiltersBar
+            filters={filters}
+            onChange={(f) => { setFilters(f); setCurrentPage(1); }}
+            leads={leads}
+            agents={agents}
+          />
+        </div>
 
         {/* List toolbar: selection, score bands, sort and view */}
         <div ref={leadListTopRef} className="mb-3 scroll-mt-24 flex flex-wrap items-center gap-2">
@@ -1491,7 +1501,7 @@ export default function LeadManagementClient({
             )}
           </div>
         ) : (
-          <div>
+          <div data-ava-anchor="lead-list">
             {viewMode === 'list' ? (
               <ModernLeadList
                 leads={paginatedLeads}
