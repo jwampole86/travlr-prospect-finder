@@ -18,7 +18,7 @@ const ENV = manifest.envelopes;
 
 // Replaces the -X half of the scanned head with a mirror image of its +X half (cut at the head's centre line), so the head,
 // and with it both ear rings, is exactly symmetric. The cut happens in the fragment shader, so the halves meet cleanly.
-function mirrorShell(shell: THREE.Mesh, centreWorldX: number, side: THREE.Side, hole: { y: number; z: number; radius: number }) {
+function mirrorShell(shell: THREE.Mesh, centreWorldX: number, hole: { top: number; radius: number }) {
   const parent = shell.parent;
   if (!parent) throw new Error('head shell has no parent');
   const id = new THREE.Matrix4();
@@ -28,19 +28,20 @@ function mirrorShell(shell: THREE.Mesh, centreWorldX: number, side: THREE.Side, 
 
   const half = (source: THREE.Material) => {
     const mat = source.clone();
-    mat.side = side;
+    mat.side = THREE.DoubleSide; // the head's inside is drawn too, so the opening under the head is never see-through
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.avaCut = { value: cut };
+      shader.uniforms.avaHole = { value: new THREE.Vector2(hole.top, hole.radius) };
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vAvaP;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAvaP = position;');
-      shader.uniforms.avaHole = { value: new THREE.Vector4(hole.y, hole.radius, hole.z, 0) };
-      // Besides the mirror cut, the flat slab under the chin is removed so the head's underside is smooth, as in the art.
+      // Besides the mirror cut, a hole just the size of the neck is cut in the head's underside. The neck passes up through it, so
+      // the two are one continuous piece with no gap around the join.
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vAvaP;\nuniform float avaCut;\nuniform vec4 avaHole;')
-        .replace('void main() {', 'void main() {\n  if (vAvaP.x < avaCut) discard;\n  vec2 d = vec2(vAvaP.x - avaCut, vAvaP.z - avaHole.z);\n  if (vAvaP.y < avaHole.x && dot(d, d) < avaHole.y * avaHole.y) discard;');
+        .replace('#include <common>', '#include <common>\nvarying vec3 vAvaP;\nuniform float avaCut;\nuniform vec2 avaHole;')
+        .replace('void main() {', 'void main() {\n  if (vAvaP.x < avaCut) discard;\n  vec2 avaD = vec2(vAvaP.x - avaCut, vAvaP.z);\n  if (vAvaP.y < avaHole.x && dot(avaD, avaD) < avaHole.y * avaHole.y) discard;');
     };
-    mat.customProgramCacheKey = () => 'ava-half-shell';
+    mat.customProgramCacheKey = () => 'ava-half-shell-hole';
     return mat;
   };
 
@@ -52,6 +53,7 @@ function mirrorShell(shell: THREE.Mesh, centreWorldX: number, side: THREE.Side, 
   mirror.position.x = 2 * cut;
   mirror.scale.x = -1;
   parent.add(mirror);
+  return { original, cut };
 }
 
 export interface AvaCharacterProps {
@@ -71,11 +73,26 @@ const approach = (cur: number, target: number, maxSpeed: number, dt: number, sti
 };
 
 /** The neck between torso and head, relative to the neck pivot (the scan is centred on x = -0.028, not 0). */
-const NECK = { x: -0.028, y: -0.013, z: 0, top: 0.058, bottom: 0.064, height: 0.054, ringRadius: 0.098, ringHeight: 0.012, ringY: -0.04, capRadius: 0.112, capHeight: 0.006, capY: 0.011 };
-/** The flat slab the scan hangs under the chin (in head-local space): everything below `y` within `radius` of the neck axis is cut away. */
-const CHIN_SLAB = { y: -0.012, z: 0, radius: 0.125 };
-/** The scan sinks the head 0.045 into the top of the torso, hiding the neck. Lifting it leaves the short black neck of the reference art in view. */
-const HEAD_LIFT = 0.02;
+/** The neck column's radius, and how far its top reaches up into the head past the head's lowest point. */
+/** The scan hangs a white socket boss under the head. Everything below `SOCKET_TOP` within `SOCKET_RADIUS` of the neck axis is cut away. */
+const SOCKET_TOP = -0.012;
+const SOCKET_RADIUS = 0.135;
+const NECK_RADIUS = 0.08;
+const NECK_INTO_HEAD = 0.04;
+const NECK_X = -0.028; // the scan is centred on x = -0.028, not 0
+/**
+ * The neck joint, from the close-up reference: a stack of plain glossy black rings (no glow), seated in a dark recess in a
+ * white bezel on the torso, under the head. `y` is the ring's centre in model space, `r` its radius, `h` its height.
+ */
+const NECK_STACK: Array<{ name: string; r: number; h: number; y: number; kind: 'black' | 'white' }> = [
+  { name: 'NECK_RECESS', r: 0.124, h: 0.004, y: 0.4785, kind: 'black' },
+  { name: 'NECK_BASE', r: 0.108, h: 0.02, y: 0.488, kind: 'black' },
+  { name: 'NECK_COLUMN', r: NECK_RADIUS, h: 0, y: 0, kind: 'black' } // spans from the base ring up into the head; sized when built
+];
+/** Head-local height of the lowest point of the head's own underside (a smooth, shallow bowl; measured from the scan). */
+const HEAD_BOTTOM = -0.026;
+/** The scan sinks the head into the top of the torso, hiding the neck. Lifting it leaves the short black neck of the reference art in view. */
+const HEAD_LIFT = 0.05;
 
 function canvasTexture(w: number, h: number) {
   const canvas = document.createElement('canvas');
@@ -285,7 +302,7 @@ export function AvaCharacter({ presentation, getMicLevel, getGaze, turnDeg = 0 }
       halos = [buildEar(1, earL.texture), buildEar(-1, earR.texture)];
       get('EAR_L').visible = false;
       get('EAR_R').visible = false;
-      mirrorShell(shell, midX, shellSide, CHIN_SLAB);
+      mirrorShell(shell, midX, { top: SOCKET_TOP, radius: SOCKET_RADIUS });
       // The visor is now symmetric about the head's centre line (+X half mirrored), so the face display is widened to fill
       // it and centred there.
       const faceNode = get('FACE_DISPLAY');
@@ -307,31 +324,33 @@ export function AvaCharacter({ presentation, getMicLevel, getGaze, turnDeg = 0 }
     const black = new THREE.MeshStandardMaterial({ color: '#050609', roughness: 0.32, metalness: 0.08, envMapIntensity: 0.35 });
     setMat('SHOULDER_JOINTS', black);
 
-    // The scanned neck is a flat, off-centre disc that reads as a grey block. Replace it with a clean glossy black collar,
-    // centred under the head and the body, as in the reference renders.
+    get('NECK_YAW').position.y += HEAD_LIFT; // before the neck is built, so the neck is measured from the lifted head
+
+    // The scanned neck is a flat, off-centre disc that reads as a grey block. Replace it with the ringed joint from the reference.
     try {
       get('NECK').visible = false;
-      const column = new THREE.Mesh(new THREE.CylinderGeometry(NECK.top, NECK.bottom, NECK.height, 64, 1), black);
-      column.position.set(NECK.x, NECK.y, NECK.z);
-      column.name = 'NECK_COLLAR';
-      const ring = new THREE.Mesh(new THREE.CylinderGeometry(NECK.ringRadius, NECK.ringRadius, NECK.ringHeight, 64, 1), black);
-      ring.position.set(NECK.x, NECK.ringY, NECK.z);
-      ring.name = 'NECK_BASE';
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(NECK.capRadius, NECK.capRadius, NECK.capHeight, 64, 1), black);
-      cap.position.set(NECK.x, NECK.capY, NECK.z);
-      cap.name = 'NECK_CAP';
+      const white = new THREE.MeshStandardMaterial({ color: '#f3f5f9', roughness: 0.22, metalness: 0.05, envMapIntensity: 0.9 });
       // On the body, not the head: the head turns and nods on top of the neck, so the neck stays seated instead of swinging with it.
       const base = get('NECK_YAW').position;
-      column.position.add(base);
-      ring.position.add(base);
-      cap.position.add(base);
-      get('BODY_CTRL').add(column, ring, cap);
+      const headBottomWorld = base.y + HEAD_BOTTOM; // base is already lifted
+      for (const ring of NECK_STACK) {
+        let { h, y } = ring;
+        if (ring.name === 'NECK_COLUMN') {
+          const bottom = 0.498;
+          const top = headBottomWorld + NECK_INTO_HEAD; // ends well inside the head, so the neck and head are one continuous piece with no seam
+          h = top - bottom;
+          y = (top + bottom) / 2;
+        }
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(ring.r, ring.r, h, 64, 1), ring.kind === 'white' ? white : black);
+        mesh.name = ring.name;
+        mesh.position.set(NECK_X + base.x, y, base.z);
+        get('BODY_CTRL').add(mesh);
+      }
     } catch (err) {
       console.warn('[AVA] neck collar could not be built; using the scanned neck', err);
       get('NECK').visible = true;
     }
 
-    get('NECK_YAW').position.y += HEAD_LIFT;
     return {
       scene, face, earL, earR, halos,
       neckYaw: get('NECK_YAW'),

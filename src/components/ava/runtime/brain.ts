@@ -20,6 +20,7 @@ export type BrainLine =
   | { t: 'denied'; tool: string }
   | { t: 'tour_start'; tourId: string }
   | { t: 'tour'; anchors: string[] }
+  | { t: 'go'; page: string; open: boolean }
   | { t: 'confirm'; actionId: string; tool: string; summary: string }
   | { t: 'answer'; text: string; sources?: SourceNote[] }
   | { t: 'error'; code: string }

@@ -24,6 +24,15 @@ export interface TourDefinition {
   steps: TourStep[];
 }
 
+/** A screen AVA can take the user to. `id` matches the `data-ava-anchor` of its menu item once "nav-" is added. */
+export interface AvaPage {
+  id: string;
+  title: string;
+  route: string;
+  /** What the page is for, so AVA can pick the right one from a description. */
+  hint?: string;
+}
+
 export interface AvaSelection {
   leadId?: string;
   leadName?: string;
@@ -35,6 +44,8 @@ export interface AvaContext {
   anchors: string[];
   features: string[];
   tours: Array<{ id: string; title: string }>;
+  /** Screens AVA may take the user to, for this user. */
+  pages: Array<{ id: string; title: string; hint?: string }>;
   selection: AvaSelection;
 }
 
@@ -54,6 +65,10 @@ export interface AvaHost {
   features?: string[];
   getRoute: () => string;
   navigate: (route: string) => void;
+  /** Screens AVA can open and point at in the menu. Must only list pages this user may open. */
+  pages?: AvaPage[];
+  /** Opens whatever hides the element AVA is about to point at (a collapsed menu category, say). */
+  reveal?: (anchorId: string) => void;
   getSelection?: () => AvaSelection;
   /** Extra headers for API calls, e.g. a bearer token. Cookies are always sent. */
   getAuthHeaders?: () => Promise<Record<string, string>> | Record<string, string>;
@@ -91,7 +106,7 @@ export const anchorExists = (id: string): boolean => {
 export function visibleAnchors(): string[] {
   if (typeof document === 'undefined') return [];
   return [...new Set([...document.querySelectorAll('[data-ava-anchor]')].filter(visible).map((el) => el.getAttribute('data-ava-anchor') ?? ''))]
-    .filter(Boolean)
+    .filter((id) => id && !id.startsWith('nav-')) // menu items are reached through go_to_page, so they do not crowd out the page's own anchors
     .slice(0, 30);
 }
 
@@ -101,6 +116,7 @@ export function buildContext(host: AvaHost): AvaContext {
     anchors: visibleAnchors(),
     features: host.features ?? [],
     tours: toursForRole(host).map((t) => ({ id: t.id, title: t.title })),
+    pages: (host.pages ?? []).slice(0, 90).map((p) => ({ id: p.id, title: p.title, hint: p.hint })),
     selection: host.getSelection?.() ?? {}
   };
 }

@@ -4,11 +4,11 @@
 export const ROLES = ['admin', 'owner', 'agent', 'homeowner'];
 
 export const ROLE_TOOLS = {
-  admin: ['search_leads', 'search_knowledge', 'show_on_screen', 'start_tour', 'create_followup'],
-  owner: ['search_leads', 'search_knowledge', 'show_on_screen', 'start_tour', 'create_followup'],
+  admin: ['search_leads', 'search_knowledge', 'show_on_screen', 'go_to_page', 'start_tour', 'create_followup'],
+  owner: ['search_leads', 'search_knowledge', 'show_on_screen', 'go_to_page', 'start_tour', 'create_followup'],
   // Agents are scoped to their own leads by the backend adapter; the gateway only decides which tools exist.
-  agent: ['search_leads', 'search_knowledge', 'show_on_screen', 'start_tour', 'create_followup'],
-  homeowner: ['search_knowledge', 'show_on_screen', 'start_tour']
+  agent: ['search_leads', 'search_knowledge', 'show_on_screen', 'go_to_page', 'start_tour', 'create_followup'],
+  homeowner: ['search_knowledge', 'show_on_screen', 'go_to_page', 'start_tour']
 };
 
 export const normalizeRole = (role) => (ROLES.includes(role) ? role : null);

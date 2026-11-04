@@ -366,6 +366,22 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
   'nav-info-request-dashboard': 'Homeowner info-request links',
 };
 
+/** The pages in the menu for a role, for AVA: id is the menu item key without "nav-", route has no query string. */
+export function navPagesFor(role: string | null | undefined): Array<{ id: string; title: string; route: string; hint?: string }> {
+  const groups = role === 'agent' ? agentNavGroups : adminNavGroups;
+  const seen = new Set<string>();
+  const out: Array<{ id: string; title: string; route: string; hint?: string }> = [];
+  for (const g of groups) {
+    for (const item of g.items) {
+      const id = item.key.replace(/^nav-/, '');
+      if (seen.has(id) || item.href.includes('?')) continue;
+      seen.add(id);
+      out.push({ id, title: item.label, route: item.href, hint: NAV_DESCRIPTIONS[item.key] });
+    }
+  }
+  return out;
+}
+
 // ─── NavGroup Component ───────────────────────────────────────────────────────
 
 function NavGroupSection({
@@ -383,6 +399,15 @@ function NavGroupSection({
   const storageKey = `travlr_nav_open:${group.key}`;
   const [open, setOpen] = useState(false);
   useEffect(() => { try { if (sessionStorage.getItem(storageKey) === '1') setOpen(true); } catch { /* storage unavailable */ } }, [storageKey]);
+  // AVA asks for the category holding the menu item she is about to point at to be opened.
+  useEffect(() => {
+    const reveal = (e: Event) => {
+      const anchor = (e as CustomEvent<{ anchor?: string }>).detail?.anchor;
+      if (anchor && group.items.some((item) => item.key === anchor)) setOpen(true);
+    };
+    window.addEventListener('ava:reveal', reveal);
+    return () => window.removeEventListener('ava:reveal', reveal);
+  }, [group]);
   const toggle = () => setOpen((v) => { const next = !v; try { sessionStorage.setItem(storageKey, next ? '1' : '0'); } catch { /* storage unavailable */ } return next; });
   const GroupIcon = group.icon;
   const hasActive = group.items.some((item) => pathname === item.href);
@@ -401,6 +426,7 @@ function NavGroupSection({
             <Link
               key={item.key}
               href={item.href}
+              data-ava-anchor={item.key}
               title={desc ? `${item.label} — ${desc}` : item.label}
               onClick={onNavClick}
               className={`relative flex items-center justify-center p-2 rounded-lg transition-all duration-150 min-h-[36px] ${
@@ -457,6 +483,7 @@ function NavGroupSection({
               <Link
                 key={item.key}
                 href={item.href}
+                data-ava-anchor={item.key}
                 onClick={onNavClick}
                 title={desc ? `${item.label} — ${desc}` : item.label}
                 aria-current={isActive ? 'page' : undefined}

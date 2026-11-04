@@ -18,12 +18,15 @@
 .ava-root .ava-float[data-floating='true'] .badge { opacity: 0; } /* the panel's status line says what she is doing */
 .ava-root .ava-float[data-floating='true'] { z-index: 2; filter: drop-shadow(0 14px 22px rgba(40, 70, 160, .28)); }
 @media (prefers-reduced-motion: reduce) { .ava-root .ava-float { transition: none; } }
-.ava-root .ava.expanded .ava-stage { width: 340px; height: 400px; }
-.ava-root .ava.mini .ava-stage { width: 190px; height: 230px; cursor: pointer; }
+/* Character size, relative to the standard: mini 65%, standard 100%, focus (floating to point at something) 125%. The standard is
+   the original 340x400 stage scaled by --ava-scale (kept in step with STAGE_SCALE in floatSpot.ts). */
+.ava-root { --ava-scale: .78; --ava-stage-w: calc(340px * var(--ava-scale)); --ava-stage-h: calc(400px * var(--ava-scale)); }
+.ava-root .ava.expanded .ava-stage { width: var(--ava-stage-w); height: var(--ava-stage-h); }
+.ava-root .ava.mini .ava-stage { width: calc(var(--ava-stage-w) * .65); height: calc(var(--ava-stage-h) * .65); cursor: pointer; }
 .ava-root .stage-canvas, .ava-root .stage-canvas > div { width: 100%; height: 100%; }
 .ava-root .stage-host { width: 100%; height: 100%; }
 /* Where the 3D stage waits, fully laid out but out of sight, while AVA is closed. */
-.ava-root .ava-park { position: fixed; left: -10000px; top: 0; width: 340px; height: 400px; visibility: hidden; pointer-events: none; }
+.ava-root .ava-park { position: fixed; left: -10000px; top: 0; width: var(--ava-stage-w); height: var(--ava-stage-h); visibility: hidden; pointer-events: none; }
 .ava-root .ava-park .stage-host { width: 100%; height: 100%; }
 .ava-root .stage-hit { position: absolute; inset: 0; z-index: 2; } /* the stage is portalled, so clicks on it need their own target */
 .ava-root .stage-loading { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
@@ -69,6 +72,13 @@
 .ava-root .status.asleep .dot { background: #9aa6c2; }
 .ava-root .head-actions { display: flex; gap: 6px; }
 .ava-root .icon-btn { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(255,255,255,.8); font-size: 15px; }
+.ava-root .msg-typing p { display: inline-flex; align-items: center; gap: 10px; color: var(--ava-muted); font-size: 12.5px; }
+.ava-root .typing-dots { display: inline-flex; gap: 4px; }
+.ava-root .typing-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--ava-accent); opacity: .35; animation: ava-typing 1.2s ease-in-out infinite; }
+.ava-root .typing-dots i:nth-child(2) { animation-delay: .18s; }
+.ava-root .typing-dots i:nth-child(3) { animation-delay: .36s; }
+@keyframes ava-typing { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .ava-root .typing-dots i { animation: none; opacity: .7; } }
 @keyframes ava-pulse { 50% { opacity: .35; transform: scale(.8); } }
 
 .ava-root .messages:focus-visible { outline: 3px solid var(--ava-blue); outline-offset: -3px; border-radius: 16px; }

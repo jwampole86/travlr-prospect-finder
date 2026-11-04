@@ -131,7 +131,6 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     return () => mq.removeEventListener('change', apply);
   }, [bus, initialMode]);
 
-  useEffect(() => { logEnd.current?.scrollIntoView({ block: 'end' }); }, [messages]);
 
   // Highlight the real element AVA is pointing at (works on any page that marks anchors with data-ava-anchor).
   useEffect(() => {
@@ -289,6 +288,12 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
   const status = STATUS[faceLabel] ?? STATUS.idle;
   const busy = state.reasoning || Object.keys(state.tools).length > 0 || state.answering || state.speaking || !!state.tour;
   const firstTurn = messages.every((m) => m.role !== 'user');
+  // A reply bubble shows from the moment a question is sent until the answer starts to appear.
+  const activeTool = Object.values(state.tools)[0]?.tool;
+  const composing = !state.micActive && (state.reasoning || !!activeTool) && !state.answering
+    ? (activeTool === 'search_leads' || activeTool === 'leads.search' ? 'AVA is searching your leads and writing a reply…' : activeTool === 'search_knowledge' ? 'AVA is looking that up and writing a reply…' : 'AVA is writing a reply…')
+    : null;
+  useEffect(() => { logEnd.current?.scrollIntoView({ block: 'end' }); }, [messages, composing]);
   // After every answer, offer what is most useful to ask next (not just on the first turn).
   const toursDone = useMemo(() => tours.filter((t) => toursStarted.includes(t.id) || messages.some((m) => m.role === 'ava' && m.text.includes(`"${t.title}" tour`))).map((t) => t.id), [tours, messages, toursStarted]);
   // The sources of this turn's answer: tour narration that follows an answer carries none, so look back to the user's last message.
@@ -370,9 +375,15 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                   {messages.map((m, i) => (
                     <div key={i} className={`msg msg-${m.role}`}>
                       <p>{m.text}</p>
-                      {describeSources(m.sources).map((line, j) => <small key={j} className="sources">{line}</small>)}
+                      {/* Source notes (help article names, versions) are internal. Only the sandbox demo shows them, so its sample data is never mistaken for real data. */}
+                      {host.offlineDemo && describeSources(m.sources).map((line, j) => <small key={j} className="sources">{line}</small>)}
                     </div>
                   ))}
+                  {composing && (
+                    <div className="msg msg-ava msg-typing" data-testid="reply-pending">
+                      <p role="status" aria-label={composing}><span className="typing-dots" aria-hidden="true"><i /><i /><i /></span><span className="typing-label">{composing}</span></p>
+                    </div>
+                  )}
                   {presentation.announce === 'warning' && <div className="msg msg-system"><p>Something went wrong. Nothing was completed.</p></div>}
                   <div ref={logEnd} />
                 </div>

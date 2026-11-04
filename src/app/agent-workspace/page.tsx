@@ -223,7 +223,7 @@ export default function AgentWorkspacePage() {
         )}
 
         {/* ── Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div data-ava-anchor="agent-header" className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-foreground">
               {agentName ? `Good day, ${agentName}` : 'My Dashboard'}
@@ -248,6 +248,7 @@ export default function AgentWorkspacePage() {
         </div>
 
         {/* ── KPI Grid ── */}
+        <div data-ava-anchor="agent-kpis">
         {kpiLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -266,6 +267,7 @@ export default function AgentWorkspacePage() {
             <KPICard label="Fully Verified" value={kpis.fully_verified} icon={Shield} iconColor="text-blue-500" bgColor="bg-blue-500/10" href="/agent-my-leads?filter=verified" />
           </div>
         ) : null}
+        </div>
 
         {/* ── Quick Start Call ── */}
         <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-center justify-between gap-4">
@@ -291,7 +293,7 @@ export default function AgentWorkspacePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           {/* My Leads Queue */}
-          <div className="lg:col-span-2 bg-card border border-border rounded-xl overflow-hidden">
+          <div data-ava-anchor="agent-leads" className="lg:col-span-2 bg-card border border-border rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <h2 className="text-sm font-semibold text-foreground">My Leads</h2>
               <Link href="/agent-my-leads" className="text-xs text-primary hover:underline flex items-center gap-1">

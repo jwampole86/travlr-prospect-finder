@@ -1,6 +1,9 @@
 // Synced from ava-assistant. Do not edit here: change it there and run tools/sync-to-travlr.mjs.
-/** Width AVA is drawn at while floating beside something. */
-export const FLOAT_W = 270;
+/** Keep in step with --ava-scale in ava-widget.css: the standard character is the original 340px-wide stage times this. */
+export const STAGE_SCALE = 0.78;
+export const STANDARD_W = Math.round(340 * STAGE_SCALE);
+/** Width AVA is drawn at while floating beside something (focus size: 125% of standard). */
+export const FLOAT_W = Math.round(STANDARD_W * 1.25);
 /** The part of her layer the character actually fills (fractions of the layer), so she is placed by her body, not her margins. */
 export const VISIBLE = { x: 0.2, y: 0.1, w: 0.6, h: 0.5 };
 const GAP = 14;

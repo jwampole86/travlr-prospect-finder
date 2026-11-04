@@ -6,6 +6,8 @@ export interface TourEnv {
   currentRoute: () => string;
   navigate: (route: string) => void;
   hasAnchor: (id: string) => boolean;
+  /** Opens whatever hides an element (a collapsed menu category) before AVA points at it. */
+  reveal?: (id: string) => void;
   sleep: (ms: number) => Promise<void>;
   now: () => number;
 }
@@ -71,6 +73,10 @@ async function arrive(step: TourStep, run: TourRun): Promise<boolean> {
     env.navigate(step.route);
     const there = await waitUntil(env, () => env.currentRoute() === step.route, ROUTE_WAIT_MS, run.cancelled);
     if (!there) return false;
+  }
+  if (!env.hasAnchor(step.anchor) && env.reveal) {
+    env.reveal(step.anchor);
+    await env.sleep(250); // let the menu finish opening before looking for the item
   }
   return waitUntil(env, () => env.hasAnchor(step.anchor), ANCHOR_WAIT_MS, run.cancelled);
 }

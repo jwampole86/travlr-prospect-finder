@@ -45,5 +45,29 @@ export const TRAVLR_TOURS: TourDefinition[] = [
       { id: 'top-leads', anchor: 'dashboard-top-leads', route: '/', say: 'Top scored leads lists the highest priority properties for outreach.' },
       { id: 'activity', anchor: 'dashboard-activity', route: '/', say: 'The activity feed shows recent team actions and system events.' }
     ]
+  },
+  {
+    id: 'agent-workspace',
+    title: 'My dashboard',
+    summary: 'Your day at a glance',
+    roles: ['agent'],
+    keywords: ['dashboard', 'workspace', 'my', 'home', 'kpi', 'queue'],
+    steps: [
+      { id: 'header', anchor: 'agent-header', route: '/agent-workspace', say: 'This is your workspace. My Leads opens everything assigned to you.' },
+      { id: 'kpis', anchor: 'agent-kpis', route: '/agent-workspace', say: 'These cards show your day: leads assigned, follow-ups due, calls made and how many reached someone.' },
+      { id: 'leads', anchor: 'agent-leads', route: '/agent-workspace', say: 'Your lead queue is here. Start with the ones at the top: they have the highest priority.' }
+    ]
+  },
+  {
+    id: 'seller-pipeline',
+    title: 'Seller & owner services',
+    summary: 'Seller replies, permissions and partners',
+    roles: [...ADMINS],
+    keywords: ['seller', 'sellers', 'owner', 'services', 'sale', 'opportunities', 'partners'],
+    steps: [
+      { id: 'intro', anchor: 'seller-intro', route: '/seller-pipeline', say: 'When a homeowner replies that they may sell, it lands here for a person to review. Nothing is sent automatically.' },
+      { id: 'tabs', anchor: 'seller-tabs', route: '/seller-pipeline', say: 'Switch between the dashboard, opportunities, partners and revenue here.' },
+      { id: 'content', anchor: 'seller-content', route: '/seller-pipeline', say: 'Each opportunity needs the owner\'s recorded permission before it moves forward.' }
+    ]
   }
 ];

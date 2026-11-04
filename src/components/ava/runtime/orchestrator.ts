@@ -23,6 +23,7 @@ const domEnv = (host: AvaHost): TourEnv => ({
   currentRoute: host.getRoute,
   navigate: host.navigate,
   hasAnchor: anchorExists,
+  reveal: (id) => host.reveal?.(id),
   sleep,
   now: () => Date.now()
 });
@@ -62,6 +63,18 @@ function pickTour(host: AvaHost, text: string): TourDefinition | null {
     if (score > (best?.score ?? 0)) best = { tour, score };
   }
   return best?.tour ?? null;
+}
+
+/** The screen a request names, by the words in its title, id and hint. Requires at least one distinctive word to match. */
+function pickPage(host: AvaHost, text: string) {
+  const words = new Set(tokenize(text));
+  let best: { page: NonNullable<AvaHost['pages']>[number]; score: number } | null = null;
+  for (const page of host.pages ?? []) {
+    const own = new Set([...tokenize(page.title), ...tokenize(page.id)]);
+    const score = [...own].filter((w) => words.has(w)).length * 2 + [...new Set(tokenize(page.hint ?? ''))].filter((w) => words.has(w)).length * 0.5;
+    if (score >= 2 && score > (best?.score ?? 0)) best = { page, score };
+  }
+  return best?.page ?? null;
 }
 
 /**
@@ -118,6 +131,43 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
       notify: (t) => hooks.addMessage('system', t),
       cancelled: () => run.cancelled
     }).then(() => undefined);
+  }
+
+  /**
+   * Takes the user to a screen: points at its item in the menu (opening the menu category first if needed), then opens it and,
+   * if the screen has an authored tour, points at that tour's first element. AVA only points and navigates; she never clicks.
+   */
+  async function handleGo(run: Run, pageId: string, open: boolean) {
+    const page = (host.pages ?? []).find((g) => g.id === pageId);
+    if (!page) {
+      hooks.addMessage('system', "That screen isn't available for your account.");
+      return;
+    }
+    const anchor = `nav-${page.id}`;
+    const here = host.getRoute() === page.route;
+    if (!env.hasAnchor(anchor) && env.reveal) {
+      env.reveal(anchor);
+      await env.sleep(250);
+    }
+    const steps: TourDefinition['steps'] = [];
+    if (env.hasAnchor(anchor)) {
+      steps.push({ id: 'menu', anchor, say: open && !here ? `${page.title} is right here in the menu. I'll open it for you.` : `${page.title} is right here in the menu.` });
+    }
+    const authored = open ? toursForRole(host).find((t) => t.steps[0]?.route === page.route) : undefined;
+    if (authored) steps.push({ ...authored.steps[0], route: page.route });
+
+    if (!steps.length) {
+      if (!open) return narrate(run, `${page.title} is in the menu, but I can't see it from here.`);
+    } else {
+      await startTour(run, { id: `go-${page.id}`, title: page.title, summary: page.title, roles: ['admin', 'owner', 'agent', 'homeowner'], steps });
+    }
+    if (run.cancelled || !open || authored || here) return;
+
+    host.navigate(page.route);
+    const end = Date.now() + 6000;
+    while (host.getRoute() !== page.route && Date.now() < end && !run.cancelled) await sleep(100);
+    if (run.cancelled) return;
+    await narrate(run, host.getRoute() === page.route ? `Here's ${page.title}.` : `I couldn't open ${page.title} from here.`);
   }
 
   async function runTool(run: Run, tool: string, opts: { mutating: boolean; outcome: 'ok' | 'fail' | 'timeout'; completesTask: boolean }) {
@@ -188,6 +238,14 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
       return;
     }
 
+    const pageHit = pickPage(host, t);
+    if (pageHit && /(take me|go to|open|navigate|where|find|show me)/.test(t)) {
+      bus.emit('ava.reasoning.ended', run.requestId);
+      const asksWhere = /(where|find)/.test(t) && !/(take me|go to|open|navigate)/.test(t);
+      await handleGo(run, pageHit.id, !asksWhere);
+      return;
+    }
+
     if (/(tour|show me|where|how do i|walk|around)/.test(t)) {
       bus.emit('ava.reasoning.ended', run.requestId);
       const authored = /missing/.test(t) ? null : pickTour(host, t) ?? (/(tour|walk|around)/.test(t) ? toursForRole(host)[0] ?? null : null);
@@ -244,6 +302,10 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
         case 'tour':
           closeReasoning();
           tours.push(startTour(run, screenTour(host, line.anchors)));
+          break;
+        case 'go':
+          closeReasoning();
+          tours.push(handleGo(run, line.page, line.open));
           break;
         case 'tour_start': {
           closeReasoning();
