@@ -1,4 +1,4 @@
-// Credentials taken from staytrvlr.com, each linked to its public source so homeowners can verify it themselves.
+// Credentials taken from avyropro.ai, each linked to its public source so homeowners can verify it themselves.
 // Keep this list in sync with the website; remove anything that stops being true (for example Superhost status renews yearly).
 export interface TrustItem { key: string; title: string; note: string; href: string }
 
@@ -11,7 +11,7 @@ export const TRUST_ITEMS: TrustItem[] = [
 
 export const TRUST_AFFILIATIONS = 'VRMA, California Association of Realtors and CSA Travel Protection';
 export const TRUST_STORY = 'A founder-led company that also runs its own luxury vacation homes, so we manage yours the way we manage ours.';
-export const ABOUT_URL = 'https://staytrvlr.com/About';
+export const ABOUT_URL = 'https://avyropro.ai/about';
 
 // Why a homeowner would partner with us rather than list on a booking site alone. Keep claims qualitative and true to how we operate.
 export const WHY_TITLE = 'Why partner with TRAVLR instead of listing it yourself?';

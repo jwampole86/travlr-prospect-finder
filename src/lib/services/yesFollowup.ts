@@ -6,7 +6,7 @@ import { toE164 } from '@/lib/services/smsConsent';
 import { duplicateTextReason } from '@/lib/services/smsDuplicateGuard';
 
 type Db = ReturnType<typeof getSupabaseAdmin>;
-const SITE = 'https://prospect.staytrvlr.com';
+const SITE = 'https://avyropro.ai';
 const MESSAGING_SERVICE = process.env.TWILIO_MESSAGING_SERVICE_SID || 'MG9c28a48828aae9a648e8d4bcc8c0cd41';
 
 /** The follow-up to a YES reply. Open-ended on purpose: the homeowner names the day and time, not a "today or tomorrow" slot. */

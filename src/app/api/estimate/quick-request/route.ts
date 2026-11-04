@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
         description: `${who} tapped "${mode === 'call' ? 'Call me' : 'Text me this'}" on the estimate page for ${place}.${mode === 'text' && suppressed ? ' Their number is on the opt-out list: call instead of texting.' : ''}`,
         task_type: 'call', status: 'pending', priority: 'high', due_date: nextBusinessDay().toISOString(), assigned_to: lead.primary_agent_id ?? null,
       }),
-      sendTeamAlert({ key: `home-quick:${mode}:${lead.id}`, text: `Homeowner tapped "${mode === 'call' ? 'Call me' : 'Text me this'}": ${who}, ${place}`, url: `${(process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com').replace(/\/$/, '')}/lead-profile?id=${encodeURIComponent(lead.id)}` }),
+      sendTeamAlert({ key: `home-quick:${mode}:${lead.id}`, text: `Homeowner tapped "${mode === 'call' ? 'Call me' : 'Text me this'}": ${who}, ${place}`, url: `${(process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai').replace(/\/$/, '')}/lead-profile?id=${encodeURIComponent(lead.id)}` }),
       notifyAdmins(db, { title: 'Homeowner wants contact', message: `${who} asked us to ${mode === 'call' ? 'call' : 'text'} them about ${place}.`, metadata: { lead_id: lead.id, reason: 'estimate_quick_request' } }),
     ]);
     return NextResponse.json({ ok: true, last4 });

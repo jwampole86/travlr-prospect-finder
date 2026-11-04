@@ -18,7 +18,7 @@ const CALL_DAYS = new Set([1, 2, 3, 4, 5, 6]);
 const THREAD_HOURS = 72;
 const MAX_REPLIES_PER_DAY = 8;
 const SCHEDULING_KINDS = ['yes_followup', 'manual_followup', 'auto_schedule'];
-const BASE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com').replace(/\/$/, '');
+const BASE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai').replace(/\/$/, '');
 
 // ─── Time zones ──────────────────────────────────────────────────────────────
 

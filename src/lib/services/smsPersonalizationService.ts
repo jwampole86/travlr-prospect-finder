@@ -433,9 +433,9 @@ export const TRAVLR_OUTREACH_TEMPLATE = `Hi {first_name}! I came across {address
 
 Curious what your property could earn as a professionally managed STR?
 
-Free estimate: staytrvlr.com/estimate
+Free estimate: avyropro.ai/estimate
 
-More about us: staytrvlr.com
+More about us: avyropro.ai
 
 Happy to answer any questions!
 

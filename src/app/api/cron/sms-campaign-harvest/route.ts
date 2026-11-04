@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         const next = dPct >= 85 && oPct <= 5
           ? `Delivery is good: ready to launch the next campaign from the ${high.length} untexted leads scoring 70+. Say go.`
           : `Delivery or opt-outs are off: hold the unverified-phone groups and send only fully verified (${verified.length} available).`;
-        await sendTeamAlert({ key: `batch-verdict:${b.batch}`, text: `${b.batch} finished: ${live.length} texts, ${delivered} delivered (${dPct}%), ${undelivered} undelivered, ${optOut} opted out, ${warm} warm/hot. ${next}`, url: `${(process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com').replace(/\/$/, '')}/campaigns`, email: true });
+        await sendTeamAlert({ key: `batch-verdict:${b.batch}`, text: `${b.batch} finished: ${live.length} texts, ${delivered} delivered (${dPct}%), ${undelivered} undelivered, ${optOut} opted out, ${warm} warm/hot. ${next}`, url: `${(process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai').replace(/\/$/, '')}/campaigns`, email: true });
       }
     }
     const milestone = now > lastSend + 72 * 3_600_000 ? 'final' : now > lastSend + 24 * 3_600_000 ? 'day1' : null;

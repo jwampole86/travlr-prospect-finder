@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: 'AVYRO AI Plans & Pricing',
   description: 'Compare AVYRO AI plans for vacation rental and property management teams, from core lead management to advanced automation, AI, analytics, integrations, and Enterprise access.',
   alternates: {
-    canonical: 'https://prospect.staytrvlr.com/plans',
+    canonical: 'https://avyropro.ai/plans',
   },
 };
 

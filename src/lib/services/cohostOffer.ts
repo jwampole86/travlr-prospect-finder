@@ -6,7 +6,7 @@ import { EXPECTED_GAP_SHARE } from '@/lib/cohostFees';
 type Db = ReturnType<typeof getSupabaseAdmin>;
 const ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
 
-export const OFFER_SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com').replace(/\/$/, '');
+export const OFFER_SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai').replace(/\/$/, '');
 export const offerUrl = (code: string) => `${OFFER_SITE}/h/${code}`;
 
 export interface Scenario { key: 'conservative' | 'expected' | 'stretch'; label: string; share: number; annual: number; monthly: number; gain: number; gainPct: number | null }

@@ -38,7 +38,7 @@ export const SERVICES: ServiceDef[] = [
 export interface CheckResult { status: HealthStatus; responseMs: number | null; detail: string }
 type Check = () => Promise<CheckResult>;
 
-const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com').replace(/\/$/, '');
+const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai').replace(/\/$/, '');
 const real = (v: string | undefined) => !!v && !/your-|placeholder|changeme|example|here/i.test(v);
 const minutesAgo = (t: unknown) => { const ms = Date.parse(String(t ?? '')); return Number.isNaN(ms) ? Infinity : (Date.now() - ms) / 60_000; };
 

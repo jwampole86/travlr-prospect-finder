@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: insertError?.message || 'Failed to create invite.' }, { status: 500 });
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.staytrvlr.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
     const inviteLink = `${siteUrl}/invite/${invite.invite_token}`;
     const roleLabel = role === 'team_lead' ? 'Team Lead' : role === 'analyst' ? 'Analyst' : role === 'owner' ? 'Owner' : 'Agent';
 

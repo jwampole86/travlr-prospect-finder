@@ -126,7 +126,7 @@ function buildDigestHtml(params: {
     <!-- Footer -->
     <div style="padding: 20px 32px; background: #f9fafb; border-top: 1px solid #e5e7eb;">
       <p style="margin: 0; font-size: 12px; color: #9ca3af; text-align: center;">
-        TRAVLR Vacation Homes · <a href="https://staytrvlr.com" style="color: #6b7280;">staytrvlr.com</a><br />
+        TRAVLR Vacation Homes · <a href="https://avyropro.ai" style="color: #6b7280;">avyropro.ai</a><br />
         You're receiving this because you have an active onboarding checklist.
       </p>
     </div>
@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabaseAdmin();
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.staytrvlr.com';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
   const portalUrl = `${siteUrl}/homeowner/str-checklist`;
 
   const results = {

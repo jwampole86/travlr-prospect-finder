@@ -50,7 +50,7 @@ function ReportContent() {
         <div className="max-w-sm text-center space-y-2">
           <AlertCircle size={24} className="mx-auto text-amber-500" />
           <p className="font-semibold text-slate-900">We couldn&apos;t open this report</p>
-          <p className="text-sm text-slate-500">The link may be incomplete. Request a fresh estimate at <a className="text-indigo-600 underline" href="/estimate">staytrvlr.com/estimate</a>.</p>
+          <p className="text-sm text-slate-500">The link may be incomplete. Request a fresh estimate at <a className="text-indigo-600 underline" href="/estimate">avyropro.ai/estimate</a>.</p>
         </div>
       </div>
     );

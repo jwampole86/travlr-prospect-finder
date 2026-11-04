@@ -14,7 +14,7 @@ export const BRAND = {
   logo: '/brand/avyro-logo.png',
   logoMark: '/brand/avyro-icon.png',
   favicon: '/favicon.ico',
-  appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://prospect.staytrvlr.com',
+  appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://avyropro.ai',
   supportEmail: 'support@travlr.com',
 } as const;
 

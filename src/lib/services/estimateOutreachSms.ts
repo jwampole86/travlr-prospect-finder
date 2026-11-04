@@ -9,7 +9,7 @@ import { duplicateTextReason } from '@/lib/services/smsDuplicateGuard';
 type Db = ReturnType<typeof getSupabaseAdmin>;
 
 const MODEL = process.env.SMS_OUTREACH_MODEL || 'claude-haiku-4-5-20251001';
-export const SITE_URL = 'https://staytrvlr.com';
+export const SITE_URL = 'https://avyropro.ai';
 export const MAX_SEGMENTS = 3;
 
 // Only real listing sites may be named as "where we found you". Values like Direct or Referral are not listings.

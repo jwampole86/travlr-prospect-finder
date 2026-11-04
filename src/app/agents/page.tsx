@@ -625,7 +625,7 @@ function InviteRow({
   const [actionLoading, setActionLoading] = useState<'resend' | 'revoke' | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.staytrvlr.com';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
   const inviteLink = `${siteUrl}/invite/${invite.invite_token}`;
 
   const isExpiredOrRevoked = invite.status === 'expired';

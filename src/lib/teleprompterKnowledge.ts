@@ -10,18 +10,18 @@ export const APPROVED_NUMBERS: string[] = [];
 
 /**
  * Everything the live teleprompter may say about TRAVLR itself. It is assembled from the approved call scripts, the
- * website-sourced trust content, the public staytrvlr.com pages (About, Homeowners, Guest Services, Contact) and the structure of the
+ * website-sourced trust content, the public avyropro.ai pages (About, Homeowners, Guest Services, Contact) and the structure of the
  * standard Short-Term Rental Management Agreement. Add a fact here only if it is true and approved.
  */
 export const TRAVLR_KNOWLEDGE = `ABOUT TRAVLR
 ${TRAVLR_PROOF_POINTS.map(p => `- ${p}`).join('\n')}
 - ${TRUST_STORY}
 - ${WHY_INTRO}
-- Credentials (public, verifiable on staytrvlr.com): ${TRUST_ITEMS.map(t => t.title).join('; ')}. Affiliations: ${TRUST_AFFILIATIONS}.
+- Credentials (public, verifiable on avyropro.ai): ${TRUST_ITEMS.map(t => t.title).join('; ')}. Affiliations: ${TRUST_AFFILIATIONS}.
 - The Wall Street Journal article is "The Short-Term Rental Hosts Spending Big to Trick Out Luxury Homes", which covers how TRAVLR's owners turned a hillside geodome in Palm Desert into a standout luxury short-term rental. Palm Springs Life ran "Book Your Stay at This Geodome in Palm Desert", a tour of TRAVLR's five-bedroom Perch retreat.
 - Our story: founders Jen and Spencer took a family vacation to La Quinta, California more than a decade ago, saw how much better group travel could be, left careers in digital marketing and law, and started TRAVLR to combine the space and character of private vacation homes with personalized service, modern technology and resort-style amenities. We started with guests (families, friends, companies on reunions, retreats and weekend getaways) and then built a program for luxury homeowners, an effortless ownership solution.
 - We describe ourselves as boutique luxury vacation rental management, with white-glove service, local expertise and personalized guest experiences.
-- Contact: phone (949) 539-8862, available 24/7; email info@staytrvlr.com, answered within 24 hours; website staytrvlr.com. The free homeowner revenue estimate is at staytrvlr.com/estimate.
+- Contact: phone (949) 539-8862, available 24/7; email info@staytrvlr.com, answered within 24 hours; website avyropro.ai. The free homeowner revenue estimate is at avyropro.ai/estimate.
 
 WHERE WE OPERATE
 - Our website lists these destinations: the Coachella Valley (Palm Desert, La Quinta, Palm Springs, Indio, Coachella, Bermuda Dunes), plus Aspen, Breckenridge, Vail, Las Vegas, Seattle, Bellevue, Miami, Boston, Dallas and Salt Lake City.

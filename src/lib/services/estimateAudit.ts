@@ -123,7 +123,7 @@ export async function auditDetail(db: Db, leadId: string, withBenchmark: boolean
     }
   }
 
-  const base = (process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com').replace(/\/$/, '');
+  const base = (process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai').replace(/\/$/, '');
   return {
     leadId, address, liveUrl: `${base}/estimate?address=${encodeURIComponent(address).replace(/%20/g, '+')}`,
     lead: { beds: lead.beds, baths: lead.baths, type: lead.property_type, price: lead.price, priceType: lead.price_type, rentAi: lead.estimated_monthly_rent_ai, adr: lead.estimated_adr, occupancy: lead.estimated_occupancy, source: lead.source, program: lead.program },

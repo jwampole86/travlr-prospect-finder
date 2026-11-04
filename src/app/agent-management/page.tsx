@@ -229,7 +229,7 @@ export default function AgentManagementPage() {
   }
 
   async function copyInviteLink(token: string) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.staytrvlr.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
     await navigator.clipboard.writeText(`${siteUrl}/invite/${token}`);
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 2500);

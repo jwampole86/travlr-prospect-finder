@@ -16,7 +16,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://prospect.staytrvlr.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai'),
   title: 'AVYRO AI | AI-Powered Growth for Property Managers',
   description:
     'AVYRO AI is the AI-powered growth and operations platform for vacation rental and property management companies.',

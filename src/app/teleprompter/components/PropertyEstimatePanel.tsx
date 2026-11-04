@@ -24,7 +24,7 @@ interface EstimateResult {
   regulationStatus: 'permitted' | 'restricted' | 'unknown';
 }
 
-const PUBLIC_ESTIMATE_URL = 'https://staytrvlr.com/estimate';
+const PUBLIC_ESTIMATE_URL = 'https://avyropro.ai/estimate';
 
 function fmt(n: number) {
   return `$${Math.round(n).toLocaleString('en-US')}`;
@@ -165,14 +165,14 @@ export default function PropertyEstimatePanel({ address, city, state, contactNam
               className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <ExternalLink className="w-3 h-3" />
-              Open staytrvlr.com/estimate
+              Open avyropro.ai/estimate
             </a>
           </div>
 
           <div className="flex items-start gap-1.5 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5">
             <MessageSquare className="w-3 h-3 text-amber-500 mt-0.5 shrink-0" />
             <p className="text-[10px] text-amber-700 dark:text-amber-400 leading-relaxed">
-              Talking point: "I can run your numbers right now, or you can do it yourself anytime at staytrvlr.com — just scroll to 'Partner with TRAVLR to maximize your property's potential' and click 'Get Your Estimate.'"
+              Talking point: "I can run your numbers right now, or you can do it yourself anytime at avyropro.ai — just scroll to 'Partner with TRAVLR to maximize your property's potential' and click 'Get Your Estimate.'"
             </p>
           </div>
         </>

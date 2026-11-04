@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.staytrvlr.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
     const inviteLink = `${siteUrl}/invite/${newToken}`;
     const roleLabel = invite.role === 'team_lead' ? 'Team Lead' : invite.role === 'analyst' ? 'Analyst' : invite.role === 'owner' ? 'Owner' : 'Agent';
 

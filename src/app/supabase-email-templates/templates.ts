@@ -7,7 +7,7 @@ export interface AuthEmailTemplate {
   body: string;
 }
 
-const LOGO_URL = 'https://app.staytrvlr.com/assets/images/app_logo.png';
+const LOGO_URL = 'https://avyropro.ai/assets/images/app_logo.png';
 const PRIMARY = '#1a5276';
 const SECONDARY = '#2e86c1';
 
@@ -36,7 +36,7 @@ ${content}
           </tr>
           <tr>
             <td style="background-color:#f4f6f9;padding:24px 40px;text-align:center;border-top:1px solid #dde3ec;">
-              <p style="margin:0 0 6px 0;font-size:13px;color:#64748b;">TRAVLR Vacation Homes &bull; <a href="https://app.staytrvlr.com" style="color:${SECONDARY};text-decoration:none;">app.staytrvlr.com</a></p>
+              <p style="margin:0 0 6px 0;font-size:13px;color:#64748b;">TRAVLR Vacation Homes &bull; <a href="https://avyropro.ai" style="color:${SECONDARY};text-decoration:none;">avyropro.ai</a></p>
               <p style="margin:0;font-size:12px;color:#94a3b8;">You received this email because you have an account with TRAVLR. If you did not request this, you can safely ignore it.</p>
             </td>
           </tr>

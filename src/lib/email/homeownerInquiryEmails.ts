@@ -94,6 +94,6 @@ export function buildHomeownerConfirmationEmail(d: InquiryDetails, report: Homeo
   <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 22px 0;"><tr><td style="background:#4f46e5;border-radius:12px;"><a href="${esc(links.report)}" style="display:inline-block;padding:13px 24px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">View my report</a></td></tr></table>
   <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Need to change something? Just reply to this email or write <a href="mailto:${esc(contactEmail)}" style="color:#4f46e5;">${esc(contactEmail)}</a>.</p>
 </td></tr>
-<tr><td style="padding:14px 28px 24px 28px;border-top:1px solid #f1f5f9;font-size:11px;color:#94a3b8;">TRAVLR Vacation Homes &middot; staytrvlr.com</td></tr>`);
+<tr><td style="padding:14px 28px 24px 28px;border-top:1px solid #f1f5f9;font-size:11px;color:#94a3b8;">TRAVLR Vacation Homes &middot; avyropro.ai</td></tr>`);
   return { subject, html, text };
 }

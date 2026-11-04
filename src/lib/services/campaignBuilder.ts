@@ -10,7 +10,7 @@ import { checkListingStatuses } from '@/lib/services/listingStatus';
 type Db = ReturnType<typeof getSupabaseAdmin>;
 type Row = Record<string, any>;
 
-const SITE = 'https://prospect.staytrvlr.com';
+const SITE = 'https://avyropro.ai';
 const MESSAGING_SERVICE = process.env.TWILIO_MESSAGING_SERVICE_SID || 'MG9c28a48828aae9a648e8d4bcc8c0cd41';
 const MIN_LEAD_MINUTES = 30; // at plan time; Twilio itself needs 15 minutes
 const MAX_TEXTS = 500;

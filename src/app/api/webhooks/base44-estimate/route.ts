@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     streetKey.includes(normalizeStreet(l.address ?? ''))
   );
 
-  const activityNote = `Homeowner submitted /estimate form on staytrvlr.com. Name: ${contactName}. Phone: ${phone || 'not provided'}. Email: ${email}. SMS consent: ${smsConsent ? 'yes' : 'no'}.`;
+  const activityNote = `Homeowner submitted /estimate form on avyropro.ai. Name: ${contactName}. Phone: ${phone || 'not provided'}. Email: ${email}. SMS consent: ${smsConsent ? 'yes' : 'no'}.`;
 
   if (matchedLead) {
     // ── 5a. Merge into existing lead ────────────────────────────────────────
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
           type: 'info_request_submitted',
           priority: 'high',
           title: 'Homeowner confirmed contact info via estimate form',
-          message: `${contactName} submitted the /estimate form on staytrvlr.com for ${matchedLead.address}. Ready for direct outreach.`,
+          message: `${contactName} submitted the /estimate form on avyropro.ai for ${matchedLead.address}. Ready for direct outreach.`,
           lead_id: matchedLead.id,
           read: false,
           created_at: receivedAt,
@@ -244,7 +244,7 @@ export async function POST(req: NextRequest) {
           event_category: 'lead_change',
           lead_id: newLead.id,
           title: 'New lead created via Base44 estimate webhook',
-          description: `Self-submitted from staytrvlr.com /estimate: ${address}`,
+          description: `Self-submitted from avyropro.ai /estimate: ${address}`,
           severity: 'info',
           new_value: { stage: 'nurturing', source: 'base44_estimate_webhook', status_tag: 'Warm — Contact Confirmed' },
           event_timestamp: receivedAt,

@@ -11,7 +11,7 @@ export interface Brand {
 }
 
 export const BRANDS: Record<BrandKey, Brand> = {
-  travlr: { key: 'travlr', name: 'TRAVLR Vacation Homes', siteUrl: 'https://staytrvlr.com', enabled: true },
+  travlr: { key: 'travlr', name: 'TRAVLR Vacation Homes', siteUrl: 'https://avyropro.ai', enabled: true },
   naveo: { key: 'naveo', name: 'NAVEO', siteUrl: 'https://staynaveo.com', enabled: false },
 };
 

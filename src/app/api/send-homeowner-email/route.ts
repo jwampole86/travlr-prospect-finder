@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       html: `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1a1a1a;">
           <p style="white-space: pre-wrap; line-height: 1.7; font-size: 15px;">${escapedMessage}</p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280;">TRAVLR Vacation Homes · <a href="https://staytrvlr.com" style="color: #6366f1;">staytrvlr.com</a></p>
+          <p style="font-size: 12px; color: #6b7280;">TRAVLR Vacation Homes · <a href="https://avyropro.ai" style="color: #6366f1;">avyropro.ai</a></p>
         </div>`,
     });
 
