@@ -994,7 +994,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   ];
   const variantIdx = lead.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % msgVariants.length;
   const variant = msgVariants[variantIdx];
-  const outreachMessage = `${variant.opening} I'm with TRAVLR Vacation Homes, a property management company. ${variant.cta}\nstaytrvlr.com/estimate\nYou can also learn more about us at avyropro.ai. Happy to answer any questions!\n— ${agentFirstName}, TRAVLR Vacation Homes`;
+  const outreachMessage = `${variant.opening} I'm with TRAVLR Vacation Homes, a property management company. ${variant.cta}\navyropro.ai/estimate\nYou can also learn more about us at avyropro.ai. Happy to answer any questions!\n— ${agentFirstName}, TRAVLR Vacation Homes`;
 
   async function handleCopyMessage() {
     const text = outreachMessage;
