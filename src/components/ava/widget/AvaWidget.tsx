@@ -17,6 +17,7 @@ import { suggestionsFor, toursForRole } from '../host/types';
 import type { AvaHost, AvaRole } from '../host/types';
 import { ChipRow } from './ChipRow';
 import { nextFollowups } from '../runtime/followups';
+import { FLOAT_W, VISIBLE, floatSpot } from './floatSpot';
 import './ava-widget.css';
 
 interface Message { role: 'user' | 'ava' | 'system'; text: string; sources?: SourceNote[] }
@@ -76,7 +77,10 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
   voiceRef.current = voiceReplies;
   const mic = useRef<MicSession | null>(null);
   const micReq = useRef<string | null>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null); // the floating layer: the character, which can leave its home to point at things
+  const homeRef = useRef<HTMLDivElement>(null); // where the character lives in the panel; never moves
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [floating, setFloating] = useState(false);
   const parkRef = useRef<HTMLDivElement>(null);
   const [warm, setWarm] = useState(false);
   const [ready, setReady] = useState(false);
@@ -146,6 +150,38 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     el.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' });
     return () => el.classList.remove('ava-highlight');
   }, [pointedAt, reducedMotion]);
+
+  // Floating guide: while AVA points at something she leaves the panel and hovers beside it, then glides home when done.
+  useEffect(() => {
+    const layer = stageRef.current;
+    const home = homeRef.current;
+    if (!layer || !home) return;
+    const reset = () => { layer.style.transform = ''; setFloating(false); };
+    if (!pointedAt || mode === 'closed') { reset(); return; }
+    const id = pointedAt;
+    let raf = 0;
+    let last = '';
+    const tick = () => {
+      raf = window.requestAnimationFrame(tick);
+      const el = document.querySelector(`[data-ava-anchor="${CSS.escape(id)}"]`);
+      if (!el) return;
+      const h = home.getBoundingClientRect();
+      const t = el.getBoundingClientRect();
+      const avoid = panelRef.current?.getBoundingClientRect() ?? null;
+      const scale = FLOAT_W / h.width;
+      const layerH = h.height * scale;
+      // The character fills only the middle of her layer; place that visible part, not the whole transparent layer.
+      const ox = FLOAT_W * VISIBLE.x, oy = layerH * VISIBLE.y;
+      const spot = floatSpot({ w: window.innerWidth, h: window.innerHeight }, t, avoid, { w: FLOAT_W * VISIBLE.w, h: layerH * VISIBLE.h });
+      const key = `${Math.round(spot.x - ox - h.left)},${Math.round(spot.y - oy - h.top)},${scale.toFixed(3)}`;
+      if (key === last) return;
+      last = key;
+      layer.style.transform = `translate(${spot.x - ox - h.left}px, ${spot.y - oy - h.top}px) scale(${scale})`;
+      setFloating(true);
+    };
+    tick();
+    return () => { window.cancelAnimationFrame(raf); reset(); };
+  }, [pointedAt, mode]);
 
   const changeMode = (next: Mode) => {
     setMode(next);
@@ -290,25 +326,27 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
 
       {mode !== 'closed' && (
         <section className={`ava ${mode}`} style={pos} aria-label="AVA assistant">
-          <div className="ava-stage" ref={stageRef}
-               onClick={mode === 'mini' ? () => changeMode('expanded') : undefined}
-               role={mode === 'mini' ? 'button' : undefined} tabIndex={mode === 'mini' ? 0 : undefined}
-               onKeyDown={(e) => mode === 'mini' && (e.key === 'Enter' || e.key === ' ') && changeMode('expanded')}
-               aria-label={mode === 'mini' ? `Expand AVA, ${faceLabel}` : undefined}>
-            {mode === 'mini' && <div className="stage-hit" aria-hidden="true" />}
-            {!ready && view === '3d' && <div className="stage-loading" aria-hidden="true"><i /></div>}
-            {view === '2d' && fellBack && webglAvailable() && (
-              <button className="try3d" onClick={() => { retries.current = 0; setView('3d'); }}>Try 3D again</button>
-            )}
-            {faceLabel === 'sleeping' && (
-              <div className={`zzz ${presentation.motion}`} aria-hidden="true"><span>Z</span><span>Z</span><span>Z</span></div>
-            )}
-            {captionsOn && caption && <div className="caption" aria-hidden="true" data-testid="caption">{caption}</div>}
-            <span className={`badge ${faceLabel}`}>{faceLabel}{presentation.overlays.speaking ? ' · speaking' : ''}</span>
+          <div className="ava-stage" ref={homeRef}>
+            <div className="ava-float" ref={stageRef} data-floating={floating ? 'true' : 'false'}
+                 onClick={mode === 'mini' ? () => changeMode('expanded') : undefined}
+                 role={mode === 'mini' ? 'button' : undefined} tabIndex={mode === 'mini' ? 0 : undefined}
+                 onKeyDown={(e) => mode === 'mini' && (e.key === 'Enter' || e.key === ' ') && changeMode('expanded')}
+                 aria-label={mode === 'mini' ? `Expand AVA, ${faceLabel}` : undefined}>
+              {mode === 'mini' && <div className="stage-hit" aria-hidden="true" />}
+              {!ready && view === '3d' && <div className="stage-loading" aria-hidden="true"><i /></div>}
+              {view === '2d' && fellBack && webglAvailable() && (
+                <button className="try3d" onClick={() => { retries.current = 0; setView('3d'); }}>Try 3D again</button>
+              )}
+              {faceLabel === 'sleeping' && (
+                <div className={`zzz ${presentation.motion}`} aria-hidden="true"><span>Z</span><span>Z</span><span>Z</span></div>
+              )}
+              {captionsOn && caption && <div className="caption" aria-hidden="true" data-testid="caption">{caption}</div>}
+              <span className={`badge ${faceLabel}`}>{faceLabel}{presentation.overlays.speaking ? ' · speaking' : ''}</span>
+            </div>
           </div>
 
           {mode === 'expanded' && (
-            <div className="panel">
+            <div className="panel" ref={panelRef}>
               <div className="panel-head">
                 <div className="title">
                   <strong>AVA</strong>

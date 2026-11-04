@@ -12,7 +12,12 @@
 
 /* Placement */
 .ava-root .ava { position: fixed; right: 16px; bottom: 16px; z-index: 9990; display: flex; align-items: flex-end; gap: 10px; }
-.ava-root .ava-stage { position: relative; }
+.ava-root .ava-stage { position: relative; pointer-events: none; }
+/* The character's own layer: it floats off to point at things and glides back. Scaled from its top-left corner. */
+.ava-root .ava-float { position: relative; width: 100%; height: 100%; transform-origin: 0 0; pointer-events: auto; transition: transform .85s cubic-bezier(.22, 1, .36, 1); will-change: transform; }
+.ava-root .ava-float[data-floating='true'] .badge { opacity: 0; } /* the panel's status line says what she is doing */
+.ava-root .ava-float[data-floating='true'] { z-index: 2; filter: drop-shadow(0 14px 22px rgba(40, 70, 160, .28)); }
+@media (prefers-reduced-motion: reduce) { .ava-root .ava-float { transition: none; } }
 .ava-root .ava.expanded .ava-stage { width: 340px; height: 400px; }
 .ava-root .ava.mini .ava-stage { width: 190px; height: 230px; cursor: pointer; }
 .ava-root .stage-canvas, .ava-root .stage-canvas > div { width: 100%; height: 100%; }
