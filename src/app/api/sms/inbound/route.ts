@@ -157,6 +157,23 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // A reply that sounds like a sale is logged as a seller opportunity for a person to review; nothing is sent back automatically.
+  if (verified !== false && lead && !scheduled && intent !== 'stop' && intent !== 'no') {
+    try {
+      const { detectSellerIntent } = await import('@/lib/seller/sellerIntent');
+      const sellerIntent = detectSellerIntent(text);
+      if (sellerIntent.level !== 'none') {
+        const { recordSellerSignal } = await import('@/lib/seller/sellerPipeline');
+        const result = await recordSellerSignal(db, { leadId: lead.id, source: 'sms_reply', text, intent: sellerIntent });
+        await db.from('outreach_history').update({ metadata: { direction: 'inbound', from, body: text.slice(0, 1000), message_sid: messageSid, intent, seller_intent: sellerIntent.level, lead_found: true, signature_verified: verified } })
+          .eq('metadata->>message_sid', messageSid).eq('lead_id', lead.id);
+        if (result?.created) {
+          await notifyAdmins(db, { title: 'Possible seller', message: `${lead.contact_name ?? 'A homeowner'} replied: "${text.slice(0, 140)}"`, metadata: { leadId: lead.id, url: `${site}/seller-pipeline` } });
+        }
+      }
+    } catch { /* the reply is already stored; seller tracking is best effort */ }
+  }
+
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return new NextResponse(`<?xml version="1.0" encoding="UTF-8"?><Response>${reply ? `<Message>${esc(reply)}</Message>` : ''}</Response>`, { headers: { 'Content-Type': 'text/xml' } });
 }

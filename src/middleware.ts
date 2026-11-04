@@ -126,6 +126,7 @@ const ADMIN_ONLY_ROUTES = [
   '/escalated-leads',
   '/campaigns',
   '/cohost',
+  '/seller-pipeline',
   '/follow-up-sequences',
   '/outreach-tracking',
   '/score-simulator',

@@ -80,7 +80,19 @@ export async function recordOptOut(db: Db, input: { leadId: string | null; phone
   if (input.leadId) {
     await db.from('leads').update({ sms_opt_in: false, sms_opted_out_at: now }).eq('id', input.leadId);
     await db.from('cadence_enrollments').update({ status: 'unsubscribed' }).eq('lead_id', input.leadId).eq('status', 'active');
+    await logConsent('revoke', input.leadId, e164, input.message);
   }
+}
+
+/** Mirrors the text opt-in or opt-out into the purpose-specific consent ledger; a ledger failure never blocks the opt-out itself. */
+async function logConsent(kind: 'grant' | 'revoke', leadId: string, phone: string | null, message: string) {
+  try {
+    const { getSupabaseAdmin } = await import('@/lib/supabaseAdmin');
+    const ledger = await import('@/lib/seller/consentLedger');
+    const db = getSupabaseAdmin();
+    if (kind === 'revoke') await ledger.revokeAllConsent(db, { leadId, source: 'sms_stop', evidence: message, phone });
+    else await ledger.recordConsent(db, { leadId, purpose: 'estimate_followup', granted: true, source: 'sms_reply_yes', channels: ['sms', 'call'], evidence: message, phone });
+  } catch { /* the opt-out has already been applied */ }
 }
 
 export async function recordOptIn(db: Db, input: { leadId: string; phone: string }) {
@@ -88,6 +100,7 @@ export async function recordOptIn(db: Db, input: { leadId: string; phone: string
   const e164 = toE164(input.phone);
   if (e164) await db.from('sms_suppressions').delete().eq('phone_e164', e164);
   await db.from('leads').update({ sms_opt_in: true, sms_opt_in_at: now, opt_in_source: 'sms_reply_yes', sms_opted_out_at: null }).eq('id', input.leadId);
+  await logConsent('grant', input.leadId, e164, 'Replied YES to the estimate text');
 }
 
 /** Alerts each admin and owner through the channels and alert types they chose on My Profile & Prefs. */

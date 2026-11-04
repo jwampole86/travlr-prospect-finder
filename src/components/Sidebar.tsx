@@ -11,7 +11,7 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 import HelpChatPanel from '@/components/HelpChatPanel';
 import ThemeToggle from '@/components/ThemeToggle';
 
-import { LayoutDashboard, List, Map, ChevronLeft, ChevronRight, Settings, Download, RefreshCw, Bell, HelpCircle, Building2, ChevronDown, Calculator, FileText, Zap, TrendingUp, Star, SlidersHorizontal, LogOut, Radio, LineChart, Mail, UserCircle, Users, GitBranch, Inbox, History, CalendarClock, Wrench, DollarSign, CheckCircle, Kanban, Copy, Activity, BarChart2, Brain, CalendarCheck, Globe2, X, Shield, ClipboardList, Search, Radar, HeartPulse, Play, MessageSquare, Megaphone, UserPlus, Send, RotateCcw, AlertOctagon, TrendingDown, PieChart, ShieldCheck, Phone, Flame, UserCog, Edit2, CheckSquare, Webhook, Server, MonitorDot, Trophy, Sparkles, DatabaseZap, Home, Rocket, Signal, UserCheck, CreditCard, Plug, BookOpen, Lock, Globe, Database, Headphones, Award, Link2, MessageCircle, Target, Navigation, Briefcase, Mic, Calendar, AlertCircle, Clock } from 'lucide-react';
+import { LayoutDashboard, List, Map, ChevronLeft, ChevronRight, Settings, Download, RefreshCw, Bell, HelpCircle, Building2, ChevronDown, Calculator, FileText, Zap, TrendingUp, Star, SlidersHorizontal, LogOut, Radio, LineChart, Mail, UserCircle, Users, GitBranch, Inbox, History, CalendarClock, Wrench, DollarSign, CheckCircle, Kanban, Copy, Activity, BarChart2, Brain, CalendarCheck, Globe2, X, Shield, ClipboardList, Search, Radar, HeartPulse, Play, MessageSquare, Megaphone, UserPlus, Send, RotateCcw, AlertOctagon, TrendingDown, PieChart, ShieldCheck, Phone, Flame, UserCog, Edit2, CheckSquare, Webhook, Server, MonitorDot, Trophy, Sparkles, DatabaseZap, Home, Rocket, Signal, UserCheck, CreditCard, Plug, BookOpen, Lock, Globe, Database, Headphones, Award, Link2, MessageCircle, Target, Navigation, Briefcase, Mic, Calendar, AlertCircle, Clock, Handshake } from 'lucide-react';
 
 // ─── Nav Group Types ──────────────────────────────────────────────────────────
 
@@ -124,6 +124,7 @@ const adminNavGroups: NavGroup[] = [
       { key: 'nav-sms-delivery', label: 'SMS Delivery', href: '/sms-delivery', icon: Send, badge: null },
       { key: 'nav-campaigns', label: 'Campaigns', href: '/campaigns', icon: Megaphone, badge: 'New' },
       { key: 'nav-cohost', label: 'Co-Host Pipeline', href: '/cohost', icon: Briefcase, badge: 'New' },
+      { key: 'nav-seller-pipeline', label: 'Seller & Owner Services', href: '/seller-pipeline', icon: Handshake, badge: 'New' },
       { key: 'nav-sms-campaign-analytics', label: 'SMS Campaign Analytics', href: '/sms-campaign-analytics', icon: BarChart2, badge: 'New' },
       { key: 'nav-sms-inbound-threads', label: 'Inbound Threads', href: '/sms-inbound-threads', icon: MessageCircle, badge: 'New' },
       { key: 'nav-bulk-outreach', label: 'Bulk Outreach Composer', href: '/bulk-outreach', icon: Megaphone, badge: null },
@@ -349,6 +350,7 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
   'nav-sms-delivery': 'Delivery status for every text',
   'nav-campaigns': 'Plan and launch campaigns',
   'nav-cohost': 'Co-host prospects and offers',
+  'nav-seller-pipeline': 'Seller replies, permissions and partners',
   'nav-sms-campaign-analytics': 'Texting results by campaign',
   'nav-sms-inbound-threads': 'Replies from homeowners',
   'nav-bulk-outreach': 'Send to many leads at once',
