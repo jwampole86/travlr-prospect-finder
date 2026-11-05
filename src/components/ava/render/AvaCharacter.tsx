@@ -92,7 +92,7 @@ const NECK_STACK: Array<{ name: string; r: number; h: number; y: number; kind: '
 /** Head-local height of the lowest point of the head's own underside (a smooth, shallow bowl; measured from the scan). */
 const HEAD_BOTTOM = -0.026;
 /** The scan sinks the head into the top of the torso, hiding the neck. Lifting it leaves the short black neck of the reference art in view. */
-const HEAD_LIFT = 0.03;
+const HEAD_LIFT = 0.012;
 
 function canvasTexture(w: number, h: number) {
   const canvas = document.createElement('canvas');
