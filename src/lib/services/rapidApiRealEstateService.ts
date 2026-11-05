@@ -84,7 +84,15 @@ async function throttleHost(host: string): Promise<void> {
   if (slot > now) await sleep(slot - now);
 }
 
-async function rapidApiFetch(host: string, path: string, init: RequestInit = {}): Promise<RapidApiFetchResult> {
+interface RapidApiFetchOptions {
+  /** How long one request may take. Scrapers that run a browser job per call (HotPads) are much slower than plain APIs. */
+  timeoutMs?: number;
+  /** Retry once when a request times out. Off for providers where a timeout means the job is failing, not a blip. */
+  retryTimeout?: boolean;
+}
+
+async function rapidApiFetch(host: string, path: string, init: RequestInit = {}, options: RapidApiFetchOptions = {}): Promise<RapidApiFetchResult> {
+  const { timeoutMs = 30000, retryTimeout = true } = options;
   const keys = getRapidApiKeys();
   if (keys.length === 0) {
     return { ok: false, error: 'No RAPIDAPI_KEY_* configured' };
@@ -103,7 +111,7 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {})
         const res = await fetch(`https://${host}${path}`, {
           ...init,
           headers: { ...(init.headers || {}), 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': host },
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(timeoutMs),
         });
 
         // Only rotate to the next key on auth/quota failures — any other response
@@ -144,7 +152,7 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {})
         // network failures (DNS, connection reset) are less likely to clear
         // on retry and fail fast as before.
         const isTimeout = err instanceof Error && /timeout|aborted/i.test(err.name + err.message);
-        if (isTimeout && attempt === 1) {
+        if (isTimeout && attempt === 1 && retryTimeout) {
           lastError = err.message;
           await sleep(500);
           continue; // retry same key once more
@@ -1123,19 +1131,27 @@ function normalizeHotPadsListing(raw: HotPadsListingRaw): NormalizedRentalListin
 }
 
 /** POST / — one "City, ST" → 5 listings. */
+export const HOTPADS_OUTAGE_MESSAGE = "HotPads' data provider is down: its scraper job fails for every city (provider-side, not this app or your key).";
+export const HOTPADS_TIMEOUT_MESSAGE = "HotPads' data provider is too slow to answer (its scraper job did not finish in time).";
+
 export async function searchHotPadsRentals(
   params: { location: string }
-): Promise<{ ok: boolean; listings: NormalizedRentalListing[]; error?: string; status?: number }> {
+): Promise<{ ok: boolean; listings: NormalizedRentalListing[]; error?: string; status?: number; outage?: boolean }> {
   const location = params.location.trim();
   if (!/^[A-Za-z.' -]+,\s*[A-Za-z]{2}$/.test(location)) {
     return { ok: false, listings: [], error: `Invalid HotPads location "${params.location}" — expected "City, ST"`, status: 400 };
   }
+  // Each call runs a scraper job, which used to take ~5s but now takes 25-45s when it works at all, so the request gets a long
+  // timeout and is not retried: a timeout here means the job is failing, and a retry only doubles the wait.
   const result = await rapidApiFetch(HOTPADS_HOST, '/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ location }),
-  });
+  }, { timeoutMs: 75_000, retryTimeout: false });
   if (!result.ok) {
+    const type = (result.data as { error?: { type?: string } } | null)?.error?.type;
+    if (type === 'run-failed') return { ok: false, listings: [], error: HOTPADS_OUTAGE_MESSAGE, status: 502, outage: true };
+    if (/timeout|aborted/i.test(result.error ?? '')) return { ok: false, listings: [], error: HOTPADS_TIMEOUT_MESSAGE, status: 504, outage: true };
     return { ok: false, listings: [], error: result.error, status: result.status };
   }
   if (!Array.isArray(result.data)) {

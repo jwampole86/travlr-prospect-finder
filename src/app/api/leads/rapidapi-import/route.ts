@@ -251,14 +251,19 @@ async function runImport(req: NextRequest) {
     let failures = 0;
     let lastError: string | undefined;
     let lastStatus: number | undefined;
+    let outageStreak = 0;
     for (const location of locations) {
       const result = await searchHotPadsRentals({ location });
       if (!result.ok) {
         failures++;
         lastError = result.error;
         lastStatus = result.status;
+        // When the provider's scraper is failing for every city, trying the rest only burns requests and minutes.
+        outageStreak = result.outage ? outageStreak + 1 : 0;
+        if (outageStreak >= 2) break;
         continue;
       }
+      outageStreak = 0;
       for (const l of result.listings) {
         const key = l.externalId || `${l.address}|${l.zip}`;
         if (seen.has(key)) continue;

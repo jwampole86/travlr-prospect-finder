@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyJobRequest } from '@/lib/jobAuth';
 import { finishCronRun, startCronRun } from '@/lib/recordCronRun';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { circuitFor, type SourcePullEvent } from '@/lib/services/sourceCircuit';
 
 export const maxDuration = 300;
 
@@ -122,7 +123,7 @@ export async function GET(req: NextRequest) {
 
     const { data: events, error: eventsError } = await db
       .from('sync_events')
-      .select('payload, created_at')
+      .select('payload, created_at, status')
       .eq('operation_type', 'source_sync')
       .order('created_at', { ascending: false })
       .limit(3000);
@@ -144,6 +145,21 @@ export async function GET(req: NextRequest) {
         lastPull.set(code, String(event.created_at));
       }
     }
+
+    // A source whose recent pulls all failed is paused (its provider is down); one state per run still probes it, so a recovery is
+    // noticed. Events are newest first.
+    const pullEvents: SourcePullEvent[] = (events || []).map((event) => ({
+      source: String((event.payload as { source?: string } | null)?.source ?? ''),
+      ok: event.status === 'success',
+      at: String(event.created_at),
+    }));
+    const sourceNames: Record<string, string> = { trulia: 'Trulia', padmapper: 'PadMapper', hotpads: 'HotPads', 'zillow-search': 'Zillow' };
+    const paused: Record<string, { failures: number; lastFailureAt: string | null; probing: boolean }> = {};
+    for (const source of sources) {
+      const circuit = circuitFor(pullEvents, sourceNames[source] ?? source, Date.now());
+      if (circuit.open) paused[source] = { failures: circuit.failures, lastFailureAt: circuit.lastFailureAt, probing: circuit.probe };
+    }
+    const probed = new Set<string>();
 
     const states = (registry || [])
       .map((row) => String(row.state_code || ''))
@@ -218,7 +234,13 @@ export async function GET(req: NextRequest) {
           }
       };
       const pulls = await Promise.all(
-        sources.map(async (source, i): Promise<PullResult> => {
+        sources.filter((source) => {
+          const p = paused[source];
+          if (!p) return true;
+          // Paused: skip, except for a single probe (once the pause is old enough) to see whether the provider has recovered.
+          if (p.probing && !probed.has(source)) { probed.add(source); return true; }
+          return false;
+        }).map(async (source, i): Promise<PullResult> => {
           // Zillow's scraper is the most rate-limited, so it starts a moment after the other providers.
           if (source === 'zillow-search') await sleep(1500);
           let result = await pullOnce(source, state);
@@ -271,6 +293,7 @@ export async function GET(req: NextRequest) {
         cities: cityResults.map((r) => `${r.source.slice(7)}, ${r.state}: ${r.ok ? `${r.newLeads} new of ${r.fetched}` : 'failed'}`),
         durationMs,
         failureCount: failures.length,
+        pausedSources: Object.entries(paused).map(([source, p]) => `${source}: paused after ${p.failures} failed pulls${p.probing ? ' (probing for recovery)' : ''}`),
       },
     });
 
@@ -279,6 +302,7 @@ export async function GET(req: NextRequest) {
       states,
       skipped,
       newLeads: totalNewLeads,
+      paused,
       failures,
       results,
       cityResults,
