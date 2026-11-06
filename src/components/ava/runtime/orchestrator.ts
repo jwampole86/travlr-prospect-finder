@@ -6,12 +6,16 @@ import { cancelSpeech, speak } from './speech';
 import { BrainUnavailable, streamConfirm, streamTurn } from './brain';
 import type { BrainLine, BrainMessage, SourceNote } from './brain';
 import { runTour } from './tours';
+import { topicId } from '../core/learning';
+import type { LearnEvent } from '../core/learning';
 import type { TourEnv } from './tours';
 import { anchorExists, buildContext, toursForRole, visibleAnchors } from '../host/types';
 import type { AvaHost, TourDefinition } from '../host/types';
 
 export interface OrchestratorHooks {
-  addMessage: (role: 'user' | 'ava' | 'system', text: string, sources?: SourceNote[]) => void;
+  addMessage: (role: 'user' | 'ava' | 'system', text: string, sources?: SourceNote[], meta?: { rateable?: boolean }) => void;
+  /** What AVA is learning about this person: ids and counts only, never what was said. */
+  onLearn?: (event: LearnEvent) => void;
   voiceReplies: () => boolean;
   /** Sentence being spoken right now (for captions), or null. */
   onCaption?: (sentence: string | null) => void;
@@ -85,6 +89,14 @@ function pickPage(host: AvaHost, text: string) {
 export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: OrchestratorHooks, env: TourEnv = domEnv(host)) {
   let active: Run | null = null;
   const history: BrainMessage[] = [];
+  // Everything AVA explains while guiding or teaching is also what she said in the conversation, so the model must remember it: a
+  // follow-up like "what does that mean?" is about the last thing she pointed at. One tour's narration is kept as a single entry, so a
+  // long tour cannot push the user's own question out of the model's short history.
+  let narration: BrainMessage | null = null;
+  const remember = (text: string) => {
+    if (narration && history.at(-1) === narration) narration.content += ` ${text}`;
+    else { narration = { role: 'assistant', content: `(While guiding the user) ${text}` }; history.push(narration); }
+  };
   let offlineNoticeShown = false;
 
   function waitForDecision(requestId: string, actionId: string, run: Run): Promise<'accepted' | 'rejected' | 'cancelled'> {
@@ -102,10 +114,10 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
     });
   }
 
-  async function say(run: Run, text: string, sources?: SourceNote[]) {
+  async function say(run: Run, text: string, sources?: SourceNote[], rateable = false) {
     if (run.cancelled) return;
     bus.emit('ava.answer.started', run.requestId);
-    hooks.addMessage('ava', text, sources);
+    hooks.addMessage('ava', text, sources, { rateable });
     history.push({ role: 'assistant', content: text });
     if (hooks.voiceReplies()) await speak(bus, text, hooks.onCaption);
     else await sleep(Math.min(1200 + text.length * 22, 5000));
@@ -117,6 +129,7 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
     if (run.cancelled) return;
     bus.emit('ava.answer.started', run.requestId);
     hooks.addMessage('ava', text);
+    remember(text);
     if (hooks.voiceReplies()) await speak(bus, text, hooks.onCaption);
     else await sleep(Math.min(1200 + text.length * 22, 4000));
     if (!run.cancelled) bus.emit('ava.answer.ended', run.requestId);
@@ -128,9 +141,12 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
       env,
       requestId: run.requestId,
       say: (t) => narrate(run, t),
-      notify: (t) => hooks.addMessage('system', t),
+      notify: (t) => { hooks.addMessage('system', t); remember(t); },
       cancelled: () => run.cancelled
-    }).then(() => undefined);
+    }).then((result) => {
+      // Only authored tours say something about what the person has learned; the ad-hoc "this screen" walkthrough does not.
+      if (def.id !== 'screen' && !def.id.startsWith('go-')) hooks.onLearn?.({ kind: result.status === 'completed' ? 'tour_completed' : 'tour_stopped', tourId: def.id });
+    });
   }
 
   /**
@@ -167,6 +183,7 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
     const end = Date.now() + 6000;
     while (host.getRoute() !== page.route && Date.now() < end && !run.cancelled) await sleep(100);
     if (run.cancelled) return;
+    if (host.getRoute() === page.route) hooks.onLearn?.({ kind: 'page_opened', page: page.id });
     await narrate(run, host.getRoute() === page.route ? `Here's ${page.title}.` : `I couldn't open ${page.title} from here.`);
   }
 
@@ -219,6 +236,7 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
       if (decision === 'cancelled') return;
       if (decision === 'rejected') return say(run, 'Okay, cancelled. Nothing was changed.');
       const ok = await runTool(run, 'followups.create', { mutating: true, outcome, completesTask: true });
+      if (ok) hooks.onLearn?.({ kind: 'tool_used', tool: 'create_followup' });
       if (run.cancelled) return;
       if (ok) return say(run, 'Done. The backend confirmed the follow-up for Hartwell Residence.');
       return say(run, 'I could not complete that, so nothing was created. Want me to try again?');
@@ -227,13 +245,14 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
     if (leadIntent) {
       bus.emit('ava.reasoning.ended', run.requestId);
       const ok = await runTool(run, 'leads.search', { mutating: false, outcome, completesTask: false });
+      if (ok) hooks.onLearn?.({ kind: 'tool_used', tool: 'search_leads' });
       if (run.cancelled) return;
       if (!ok) {
         return say(run, outcome === 'timeout' ? 'The lead search timed out. I can retry, or you can open Leads manually.' : 'The lead search failed. Please try again in a moment.');
       }
       const list = MOCK_LEADS.map((l) => `${l.name} (${l.score}, ${l.status})`).join('; ');
       const tour = anchorExists('lead-results') ? startTour(run, { ...screenTour(host, ['lead-results']), steps: [{ id: 'results', anchor: 'lead-results', say: 'Here they are on screen.' }] }) : Promise.resolve();
-      await say(run, `Here are your highest-priority luxury leads: ${list}.`, [{ ...SAMPLE_NOTE, asOf: new Date().toISOString() }]);
+      await say(run, `Here are your highest-priority luxury leads: ${list}.`, [{ ...SAMPLE_NOTE, asOf: new Date().toISOString() }], true);
       await tour;
       return;
     }
@@ -264,7 +283,10 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
 
     const hit = KNOWLEDGE.find((k) => k.keywords.some((w) => t.includes(w)));
     bus.emit('ava.reasoning.ended', run.requestId);
-    if (hit) return say(run, hit.answer, [{ kind: 'knowledge', label: 'Sample help content', live: false, version: KNOWLEDGE_VERSION, citations: [hit.source] }]);
+    if (hit) {
+      hooks.onLearn?.({ kind: 'question', topic: topicId(hit.source) });
+      return say(run, hit.answer, [{ kind: 'knowledge', label: 'Sample help content', live: false, version: KNOWLEDGE_VERSION, citations: [hit.source] }], true);
+    }
     return say(run, "I don't have that in my approved AVYRO knowledge yet, so I won't guess. Try asking about lead verification, filtering, or partner onboarding.");
   }
 
@@ -286,6 +308,7 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
           break;
         case 'tool_end':
           if (line.ok) {
+            hooks.onLearn?.({ kind: 'tool_used', tool: line.tool });
             bus.emit('ava.tool.succeeded', run.requestId, { tool: line.tool, callId: line.callId, backendConfirmed: line.backendConfirmed, completesTask: line.completesTask });
           } else if (line.reason === 'denied') {
             bus.emit('ava.permission.denied', run.requestId, { scope: 'tool', tool: line.tool, callId: line.callId });
@@ -301,10 +324,12 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
           break;
         case 'tour':
           closeReasoning();
+          hooks.onLearn?.({ kind: 'tool_used', tool: 'show_on_screen' });
           tours.push(startTour(run, screenTour(host, line.anchors)));
           break;
         case 'go':
           closeReasoning();
+          hooks.onLearn?.({ kind: 'tool_used', tool: 'go_to_page' });
           tours.push(handleGo(run, line.page, line.open));
           break;
         case 'tour_start': {
@@ -323,10 +348,13 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
           history.push({ role: 'assistant', content: prompt });
           break;
         }
-        case 'answer':
+        case 'answer': {
           closeReasoning();
-          await say(run, line.text, line.sources);
+          const topic = topicId((line.sources ?? []).find((x) => x.kind === 'knowledge')?.citations?.[0]);
+          hooks.onLearn?.({ kind: 'question', topic });
+          await say(run, line.text, line.sources, true);
           break;
+        }
         case 'error':
           if (line.code === 'llm_not_configured') throw new BrainUnavailable(line.code);
           if (line.code === 'unauthenticated') throw new BrainUnavailable('unauthorized');

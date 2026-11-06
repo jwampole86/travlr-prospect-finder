@@ -66,7 +66,7 @@ export function AvaStage(props: StageProps) {
   if (mode === '2d') return simple;
   return (
     <Boundary fallback={simple} onError={onFailure}>
-      <div className={className} aria-hidden="true" data-testid="ava-3d">
+      <div className={`${className ?? ''} stage-3d`} aria-hidden="true" data-testid="ava-3d">
         <Canvas
           camera={{ position: [CAMERA_X, 0.5, 3.1], fov: 30, near: 0.1, far: 20 }}
           gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}

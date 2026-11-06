@@ -11,8 +11,8 @@
 .ava-root button:focus-visible, .ava-root input:focus-visible { outline: 3px solid var(--ava-blue); outline-offset: 2px; }
 
 /* Placement */
-.ava-root .ava { position: fixed; right: 16px; bottom: 16px; z-index: 9990; display: flex; align-items: flex-end; gap: 10px; }
-.ava-root .ava-stage { position: relative; pointer-events: none; }
+.ava-root .ava { position: fixed; right: 16px; bottom: 16px; z-index: 9990; display: flex; align-items: flex-end; gap: 28px; }
+.ava-root .ava-stage { position: relative; pointer-events: none; z-index: 3; } /* above the chat panel: a raised arm reaching toward it is drawn over its edge, never hidden under it */
 /* The character's own layer: it floats off to point at things and glides back. Scaled from its top-left corner. */
 .ava-root .ava-float { position: relative; width: 100%; height: 100%; transform-origin: 0 0; pointer-events: auto; transition: transform .85s cubic-bezier(.22, 1, .36, 1); will-change: transform; }
 .ava-root .ava-float[data-floating='true'] .badge { opacity: 0; } /* the panel's status line says what she is doing */
@@ -24,6 +24,10 @@
 .ava-root .ava.expanded .ava-stage { width: var(--ava-stage-w); height: var(--ava-stage-h); }
 .ava-root .ava.mini .ava-stage { width: calc(var(--ava-stage-w) * .65); height: calc(var(--ava-stage-h) * .65); cursor: pointer; }
 .ava-root .stage-canvas, .ava-root .stage-canvas > div { width: 100%; height: 100%; }
+/* The 3D canvas is wider than her stage (same height, so she is drawn at the same size), centred on it. A raised arm reaches well
+   past her body, and a canvas exactly as wide as the stage sliced it off at the edge. It never takes clicks. */
+.ava-root .stage-3d { width: 190%; margin-left: -45%; pointer-events: none; }
+.ava-root .ava-float > .stage-canvas { position: relative; }
 .ava-root .stage-host { width: 100%; height: 100%; }
 /* Where the 3D stage waits, fully laid out but out of sight, while AVA is closed. */
 .ava-root .ava-park { position: fixed; left: -10000px; top: 0; width: var(--ava-stage-w); height: var(--ava-stage-h); visibility: hidden; pointer-events: none; }
@@ -150,11 +154,39 @@
 .ava-root .launcher:focus-visible { outline: 3px solid var(--ava-blue); outline-offset: 4px; }
 
 @media (max-width: 720px) {
-  .ava-root .panel { width: calc(100vw - 32px); }
-  .ava-root .ava.expanded { flex-direction: column; align-items: flex-end; }
+  .ava-root .panel { width: calc(100vw - 32px); height: min(500px, calc(100dvh - 190px)); }
+  .ava-root .ava.expanded { flex-direction: column; align-items: flex-end; gap: 8px; }
+  /* On a phone the character sits above the chat, smaller, so the chat keeps its room. */
+  .ava-root { --ava-scale: .5; }
+  .ava-root .ava.expanded .ava-stage { align-self: flex-end; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ava-root .launcher, .ava-root button { transition: none; }
   .ava-root .zzz span, .ava-root .status.busy .dot, .ava-root .orb::before, .ava-root .orb::after { animation: none; }
   .ava-root .zzz span { opacity: .9; }
 }
+
+/* "Hey AVA" is listening: a small steady dot beside the switch, and a soft ring on the launcher while she is closed. */
+.ava-root .wake-dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: #9aa6c2; vertical-align: middle; }
+.ava-root .wake-dot.on { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.22); }
+.ava-root .launcher.wake { box-shadow: 0 10px 28px rgba(61,90,241,.45), 0 0 0 4px rgba(34,197,94,.35); }
+.ava-root .wake-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ava-muted); }
+.ava-root .wake-pause { border: 0; background: none; padding: 0 2px; font-size: 12px; color: var(--ava-accent); text-decoration: underline; cursor: pointer; }
+.ava-root .wake-pause:hover { background: none; }
+
+/* Was this helpful? */
+.ava-root .rate { display: flex; align-items: center; gap: 6px; padding: 2px 6px 0; flex-wrap: wrap; }
+.ava-root .rate button { padding: 2px 8px; font-size: 13px; line-height: 1.2; }
+.ava-root .rate .chip.small { font-size: 11.5px; padding: 3px 9px; }
+.ava-root .rate-why, .ava-root .rate-thanks { font-size: 11.5px; color: var(--ava-muted); }
+/* Your AVA: what she has learned, and the choices about it. */
+.ava-root .you-view { flex: 1; overflow: auto; padding: 4px 18px 12px; display: flex; flex-direction: column; gap: 10px; }
+.ava-root .you-view h3 { margin: 6px 0 0; font-size: 15px; }
+.ava-root .you-intro, .ava-root .you-off { margin: 0; font-size: 12px; color: var(--ava-muted); }
+.ava-root .you-list { margin: 0; display: grid; gap: 6px; }
+.ava-root .you-list div { background: rgba(255,255,255,.7); border: 1px solid var(--ava-line); border-radius: 12px; padding: 6px 10px; }
+.ava-root .you-list dt { font-size: 11px; color: var(--ava-muted); }
+.ava-root .you-list dd { margin: 0; font-size: 12.5px; }
+.ava-root .you-view .switch small { color: var(--ava-muted); display: block; }
+.ava-root .you-actions { display: flex; gap: 8px; justify-content: space-between; margin-top: auto; }
+.ava-root .head-actions .icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

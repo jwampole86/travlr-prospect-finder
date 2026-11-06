@@ -11,16 +11,21 @@ import { createOrchestrator } from '../runtime/orchestrator';
 import { micLevel, openMic, MicSession } from '../runtime/mic';
 import { cancelSpeech, speechSupported } from '../runtime/speech';
 import { SttSession, sttSupported, startRecognition } from '../runtime/stt';
+import { startWakeListener } from '../runtime/wake';
+import type { WakeMatch } from '../runtime/wake';
 import { describeSources } from '../runtime/freshness';
 import type { SourceNote } from '../runtime/brain';
 import { suggestionsFor, toursForRole } from '../host/types';
 import type { AvaHost, AvaRole } from '../host/types';
 import { ChipRow } from './ChipRow';
 import { nextFollowups } from '../runtime/followups';
+import { LearningClient, createLocalStore, createRemoteStore } from '../runtime/learning';
+import { describeProfile, emptyProfile, personalizeSuggestions, topicId } from '../core/learning';
+import type { Profile, Reason } from '../core/learning';
 import { FLOAT_W, VISIBLE, floatSpot } from './floatSpot';
 import './ava-widget.css';
 
-interface Message { role: 'user' | 'ava' | 'system'; text: string; sources?: SourceNote[] }
+interface Message { role: 'user' | 'ava' | 'system'; text: string; sources?: SourceNote[]; rateable?: boolean; topic?: string | null; rated?: 1 | -1 }
 type Mode = 'closed' | 'mini' | 'expanded';
 
 export function greetingFor(host: AvaHost): string {
@@ -42,7 +47,8 @@ const STATUS: Record<string, { text: string; tone: '' | 'busy' | 'warn' | 'aslee
 
 const Icon = {
   send: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4 20-7Z" /></svg>,
-  mic: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v4" /></svg>
+  mic: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v4" /></svg>,
+  you: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" /></svg>
 };
 
 const HIGHLIGHT_CSS = '[data-ava-anchor].ava-highlight{outline:3px solid #00B2FF;outline-offset:3px;border-radius:12px;box-shadow:0 0 0 6px rgba(0,178,255,.25),0 0 24px rgba(0,178,255,.35);transition:box-shadow .25s,outline-color .25s}';
@@ -64,12 +70,25 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
   hostRef.current = host;
   const { bus, state, presentation, log } = useAva(() => ({ route: hostRef.current.getRoute(), role: hostRef.current.role ?? undefined }));
   const [mode, setMode] = useState<Mode>(initialMode);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const [turn, setTurn] = useState(0);
   const [view, setView] = useState<ViewMode>(() => initialViewMode());
   const [fellBack, setFellBack] = useState(false);
   const retries = useRef(0);
   const [messages, setMessages] = useState<Message[]>(() => [{ role: 'ava', text: greetingFor(host) }]);
   const [voiceReplies, setVoiceReplies] = useState(false);
+  // "Hey AVA" is available as soon as the browser has been given the microphone: there is no switch to find. It never listens before
+  // that, and a small Pause control stops it for the session. Revoking the microphone in the browser ends it for good.
+  const [profile, setProfile] = useState<Profile>(() => emptyProfile());
+  const learning = useMemo(() => new LearningClient(host.offlineDemo ? createLocalStore() : createRemoteStore(host), setProfile), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [panelView, setPanelView] = useState<'chat' | 'you'>('chat');
+  const [rating, setRating] = useState<number | null>(null);
+  const [micGranted, setMicGranted] = useState(false);
+  const [wakePaused, setWakePaused] = useState(() => { try { return window.localStorage.getItem('ava.wake.paused') === 'yes'; } catch { return false; } });
+  const [wakeBroken, setWakeBroken] = useState(false);
+  const [wakeListening, setWakeListening] = useState(false);
+  const [wakeCycle, setWakeCycle] = useState(0);
   const [toursStarted, setToursStarted] = useState<string[]>([]);
   const [captionsOn, setCaptionsOn] = useState(() => { try { return window.localStorage.getItem('ava.captions') !== 'off'; } catch { return true; } });
   const [caption, setCaption] = useState<string | null>(null);
@@ -114,7 +133,8 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
 
   const orchestrator = useMemo(
     () => createOrchestrator(bus, new Proxy({} as AvaHost, { get: (_t, k) => (hostRef.current as unknown as Record<string | symbol, unknown>)[k] }), {
-      addMessage: (r, text, sources) => setMessages((m) => [...m, { role: r, text, sources }]),
+      addMessage: (r, text, sources, meta) => setMessages((m) => [...m, { role: r, text, sources, rateable: meta?.rateable, topic: topicId((sources ?? []).find((x) => x.kind === 'knowledge')?.citations?.[0]) }]),
+      onLearn: (e) => learning.record(e),
       voiceReplies: () => voiceRef.current,
       onCaption: setCaption
     }),
@@ -182,6 +202,11 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     return () => { window.cancelAnimationFrame(raf); reset(); };
   }, [pointedAt, mode]);
 
+  // What she explains while guiding appears in the chat, so the chat must be on screen: a tour that starts while she is minimised
+  // opens the panel.
+  const guiding = !!state.tour;
+  useEffect(() => { if (guiding && mode === 'mini') setMode('expanded'); }, [guiding, mode]);
+
   const changeMode = (next: Mode) => {
     setMode(next);
     if (next === 'closed') { orchestrator.stop('system'); closeMic(); bus.emit('ava.closed'); }
@@ -202,8 +227,9 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
   const [draft, setDraft] = useState('');
 
   function closeMic() {
-    stt.current?.stop();
-    stt.current = null;
+    const recognition = stt.current;
+    stt.current = null; // cleared first: stopping recognition ends the session, which closes the microphone again
+    recognition?.stop();
     if (mic.current) {
       mic.current.stop();
       mic.current = null;
@@ -225,6 +251,7 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
       micReq.current = newRequestId();
       bus.emit('ava.settings.changed', undefined, { micPermission: 'granted' });
       bus.emit('ava.input.started', micReq.current, { modality: 'voice' });
+      setMicGranted(true); // a browser without the permission query learns it from this first successful use
     } catch {
       bus.emit('ava.permission.denied', undefined, { scope: 'microphone' });
       note('Microphone permission was denied or unavailable. Text input still works.');
@@ -235,6 +262,7 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
       onFinal: (text) => {
         setDraft('');
         closeMic();
+        learning.record({ kind: 'input', modality: 'voice' });
         orchestrator.submit(text);
       },
       onError: (error) => {
@@ -252,12 +280,111 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     else note('This browser has no speech recognition (try Chrome, Edge or Safari). The microphone level still shows, but please type your request.');
   }
 
+  const toggleMicRef = useRef(toggleMic);
+  toggleMicRef.current = toggleMic;
+  useEffect(() => {
+    void learning.init();
+    const leave = () => { void learning.flush(); };
+    window.addEventListener('pagehide', leave);
+    return () => { window.removeEventListener('pagehide', leave); void learning.flush(); };
+  }, [learning]);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Follow the browser's own microphone permission (it is remembered per site, so "Hey AVA" is ready on later visits too).
+  useEffect(() => {
+    let status: PermissionStatus | undefined;
+    let gone = false;
+    let known = false;
+    let was = false;
+    const apply = () => {
+      if (gone || !status) return;
+      const granted = status.state === 'granted';
+      setMicGranted(granted);
+      if (!granted) setWakeBroken(false);
+      // Said once, when the user allows the microphone during this visit (not when it was already allowed on arrival).
+      if (known && granted && !was && sttSupported()) {
+        note('Microphone allowed. You can now just say "Hey AVA" any time this page is open (your browser\'s speech service listens for the phrase, and nothing reaches me until it hears it).');
+      }
+      known = true;
+      was = granted;
+    };
+    (async () => {
+      try {
+        status = await navigator.permissions?.query({ name: 'microphone' as PermissionName });
+        if (!status) return;
+        apply();
+        status.onchange = apply;
+      } catch { /* browsers without a microphone permission query learn it from the first successful use instead */ }
+    })();
+    return () => { gone = true; if (status) status.onchange = null; };
+  }, []);
+
+  const setPaused = (paused: boolean) => {
+    setWakePaused(paused);
+    try { window.localStorage.setItem('ava.wake.paused', paused ? 'yes' : 'no'); } catch { /* ignore */ }
+  };
+
+  const onWake = (match: WakeMatch) => {
+    const st = stateRef.current;
+    if (!st.open || modeRef.current !== 'expanded') {
+      setMode('expanded');
+      if (!st.open) bus.emit('ava.opened');
+    }
+    orchestrator.stop('user');
+    cancelSpeech();
+    learning.record({ kind: 'wake_used' });
+    setWakeCycle((n) => n + 1);
+    if (match.rest) {
+      orchestrator.submit(match.rest);
+    } else {
+      setMessages((m) => [...m, { role: 'ava', text: "Yes? I'm listening." }]);
+      // The wake recogniser has just let go of the microphone; give the browser a moment before opening it again.
+      window.setTimeout(() => { if (!mic.current) void toggleMicRef.current(); }, 350);
+    }
+  };
+  const onWakeRef = useRef(onWake);
+  onWakeRef.current = onWake;
+
+  // Listen for the wake phrase whenever the microphone has been allowed and nothing else is using it or speaking.
+  const listenForWake = micGranted && !wakePaused && !wakeBroken && sttSupported() && !state.micActive && !state.speaking;
+  useEffect(() => {
+    if (!listenForWake) { setWakeListening(false); return; }
+    let cancelled = false;
+    let listener: ReturnType<typeof startWakeListener> = null;
+    (async () => {
+      if (cancelled) return;
+      listener = startWakeListener({
+        onWake: (match) => onWakeRef.current(match),
+        onListening: (on) => { if (!cancelled) setWakeListening(on); },
+        onFatal: (reason) => {
+          setWakeBroken(true);
+          note(reason === 'not-allowed' ? '"Hey AVA" is off because the browser blocked speech access. You can still use the microphone button.'
+            : reason === 'audio-capture' ? '"Hey AVA" is off because no microphone was found.'
+            : reason === 'unsupported' ? '"Hey AVA" needs speech recognition, which this browser does not have (try Chrome, Edge or Safari).'
+            : '"Hey AVA" is off because the browser\'s speech service keeps failing. Reload the page to try again.');
+        }
+      });
+    })();
+    return () => { cancelled = true; listener?.stop(); setWakeListening(false); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listenForWake, wakeCycle]);
+
+  const rate = (index: number, value: 1 | -1, reason?: Reason) => {
+    const m = messages[index];
+    if (!m?.rateable) return;
+    setMessages((all) => all.map((x, i) => (i === index ? { ...x, rated: value } : x)));
+    setRating(value === -1 && !reason ? index : null);
+    learning.record({ kind: 'feedback', rating: value, topic: m.topic ?? null, ...(reason ? { reason } : {}) });
+  };
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const text = draft.trim();
     if (!text) return;
     setDraft('');
     closeMic();
+    learning.record({ kind: 'input', modality: 'text' });
     orchestrator.submit(text);
   };
   const stop = () => { orchestrator.stop('user'); cancelSpeech(); };
@@ -283,8 +410,9 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
 
   const confirmation = state.confirmation;
   const faceLabel = presentation.face;
-  const tours = toursForRole(host);
-  const suggestions = suggestionsFor(host);
+  const personalized = personalizeSuggestions(profile, suggestionsFor(host), toursForRole(host).map((t) => ({ id: t.id, title: t.title })));
+  const tours = personalized.tours.map((t) => toursForRole(host).find((x) => x.id === t.id)!).filter(Boolean);
+  const suggestions = personalized.suggestions;
   const status = STATUS[faceLabel] ?? STATUS.idle;
   const busy = state.reasoning || Object.keys(state.tools).length > 0 || state.answering || state.speaking || !!state.tour;
   const firstTurn = messages.every((m) => m.role !== 'user');
@@ -326,7 +454,7 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
       <div className="ava-park" ref={parkRef} aria-hidden="true" />
 
       {mode === 'closed' && (
-        <button className="launcher" style={pos} onClick={() => changeMode('expanded')} onPointerEnter={() => setWarm(true)} onFocus={() => setWarm(true)} aria-label="Open AVA">AVA</button>
+        <button className={`launcher${wakeListening ? ' wake' : ''}`} style={pos} onClick={() => changeMode('expanded')} onPointerEnter={() => setWarm(true)} onFocus={() => setWarm(true)} aria-label="Open AVA">AVA</button>
       )}
 
       {mode !== 'closed' && (
@@ -358,12 +486,27 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                   <span className={`status ${status.tone}`}><i className="dot" />{status.text}</span>
                 </div>
                 <div className="head-actions">
+                  <button className="icon-btn" onClick={() => setPanelView((v) => (v === 'you' ? 'chat' : 'you'))} aria-label="Your AVA" aria-pressed={panelView === 'you'} title="What AVA has learned about you"><span className="icon">{Icon.you}</span></button>
                   <button className="icon-btn" onClick={() => changeMode('mini')} aria-label="Minimize AVA">–</button>
                   <button className="icon-btn" onClick={() => changeMode('closed')} aria-label="Close AVA">✕</button>
                 </div>
               </div>
 
-              {state.micActive ? (
+              {panelView === 'you' ? (
+                <div className="you-view" role="region" aria-label="Your AVA">
+                  <h3>Your AVA</h3>
+                  <p className="you-intro">AVA learns from how you use her so she can help you better. She keeps counts and ids only (which tours you finished, which screens you open, whether answers helped). She never keeps what you type or say, or any lead or contact details.</p>
+                  {profile.personalization ? (
+                    <dl className="you-list">{describeProfile(profile, Object.fromEntries(toursForRole(host).map((t) => [t.id, t.title]))).map((l) => (<div key={l.label}><dt>{l.label}</dt><dd>{l.detail}</dd></div>))}</dl>
+                  ) : <p className="you-off">Personalization is off, so AVA is not learning from your use and treats every visit the same.</p>}
+                  <label className="switch"><input type="checkbox" checked={profile.personalization} onChange={(e) => void learning.setConsent({ personalization: e.target.checked })} /> Tailor AVA to me</label>
+                  <label className="switch"><input type="checkbox" checked={profile.sharing} onChange={(e) => void learning.setConsent({ sharing: e.target.checked })} /> Share anonymous usage to improve AVYRO <small>(no name, no text; just which features and help topics are used)</small></label>
+                  <div className="you-actions">
+                    <button type="button" onClick={() => void learning.erase()}>Forget what AVA has learned</button>
+                    <button type="button" className="primary" onClick={() => setPanelView('chat')}>Back to chat</button>
+                  </div>
+                </div>
+              ) : state.micActive ? (
                 <div className="voice-view" role="status">
                   <p className="voice-label">Listening to you</p>
                   <h2>{draft || 'How can I assist you today?'}</h2>
@@ -377,6 +520,23 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                       <p>{m.text}</p>
                       {/* Source notes (help article names, versions) are internal. Only the sandbox demo shows them, so its sample data is never mistaken for real data. */}
                       {host.offlineDemo && describeSources(m.sources).map((line, j) => <small key={j} className="sources">{line}</small>)}
+                      {m.rateable && (
+                        <div className="rate" role="group" aria-label="Was this helpful?">
+                          {m.rated === undefined ? (
+                            <>
+                              <button type="button" onClick={() => rate(i, 1)} aria-label="Helpful" title="Helpful">👍</button>
+                              <button type="button" onClick={() => rate(i, -1)} aria-label="Not helpful" title="Not helpful">👎</button>
+                            </>
+                          ) : rating === i ? (
+                            <>
+                              <span className="rate-why">What was off?</span>
+                              {([['too_long', 'Too long'], ['too_short', 'Too short'], ['not_helpful', 'Not helpful'], ['wrong', 'Wrong']] as const).map(([r, label]) => (
+                                <button key={r} type="button" className="chip small" onClick={() => rate(i, -1, r)}>{label}</button>
+                              ))}
+                            </>
+                          ) : <span className="rate-thanks">Thanks, I'll use that.</span>}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {composing && (
@@ -426,6 +586,13 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                 <label className="switch">
                   <input type="checkbox" checked={voiceReplies} disabled={!speechSupported()} onChange={(e) => setVoiceReplies(e.target.checked)} /> Spoken replies
                 </label>
+                {sttSupported() && micGranted && !wakeBroken && (
+                  <span className="wake-status" title={'Say "Hey AVA" to wake her. Your browser\'s speech service listens for the phrase, and nothing reaches AVA until it hears it.'}>
+                    <span className={`wake-dot ${wakeListening ? 'on' : ''}`} role="status" aria-label={wakeListening ? 'Listening for Hey AVA' : 'Hey AVA is paused'} />
+                    {wakePaused ? 'Hey AVA paused' : 'Say "Hey AVA"'}
+                    <button type="button" className="wake-pause" onClick={() => setPaused(!wakePaused)}>{wakePaused ? 'Resume' : 'Pause'}</button>
+                  </span>
+                )}
                 <label className="switch">
                   <input type="checkbox" checked={captionsOn} onChange={(e) => toggleCaptions(e.target.checked)} /> Captions
                 </label>

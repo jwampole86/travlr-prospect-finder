@@ -4,10 +4,10 @@
  * Note: Chrome streams the audio to its vendor's recognition service; Firefox has no support, so callers must
  * handle `sttSupported() === false` by keeping typed input.
  */
-interface RecognitionAlternative { transcript: string }
-interface RecognitionResult { isFinal: boolean; 0: RecognitionAlternative }
-interface RecognitionEvent { resultIndex: number; results: ArrayLike<RecognitionResult> }
-interface Recognition {
+export interface RecognitionAlternative { transcript: string }
+export interface RecognitionResult { isFinal: boolean; 0: RecognitionAlternative }
+export interface RecognitionEvent { resultIndex: number; results: ArrayLike<RecognitionResult> }
+export interface Recognition {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
@@ -19,14 +19,15 @@ interface Recognition {
   stop(): void;
   abort(): void;
 }
-type RecognitionCtor = new () => Recognition;
+export type RecognitionCtor = new () => Recognition;
 
-const ctor = (): RecognitionCtor | null => {
+export const recognitionCtor = (): RecognitionCtor | null => {
   if (typeof window === 'undefined') return null;
   const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 };
 
+const ctor = recognitionCtor;
 export const sttSupported = () => ctor() !== null;
 
 export type SttError = 'not-allowed' | 'no-speech' | 'audio-capture' | 'network' | 'other';
