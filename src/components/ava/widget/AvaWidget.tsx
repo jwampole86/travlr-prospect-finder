@@ -175,16 +175,20 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     const layer = stageRef.current;
     const home = homeRef.current;
     if (!layer || !home) return;
-    const reset = () => { layer.style.transform = ''; setFloating(false); };
+    const reset = () => { layer.style.transform = ''; layer.style.removeProperty('--ava-k'); setFloating(false); };
     if (!pointedAt || mode === 'closed') { reset(); return; }
     const id = pointedAt;
     let raf = 0;
     let last = '';
+    // Set when this effect is cleaned up. A frame that was already queued must never put her back out after she has gone home.
+    let done = false;
     const tick = () => {
+      if (done) return;
       raf = window.requestAnimationFrame(tick);
       const el = document.querySelector(`[data-ava-anchor="${CSS.escape(id)}"]`);
       if (!el) return;
       const h = home.getBoundingClientRect();
+      // Her home box is measured with the layer's own transform out of the picture (it is a separate, untransformed box).
       const t = el.getBoundingClientRect();
       const avoid = panelRef.current?.getBoundingClientRect() ?? null;
       const scale = FLOAT_W / h.width;
@@ -195,11 +199,12 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
       const key = `${Math.round(spot.x - ox - h.left)},${Math.round(spot.y - oy - h.top)},${scale.toFixed(3)}`;
       if (key === last) return;
       last = key;
+      layer.style.setProperty('--ava-k', String(scale)); // lets the status pill stay normal-sized while she is scaled up
       layer.style.transform = `translate(${spot.x - ox - h.left}px, ${spot.y - oy - h.top}px) scale(${scale})`;
       setFloating(true);
     };
     tick();
-    return () => { window.cancelAnimationFrame(raf); reset(); };
+    return () => { done = true; window.cancelAnimationFrame(raf); reset(); };
   }, [pointedAt, mode]);
 
   // What she explains while guiding appears in the chat, so the chat must be on screen: a tour that starts while she is minimised

@@ -16,6 +16,13 @@ interface SourceStatus {
   retrying: boolean;
   dbStatus?: 'success' | 'partial' | 'failed' | null;
   dbLastSync?: Date | null;
+  /** Why the latest pulls failed, from the sync log. */
+  dbError?: string | null;
+}
+
+/** The sync log's wording when a source's own data provider (not AVYRO or its key) is failing. */
+function isProviderOutage(error: string | null | undefined): boolean {
+  return !!error && /data provider is (down|too slow)|run did not succeed|run-failed/i.test(error);
 }
 
 const SOURCE_LAST_PULL_KEY = 'travlr_source_last_pull';
@@ -97,11 +104,11 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
   /**
    * Fetch the most recent sync_events per source from the DB.
    */
-  const fetchDbSyncStatus = useCallback(async (): Promise<Record<string, { status: string; ts: Date }>> => {
+  const fetchDbSyncStatus = useCallback(async (): Promise<Record<string, { status: string; ts: Date; error?: string | null }>> => {
     try {
       const { data } = await supabase
         .from('sync_events')
-        .select('operation_id, status, created_at')
+        .select('operation_id, status, created_at, last_error')
         .order('created_at', { ascending: false })
         .limit(1000);
 
@@ -111,32 +118,34 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
       // the status comes from the latest result of every state pulled in the last 6 hours: a rate-limited pull that was
       // retried successfully counts as a success, and only a source whose pulls mostly fail is shown as failing.
       const windowStart = Date.now() - 6 * 3600_000;
-      const latestPerPull = new Map<string, { source: string; status: string; ts: Date }>();
-      const newestEver: Record<string, { status: string; ts: Date }> = {};
+      const latestPerPull = new Map<string, { source: string; status: string; ts: Date; error: string | null }>();
+      const newestEver: Record<string, { status: string; ts: Date; error?: string | null }> = {};
       for (const row of data) {
         const op = (row.operation_id as string) || '';
         if (!op) continue;
         const matchedSource = SYNC_WIDGET_SOURCES.find((s) => op.toLowerCase().includes(s.name.toLowerCase()));
         const source = matchedSource?.name || op;
         const ts = new Date(row.created_at as string);
-        if (!newestEver[source]) newestEver[source] = { status: row.status as string, ts };
+        const error = row.status === 'failed' ? ((row.last_error as string | null) ?? null) : null;
+        if (!newestEver[source]) newestEver[source] = { status: row.status as string, ts, error };
         if (ts.getTime() < windowStart || latestPerPull.has(op)) continue;
-        latestPerPull.set(op, { source, status: row.status as string, ts });
+        latestPerPull.set(op, { source, status: row.status as string, ts, error });
       }
 
-      const counts: Record<string, { success: number; failed: number; partial: number; newest: Date }> = {};
-      for (const { source, status, ts } of latestPerPull.values()) {
-        const c = counts[source] ?? (counts[source] = { success: 0, failed: 0, partial: 0, newest: ts });
+      const counts: Record<string, { success: number; failed: number; partial: number; newest: Date; error: string | null }> = {};
+      for (const { source, status, ts, error } of latestPerPull.values()) {
+        const c = counts[source] ?? (counts[source] = { success: 0, failed: 0, partial: 0, newest: ts, error: null });
+        if (error && !c.error) c.error = error;
         if (status === 'failed') c.failed++; else if (status === 'partial') c.partial++; else c.success++;
         if (ts > c.newest) c.newest = ts;
       }
 
-      const bySource: Record<string, { status: string; ts: Date }> = { ...newestEver };
+      const bySource: Record<string, { status: string; ts: Date; error?: string | null }> = { ...newestEver };
       for (const [source, c] of Object.entries(counts)) {
         const total = c.success + c.failed + c.partial;
         const failRatio = c.failed / total;
         const status = failRatio === 1 ? 'failed' : failRatio >= 0.25 || c.partial > 0 ? 'partial' : 'success';
-        bySource[source] = { status, ts: c.newest };
+        bySource[source] = { status, ts: c.newest, error: status === 'success' ? null : c.error };
       }
       return bySource;
     } catch {
@@ -238,6 +247,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
         retrying: false, // always reset retrying on rebuild — never persist stuck state
         dbStatus: dbSyncStatus,
         dbLastSync: displayTime,
+        dbError: dbSyncStatus === 'failed' || dbSyncStatus === 'partial' ? dbEntry?.error ?? null : null,
       };
     });
   }, [fetchDbSyncStatus, fetchLeadsLastCreatedBySource]);
@@ -645,7 +655,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
                   </span>
                   {isFailed && !portfolioHasNoLeads && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-danger/10 text-danger font-medium">
-                      Sync failed
+                      {isProviderOutage(source.dbError) ? 'Provider outage' : 'Sync failed'}
                     </span>
                   )}
                   {isStale && !portfolioHasNoLeads && (
@@ -664,6 +674,13 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
                     </span>
                   )}
                 </div>
+                {isFailed && !portfolioHasNoLeads && source.dbError && (
+                  <p className="text-[10.5px] leading-snug text-muted-foreground mt-1 max-w-[46ch]" title={source.dbError}>
+                    {isProviderOutage(source.dbError)
+                      ? `${source.name}'s data provider is down, so there is nothing for AVYRO to pull. Scheduled syncs pause this source and check it again every few hours; it resumes on its own when the provider recovers. Retry only helps once it is back.`
+                      : source.dbError.slice(0, 160)}
+                  </p>
+                )}
               </div>
 
               {/* Health badge + Retry button */}

@@ -15,7 +15,7 @@
 .ava-root .ava-stage { position: relative; pointer-events: none; z-index: 3; } /* above the chat panel: a raised arm reaching toward it is drawn over its edge, never hidden under it */
 /* The character's own layer: it floats off to point at things and glides back. Scaled from its top-left corner. */
 .ava-root .ava-float { position: relative; width: 100%; height: 100%; transform-origin: 0 0; pointer-events: auto; transition: transform .85s cubic-bezier(.22, 1, .36, 1); will-change: transform; }
-.ava-root .ava-float[data-floating='true'] .badge { opacity: 0; } /* the panel's status line says what she is doing */
+.ava-root .ava-float[data-floating='true'] .badge { transform: translateX(-50%) scale(calc(1 / var(--ava-k, 1))); transform-origin: 50% 100%; } /* her status stays visible, at normal size, while she is scaled up to point */
 .ava-root .ava-float[data-floating='true'] { z-index: 2; filter: drop-shadow(0 14px 22px rgba(40, 70, 160, .28)); }
 @media (prefers-reduced-motion: reduce) { .ava-root .ava-float { transition: none; } }
 /* Character size, relative to the standard: mini 65%, standard 100%, focus (floating to point at something) 125%. The standard is
@@ -40,7 +40,7 @@
 
 .ava-root .try3d { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 3; font-size: 12px; font-weight: 600; padding: 6px 14px; color: var(--ava-accent); border-color: #C7D3FB; box-shadow: 0 4px 14px rgba(61,70,140,.18); }
 /* State pill under the character */
-.ava-root .badge { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,.86); color: var(--ava-ink); padding: 3px 11px 3px 9px; border: 1px solid var(--ava-line); border-radius: 999px; white-space: nowrap; pointer-events: none; backdrop-filter: blur(6px); box-shadow: 0 4px 14px rgba(61,90,241,.12); }
+.ava-root .badge { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,.86); color: var(--ava-ink); padding: 3px 11px 3px 9px; border: 1px solid var(--ava-line); border-radius: 999px; white-space: nowrap; pointer-events: none; z-index: 4; backdrop-filter: blur(6px); box-shadow: 0 4px 14px rgba(61,90,241,.12); }
 .ava-root .badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
 .ava-root .badge.thinking::before, .ava-root .badge.searching::before, .ava-root .badge.listening::before, .ava-root .badge.explaining::before, .ava-root .badge.guiding::before { background: var(--ava-blue); }
 .ava-root .badge.warning, .ava-root .badge.error, .ava-root .badge.micDenied { background: #FFF1D6; border-color: #F5D38C; color: #6b4400; }

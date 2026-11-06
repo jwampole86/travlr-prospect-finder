@@ -71,6 +71,10 @@ export function AvaStage(props: StageProps) {
           camera={{ position: [CAMERA_X, 0.5, 3.1], fov: 30, near: 0.1, far: 20 }}
           gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
           dpr={[1, 2]}
+          // Measure the layout size, not the on-screen size. She is scaled up with a CSS transform while she floats to point; the default
+          // measurement includes that transform, so the canvas resized to the larger box and never resized back, leaving her too big
+          // and cropped after the tour.
+          resize={{ offsetSize: true, scroll: false }}
           frameloop={active ? 'always' : 'demand'}
           onCreated={({ camera, gl }) => {
             camera.lookAt(CAMERA_X, 0.5, 0);
