@@ -5,7 +5,7 @@ import path from 'node:path';
 export default defineConfig({
   resolve: { alias: { '@': path.resolve(__dirname, 'src') } },
   test: {
-    include: ['src/lib/ava/**/*.test.{ts,mjs}', 'src/lib/seller/**/*.test.ts', 'src/lib/services/sourceCircuit.test.ts', 'src/components/ava/**/*.test.{ts,tsx}'],
+    include: ['src/lib/ava/**/*.test.{ts,mjs}', 'src/lib/seller/**/*.test.ts', 'src/lib/services/sourceCircuit.test.ts', 'src/lib/registry/**/*.test.ts', 'src/lib/media/**/*.test.ts', 'src/components/ava/**/*.test.{ts,tsx}'],
     environment: 'node'
   }
 });

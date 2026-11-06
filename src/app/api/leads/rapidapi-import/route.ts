@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { runFsboSkipTrace } from '@/lib/services/fsboSkipTraceService';
 import { recordSourcePull, sourceNameForProvider, stateCodeFromImportBody } from '@/lib/services/sourceSyncRecorder';
+import { recordListingPhotos } from '@/lib/media/propertyMedia';
 import { searchTruliaRentals, searchZillowProperties, searchZillowRealEstate, searchRentCom, searchUsPropertyData, searchPadMapperRentals, searchHotPadsRentals, searchCraigslistRentals, toPadMapperLocation, getZillowPropertyDetails, NormalizedRentalListing } from '@/lib/services/rapidApiRealEstateService';
 
 export const maxDuration = 120;
@@ -425,6 +426,10 @@ async function runImport(req: NextRequest) {
       if (typeof value === 'number') totals[key] = (totals[key] || 0) + value;
     }
   }
+
+  // Photo references for the listings just imported (for the NAVEO Homes galleries). Best-effort: it never fails the import.
+  const photoResult = await recordListingPhotos(getSupabaseAdmin(), filteredListings.map((l) => ({ source: l.source, listingUrl: l.listingUrl, photos: l.photos })));
+  if (photoResult.recorded) totals.photosCaptured = (totals.photosCaptured || 0) + photoResult.recorded;
 
   // Runs after the response is sent so a sync never waits on skip-trace API calls; the
   // cron route picks up anything this bounded pass doesn't reach.

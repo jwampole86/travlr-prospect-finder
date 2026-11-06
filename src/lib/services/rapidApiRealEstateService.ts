@@ -18,6 +18,8 @@
  * to the next key on 401/403/429, so a second key acts as rate-limit headroom.
  */
 
+import { truliaPhotoRefs, zillowPhotoRefs, type PhotoRef } from '@/lib/media/photoRefs';
+
 const TRULIA_HOST = 'trulia-real-estate-scraper.p.rapidapi.com';
 const ZILLOW_DETAIL_HOST = 'zillow-detail-scraper1.p.rapidapi.com';
 const ZILLOW_SEARCH_HOST = 'zillow-scraper-api2.p.rapidapi.com';
@@ -189,6 +191,8 @@ export interface NormalizedRentalListing {
   listingStatus: 'for_rent' | 'for_sale' | 'sold';
   sqftText?: string;
   listingUrl?: string;
+  /** Photo references from the provider (see lib/media). References only: they are not cleared for republishing. */
+  photos?: PhotoRef[];
   notes?: string;
   /** Real market rent estimate (e.g. Zillow's rentZestimate) — populated even
    *  for for-sale listings, since it's genuine comparable-market data, not a
@@ -238,6 +242,7 @@ interface TruliaListingRaw {
   bathrooms?: { min?: number; max?: number };
   tags?: Array<{ kind?: string; formattedName?: string }>;
   metadata?: { compositeId?: string; legacyIdForSave?: string };
+  media?: { photos?: Array<{ url?: { small?: string; medium?: string; large?: string } }>; heroImage?: { url?: { small?: string; medium?: string; large?: string } } };
   propertyType?: { value?: string };
   activeListing?: { provider?: { listingAgent?: { name?: string } | null; broker?: { name?: string } | null } };
 }
@@ -276,6 +281,7 @@ function normalizeTruliaListing(raw: TruliaListingRaw): NormalizedRentalListing 
   return {
     source: 'Trulia',
     externalId: raw.metadata?.compositeId || raw.metadata?.legacyIdForSave,
+    photos: truliaPhotoRefs(raw.media),
     address: loc.streetAddress || '',
     city: loc.city || '',
     state: loc.stateCode || '',
@@ -490,6 +496,7 @@ interface ZillowSearchResultRaw {
   longitude?: number;
   status_text?: string;
   broker_name?: string;
+  image_url?: string;
 }
 
 function normalizeZillowSearchResult(raw: ZillowSearchResultRaw, queriedStatus?: 'for_sale' | 'sold'): NormalizedRentalListing {
@@ -498,6 +505,7 @@ function normalizeZillowSearchResult(raw: ZillowSearchResultRaw, queriedStatus?:
   return {
     source: 'Zillow',
     externalId: raw.zpid,
+    photos: zillowPhotoRefs(raw.image_url),
     address: raw.street_address || raw.address || '',
     city: raw.city || '',
     state: raw.state || '',
