@@ -74,9 +74,46 @@ describe('/api/ava handler', () => {
   });
 
   it('reports a gateway crash as a generic error without leaking details', async () => {
-    const d = deps({ makeGateway: () => ({ turn: async () => { throw new Error('secret connection string'); }, confirm: async () => undefined }) });
+    const d = deps({ makeGateway: () => ({ turn: async () => { throw new Error('secret connection string'); }, confirm: async () => undefined, prepare: async () => undefined, briefing: async () => undefined }) });
     const out = await lines(await handleAva(post({ messages: [] }), 'turn', d));
     expect(out).toEqual([{ t: 'error', code: 'brain_failed' }, { t: 'done' }]);
+  });
+});
+
+describe('/api/ava prepare and briefing', () => {
+  const backend = {
+    updateLeadStage: async () => ({ confirmed: true, id: 'L1' }),
+    getBriefing: async () => ({ source: 'backend', asOf: 'now', priorityCount: 2, dueCount: 1, overdueCount: 0, unverifiedCount: 0, priority: [], followups: [] })
+  };
+  const withBackend = () => {
+    const d = deps();
+    const gw = createGateway({ llm: null, backend: backend as never, audit: d.audit, pending: createMemoryPendingStore() }) as never;
+    d.makeGateway = () => gw;
+    return d;
+  };
+
+  it('prepares a change from a card, asks for approval, and only then runs it once', async () => {
+    const d = withBackend();
+    const prepared = await lines(await handleAva(post({ tool: 'update_lead_stage', args: { leadId: 'L1', leadName: '12 Pine St', stage: 'Contacted' } }), 'prepare', d));
+    expect(prepared[0]).toMatchObject({ t: 'confirm', tool: 'update_lead_stage', summary: 'Move 12 Pine St to "Contacted"' });
+    const done = await lines(await handleAva(post({ actionId: prepared[0].actionId, decision: 'accept' }), 'confirm', d));
+    expect(done.at(-2)).toMatchObject({ t: 'answer', text: expect.stringContaining('now at "Contacted"') });
+    const again = await lines(await handleAva(post({ actionId: prepared[0].actionId, decision: 'accept' }), 'confirm', d));
+    expect(again[0]).toEqual({ t: 'error', code: 'unknown_or_expired_action' });
+  });
+
+  it('refuses to prepare anything that is not a confirmed change', async () => {
+    const out = await lines(await handleAva(post({ tool: 'search_leads', args: {} }), 'prepare', withBackend()));
+    expect(out).toEqual([{ t: 'error', code: 'bad_request' }, { t: 'done' }]);
+  });
+
+  it('gives the briefing without needing the language model, and still needs a signed-in staff user', async () => {
+    const d = withBackend();
+    d.hasLlm = () => false;
+    const out = await lines(await handleAva(post({ context: { localHour: 9 } }), 'briefing', d));
+    expect(out.find((l) => l.t === 'answer').text).toBe("Good morning. Here's what needs you today: 2 priority leads, 1 follow-up due.");
+    expect((await handleAva(post({}), 'briefing', deps({ actor: null }))).status).toBe(401);
+    expect((await handleAva(post({}), 'briefing', deps({ getActor: async () => ({ id: 'h', role: 'homeowner' }) }))).status).toBe(403);
   });
 });
 

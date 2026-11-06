@@ -38,6 +38,18 @@ export interface AvaSelection {
   leadName?: string;
 }
 
+/** What the open screen shows, so "this one" and "these filters" mean something. Reported by the page itself, never guessed. */
+export interface AvaScreen {
+  title?: string;
+  /** Active filters and sorting, as label -> value. */
+  filters?: Record<string, string | number | boolean>;
+  /** What is open on the screen: a property, a portfolio, a record. */
+  open?: { kind: string; label: string; id?: string };
+  counts?: { shown?: number; total?: number };
+  /** The page can export what it is showing (the host must also provide `exportLeads`). */
+  canExport?: boolean;
+}
+
 /** What the browser tells the server about the current screen. Shapes the prompt only; the server owns authorization. */
 export interface AvaContext {
   route: string;
@@ -47,6 +59,9 @@ export interface AvaContext {
   /** Screens AVA may take the user to, for this user. */
   pages: Array<{ id: string; title: string; hint?: string }>;
   selection: AvaSelection;
+  screen: AvaScreen;
+  /** The user's local hour (0-23), so the briefing can greet them properly. */
+  localHour: number;
 }
 
 export interface AvaHost {
@@ -70,6 +85,14 @@ export interface AvaHost {
   /** Opens whatever hides the element AVA is about to point at (a collapsed menu category, say). */
   reveal?: (anchorId: string) => void;
   getSelection?: () => AvaSelection;
+  /** What the open screen shows (filters, the open record, how many records match). */
+  getScreen?: () => AvaScreen;
+  /** Opens one lead on its own screen. `verification` asks the page to bring the verification section into view. */
+  openLead?: (leadId: string, focus?: 'verification') => void;
+  /** Exports what the screen is showing, as the user's own click would. Returns how many records were exported. */
+  exportLeads?: () => number | Promise<number>;
+  /** Give the person a short summary the first time they open AVA each day (they can turn it off). */
+  briefing?: boolean;
   /** Extra headers for API calls, e.g. a bearer token. Cookies are always sent. */
   getAuthHeaders?: () => Promise<Record<string, string>> | Record<string, string>;
   /** Lets the host override first-message suggestions. */
@@ -117,6 +140,8 @@ export function buildContext(host: AvaHost): AvaContext {
     features: host.features ?? [],
     tours: toursForRole(host).map((t) => ({ id: t.id, title: t.title })),
     pages: (host.pages ?? []).slice(0, 90).map((p) => ({ id: p.id, title: p.title, hint: p.hint })),
-    selection: host.getSelection?.() ?? {}
+    selection: host.getSelection?.() ?? {},
+    screen: { ...(host.getScreen?.() ?? {}), canExport: !!host.exportLeads && host.getScreen?.().canExport === true },
+    localHour: new Date().getHours()
   };
 }

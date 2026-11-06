@@ -1,5 +1,5 @@
 // Synced from ava-assistant. Do not edit here: change it there and run tools/sync-to-travlr.mjs.
-import { FormEvent, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AvaStage, preloadAvaModel } from '../render/AvaStage';
 import { setAssetBase } from '../render/assets';
@@ -23,9 +23,13 @@ import { LearningClient, createLocalStore, createRemoteStore } from '../runtime/
 import { describeProfile, emptyProfile, personalizeSuggestions, topicId } from '../core/learning';
 import type { Profile, Reason } from '../core/learning';
 import { FLOAT_W, VISIBLE, floatSpot } from './floatSpot';
+import { ACTION_STEPS, actionProgress } from '../runtime/cards';
+import type { ActionStatus, AvaCard } from '../runtime/cards';
+import { briefingDue, clampPosition, dayKey, defaultLayout, loadLayout, saveLayout } from './layout';
+import type { LayoutPrefs } from './layout';
 import './ava-widget.css';
 
-interface Message { role: 'user' | 'ava' | 'system'; text: string; sources?: SourceNote[]; rateable?: boolean; topic?: string | null; rated?: 1 | -1 }
+interface Message { role: 'user' | 'ava' | 'system'; text: string; sources?: SourceNote[]; rateable?: boolean; topic?: string | null; rated?: 1 | -1; cards?: AvaCard[]; action?: { id: string; summary: string; status: ActionStatus } }
 type Mode = 'closed' | 'mini' | 'expanded';
 
 export function greetingFor(host: AvaHost): string {
@@ -48,10 +52,33 @@ const STATUS: Record<string, { text: string; tone: '' | 'busy' | 'warn' | 'aslee
 const Icon = {
   send: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4 20-7Z" /></svg>,
   mic: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v4" /></svg>,
+  move: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3" /></svg>,
   you: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" /></svg>
 };
 
 const HIGHLIGHT_CSS = '[data-ava-anchor].ava-highlight{outline:3px solid #00B2FF;outline-offset:3px;border-radius:12px;box-shadow:0 0 0 6px rgba(0,178,255,.25),0 0 24px rgba(0,178,255,.35);transition:box-shadow .25s,outline-color .25s}';
+
+/** The life of one change AVA prepared: prepared, approved, done, confirmed. Shows the true outcome, including when it did not happen. */
+function ActionSteps({ summary, status }: { summary: string; status: ActionStatus }) {
+  const { complete, ended } = actionProgress(status);
+  const words: Record<ActionStatus, string> = {
+    awaiting: 'Waiting for your OK. Nothing has changed yet.',
+    running: 'Approved. Making the change…',
+    done: 'Done. The backend confirmed it.',
+    failed: 'It did not go through. Nothing was changed.',
+    cancelled: 'Cancelled. Nothing was changed.'
+  };
+  return (
+    <div className={`steps ${ended ?? ''}`} data-testid="ava-action" data-status={status} role="group" aria-label={`Change: ${summary}`}>
+      <ol>
+        {ACTION_STEPS.map((label, i) => (
+          <li key={label} className={i < complete ? 'on' : i === complete && !ended ? 'now' : ''}>{label}</li>
+        ))}
+      </ol>
+      <small role="status">{words[status]}</small>
+    </div>
+  );
+}
 
 export interface AvaWidgetProps {
   host: AvaHost;
@@ -69,7 +96,9 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
   const hostRef = useRef(host);
   hostRef.current = host;
   const { bus, state, presentation, log } = useAva(() => ({ route: hostRef.current.getRoute(), role: hostRef.current.role ?? undefined }));
-  const [mode, setMode] = useState<Mode>(initialMode);
+  // A person who hid her is not greeted by her again on the next page: she starts as the small edge tab.
+  const startMode: Mode = typeof window !== 'undefined' && loadLayout().hidden ? 'closed' : initialMode;
+  const [mode, setMode] = useState<Mode>(startMode);
   const modeRef = useRef(mode);
   modeRef.current = mode;
   const [turn, setTurn] = useState(0);
@@ -83,6 +112,18 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
   const [profile, setProfile] = useState<Profile>(() => emptyProfile());
   const learning = useMemo(() => new LearningClient(host.offlineDemo ? createLocalStore() : createRemoteStore(host), setProfile), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [panelView, setPanelView] = useState<'chat' | 'you'>('chat');
+  const [layout, setLayout] = useState<LayoutPrefs>(() => (typeof window === 'undefined' ? defaultLayout() : loadLayout()));
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+  const updateLayout = useCallback((patch: Partial<LayoutPrefs>) => {
+    const next = { ...layoutRef.current, ...patch };
+    layoutRef.current = next;
+    saveLayout(next);
+    setLayout(next);
+  }, []);
+  const sectionRef = useRef<HTMLElement>(null);
+  const drag = useRef<{ x: number; y: number; right: number; bottom: number; moved: boolean } | null>(null);
+  const justDragged = useRef(false);
   const [rating, setRating] = useState<number | null>(null);
   const [micGranted, setMicGranted] = useState(false);
   const [wakePaused, setWakePaused] = useState(() => { try { return window.localStorage.getItem('ava.wake.paused') === 'yes'; } catch { return false; } });
@@ -133,7 +174,8 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
 
   const orchestrator = useMemo(
     () => createOrchestrator(bus, new Proxy({} as AvaHost, { get: (_t, k) => (hostRef.current as unknown as Record<string | symbol, unknown>)[k] }), {
-      addMessage: (r, text, sources, meta) => setMessages((m) => [...m, { role: r, text, sources, rateable: meta?.rateable, topic: topicId((sources ?? []).find((x) => x.kind === 'knowledge')?.citations?.[0]) }]),
+      addMessage: (r, text, sources, meta) => setMessages((m) => [...m, { role: r, text, sources, rateable: meta?.rateable, cards: meta?.cards, action: meta?.action ? { ...meta.action, status: 'awaiting' as const } : undefined, topic: topicId((sources ?? []).find((x) => x.kind === 'knowledge')?.citations?.[0]) }]),
+      onAction: (id, status) => setMessages((m) => m.map((x) => (x.action?.id === id ? { ...x, action: { ...x.action, status } } : x))),
       onLearn: (e) => learning.record(e),
       voiceReplies: () => voiceRef.current,
       onCaption: setCaption
@@ -143,7 +185,7 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
 
   // Open on mount; mirror the OS reduced-motion preference.
   useEffect(() => {
-    if (initialMode !== 'closed') bus.emit('ava.opened');
+    if (modeRef.current !== 'closed') bus.emit('ava.opened');
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     const apply = () => bus.emit('ava.settings.changed', undefined, { reducedMotion: mq.matches });
     if (mq.matches) apply();
@@ -176,7 +218,7 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     const home = homeRef.current;
     if (!layer || !home) return;
     const reset = () => { layer.style.transform = ''; layer.style.removeProperty('--ava-k'); setFloating(false); };
-    if (!pointedAt || mode === 'closed') { reset(); return; }
+    if (!pointedAt || mode === 'closed' || layout.focus) { reset(); return; }
     const id = pointedAt;
     let raf = 0;
     let last = '';
@@ -205,14 +247,15 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     };
     tick();
     return () => { done = true; window.cancelAnimationFrame(raf); reset(); };
-  }, [pointedAt, mode]);
+  }, [pointedAt, mode, layout.focus]);
 
   // What she explains while guiding appears in the chat, so the chat must be on screen: a tour that starts while she is minimised
   // opens the panel.
   const guiding = !!state.tour;
-  useEffect(() => { if (guiding && mode === 'mini') setMode('expanded'); }, [guiding, mode]);
+  useEffect(() => { if (guiding && mode === 'mini' && !layout.focus) setMode('expanded'); }, [guiding, mode, layout.focus]);
 
   const changeMode = (next: Mode) => {
+    if (next !== 'closed' && layoutRef.current.hidden) updateLayout({ hidden: false });
     setMode(next);
     if (next === 'closed') { orchestrator.stop('system'); closeMic(); bus.emit('ava.closed'); }
     else if (!state.open) bus.emit('ava.opened');
@@ -332,6 +375,7 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
 
   const onWake = (match: WakeMatch) => {
     const st = stateRef.current;
+    if (layoutRef.current.hidden) updateLayout({ hidden: false });
     if (!st.open || modeRef.current !== 'expanded') {
       setMode('expanded');
       if (!st.open) bus.emit('ava.opened');
@@ -437,7 +481,83 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [host, messages, toursDone]
   );
-  const pos = offset ? { right: offset.right, bottom: offset.bottom } : undefined;
+  const launcherPos = offset ? { right: offset.right, bottom: offset.bottom } : undefined;
+  // Where she sits: where the person last put her, or the host's own corner.
+  const pos = layout.right !== undefined && layout.bottom !== undefined ? { right: layout.right, bottom: layout.bottom } : launcherPos;
+
+  const viewport = () => ({ w: document.documentElement.clientWidth, h: document.documentElement.clientHeight });
+  const moveTo = (p: { right: number; bottom: number }, save: boolean) => {
+    const r = sectionRef.current?.getBoundingClientRect();
+    const c = clampPosition(p, { w: r?.width ?? 0, h: r?.height ?? 0 }, viewport());
+    const next = { ...layoutRef.current, ...c };
+    layoutRef.current = next;
+    setLayout(next);
+    if (save) saveLayout(next);
+  };
+  const dragStart = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button, input, a, label, textarea')) return;
+    const r = sectionRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const v = viewport();
+    drag.current = { x: e.clientX, y: e.clientY, right: v.w - r.right, bottom: v.h - r.bottom, moved: false };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const dragMove = (e: ReactPointerEvent<HTMLElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (!d.moved && Math.hypot(dx, dy) < 6) return;
+    d.moved = true;
+    moveTo({ right: d.right - dx, bottom: d.bottom - dy }, false);
+  };
+  const dragEnd = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d?.moved) return;
+    justDragged.current = true; // the click that ends a drag must not also count as a tap on her
+    window.setTimeout(() => { justDragged.current = false; }, 80);
+    saveLayout(layoutRef.current);
+  };
+  const resetPosition = () => updateLayout({ right: undefined, bottom: undefined });
+  const nudge = (e: ReactKeyboardEvent<HTMLElement>) => {
+    const step = e.shiftKey ? 96 : 24;
+    const dir: Record<string, [number, number]> = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] };
+    if (e.key === 'Home') { e.preventDefault(); resetPosition(); return; }
+    const d = dir[e.key];
+    const r = sectionRef.current?.getBoundingClientRect();
+    if (!d || !r) return;
+    e.preventDefault();
+    const v = viewport();
+    moveTo({ right: v.w - r.right + d[0], bottom: v.h - r.bottom + d[1] }, true);
+  };
+
+  // A saved position from a bigger window must never leave her off the edge of a smaller one.
+  useEffect(() => {
+    const fit = () => {
+      const l = layoutRef.current;
+      const r = sectionRef.current?.getBoundingClientRect();
+      if (l.right === undefined || l.bottom === undefined || !r) return;
+      const c = clampPosition({ right: l.right, bottom: l.bottom }, { w: r.width, h: r.height }, { w: document.documentElement.clientWidth, h: document.documentElement.clientHeight });
+      if (c.right !== l.right || c.bottom !== l.bottom) updateLayout(c);
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [mode, panelView, layout.right, layout.bottom, updateLayout]);
+
+  // The first time she is opened each day she says what needs the person, if they have not turned that off.
+  const briefed = useRef(false);
+  const staff = host.role === 'admin' || host.role === 'owner' || host.role === 'agent';
+  useEffect(() => {
+    if (!host.briefing || !staff || mode !== 'expanded' || briefed.current || !briefingDue(layoutRef.current)) return;
+    briefed.current = true;
+    // Counted as given as soon as it starts, so a quick reload cannot repeat it; given back if it could not be fetched.
+    const previous = layoutRef.current.briefedOn;
+    updateLayout({ briefedOn: dayKey() });
+    void orchestrator.briefing(true).then((ok) => { if (!ok) updateLayout({ briefedOn: previous }); });
+  }, [host.briefing, staff, mode, layout.focus, layout.briefing, layout.hidden, orchestrator, updateLayout]);
+
+  const hideAva = () => { changeMode('closed'); updateLayout({ hidden: true }); };
 
   return (
     <div className="ava-root">
@@ -458,15 +578,19 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
       )}
       <div className="ava-park" ref={parkRef} aria-hidden="true" />
 
-      {mode === 'closed' && (
-        <button className={`launcher${wakeListening ? ' wake' : ''}`} style={pos} onClick={() => changeMode('expanded')} onPointerEnter={() => setWarm(true)} onFocus={() => setWarm(true)} aria-label="Open AVA">AVA</button>
+      {mode === 'closed' && layout.hidden && (
+        <button className="edge-tab" onClick={() => changeMode('expanded')} aria-label="Show AVA" title="Show AVA">AVA</button>
+      )}
+      {mode === 'closed' && !layout.hidden && (
+        <button className={`launcher${wakeListening ? ' wake' : ''}`} style={launcherPos} onClick={() => changeMode('expanded')} onPointerEnter={() => setWarm(true)} onFocus={() => setWarm(true)} aria-label="Open AVA">AVA</button>
       )}
 
       {mode !== 'closed' && (
-        <section className={`ava ${mode}`} style={pos} aria-label="AVA assistant">
+        <section className={`ava ${mode}`} style={pos} ref={sectionRef} data-focus={layout.focus ? 'true' : undefined} aria-label="AVA assistant">
           <div className="ava-stage" ref={homeRef}>
             <div className="ava-float" ref={stageRef} data-floating={floating ? 'true' : 'false'}
-                 onClick={mode === 'mini' ? () => changeMode('expanded') : undefined}
+                 onPointerDown={mode === 'mini' ? dragStart : undefined} onPointerMove={mode === 'mini' ? dragMove : undefined} onPointerUp={mode === 'mini' ? dragEnd : undefined} onPointerCancel={mode === 'mini' ? dragEnd : undefined}
+                 onClick={mode === 'mini' ? () => { if (!justDragged.current) changeMode('expanded'); } : undefined}
                  role={mode === 'mini' ? 'button' : undefined} tabIndex={mode === 'mini' ? 0 : undefined}
                  onKeyDown={(e) => mode === 'mini' && (e.key === 'Enter' || e.key === ' ') && changeMode('expanded')}
                  aria-label={mode === 'mini' ? `Expand AVA, ${faceLabel}` : undefined}>
@@ -485,12 +609,13 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
 
           {mode === 'expanded' && (
             <div className="panel" ref={panelRef}>
-              <div className="panel-head">
+              <div className="panel-head" onPointerDown={dragStart} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={dragEnd} onDoubleClick={resetPosition} title="Drag to move AVA; double-click to put her back">
                 <div className="title">
                   <strong>AVA</strong>
                   <span className={`status ${status.tone}`}><i className="dot" />{status.text}</span>
                 </div>
                 <div className="head-actions">
+                  <button className="icon-btn" onKeyDown={nudge} aria-label="Move AVA (arrow keys; Home puts her back)" title="Move AVA: drag the header, or focus this and use the arrow keys"><span className="icon">{Icon.move}</span></button>
                   <button className="icon-btn" onClick={() => setPanelView((v) => (v === 'you' ? 'chat' : 'you'))} aria-label="Your AVA" aria-pressed={panelView === 'you'} title="What AVA has learned about you"><span className="icon">{Icon.you}</span></button>
                   <button className="icon-btn" onClick={() => changeMode('mini')} aria-label="Minimize AVA">–</button>
                   <button className="icon-btn" onClick={() => changeMode('closed')} aria-label="Close AVA">✕</button>
@@ -506,6 +631,15 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                   ) : <p className="you-off">Personalization is off, so AVA is not learning from your use and treats every visit the same.</p>}
                   <label className="switch"><input type="checkbox" checked={profile.personalization} onChange={(e) => void learning.setConsent({ personalization: e.target.checked })} /> Tailor AVA to me</label>
                   <label className="switch"><input type="checkbox" checked={profile.sharing} onChange={(e) => void learning.setConsent({ sharing: e.target.checked })} /> Share anonymous usage to improve AVYRO <small>(no name, no text; just which features and help topics are used)</small></label>
+                  <h3 className="you-sub">How AVA sits on your screen</h3>
+                  {host.briefing && staff && (
+                    <label className="switch"><input type="checkbox" checked={layout.briefing} onChange={(e) => updateLayout({ briefing: e.target.checked })} /> Morning briefing <small>(a short summary of what needs you, the first time you open me each day)</small></label>
+                  )}
+                  <label className="switch"><input type="checkbox" checked={layout.focus} onChange={(e) => updateLayout({ focus: e.target.checked })} /> Focus mode <small>(I stay out of the way: no briefing, I don't open or fly out on my own; I still answer when you ask)</small></label>
+                  <div className="you-actions">
+                    <button type="button" onClick={resetPosition} disabled={layout.right === undefined}>Put AVA back in her corner</button>
+                    <button type="button" onClick={hideAva}>Hide AVA</button>
+                  </div>
                   <div className="you-actions">
                     <button type="button" onClick={() => void learning.erase()}>Forget what AVA has learned</button>
                     <button type="button" className="primary" onClick={() => setPanelView('chat')}>Back to chat</button>
@@ -525,6 +659,26 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                       <p>{m.text}</p>
                       {/* Source notes (help article names, versions) are internal. Only the sandbox demo shows them, so its sample data is never mistaken for real data. */}
                       {host.offlineDemo && describeSources(m.sources).map((line, j) => <small key={j} className="sources">{line}</small>)}
+                      {m.action && <ActionSteps summary={m.action.summary} status={m.action.status} />}
+                      {m.cards && m.cards.length > 0 && (
+                        <div className="cards" role="group" aria-label="Suggested actions">
+                          {m.cards.map((c) => (
+                            <div key={c.id} className="card" data-testid="ava-card">
+                              <div className="card-head"><strong>{c.title}</strong>{c.meta && <small>{c.meta}</small>}</div>
+                              {c.why && <ul className="why" aria-label="Why">{c.why.map((w) => <li key={w}>{w}</li>)}</ul>}
+                              {c.actions.length > 0 && (
+                                <div className="card-actions">
+                                  {c.actions.map((a) => (
+                                    <button key={a.label} type="button" className={`chip small${a.kind === 'prepare' ? ' change' : ''}`}
+                                      title={a.kind === 'prepare' ? 'I will ask for your OK before anything changes' : undefined}
+                                      onClick={() => void orchestrator.cardAction(a)}>{a.label}</button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {m.rateable && (
                         <div className="rate" role="group" aria-label="Was this helpful?">
                           {m.rated === undefined ? (
@@ -554,10 +708,11 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                 </div>
               )}
 
-              {!state.micActive && !busy && !confirmation && (firstTurn ? suggestions.length > 0 || tours.length > 0 : followups.length > 0) && (
+              {!state.micActive && panelView === 'chat' && !busy && !confirmation && (firstTurn ? suggestions.length > 0 || tours.length > 0 : followups.length > 0) && (
                 <ChipRow label={firstTurn ? 'Quick actions' : 'Suggested next'}>
                   {firstTurn ? (
                     <>
+                      {host.briefing && staff && <button className="chip" onClick={() => void orchestrator.briefing(false)}>Brief me on today</button>}
                       {suggestions.map((q) => <button key={q} className="chip" onClick={() => orchestrator.submit(q)}>{q}</button>)}
                       {tours.map((t) => (
                         <button key={t.id} className="chip tour" title={t.summary} onClick={() => { setToursStarted((d) => [...d, t.id]); orchestrator.startTourById(t.id); }}>Tour: {t.title}</button>

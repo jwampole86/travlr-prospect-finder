@@ -4,6 +4,10 @@ export interface AvaHandlerActor { id: string; role: string }
 interface Gateway {
   turn: (args: { messages: unknown; context: unknown; signal: AbortSignal; actor: AvaHandlerActor }, emit: (line: object) => void) => Promise<unknown>;
   confirm: (args: { actionId: unknown; decision: unknown; context: unknown; actor: AvaHandlerActor }, emit: (line: object) => void) => Promise<unknown>;
+  /** A change chosen from an answer card: validated like a proposed one and held for the person's approval. */
+  prepare: (args: { tool: unknown; args: unknown; context: unknown; actor: AvaHandlerActor }, emit: (line: object) => void) => Promise<unknown>;
+  /** The daily "what needs you today" summary. */
+  briefing: (args: { context: unknown; signal: AbortSignal; actor: AvaHandlerActor }, emit: (line: object) => void) => Promise<unknown>;
 }
 
 export interface AvaHandlerDeps {
@@ -22,7 +26,7 @@ const MAX_BODY = 32 * 1024;
 const json = (body: unknown, status: number, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...extra } });
 
-export async function handleAva(req: Request, kind: 'turn' | 'confirm', deps: AvaHandlerDeps): Promise<Response> {
+export async function handleAva(req: Request, kind: 'turn' | 'confirm' | 'prepare' | 'briefing', deps: AvaHandlerDeps): Promise<Response> {
   if (!deps.enabled()) return json({ error: 'not_found' }, 404);
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, { allow: 'POST' });
 
@@ -58,7 +62,9 @@ export async function handleAva(req: Request, kind: 'turn' | 'confirm', deps: Av
       const emit = (line: object) => { try { out.enqueue(enc.encode(JSON.stringify(line) + '\n')); } catch { /* client went away */ } };
       try {
         if (kind === 'turn') await gateway.turn({ messages: body.messages, context: body.context, signal: controller.signal, actor }, emit);
-        else await gateway.confirm({ actionId: body.actionId, decision: body.decision, context: body.context, actor }, emit);
+        else if (kind === 'confirm') await gateway.confirm({ actionId: body.actionId, decision: body.decision, context: body.context, actor }, emit);
+        else if (kind === 'prepare') await gateway.prepare({ tool: body.tool, args: body.args, context: body.context, actor }, emit);
+        else await gateway.briefing({ context: body.context, signal: controller.signal, actor }, emit);
       } catch {
         if (!controller.signal.aborted) emit({ t: 'error', code: 'brain_failed' });
       }

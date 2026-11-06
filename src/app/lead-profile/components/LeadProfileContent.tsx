@@ -24,6 +24,7 @@ import { activityService } from '@/lib/services/activityService';
 import { outreachDisplay } from '@/lib/services/smsSendState';
 import { assessLead, assessLeadData, lastVerified, outreachCleared } from '@/lib/leadVerification';
 import PipelineStatusBadge, { PIPELINE_STATUS_CONFIG, PIPELINE_STATUS_ORDER, type PipelineStatus } from '@/components/ui/PipelineStatusBadge';
+import { setAvaScreen, setAvaSelection } from '@/components/ava/selection';
 import ConfidenceBandBadge, { getConfidenceBand, CONFIDENCE_BAND_CONFIG } from '@/components/ui/ConfidenceBandBadge';
 import Icon from '@/components/ui/AppIcon';
 import AILeadQualificationPanel from '@/components/AILeadQualificationPanel';
@@ -724,6 +725,28 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : [];
 
   // These come before anything that assumes a lead exists. A bare `return null` here once hid both screens, leaving the page blank.
+  // Tell AVA which property is open, so "what do you think about this one?" is about this one.
+  useEffect(() => {
+    if (!lead) return;
+    const label = [lead.address, lead.city].filter(Boolean).join(', ');
+    setAvaSelection({ leadId: lead.id, leadName: label });
+    setAvaScreen({ title: 'Property profile', open: { kind: 'property', label, id: lead.id } });
+    return () => { setAvaSelection(null); setAvaScreen(null); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead?.id]);
+
+  // "Review verification" from AVA's answer card lands here: bring the verification status into view.
+  useEffect(() => {
+    if (!lead || leadLoading || new URLSearchParams(window.location.search).get('focus') !== 'verification') return;
+    const el = document.querySelector('[data-ava-anchor="lead-verification"]');
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('ava-highlight');
+    const t = window.setTimeout(() => el.classList.remove('ava-highlight'), 4000);
+    return () => { window.clearTimeout(t); el.classList.remove('ava-highlight'); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead?.id, leadLoading]);
+
   if (leadLoading) return <LeadProfileSkeleton />;
   if (!lead || leadNotFound) {
     return (
@@ -1129,7 +1152,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
               <p className="text-xs text-muted-foreground">{lead.city}, {lead.state} {lead.zip}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0" data-ava-anchor="lead-verification">
             <StageBadge stage={lead.stage} />
             <RegulationBadge status={lead.regulationStatus} />
             {/* ── Verification Badge ─────────────────────────────────────────── */}

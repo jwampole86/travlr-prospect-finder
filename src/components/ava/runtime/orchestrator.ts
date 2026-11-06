@@ -3,9 +3,11 @@ import type { AvaBus } from './useAva';
 import { newRequestId } from './useAva';
 import { KNOWLEDGE, KNOWLEDGE_VERSION, MOCK_LEADS } from './mockData';
 import { cancelSpeech, speak } from './speech';
-import { BrainUnavailable, streamConfirm, streamTurn } from './brain';
+import { BrainUnavailable, streamBriefing, streamConfirm, streamPrepare, streamTurn } from './brain';
 import type { BrainLine, BrainMessage, SourceNote } from './brain';
 import { runTour } from './tours';
+import { parseCards } from './cards';
+import type { ActionStatus, AvaCard, CardAction } from './cards';
 import { topicId } from '../core/learning';
 import type { LearnEvent } from '../core/learning';
 import type { TourEnv } from './tours';
@@ -13,13 +15,17 @@ import { anchorExists, buildContext, toursForRole, visibleAnchors } from '../hos
 import type { AvaHost, TourDefinition } from '../host/types';
 
 export interface OrchestratorHooks {
-  addMessage: (role: 'user' | 'ava' | 'system', text: string, sources?: SourceNote[], meta?: { rateable?: boolean }) => void;
+  addMessage: (role: 'user' | 'ava' | 'system', text: string, sources?: SourceNote[], meta?: { rateable?: boolean; cards?: AvaCard[]; action?: { id: string; summary: string } }) => void;
+  /** Progress of a change AVA prepared: awaiting approval, running, done, failed or cancelled. */
+  onAction?: (id: string, status: ActionStatus) => void;
   /** What AVA is learning about this person: ids and counts only, never what was said. */
   onLearn?: (event: LearnEvent) => void;
   voiceReplies: () => boolean;
   /** Sentence being spoken right now (for captions), or null. */
   onCaption?: (sentence: string | null) => void;
 }
+
+interface PipeState { received: boolean; reasoningOpen: boolean; executed?: boolean; /** The prepared change whose outcome this stream reports. */ actionId?: string }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -114,10 +120,10 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
     });
   }
 
-  async function say(run: Run, text: string, sources?: SourceNote[], rateable = false) {
+  async function say(run: Run, text: string, sources?: SourceNote[], rateable = false, cards?: AvaCard[]) {
     if (run.cancelled) return;
     bus.emit('ava.answer.started', run.requestId);
-    hooks.addMessage('ava', text, sources, { rateable });
+    hooks.addMessage('ava', text, sources, { rateable, cards: cards?.length ? cards : undefined });
     history.push({ role: 'assistant', content: text });
     if (hooks.voiceReplies()) await speak(bus, text, hooks.onCaption);
     else await sleep(Math.min(1200 + text.length * 22, 5000));
@@ -231,11 +237,13 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
         actionId,
         summary: 'Create a follow-up for Hartwell Residence'
       });
-      hooks.addMessage('ava', 'I can create a follow-up for Hartwell Residence. Please confirm before I change anything.');
+      hooks.addMessage('ava', 'I can create a follow-up for Hartwell Residence. Please confirm before I change anything.', undefined, { action: { id: actionId, summary: 'Create a follow-up for Hartwell Residence' } });
       const decision = await waitForDecision(run.requestId, actionId, run);
       if (decision === 'cancelled') return;
+      hooks.onAction?.(actionId, decision === 'rejected' ? 'cancelled' : 'running');
       if (decision === 'rejected') return say(run, 'Okay, cancelled. Nothing was changed.');
       const ok = await runTool(run, 'followups.create', { mutating: true, outcome, completesTask: true });
+      hooks.onAction?.(actionId, ok ? 'done' : 'failed');
       if (ok) hooks.onLearn?.({ kind: 'tool_used', tool: 'create_followup' });
       if (run.cancelled) return;
       if (ok) return say(run, 'Done. The backend confirmed the follow-up for Hartwell Residence.');
@@ -291,7 +299,7 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
   }
 
   /** Plays one brain stream onto the event bus. Returns the confirmation the brain asked for, if any. */
-  async function pipe(run: Run, source: AsyncGenerator<BrainLine>, tours: Promise<void>[], state: { received: boolean; reasoningOpen: boolean }) {
+  async function pipe(run: Run, source: AsyncGenerator<BrainLine>, tours: Promise<void>[], state: PipeState) {
     const closeReasoning = () => {
       if (state.reasoningOpen) {
         state.reasoningOpen = false;
@@ -308,13 +316,20 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
           break;
         case 'tool_end':
           if (line.ok) {
+            if (line.completesTask) { state.executed = true; if (state.actionId) hooks.onAction?.(state.actionId, 'done'); }
             hooks.onLearn?.({ kind: 'tool_used', tool: line.tool });
             bus.emit('ava.tool.succeeded', run.requestId, { tool: line.tool, callId: line.callId, backendConfirmed: line.backendConfirmed, completesTask: line.completesTask });
           } else if (line.reason === 'denied') {
+            state.executed = false;
+            if (state.actionId) hooks.onAction?.(state.actionId, 'failed');
             bus.emit('ava.permission.denied', run.requestId, { scope: 'tool', tool: line.tool, callId: line.callId });
           } else if (line.reason === 'timeout') {
+            state.executed = false;
+            if (state.actionId) hooks.onAction?.(state.actionId, 'failed');
             bus.emit('ava.tool.timed_out', run.requestId, { tool: line.tool, callId: line.callId });
           } else {
+            state.executed = false;
+            if (state.actionId) hooks.onAction?.(state.actionId, 'failed');
             bus.emit('ava.tool.failed', run.requestId, { tool: line.tool, callId: line.callId, reason: 'error' });
           }
           break;
@@ -344,7 +359,7 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
           confirmation = { actionId: line.actionId, summary: line.summary };
           bus.emit('ava.confirmation.required', run.requestId, { actionId: line.actionId, summary: line.summary });
           const prompt = `${line.summary}. Please confirm before I change anything.`;
-          hooks.addMessage('ava', prompt);
+          hooks.addMessage('ava', prompt, undefined, { action: { id: line.actionId, summary: line.summary } });
           history.push({ role: 'assistant', content: prompt });
           break;
         }
@@ -352,12 +367,13 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
           closeReasoning();
           const topic = topicId((line.sources ?? []).find((x) => x.kind === 'knowledge')?.citations?.[0]);
           hooks.onLearn?.({ kind: 'question', topic });
-          await say(run, line.text, line.sources, true);
+          await say(run, line.text, line.sources, true, parseCards(line.cards));
           break;
         }
         case 'error':
           if (line.code === 'llm_not_configured') throw new BrainUnavailable(line.code);
           if (line.code === 'unauthenticated') throw new BrainUnavailable('unauthorized');
+          if (line.code === 'briefing_failed' || line.code === 'forbidden') throw new BrainUnavailable(line.code);
           closeReasoning();
           await say(run, line.code === 'llm_auth'
             ? 'My AI service rejected its access key, so I can only answer help-center questions right now. An admin needs to update AVA_LLM_API_KEY. Nothing was changed.'
@@ -372,18 +388,25 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
     return confirmation;
   }
 
+  /** Waits for the person's decision on a prepared change, then tells the server, which runs it (or discards it) exactly once. */
+  async function settle(run: Run, confirmation: { actionId: string; summary: string }, tours: Promise<void>[], state: PipeState) {
+    const decision = await waitForDecision(run.requestId, confirmation.actionId, run);
+    if (decision === 'cancelled') { hooks.onAction?.(confirmation.actionId, 'cancelled'); return; }
+    hooks.onAction?.(confirmation.actionId, decision === 'accepted' ? 'running' : 'cancelled');
+    state.executed = undefined;
+    state.actionId = confirmation.actionId;
+    // Always tell the server, so a rejected action is discarded and an accepted one runs exactly once.
+    await pipe(run, streamConfirm(host, confirmation.actionId, decision === 'accepted' ? 'accept' : 'reject', buildContext(host)), tours, state);
+    if (decision === 'accepted' && state.executed !== true) hooks.onAction?.(confirmation.actionId, 'failed');
+  }
+
   async function handleLive(run: Run) {
-    const state = { received: false, reasoningOpen: true };
+    const state: PipeState = { received: false, reasoningOpen: true };
     const tours: Promise<void>[] = [];
     bus.emit('ava.reasoning.started', run.requestId);
     try {
       const confirmation = await pipe(run, streamTurn(host, history, buildContext(host), run.abort.signal), tours, state);
-      if (confirmation && !run.cancelled) {
-        const decision = await waitForDecision(run.requestId, confirmation.actionId, run);
-        if (decision === 'cancelled') return;
-        // Always tell the server, so a rejected action is discarded and an accepted one runs exactly once.
-        await pipe(run, streamConfirm(host, confirmation.actionId, decision === 'accepted' ? 'accept' : 'reject', buildContext(host)), tours, state);
-      }
+      if (confirmation && !run.cancelled) await settle(run, confirmation, tours, state);
       await Promise.all(tours);
     } catch (err) {
       if (run.cancelled) return;
@@ -391,6 +414,40 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
       bus.emit('ava.reasoning.ended', run.requestId);
       await say(run, 'I could not reach my assistant service, so nothing was changed. Please try again.');
     }
+  }
+
+  /** A change chosen from an answer card: prepared by the server, approved by the person, run once, and its true outcome shown. */
+  async function handlePrepared(run: Run, tool: string, args: Record<string, unknown>) {
+    const state: PipeState = { received: false, reasoningOpen: true };
+    const tours: Promise<void>[] = [];
+    bus.emit('ava.reasoning.started', run.requestId);
+    try {
+      const confirmation = await pipe(run, streamPrepare(host, tool, args, buildContext(host)), tours, state);
+      if (confirmation && !run.cancelled) await settle(run, confirmation, tours, state);
+      else bus.emit('ava.reasoning.ended', run.requestId);
+    } catch (err) {
+      if (run.cancelled) return;
+      bus.emit('ava.reasoning.ended', run.requestId);
+      await say(run, err instanceof BrainUnavailable && err.reason === 'unauthorized'
+        ? 'Your session has expired, so I can’t do that right now. Please sign in again. Nothing was changed.'
+        : 'I could not reach my assistant service, so nothing was changed. Please try again.');
+    }
+  }
+
+  /** The "what needs you today" summary. Automatic ones stay silent if anything is wrong; one the person asked for says so. */
+  async function handleBriefing(run: Run, automatic: boolean): Promise<boolean> {
+    const state: PipeState = { received: false, reasoningOpen: true };
+    bus.emit('ava.reasoning.started', run.requestId);
+    try {
+      await pipe(run, streamBriefing(host, buildContext(host), run.abort.signal), [], state);
+    } catch {
+      if (run.cancelled) return false;
+      bus.emit('ava.reasoning.ended', run.requestId);
+      if (!automatic) await say(run, 'I could not get your briefing right now. Please try again in a moment.');
+      return false;
+    }
+    if (state.reasoningOpen) bus.emit('ava.reasoning.ended', run.requestId);
+    return !run.cancelled;
   }
 
   async function handle(run: Run, text: string) {
@@ -457,6 +514,50 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
         await startTour(run, def);
       })().finally(() => { if (active === run) active = null; });
       return true;
+    },
+    /** What needs the person today. `automatic` is the once-a-day one on opening: no message from them, and silent on failure. */
+    briefing(automatic = false): Promise<boolean> {
+      stop('user');
+      if (!automatic) {
+        hooks.addMessage('user', 'Brief me');
+        history.push({ role: 'user', content: 'Brief me on what needs my attention today.' });
+      }
+      const run: Run = { requestId: newRequestId(), cancelled: false, abort: new AbortController() };
+      active = run;
+      return handleBriefing(run, automatic).finally(() => { if (active === run) active = null; });
+    },
+    /** A button on an answer card. Opening and asking are harmless; anything that changes data is prepared, then approved by the person. */
+    async cardAction(action: CardAction) {
+      switch (action.kind) {
+        case 'ask':
+          return this.submit(action.text);
+        case 'open_lead':
+          if (host.openLead) host.openLead(action.leadId, action.focus);
+          else hooks.addMessage('system', "I can't open that lead from here.");
+          return;
+        case 'open_page': {
+          stop('user');
+          const run: Run = { requestId: newRequestId(), cancelled: false, abort: new AbortController() };
+          active = run;
+          return void handleGo(run, action.page, true).finally(() => { if (active === run) active = null; });
+        }
+        case 'export': {
+          if (!host.exportLeads) return void hooks.addMessage('system', "I can't export from here.");
+          try {
+            const n = await host.exportLeads();
+            hooks.addMessage('system', n > 0 ? `Exported ${n} lead${n === 1 ? '' : 's'} as a CSV file.` : 'There is nothing to export with the current filters.');
+          } catch {
+            hooks.addMessage('system', 'The export did not complete. Nothing was downloaded.');
+          }
+          return;
+        }
+        case 'prepare': {
+          stop('user');
+          const run: Run = { requestId: newRequestId(), cancelled: false, abort: new AbortController() };
+          active = run;
+          return void handlePrepared(run, action.tool, action.args).finally(() => { if (active === run) active = null; });
+        }
+      }
     },
     stop,
     /** Request id of the run in progress, so UI controls can address it. */

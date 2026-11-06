@@ -22,7 +22,7 @@ export type BrainLine =
   | { t: 'tour'; anchors: string[] }
   | { t: 'go'; page: string; open: boolean }
   | { t: 'confirm'; actionId: string; tool: string; summary: string }
-  | { t: 'answer'; text: string; sources?: SourceNote[] }
+  | { t: 'answer'; text: string; sources?: SourceNote[]; cards?: unknown }
   | { t: 'error'; code: string }
   | { t: 'done' };
 
@@ -86,3 +86,11 @@ export const streamTurn = (host: AvaHost, messages: BrainMessage[], context: Ava
 /** Not abortable on purpose: once the user confirms, the backend call finishes and the UI must report its true outcome. */
 export const streamConfirm = (host: AvaHost, actionId: string, decision: 'accept' | 'reject', context: AvaContext) =>
   lines(host, '/api/ava/confirm', { actionId, decision, context });
+
+/** A change chosen from an answer card. The server checks it like any proposed change and asks for approval before it runs. */
+export const streamPrepare = (host: AvaHost, tool: string, args: Record<string, unknown>, context: AvaContext) =>
+  lines(host, '/api/ava/prepare', { tool, args, context });
+
+/** The short "what needs you today" summary. */
+export const streamBriefing = (host: AvaHost, context: AvaContext, signal?: AbortSignal) =>
+  lines(host, '/api/ava/briefing', { context }, signal);

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { setAvaSelection } from '@/components/ava/selection';
+import { setAvaExporter, setAvaScreen, setAvaSelection } from '@/components/ava/selection';
 import type { Lead, LeadStage } from '@/data/mockLeads';
 import type { RegulationRule } from '@/data/regulations';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -1232,6 +1232,36 @@ export default function LeadManagementClient({
     exportLeads(filteredLeads, 'csv');
     toast.success(`Exported ${filteredLeads.length} filtered leads as CSV`);
   }, [filteredLeads]);
+
+  // Tell AVA what this screen is showing (the filters in force and how many leads match), so "what do you think about these filters?"
+  // and "export these" mean the leads actually on screen. The export button AVA offers runs the same export as the page's own.
+  useEffect(() => {
+    const f: Record<string, string> = {};
+    const list = (v: string[] | undefined) => (v && v.length ? v.join(', ') : '');
+    if (filters.search) f['Search'] = filters.search;
+    if (list(filters.cities)) f['Cities'] = list(filters.cities);
+    if (list(filters.sources)) f['Sources'] = list(filters.sources);
+    if (list(filters.stages)) f['Stages'] = list(filters.stages);
+    if (list(filters.regulationStatuses)) f['Regulation'] = list(filters.regulationStatuses);
+    if (filters.beds) f['Bedrooms'] = filters.beds;
+    if (filters.priceMin || filters.priceMax) f['Price'] = `${filters.priceMin || 'any'} to ${filters.priceMax || 'any'}`;
+    if (filters.scoreMin) f['Minimum score'] = filters.scoreMin;
+    if (list(filters.confidenceBands)) f['Confidence bands'] = list(filters.confidenceBands);
+    if (filters.verifiedOnly) f['Verified only'] = 'yes';
+    if (filters.verifiedOwnerOnly) f['Owner verified'] = 'yes';
+    if (filters.verifiedNumberOnly) f['Phone verified'] = 'yes';
+    if (filters.luxury) f['Luxury only'] = 'yes';
+    if (filters.campaignStage) f['Campaign stage'] = filters.campaignStage;
+    f['Sorted by'] = `${String(sortKey)} ${sortDir === 'desc' ? 'high to low' : 'low to high'}`;
+    setAvaScreen({ title: 'Lead management', filters: f, counts: { shown: filteredLeads.length, total: serverTotal }, canExport: true });
+    setAvaExporter(() => {
+      if (filteredLeads.length === 0) return 0;
+      exportLeads(filteredLeads, 'csv');
+      toast.success(`Exported ${filteredLeads.length} filtered leads as CSV`);
+      return filteredLeads.length;
+    });
+  }, [filters, filteredLeads, serverTotal, sortKey, sortDir]);
+  useEffect(() => () => { setAvaScreen(null); setAvaExporter(null); }, []);
 
   // Remember the list or table choice.
   useEffect(() => { try { const v = localStorage.getItem('lm_view_mode'); if (v === 'list' || v === 'table') setViewMode(v); } catch { /* storage unavailable */ } }, []);

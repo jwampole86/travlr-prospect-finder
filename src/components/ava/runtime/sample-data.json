@@ -5,19 +5,42 @@
       "name": "Hartwell Residence",
       "tier": "Luxury",
       "score": 96,
-      "status": "Verified"
+      "status": "Verified",
+      "id": "sample-hartwell",
+      "stage": "New Lead",
+      "why": [
+        "Highest score in your list",
+        "Owner and phone both verified"
+      ],
+      "missing": []
     },
     {
       "name": "Okafor Estate",
       "tier": "Luxury",
       "score": 91,
-      "status": "Verified"
+      "status": "Verified",
+      "id": "sample-okafor",
+      "stage": "Contacted",
+      "why": [
+        "Luxury tier with a strong score",
+        "Owner and phone both verified"
+      ],
+      "missing": []
     },
     {
       "name": "Lindqvist Villa",
       "tier": "Luxury",
       "score": 88,
-      "status": "Pending"
+      "status": "Pending",
+      "id": "sample-lindqvist",
+      "stage": "New Lead",
+      "why": [
+        "Luxury tier with a strong score",
+        "Owner verified, phone still pending"
+      ],
+      "missing": [
+        "Phone number not verified yet"
+      ]
     }
   ],
   "knowledge": [
@@ -84,6 +107,24 @@
       ],
       "answer": "The lead score ranks how promising a lead is, from 0 to 100. Higher scores are listed first in your results.",
       "source": "Help: Lead scores"
+    }
+  ],
+  "followups": [
+    {
+      "id": "sample-fu-1",
+      "leadId": "sample-lindqvist",
+      "leadName": "Lindqvist Villa",
+      "title": "Follow up: Lindqvist Villa",
+      "daysFromToday": -1,
+      "priority": "high"
+    },
+    {
+      "id": "sample-fu-2",
+      "leadId": "sample-okafor",
+      "leadName": "Okafor Estate",
+      "title": "Follow up: Okafor Estate",
+      "daysFromToday": 0,
+      "priority": "medium"
     }
   ]
 }
