@@ -249,6 +249,43 @@
       "entries": [
         "playbook-first-test"
       ]
+    },
+    {
+      "q": "Where are the campaign texts and emails kept in AVYRO?",
+      "entries": [
+        "playbook-where-in-avyro"
+      ]
+    },
+    {
+      "q": "What happens in AVYRO when an owner texts back a 3?",
+      "entries": [
+        "playbook-reply-recorded",
+        "playbook-reply-routing"
+      ]
+    },
+    {
+      "q": "Does AVYRO answer the owner automatically after they pick an option?",
+      "entries": [
+        "playbook-reply-recorded"
+      ]
+    },
+    {
+      "q": "What does NAVEO Stays do?",
+      "entries": [
+        "naveo-stays"
+      ]
+    },
+    {
+      "q": "What is NAVEO Homes for?",
+      "entries": [
+        "naveo-homes"
+      ]
+    },
+    {
+      "q": "How many tabs are on the seller screen?",
+      "entries": [
+        "seller-what-is"
+      ]
     }
   ],
   "unsupported": [

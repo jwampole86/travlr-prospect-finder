@@ -4,7 +4,20 @@
     {
       "id": "playbook-overview",
       "title": "What is the seller and owner outreach campaign?",
-      "keywords": ["campaign", "playbook", "outreach", "text", "email", "sell", "rent", "sale", "naveo", "homes", "stays", "owner"],
+      "keywords": [
+        "campaign",
+        "playbook",
+        "outreach",
+        "text",
+        "email",
+        "sell",
+        "rent",
+        "sale",
+        "naveo",
+        "homes",
+        "stays",
+        "owner"
+      ],
       "answer": "The campaign helps your team find out what an owner actually wants for a property, then send them one clear next step: sale, long-term rental (NAVEO Homes), short-term rental (NAVEO Stays), or both and still deciding. It starts with one short text and email asking which they want, then follows with a message matched to their answer. The goals are to separate real seller intent from curiosity or rental interest, route to the right service, confirm permission and purpose instead of assuming it, give each owner one authorized next step, and never promise a sale, a valuation or any regulated activity in a message. A STOP reply withdraws every permission at once.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
@@ -13,7 +26,15 @@
     {
       "id": "playbook-entry-message",
       "title": "What is the first message to send an owner, and how do they answer?",
-      "keywords": ["entry", "first message", "opening", "what are you looking for", "reply 1 2 3 4", "sms", "subject line"],
+      "keywords": [
+        "entry",
+        "first message",
+        "opening",
+        "what are you looking for",
+        "reply 1 2 3 4",
+        "sms",
+        "subject line"
+      ],
       "answer": "The entry text says who you are, mentions the property address, and asks one question: are you mainly looking to sell, rent long-term, rent short-term, or still deciding? The owner replies 1, 2, 3 or 4. The email asks the same question with the same four options, as a reply or a button. Suggested email subject lines to test: Quick question about the address; Sell, rent, or both? We need 10 seconds; So we don't send the wrong options. Only the path they choose is followed up.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
@@ -22,7 +43,18 @@
     {
       "id": "playbook-reply-routing",
       "title": "Where does each reply (1, 2, 3 or 4) go?",
-      "keywords": ["routing", "route", "reply", "1", "2", "3", "4", "undecided", "no reply", "nurture"],
+      "keywords": [
+        "routing",
+        "route",
+        "reply",
+        "1",
+        "2",
+        "3",
+        "4",
+        "undecided",
+        "no reply",
+        "nurture"
+      ],
       "answer": "Reply 1 (sale) goes to seller solutions, with a qualification call and an authority check. Reply 2 (long-term rent) goes to NAVEO Homes, with an eligibility and scope call. Reply 3 (short-term rent) goes to NAVEO Stays, with a short-term rental checklist and fit review. Reply 4 (both or still deciding) goes to an options consultation and an options map call. If there is no reply after two touches, the owner is held for gentle nurture with soft re-engagement only.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
@@ -31,7 +63,15 @@
     {
       "id": "playbook-sale-path",
       "title": "What do I send an owner who wants to sell?",
-      "keywords": ["sale path", "selling", "sell", "qualification", "authority", "licensed", "listing"],
+      "keywords": [
+        "sale path",
+        "selling",
+        "sell",
+        "qualification",
+        "authority",
+        "licensed",
+        "listing"
+      ],
       "answer": "Tell them what happens next in three steps: confirm they have authority to discuss the property; capture their timeline, whether it is occupied, and their goals; then route them to the correct licensed pathway or service options. Say plainly that this is not a listing appointment and that you will make no promises about price or sale until the proper steps are complete. Ask them to reply YES for a short qualification call, or to give a preferred timeline such as 30 days, 90 days or exploring.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
@@ -40,7 +80,15 @@
     {
       "id": "playbook-long-term-path",
       "title": "What do I send an owner who wants long-term rental management?",
-      "keywords": ["long-term", "long term rental", "ltr", "naveo homes", "tenant placement", "management", "reporting"],
+      "keywords": [
+        "long-term",
+        "long term rental",
+        "ltr",
+        "naveo homes",
+        "tenant placement",
+        "management",
+        "reporting"
+      ],
       "answer": "Confirm what they chose, then describe what NAVEO Homes focuses on: tenant placement and screening, ongoing property oversight, clear owner reporting, and local compliance and vendor coordination. The next step is a short qualification to confirm eligibility and scope, with no commitment needed to have the conversation. Ask them to reply YES for a short call or to send preferred days.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
@@ -49,7 +97,16 @@
     {
       "id": "playbook-short-term-path",
       "title": "What do I send an owner who wants a short-term or vacation rental?",
-      "keywords": ["short-term", "short term rental", "str", "vacation rental", "airbnb", "naveo stays", "eligibility", "checklist"],
+      "keywords": [
+        "short-term",
+        "short term rental",
+        "str",
+        "vacation rental",
+        "airbnb",
+        "naveo stays",
+        "eligibility",
+        "checklist"
+      ],
       "answer": "NAVEO Stays handles setup and operations where the property and local rules allow it. Before anything else, check local short-term rental rules and building restrictions, insurance and safety requirements, the owner's goals and timeline, and whether the property is a realistic operational fit. If it clears those gates you can discuss management scope and onboarding. Ask the owner to reply YES to receive the short eligibility questions or a quick call.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
@@ -58,7 +115,14 @@
     {
       "id": "playbook-undecided-path",
       "title": "What do I send an owner who is open to more than one option?",
-      "keywords": ["both", "undecided", "still deciding", "options", "options map", "exploring"],
+      "keywords": [
+        "both",
+        "undecided",
+        "still deciding",
+        "options",
+        "options map",
+        "exploring"
+      ],
       "answer": "Keep it practical: confirm their current situation (occupancy, timeline and goals), show which paths are realistically available among sale, long-term rent and short-term rent, and give one clear recommended next step with no pressure. Ask them to reply YES for a short options conversation.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
@@ -67,7 +131,15 @@
     {
       "id": "playbook-follow-up",
       "title": "What if the owner does not reply to the first message?",
-      "keywords": ["no reply", "follow up", "re-engagement", "day 3", "day 7", "soft follow-up", "nurture"],
+      "keywords": [
+        "no reply",
+        "follow up",
+        "re-engagement",
+        "day 3",
+        "day 7",
+        "soft follow-up",
+        "nurture"
+      ],
       "answer": "Send a soft follow-up, not a push. On day 3, a short text circles back about the property, says you are happy to help whether they lean sale, rent or still deciding, and repeats the 1, 2, 3, 4 options. On day 7, an email says there is no rush and that you are keeping the door open, repeats the four options, and says you will only send the matching next step. After two touches with no reply, hold the owner for nurture and do only soft re-engagement.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
@@ -76,7 +148,16 @@
     {
       "id": "playbook-rules",
       "title": "What are the rules for the seller and owner campaign?",
-      "keywords": ["rules", "hard rules", "compliance", "consent", "score", "authorize", "auto-route", "never"],
+      "keywords": [
+        "rules",
+        "hard rules",
+        "compliance",
+        "consent",
+        "score",
+        "authorize",
+        "auto-route",
+        "never"
+      ],
       "answer": "Never award or route an owner automatically based on score alone. Confirm consent and purpose before deeper outreach. Scores help you prioritize work; they do not authorize any activity. Each property record gets one clearly authorized next step. Make no automatic promises of a sale, a valuation or any regulated activity.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
@@ -85,7 +166,17 @@
     {
       "id": "playbook-tags",
       "title": "How should I label owners in this campaign?",
-      "keywords": ["tags", "labels", "segmentation", "intent", "service fit", "timeline", "occupancy", "authorization status", "fields"],
+      "keywords": [
+        "tags",
+        "labels",
+        "segmentation",
+        "intent",
+        "service fit",
+        "timeline",
+        "occupancy",
+        "authorization status",
+        "fields"
+      ],
       "answer": "The playbook recommends labelling every lead with five things: primary intent (sale, long-term rent, short-term rent, both, or unknown); service fit (Homes, Stays, seller solutions, or review); authorization status (contact OK, purpose confirmed, opted out, or needs reconfirming); timeline (0-30 days, 30-90 days, 90+ days, or exploring); and occupancy (vacant, owner-occupied, tenanted, or unknown). These are recommended labels for tracking the campaign; AVYRO's seller screen today records intent and fit scores, authorization status, timeline and occupancy on each opportunity.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
@@ -94,8 +185,99 @@
     {
       "id": "playbook-first-test",
       "title": "How should I test the campaign first?",
-      "keywords": ["test", "pilot", "14 day", "first test", "measure", "reply rate", "opt-out"],
+      "keywords": [
+        "test",
+        "pilot",
+        "14 day",
+        "first test",
+        "measure",
+        "reply rate",
+        "opt-out"
+      ],
       "answer": "Run a 14-day test. Take 30 to 50 existing authorized leads, send the entry text and email, tag every reply with one of the four intents, and run the matching branch campaign. Measure the reply rate, the share that choose a clear path, the share that book a qualification or options call, and any opt-outs or complaints.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "playbook-where-in-avyro",
+      "title": "Where do I find the campaign messages in AVYRO?",
+      "keywords": [
+        "campaign tab",
+        "messages",
+        "copy",
+        "templates",
+        "message library",
+        "where"
+      ],
+      "answer": "Open Seller & owner services and choose the Campaign tab. It lists the first text and email, the text and email for each of the four answers, and the day 3 and day 7 follow-ups. Type the owner's first name, your name and the property address at the top and every message fills itself in; use Copy to copy a message or its subject line, then send it yourself from your own text or email. Copying sends nothing. When an owner has answered, their opportunity also shows the matching messages.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "playbook-reply-recorded",
+      "title": "What does AVYRO do when an owner replies 1, 2, 3 or 4?",
+      "keywords": [
+        "reply",
+        "replies",
+        "1 2 3 4",
+        "answer",
+        "recorded",
+        "opportunity",
+        "alert",
+        "routing",
+        "automatic"
+      ],
+      "answer": "AVYRO records the answer on the owner's seller opportunity (it creates one if they have none), shows what they chose in the Opportunities list, sets the next step for your team, and alerts the admins. It only counts as an answer when the last text you sent that owner was the campaign question, the one containing the line \"Reply with 1, 2, 3 or 4\", and when the whole reply is just the answer, such as 2 or Option 2. A longer reply is left for a person to read. Nothing is sent back to the owner automatically, and the answer does not choose a route, grant permission or approve eligibility: your team confirms who they are and records their permission first. A STOP reply withdraws every permission.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "naveo-homes",
+      "title": "What is NAVEO Homes?",
+      "keywords": [
+        "naveo homes",
+        "homes",
+        "long-term rental management",
+        "tenant placement",
+        "naveo"
+      ],
+      "answer": "NAVEO Homes is the long-term rental management service an owner can be routed to. It focuses on tenant placement and screening, ongoing property oversight, clear owner reporting, and local compliance and vendor coordination. The first step is a short qualification call to confirm eligibility and scope, with no commitment needed to have the conversation.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "naveo-stays",
+      "title": "What is NAVEO Stays?",
+      "keywords": [
+        "naveo stays",
+        "stays",
+        "short-term rental",
+        "vacation rental",
+        "str",
+        "airbnb",
+        "naveo"
+      ],
+      "answer": "NAVEO Stays is the specialist short-term and vacation rental operation for eligible properties. It handles setup and operations where the property and local rules allow. Before anything else the team checks local short-term rental rules and building restrictions, insurance and safety requirements, the owner's goals and timeline, and whether the property is a realistic operational fit. If it clears those checks, management scope and onboarding can be discussed.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "naveo-seller-solutions",
+      "title": "What is NAVEO seller solutions?",
+      "keywords": [
+        "seller solutions",
+        "naveo",
+        "sale pathway",
+        "licensed pathway",
+        "selling",
+        "sale"
+      ],
+      "answer": "Seller solutions is where an owner who wants to sell goes. It is not a listing appointment, and no promise about price or sale is made until the proper steps are complete. The team first confirms the owner has authority to discuss the property, captures their timeline, occupancy and goals, and then routes them to the correct licensed pathway or other service options if the timing is not right.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
       "kind": "guide"

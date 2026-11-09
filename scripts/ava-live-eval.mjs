@@ -34,7 +34,7 @@ const backend = {
     if (!lexical.length || lexical[0].coverage < 0.5) {
       try { const chosen = await selectEntries({ llm, entries: kb.entries, query }); found = [...chosen, ...found.filter((e) => !chosen.some((c) => c.id === e.id))].slice(0, 3); } catch { /* none */ }
     }
-    const entries = found.map((e) => ({ answer: e.answer, source: e.source, route: e.route }));
+    const entries = found.map((e) => ({ title: e.title, answer: e.answer, source: e.source, route: e.route }));
     return { source: 'backend', label: 'Approved AVYRO help', version: kb.version, entries };
   }
 };

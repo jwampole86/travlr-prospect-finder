@@ -6,10 +6,11 @@ import { Card, cx } from '@/app/campaigns/shared';
 import { STAGES, STAGE_LABEL } from '@/lib/seller/types';
 import OpportunityPanel from './OpportunityPanel';
 import { AuthBadge, Bar, api, btnCls, inputCls, primaryBtnCls } from './ui';
+import { CHOICES, type Choice } from '@/lib/seller/outreachCampaign';
 
 type Item = {
   id: string; lead_id: string; stage: string; status: string; intent_score: number; service_fit_score: number; authorization_status: string;
-  next_action: string | null; next_action_at: string | null; signal_text: string | null;
+  next_action: string | null; next_action_at: string | null; signal_text: string | null; reply_choice?: Choice | null;
   lead: { contact_name: string | null; address: string | null; city: string | null; state: string | null } | null;
 };
 
@@ -74,6 +75,7 @@ export default function OpportunitiesTab({ openId, onOpenChange }: { openId: str
                       </div>
                       <AuthBadge status={o.authorization_status} />
                     </div>
+                    {o.reply_choice && CHOICES[o.reply_choice] && <p className="mt-1.5 text-xs font-medium text-primary">Answered {CHOICES[o.reply_choice].number}: {CHOICES[o.reply_choice].label}</p>}
                     {o.signal_text && <p className="mt-1.5 text-xs italic text-muted-foreground line-clamp-2">&ldquo;{o.signal_text}&rdquo;</p>}
                     <div className="mt-2 grid grid-cols-[1fr_1fr_auto] items-center gap-3 text-[11px] text-muted-foreground">
                       <div>Intent {o.intent_score}<Bar value={o.intent_score} /></div>

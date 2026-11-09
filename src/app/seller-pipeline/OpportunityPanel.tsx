@@ -7,6 +7,8 @@ import {
   CONSENT_PURPOSES, CONSENT_PURPOSE_LABEL, SERVICE_LINES, SERVICE_LINE_LABEL, STAGES, STAGE_LABEL, type ConsentPurpose, type ServiceLine, type Stage,
 } from '@/lib/seller/types';
 import type { Partner } from './PartnersTab';
+import { MessageCard } from './CampaignMessages';
+import { CHOICES, messagesForChoice, type Choice } from '@/lib/seller/outreachCampaign';
 import { AuthBadge, Bar, Field, api, btnCls, inputCls, money, primaryBtnCls } from './ui';
 
 type Opp = {
@@ -14,7 +16,7 @@ type Opp = {
   authority_verified: boolean; authority_role: string | null; decision_status: string | null; timeline: string | null; occupancy: string | null;
   goals: string[]; condition_notes: string | null; price_expectation_low: number | null; price_expectation_high: number | null;
   preferred_channel: string | null; route: ServiceLine | null; partner_id: string | null; next_action: string | null; next_action_at: string | null;
-  lost_reason: string | null; signal_text: string | null;
+  lost_reason: string | null; signal_text: string | null; reply_choice?: Choice | null; reply_choice_at?: string | null;
 };
 type Assessment = { id: string; service_line: ServiceLine; eligibility: string; reasons: string[]; est_monthly_revenue: number | null; est_monthly_cost: number | null; assumptions: string | null; reviewed_at: string | null };
 type Agreement = { id: string; service_line: string; contract_type: string | null; status: string; monthly_fee: number | null; fee_percent: number | null; signed_at: string | null };
@@ -102,6 +104,19 @@ export default function OpportunityPanel({ id, onClose, onChanged }: { id: strin
             {d.blockers.length > 0 && (
               <ul className="mt-2 list-disc pl-5 text-xs text-amber-800 space-y-0.5">{d.blockers.map((b) => <li key={b}>{b}</li>)}</ul>
             )}
+          </div>
+        )}
+        {opp.reply_choice && CHOICES[opp.reply_choice] && (
+          <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-3" data-testid="reply-choice">
+            <p className="text-sm font-semibold">Owner answered {CHOICES[opp.reply_choice].number}: {CHOICES[opp.reply_choice].label}</p>
+            <p className="text-xs text-muted-foreground">
+              Suggested path: {CHOICES[opp.reply_choice].destination}. Next: {CHOICES[opp.reply_choice].nextAction}. This is only the owner&rsquo;s answer; confirm who they are and record their permission before routing.
+            </p>
+            <div className="mt-2 grid gap-2 lg:grid-cols-2">
+              {messagesForChoice(opp.reply_choice).map((m) => (
+                <MessageCard key={m.id} message={m} vars={{ first_name: (d.lead?.contact_name ?? '').split(' ')[0], address: [d.lead?.address, d.lead?.city].filter(Boolean).join(', ') }} />
+              ))}
+            </div>
           </div>
         )}
         {error && <p className="mt-3 text-sm text-red-700">{error}</p>}

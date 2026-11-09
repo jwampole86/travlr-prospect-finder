@@ -13,7 +13,7 @@
         "owner services",
         "sale"
       ],
-      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has four tabs: Dashboard, Opportunities, Partners and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
+      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has five tabs: Dashboard, Opportunities, Campaign, Partners and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"

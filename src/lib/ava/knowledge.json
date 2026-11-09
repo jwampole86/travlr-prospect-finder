@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-09-a303df48",
+  "version": "2026-11-09-47f8b1c3",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -533,7 +533,7 @@
         "owner services",
         "sale"
       ],
-      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has four tabs: Dashboard, Opportunities, Partners and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
+      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has five tabs: Dashboard, Opportunities, Campaign, Partners and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
@@ -876,6 +876,89 @@
         "opt-out"
       ],
       "answer": "Run a 14-day test. Take 30 to 50 existing authorized leads, send the entry text and email, tag every reply with one of the four intents, and run the matching branch campaign. Measure the reply rate, the share that choose a clear path, the share that book a qualification or options call, and any opt-outs or complaints.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "playbook-where-in-avyro",
+      "title": "Where do I find the campaign messages in AVYRO?",
+      "keywords": [
+        "campaign tab",
+        "messages",
+        "copy",
+        "templates",
+        "message library",
+        "where"
+      ],
+      "answer": "Open Seller & owner services and choose the Campaign tab. It lists the first text and email, the text and email for each of the four answers, and the day 3 and day 7 follow-ups. Type the owner's first name, your name and the property address at the top and every message fills itself in; use Copy to copy a message or its subject line, then send it yourself from your own text or email. Copying sends nothing. When an owner has answered, their opportunity also shows the matching messages.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "playbook-reply-recorded",
+      "title": "What does AVYRO do when an owner replies 1, 2, 3 or 4?",
+      "keywords": [
+        "reply",
+        "replies",
+        "1 2 3 4",
+        "answer",
+        "recorded",
+        "opportunity",
+        "alert",
+        "routing",
+        "automatic"
+      ],
+      "answer": "AVYRO records the answer on the owner's seller opportunity (it creates one if they have none), shows what they chose in the Opportunities list, sets the next step for your team, and alerts the admins. It only counts as an answer when the last text you sent that owner was the campaign question, the one containing the line \"Reply with 1, 2, 3 or 4\", and when the whole reply is just the answer, such as 2 or Option 2. A longer reply is left for a person to read. Nothing is sent back to the owner automatically, and the answer does not choose a route, grant permission or approve eligibility: your team confirms who they are and records their permission first. A STOP reply withdraws every permission.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "naveo-homes",
+      "title": "What is NAVEO Homes?",
+      "keywords": [
+        "naveo homes",
+        "homes",
+        "long-term rental management",
+        "tenant placement",
+        "naveo"
+      ],
+      "answer": "NAVEO Homes is the long-term rental management service an owner can be routed to. It focuses on tenant placement and screening, ongoing property oversight, clear owner reporting, and local compliance and vendor coordination. The first step is a short qualification call to confirm eligibility and scope, with no commitment needed to have the conversation.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "naveo-stays",
+      "title": "What is NAVEO Stays?",
+      "keywords": [
+        "naveo stays",
+        "stays",
+        "short-term rental",
+        "vacation rental",
+        "str",
+        "airbnb",
+        "naveo"
+      ],
+      "answer": "NAVEO Stays is the specialist short-term and vacation rental operation for eligible properties. It handles setup and operations where the property and local rules allow. Before anything else the team checks local short-term rental rules and building restrictions, insurance and safety requirements, the owner's goals and timeline, and whether the property is a realistic operational fit. If it clears those checks, management scope and onboarding can be discussed.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "naveo-seller-solutions",
+      "title": "What is NAVEO seller solutions?",
+      "keywords": [
+        "seller solutions",
+        "naveo",
+        "sale pathway",
+        "licensed pathway",
+        "selling",
+        "sale"
+      ],
+      "answer": "Seller solutions is where an owner who wants to sell goes. It is not a listing appointment, and no promise about price or sale is made until the proper steps are complete. The team first confirms the owner has authority to discuss the property, captures their timeline, occupancy and goals, and then routes them to the correct licensed pathway or other service options if the timing is not right.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
       "kind": "guide"

@@ -9,6 +9,8 @@ import { looksLikeQuestion, questionReply } from '@/lib/services/smsQuestionRepl
 import { hoaReply, isHoaObjection } from '@/lib/services/smsHoaReply';
 import { isSchedulingThread, schedulingReply } from '@/lib/services/smsCallScheduler';
 import { objectionReply } from '@/lib/services/smsObjectionReply';
+import { CHOICES, parseChoice } from '@/lib/seller/outreachCampaign';
+import { askedCampaignQuestion } from '@/lib/seller/replyChoice';
 
 /**
  * POST /api/sms/inbound
@@ -62,6 +64,12 @@ export async function POST(req: NextRequest) {
   }
   if (threadId) await db.from('sms_thread_messages').insert({ thread_id: threadId, direction: 'inbound', body: text, twilio_message_sid: messageSid || null, status: 'received' });
 
+  // A bare "1" to "4" (or a plain "sell" / "both") answers the campaign's question, but only when the last text we sent was that question.
+  // It is recorded for a person and never answered by a robot, so none of the automatic reply branches below run for it.
+  const campaignChoice = verified !== false && lead && intent !== 'stop' && intent !== 'no' && !isWrongContact(text)
+    ? await (async () => { const c = parseChoice(text); return c && await askedCampaignQuestion(db, lead.id).catch(() => false) ? c : null; })()
+    : null;
+
   const log = (event_type: string, title: string, severity = 'info') => lead
     ? db.from('admin_event_log').insert({ event_type, event_category: 'lead_change', lead_id: lead.id, title, description: `"${text.slice(0, 100)}" from ${from}`, severity, event_timestamp: now })
     : Promise.resolve();
@@ -71,7 +79,7 @@ export async function POST(req: NextRequest) {
   // A homeowner answering our request for a call time: Anthropic reads the thread, our code books or asks, and a "No" here means
   // "not that time", not an opt-out. STOP and other refusals never reach this branch.
   let scheduled = false;
-  if (lead && trusted && (intent === 'other' || intent === 'yes' || intent === 'no') && !isWrongContact(text) && !isHoaObjection(text) && await isSchedulingThread(db, lead.id).catch(() => false)) {
+  if (lead && trusted && !campaignChoice && (intent === 'other' || intent === 'yes' || intent === 'no') && !isWrongContact(text) && !isHoaObjection(text) && await isSchedulingThread(db, lead.id).catch(() => false)) {
     const r = await schedulingReply(db, lead.id, from, text).catch(() => null);
     if (r) { reply = r; scheduled = true; }
   }
@@ -121,7 +129,8 @@ export async function POST(req: NextRequest) {
     await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['New Lead', 'Contacted']);
     // A question gets an answer right away at any hour; the team is alerted below either way.
     // "Our HOA does not allow it": answered from what our records show, never from a guess.
-    if (trusted && mode === 'other' && !isWrongContact(text) && isHoaObjection(text)) reply = (await hoaReply(db, lead.id, from).catch(() => null)) ?? '';
+    if (campaignChoice) reply = '';
+    else if (trusted && mode === 'other' && !isWrongContact(text) && isHoaObjection(text)) reply = (await hoaReply(db, lead.id, from).catch(() => null)) ?? '';
     else if (trusted && mode === 'other' && !isWrongContact(text) && looksLikeQuestion(text)) reply = (await questionReply(db, lead.id, from, text).catch(() => null)) ?? '';
     // A written statement ("I would need a second mortgage", "I already have a manager"): answered from what we know, with a brief left for the agent.
     else if (trusted && mode === 'other' && !isWrongContact(text)) reply = (await objectionReply(db, lead.id, from, text).catch(() => null)) ?? '';
@@ -157,8 +166,21 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  if (campaignChoice && lead) {
+    try {
+      const { recordReplyChoice } = await import('@/lib/seller/replyChoice');
+      const opp = await recordReplyChoice(db, { leadId: lead.id, choice: campaignChoice, text });
+      await db.from('outreach_history').update({ metadata: { direction: 'inbound', from, body: text.slice(0, 1000), message_sid: messageSid, intent, campaign_choice: campaignChoice, lead_found: true, signature_verified: verified } })
+        .eq('metadata->>message_sid', messageSid).eq('lead_id', lead.id);
+      if (opp) {
+        const info = CHOICES[campaignChoice];
+        await notifyAdmins(db, { title: `Owner chose ${info.label}`, message: `${lead.contact_name ?? 'A homeowner'} answered ${info.number} (${info.label}). Next: ${info.nextAction}.`, metadata: { leadId: lead.id, url: `${site}/seller-pipeline` } });
+      }
+    } catch { /* the reply is already stored; campaign tracking is best effort */ }
+  }
+
   // A reply that sounds like a sale is logged as a seller opportunity for a person to review; nothing is sent back automatically.
-  if (verified !== false && lead && !scheduled && intent !== 'stop' && intent !== 'no') {
+  if (verified !== false && lead && !scheduled && !campaignChoice && intent !== 'stop' && intent !== 'no') {
     try {
       const { detectSellerIntent } = await import('@/lib/seller/sellerIntent');
       const sellerIntent = detectSellerIntent(text);
