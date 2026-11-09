@@ -25,6 +25,8 @@ import type { Profile, Reason } from '../core/learning';
 import { FLOAT_W, VISIBLE, floatSpot } from './floatSpot';
 import { ACTION_STEPS, actionProgress } from '../runtime/cards';
 import type { ActionStatus, AvaCard } from '../runtime/cards';
+import { PERF_LABEL, perfSnapshot, subscribePerf } from '../render/perfGuard';
+import type { PerfSnapshot } from '../render/perfGuard';
 import { briefingDue, clampPosition, dayKey, defaultLayout, loadLayout, saveLayout } from './layout';
 import type { LayoutPrefs } from './layout';
 import './ava-widget.css';
@@ -121,6 +123,8 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     saveLayout(next);
     setLayout(next);
   }, []);
+  const [perf, setPerf] = useState<PerfSnapshot>(() => perfSnapshot());
+  useEffect(() => subscribePerf(setPerf), []);
   const sectionRef = useRef<HTMLElement>(null);
   const drag = useRef<{ x: number; y: number; right: number; bottom: number; moved: boolean } | null>(null);
   const justDragged = useRef(false);
@@ -633,6 +637,9 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                   <label className="switch"><input type="checkbox" checked={profile.personalization} onChange={(e) => void learning.setConsent({ personalization: e.target.checked })} /> Tailor AVA to me</label>
                   <label className="switch"><input type="checkbox" checked={profile.sharing} onChange={(e) => void learning.setConsent({ sharing: e.target.checked })} /> Share anonymous usage to improve AVYRO <small>(no name, no text; just which features and help topics are used)</small></label>
                   <h3 className="you-sub">How AVA sits on your screen</h3>
+                  {perf.fps > 0 && view === '3d' && (
+                    <p className="you-perf" data-testid="perf">3D smoothness: about {perf.fps} frames a second ({PERF_LABEL[perf.level]}). On a slower device AVA lowers her own quality to keep moving smoothly.</p>
+                  )}
                   {host.briefing && staff && (
                     <label className="switch"><input type="checkbox" checked={layout.briefing} onChange={(e) => updateLayout({ briefing: e.target.checked })} /> Morning briefing <small>(a short summary of what needs you, the first time you open me each day)</small></label>
                   )}

@@ -17,7 +17,7 @@ export interface AvaHandlerDeps {
   hasLlm: () => boolean;
   makeGateway: (req: Request, actor: AvaHandlerActor) => Gateway;
   /** Returns false when this user has made too many requests. */
-  allow: (actorId: string) => boolean;
+  allow: (actorId: string) => boolean | Promise<boolean>;
 }
 
 export const STAFF_ROLES = new Set(['admin', 'owner', 'agent']);
@@ -36,7 +36,7 @@ export async function handleAva(req: Request, kind: 'turn' | 'confirm' | 'prepar
 
   if (!(req.headers.get('content-type') ?? '').includes('application/json')) return json({ error: 'unsupported_media_type' }, 415);
   if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) return json({ error: 'too_large' }, 413);
-  if (!deps.allow(actor.id)) return json({ error: 'rate_limited' }, 429, { 'retry-after': '30' });
+  if (!(await deps.allow(actor.id))) return json({ error: 'rate_limited' }, 429, { 'retry-after': '30' });
 
   let body: Record<string, unknown>;
   try {
@@ -91,5 +91,22 @@ export function createRateLimiter(max = 20, windowMs = 60_000, now: () => number
     hits.set(id, recent);
     if (hits.size > 5000) for (const [k, v] of hits) if (v.every((x) => t - x >= windowMs)) hits.delete(k);
     return true;
+  };
+}
+
+/**
+ * A limiter shared by every server instance, backed by a counter in the database. If the counter cannot be reached it falls back to the
+ * per-instance limiter, so a database hiccup never locks anyone out and never leaves the endpoint unlimited.
+ */
+export function createSharedRateLimiter(
+  hit: (key: string, limit: number, windowSeconds: number) => Promise<boolean | null>,
+  { max = 20, windowMs = 60_000, fallback = createRateLimiter(max, windowMs) }: { max?: number; windowMs?: number; fallback?: (id: string) => boolean } = {}
+) {
+  return async (id: string): Promise<boolean> => {
+    try {
+      const ok = await hit(`ava:${id}`, max, Math.round(windowMs / 1000));
+      if (typeof ok === 'boolean') return ok;
+    } catch { /* fall through to the per-instance limiter */ }
+    return fallback(id);
   };
 }

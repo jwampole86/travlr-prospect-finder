@@ -56,6 +56,14 @@
     {
       "path": "/api/cron/source-sync?states=2&trulia_pages=2",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/ava-prune",
+      "schedule": "0 4 1 * *"
+    },
+    {
+      "path": "/api/cron/registry-sync?limit=250",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

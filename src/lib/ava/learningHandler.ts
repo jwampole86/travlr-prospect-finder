@@ -5,7 +5,7 @@ import { signalFor } from './learningStore';
 export interface LearningDeps {
   enabled: () => boolean;
   getActor: (req: Request) => Promise<{ id: string; role: string; organizationId?: string | null } | null>;
-  allow: (actorId: string) => boolean;
+  allow: (actorId: string) => boolean | Promise<boolean>;
   /** The store for this person (it needs their organization). */
   store: (actor: { id: string; role: string; organizationId?: string | null }) => LearningStore;
 }
@@ -25,7 +25,7 @@ export async function handleLearning(req: Request, route: 'profile' | 'learn', d
   const actor = await deps.getActor(req);
   if (!actor) return json({ error: 'unauthenticated' }, 401);
   if (!STAFF.has(actor.role)) return json({ error: 'forbidden' }, 403);
-  if (!deps.allow(actor.id)) return json({ error: 'rate_limited' }, 429);
+  if (!(await deps.allow(actor.id))) return json({ error: 'rate_limited' }, 429);
 
   const store = deps.store(actor);
   try {

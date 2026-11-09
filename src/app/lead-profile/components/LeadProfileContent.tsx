@@ -18,6 +18,7 @@ import SMSSendModal from './SMSSendModal';
 import BreadcrumbNav from '@/components/ui/BreadcrumbNav';
 import LeadTaskBoard from './LeadTaskBoard';
 import PhotoRightsPanel from './PhotoRightsPanel';
+import PropertyRecordPanel from './PropertyRecordPanel';
 import LeadPicker from './LeadPicker';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -2259,6 +2260,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
 
               {/* Admins decide which captured photos may be published */}
               {(role === 'admin' || role === 'owner') && <PhotoRightsPanel leadId={lead.id} />}
+              {(role === 'admin' || role === 'owner') && <PropertyRecordPanel leadId={lead.id} />}
 
               {/* Enrichment Timeline */}
               <div className="bg-card border border-border rounded-xl p-5">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRateLimiter, handleAva } from '../handler';
+import { createRateLimiter, createSharedRateLimiter, handleAva } from '../handler';
 import type { AvaHandlerDeps } from '../handler';
 import { createGateway } from '../server/gateway.mjs';
 import { createMemoryPendingStore } from '../server/pending.mjs';
@@ -125,5 +125,23 @@ describe('rate limiter', () => {
     expect(allow('b')).toBe(true);
     t = 1001;
     expect(allow('a')).toBe(true);
+  });
+});
+
+describe('shared rate limiter', () => {
+  it('follows the shared counter, so the limit holds across server instances', async () => {
+    const counts = new Map<string, number>();
+    const hit = async (key: string, limit: number) => { const n = (counts.get(key) ?? 0) + 1; counts.set(key, n); return n <= limit; };
+    const a = createSharedRateLimiter(hit, { max: 2 });
+    const b = createSharedRateLimiter(hit, { max: 2 }); // another instance with its own memory
+    expect([await a('u'), await b('u'), await a('u'), await b('u')]).toEqual([true, true, false, false]);
+    expect(await b('someone-else')).toBe(true);
+  });
+
+  it('falls back to the per-instance limit when the counter is unreachable, never to unlimited and never to locked out', async () => {
+    const down = createSharedRateLimiter(async () => { throw new Error('db down'); }, { fallback: createRateLimiter(2, 1000, () => 0) });
+    expect([await down('u'), await down('u'), await down('u')]).toEqual([true, true, false]);
+    const empty = createSharedRateLimiter(async () => null, { fallback: createRateLimiter(1, 1000, () => 0) });
+    expect([await empty('u'), await empty('u')]).toEqual([true, false]);
   });
 });

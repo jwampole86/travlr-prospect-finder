@@ -10,7 +10,7 @@ import { createCombinedAudit } from './combinedAudit';
 import { createSupabaseAudit } from './auditSink';
 import { createSignedPendingStore } from './pendingStore';
 import { createTravlrBackend } from './travlrBackend';
-import { createRateLimiter } from './handler';
+import { createSharedRateLimiter } from './handler';
 import { createLearningStore } from './learningStore';
 import type { LearningDeps } from './learningHandler';
 import { anonymousTopic, buildVocabulary, personalizationNote } from '@/components/ava/core/learning';
@@ -42,7 +42,11 @@ async function getActor(req: Request): Promise<(AvaHandlerActor & { organization
   return { id: actor.user.id, role, organizationId: actor.organizationId ?? null };
 }
 
-const allow = createRateLimiter();
+// Shared across server instances through a counter in the database, with the per-instance limiter as the fallback.
+const allow = createSharedRateLimiter(async (key, limit, windowSeconds) => {
+  const { data, error } = await getSupabaseAdmin().rpc('ava_rate_hit', { p_key: key, p_limit: limit, p_window_seconds: windowSeconds });
+  return error ? null : (data as boolean | null);
+});
 
 // The only words an unanswered question can be reduced to: the product's own vocabulary (help articles, screens, features).
 const vocabulary = buildVocabulary(KNOWLEDGE.entries.flatMap((e) => [e.title, e.source, ...(e.keywords ?? [])]));

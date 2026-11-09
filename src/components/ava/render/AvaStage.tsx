@@ -1,6 +1,8 @@
 // Synced from ava-assistant. Do not edit here: change it there and run tools/sync-to-travlr.mjs.
-import { Component, ReactNode, Suspense, useEffect } from 'react';
-import { Canvas, useLoader } from '@react-three/fiber';
+import { Component, ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { createPerfGuard } from './perfGuard';
+import type { PerfLevel } from './perfGuard';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { AvaCharacter, AvaCharacterProps } from './AvaCharacter';
 import { FallbackAvatar } from './FallbackAvatar';
@@ -60,7 +62,25 @@ class Boundary extends Component<{ fallback: ReactNode; onError?: () => void; ch
   }
 }
 
+/** Watches the real frame rate and steps the quality down on a device that cannot keep up (see perfGuard.ts). Automated browsers are not measured. */
+function PerfWatch({ active, level, onLevel }: { active: boolean; level: PerfLevel; onLevel: (l: PerfLevel) => void }) {
+  const cb = useRef(onLevel);
+  cb.current = onLevel;
+  const guard = useMemo(() => createPerfGuard({ onLevel: (l) => cb.current(l) }), []);
+  const invalidate = useThree((s) => s.invalidate);
+  const measured = useMemo(() => !navigator.webdriver || new URLSearchParams(window.location.search).has('perf'), []); // `?perf` measures even in automated browsers (tools/measure-throttled.mjs)
+  useFrame((_, delta) => { if (active && measured) guard.tick(delta * 1000); });
+  // At the lowest level the scene is drawn about thirty times a second instead of every screen refresh.
+  useEffect(() => {
+    if (!active || level < 2) return;
+    const id = window.setInterval(invalidate, 33);
+    return () => window.clearInterval(id);
+  }, [active, level, invalidate]);
+  return null;
+}
+
 export function AvaStage(props: StageProps) {
+  const [level, setLevel] = useState<PerfLevel>(0);
   const { className, mode, onFailure, active = true, onReady, ...rest } = props;
   const simple = <FallbackAvatar className={className} presentation={rest.presentation} getMicLevel={rest.getMicLevel} getGaze={rest.getGaze} />;
   if (mode === '2d') return simple;
@@ -70,18 +90,19 @@ export function AvaStage(props: StageProps) {
         <Canvas
           camera={{ position: [CAMERA_X, 0.5, 3.1], fov: 30, near: 0.1, far: 20 }}
           gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
-          dpr={[1, 2]}
+          dpr={level === 0 ? [1, 2] : 1}
           // Measure the layout size, not the on-screen size. She is scaled up with a CSS transform while she floats to point; the default
           // measurement includes that transform, so the canvas resized to the larger box and never resized back, leaving her too big
           // and cropped after the tour.
           resize={{ offsetSize: true, scroll: false }}
-          frameloop={active ? 'always' : 'demand'}
+          frameloop={active && level < 2 ? 'always' : 'demand'}
           onCreated={({ camera, gl }) => {
             camera.lookAt(CAMERA_X, 0.5, 0);
             // A lost graphics context is normally recoverable: tell the browser we want it back instead of giving up on 3D.
             gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
           }}
         >
+          <PerfWatch active={active} level={level} onLevel={setLevel} />
           <ambientLight intensity={0.35} />
           <directionalLight position={[1.5, 2.5, 3]} intensity={1.6} />
           <directionalLight position={[-2, 1, -1]} intensity={0.6} color="#7FD1FF" />
