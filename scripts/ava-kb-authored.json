@@ -161,6 +161,23 @@
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
+    },
+    {
+      "id": "ava-teach",
+      "title": "How do I teach AVA a new answer?",
+      "keywords": [
+        "teach",
+        "ava knowledge",
+        "train",
+        "unanswered",
+        "team answers",
+        "own answers",
+        "add answers"
+      ],
+      "answer": "Admins and owners can open AVA Knowledge from the menu. It lists the help topics AVA could not answer (words only, counted for people who chose to share anonymous usage) and the topics people rated not helpful. Pick a topic or start from a blank form, type the question and the answer, and publish it: AVA uses a published answer right away, for your organization only. You can save a draft, edit an answer, unpublish it or remove it at any time. Keep answers to facts and leave out passwords or private details, because everyone on your team can ask AVA for them.",
+      "source": "AVA Knowledge",
+      "route": "/ava-knowledge",
+      "kind": "guide"
     }
   ]
 }

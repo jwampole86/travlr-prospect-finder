@@ -808,7 +808,7 @@ export default function TemplatesPage() {
     <AppLayout>
       <div className="flex flex-col h-full min-h-0">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-border bg-card shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-border bg-card shrink-0" data-ava-anchor="templates-header">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <FileText size={18} className="text-primary" />
@@ -837,7 +837,7 @@ export default function TemplatesPage() {
         ) : (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
             {/* KPI strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-ava-anchor="templates-kpis">
               {[
                 { label: 'Total Templates', value: templates.length, icon: FileText, color: 'text-primary', bg: 'bg-primary/10' },
                 { label: 'Email', value: emailCount, icon: Mail, color: 'text-blue-500', bg: 'bg-blue-500/10' },

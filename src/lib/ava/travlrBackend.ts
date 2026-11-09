@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { searchEntriesScored } from './server/knowledge.mjs';
 import { ToolDenied, ToolError, ToolTimeout } from './server/errors.mjs';
 import { KNOWLEDGE } from './knowledge';
+import { toKnowledgeEntry } from './teamKnowledge';
 
 export interface AvaActor { id: string; role: string; organizationId?: string | null }
 interface Ctx { actor: AvaActor; signal?: AbortSignal }
@@ -86,6 +87,8 @@ export function createTravlrBackend(deps: BackendDeps) {
   const fetchImpl = deps.fetchImpl ?? fetch;
   const timeoutMs = deps.timeoutMs ?? 8000;
   const now = deps.now ?? (() => new Date());
+  // Declared up here: everything after `return` below is only function declarations, which are hoisted, but a `let` would not be.
+  let team: Promise<KnowledgeEntryLike[]> | null = null;
 
   return {
     live: { leads: true, knowledge: true, followups: true },
@@ -120,13 +123,14 @@ export function createTravlrBackend(deps: BackendDeps) {
     },
 
     async searchKnowledge({ query }: { query: string }, ctx?: Ctx) {
-      const lexical: Array<{ entry: KnowledgeEntryLike; coverage: number }> = searchEntriesScored(KNOWLEDGE.entries, query, 3);
+      const catalogue: KnowledgeEntryLike[] = [...KNOWLEDGE.entries, ...(await teamEntries(ctx))];
+      const lexical: Array<{ entry: KnowledgeEntryLike; coverage: number }> = searchEntriesScored(catalogue, query, 3);
       let found: KnowledgeEntryLike[] = lexical.map((r) => r.entry);
       // A question worded unlike the article ("how many minutes until my first sync finishes") shares few words with it, so a missing or
       // weak word match is checked by letting the model choose among the real entries; what it chooses comes first.
       if ((!lexical.length || lexical[0].coverage < WEAK_MATCH) && deps.selectKnowledge) {
         try {
-          const chosen = await deps.selectKnowledge(KNOWLEDGE.entries, query, ctx?.signal);
+          const chosen = await deps.selectKnowledge(catalogue, query, ctx?.signal);
           found = [...chosen, ...found.filter((e) => !chosen.some((c) => c.id === e.id))].slice(0, 3);
         } catch { /* carry on without it: she will say she does not have it */ }
       }
@@ -233,6 +237,19 @@ export function createTravlrBackend(deps: BackendDeps) {
       return { source: 'backend', id: reminderId, confirmed: true as const };
     }
   };
+
+  /** The published answers this organization's admins wrote for AVA. Looked up once per request; a failure just means the built-in help is used. */
+  function teamEntries(ctx?: Ctx): Promise<KnowledgeEntryLike[]> {
+    const org = ctx?.actor?.organizationId;
+    if (!org) return Promise.resolve([]);
+    team ??= (async () => {
+      try {
+        const { data } = (await deps.db.from('ava_kb_entries').select('id,title,answer,keywords').eq('organization_id', org).eq('status', 'published').limit(200)) as { data: Array<{ id: string; title: string; answer: string; keywords: string[] | null }> | null };
+        return (data ?? []).map(toKnowledgeEntry);
+      } catch { return []; }
+    })();
+    return team;
+  }
 
   /** Agents see only their own leads; admins and owners see all, exactly as the app's own lead API does. */
   function scope(ctx: Ctx, q: any) {

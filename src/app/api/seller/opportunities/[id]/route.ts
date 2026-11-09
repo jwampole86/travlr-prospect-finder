@@ -3,11 +3,15 @@ import { fail, pick, sellerContext } from '@/lib/seller/api';
 import { authorizationFor, currentConsents } from '@/lib/seller/consentLedger';
 import { stageBlockers, type Opportunity } from '@/lib/seller/sellerPipeline';
 import { ROUTE_PURPOSE, STAGES, type Stage } from '@/lib/seller/types';
+import { assessDual } from '@/lib/seller/dualOpportunity';
 
 const EDITABLE = [
   'authority_verified', 'authority_role', 'decision_status', 'timeline', 'occupancy', 'goals', 'condition_notes', 'price_expectation_low',
   'price_expectation_high', 'preferred_channel', 'route', 'partner_id', 'next_action', 'next_action_at', 'assigned_to', 'lost_reason',
+  'listing_status', 'est_days_to_sale', 'est_selling_cost_pct',
 ] as const;
+
+const num = (v: unknown): number | null => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 
 async function load(ctx: Exclude<Awaited<ReturnType<typeof sellerContext>>, { error: unknown }>, id: string) {
   let q = ctx.db.from('seller_opportunities').select('*').eq('id', id);
@@ -34,9 +38,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     authorizationFor(ctx.db, opp.lead_id, purpose),
     stageBlockers(ctx.db, opp, nextStage),
   ]);
+  // A starting point for the conversation, never a decision: it suggests a path and says why, and a person chooses the route.
+  const l = (lead.data ?? {}) as { regulation_status?: string | null; estimated_net_monthly?: unknown };
+  const o = opp as Record<string, unknown>;
+  const dual = assessDual({
+    timeline: opp.timeline, occupancy: opp.occupancy, goals: Array.isArray(opp.goals) ? (opp.goals as string[]) : [],
+    regulationStatus: l.regulation_status ?? null, estimatedNetMonthly: num(l.estimated_net_monthly),
+    priceExpectationLow: num(o.price_expectation_low), priceExpectationHigh: num(o.price_expectation_high),
+    listingStatus: typeof o.listing_status === 'string' ? o.listing_status : null, estDaysToSale: num(o.est_days_to_sale), estSellingCostPct: num(o.est_selling_cost_pct),
+  });
   return NextResponse.json({
     opportunity: opp, lead: lead.data, assessments: assessments.data ?? [], agreements: agreements.data ?? [], revenue: revenue.data ?? [],
-    consents, authorization, nextStage, blockers,
+    consents, authorization, nextStage, blockers, dual,
   });
 }
 

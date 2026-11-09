@@ -8,6 +8,7 @@ import {
 } from '@/lib/seller/types';
 import type { Partner } from './PartnersTab';
 import { MessageCard } from './CampaignMessages';
+import type { DualAssessment } from '@/lib/seller/dualOpportunity';
 import { CHOICES, messagesForChoice, type Choice } from '@/lib/seller/outreachCampaign';
 import { AuthBadge, Bar, Field, api, btnCls, inputCls, money, primaryBtnCls } from './ui';
 
@@ -17,6 +18,7 @@ type Opp = {
   goals: string[]; condition_notes: string | null; price_expectation_low: number | null; price_expectation_high: number | null;
   preferred_channel: string | null; route: ServiceLine | null; partner_id: string | null; next_action: string | null; next_action_at: string | null;
   lost_reason: string | null; signal_text: string | null; reply_choice?: Choice | null; reply_choice_at?: string | null;
+  listing_status?: string | null; est_days_to_sale?: number | null; est_selling_cost_pct?: number | string | null;
 };
 type Assessment = { id: string; service_line: ServiceLine; eligibility: string; reasons: string[]; est_monthly_revenue: number | null; est_monthly_cost: number | null; assumptions: string | null; reviewed_at: string | null };
 type Agreement = { id: string; service_line: string; contract_type: string | null; status: string; monthly_fee: number | null; fee_percent: number | null; signed_at: string | null };
@@ -25,7 +27,7 @@ type Detail = {
   opportunity: Opp; lead: { contact_name: string | null; contact_phone: string | null; address: string | null; city: string | null; state: string | null; price: number | null; price_type: string | null } | null;
   assessments: Assessment[]; agreements: Agreement[]; revenue: Revenue[];
   consents: Array<{ purpose: ConsentPurpose; granted: boolean; source: string; at: string }>;
-  authorization: { status: string; reasons: string[] }; nextStage: Stage; blockers: string[];
+  authorization: { status: string; reasons: string[] }; nextStage: Stage; blockers: string[]; dual?: DualAssessment;
 };
 
 const toLocalInput = (iso: string | null) => (iso ? new Date(new Date(iso).getTime() - new Date(iso).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
@@ -170,6 +172,7 @@ export default function OpportunityPanel({ id, onClose, onChanged }: { id: strin
 
       <ConsentCard d={d} busy={busy} run={run} />
       <EligibilityCard d={d} busy={busy} run={run} />
+      {d.dual && <DualCard d={d} dual={d.dual} busy={busy} patch={patch} />}
       <MoneyCard d={d} busy={busy} run={run} partners={partners} />
 
       <Card className="p-5">
@@ -303,6 +306,38 @@ function MoneyCard({ d, busy, run, partners }: { d: Detail; busy: boolean; run: 
         <Field label="Cost to deliver"><input type="number" className={inputCls} value={rev.cost} onChange={(e) => setRev({ ...rev, cost: e.target.value })} /></Field>
       </div>
       <div className="mt-3"><button className={btnCls} disabled={busy} onClick={() => run(() => api('/api/seller/revenue', { method: 'POST', body: { opportunity_id: oppId, service_line: rev.service_line, kind: rev.kind, status: rev.status, invoiced: num(rev.invoiced) ?? 0, collected: num(rev.collected) ?? 0, cost: num(rev.cost) ?? 0, invoice_date: new Date().toISOString().slice(0, 10) } }))}>Add revenue entry</button></div>
+    </Card>
+  );
+}
+
+const LISTING_LABEL: Record<string, string> = { not_listed: 'Not listed', preparing: 'Preparing to list', listed: 'Listed', under_contract: 'Under contract', unknown: 'Not sure' };
+
+/** Sell, earn while waiting, or both. A suggestion for the conversation with the owner: it never sets the route, and says what it assumed. */
+function DualCard({ d, dual, busy, patch }: { d: Detail; dual: DualAssessment; busy: boolean; patch: (body: Record<string, unknown>) => Promise<void> }) {
+  const opp = d.opportunity;
+  const [listing, setListing] = useState(opp.listing_status ?? '');
+  const [days, setDays] = useState(opp.est_days_to_sale != null ? String(opp.est_days_to_sale) : '');
+  const [cost, setCost] = useState(opp.est_selling_cost_pct != null ? String(opp.est_selling_cost_pct) : '');
+  const money = (n: number | null) => (n == null ? '-' : `$${Math.round(n).toLocaleString()}`);
+  const net = dual.sale.netLow == null ? '-' : dual.sale.netLow === dual.sale.netHigh ? money(dual.sale.netLow) : `${money(dual.sale.netLow)} to ${money(dual.sale.netHigh)}`;
+  return (
+    <Card className="p-5" data-testid="dual-card">
+      <h3 className="text-sm font-semibold">Sell, earn, or both?</h3>
+      <p className="mt-1 text-sm"><b>{dual.label}</b> <span className="text-xs text-muted-foreground">(suggested path: {SERVICE_LINE_LABEL[dual.suggestedRoute]}; you choose the route above)</span></p>
+      <ul className="mt-2 list-disc pl-5 text-xs space-y-0.5">{dual.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3 text-xs">
+        <div><p className="text-muted-foreground">Seller net if sold</p><p className="text-sm font-semibold">{net}</p><p className="text-muted-foreground">about {dual.sale.daysToSale} days, {dual.sale.sellingCostPct}% costs</p></div>
+        <div><p className="text-muted-foreground">Short-term rental rules</p><p className="text-sm font-semibold capitalize">{dual.stay.regulation}</p></div>
+        <div><p className="text-muted-foreground">Possible rental income before sale</p><p className="text-sm font-semibold">{money(dual.stay.interimNet)}</p><p className="text-muted-foreground">{dual.stay.monthsAvailable} months available</p></div>
+      </div>
+      {dual.cautions.length > 0 && <ul className="mt-3 list-disc pl-5 text-xs text-amber-800 space-y-0.5">{dual.cautions.map((c) => <li key={c}>{c}</li>)}</ul>}
+      <div className="mt-3 grid gap-3 sm:grid-cols-4 items-end">
+        <Field label="Listing status"><select className={inputCls} value={listing} onChange={(e) => setListing(e.target.value)}><option value="">Not recorded</option>{Object.entries(LISTING_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+        <Field label="Days to sell"><input type="number" min={1} max={730} className={inputCls} value={days} onChange={(e) => setDays(e.target.value)} /></Field>
+        <Field label="Selling costs %"><input type="number" min={0} max={25} step="0.5" className={inputCls} value={cost} onChange={(e) => setCost(e.target.value)} /></Field>
+        <button disabled={busy} className={primaryBtnCls} onClick={() => patch({ listing_status: listing || null, est_days_to_sale: days ? Number(days) : null, est_selling_cost_pct: cost ? Number(cost) : null })}>Update estimate</button>
+      </div>
+      <p className="mt-3 text-[11px] text-muted-foreground">{dual.disclaimer}</p>
     </Card>
   );
 }

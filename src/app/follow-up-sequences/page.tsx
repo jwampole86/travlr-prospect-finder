@@ -1028,7 +1028,7 @@ export default function FollowUpSequencesPage() {
     <AppLayout>
       <div className="px-4 sm:px-6 py-5 max-w-5xl mx-auto w-full">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6" data-ava-anchor="sequences-header">
           <div>
             <h1 className="text-xl font-bold text-foreground">Follow-Up Sequences</h1>
             <p className="text-sm text-muted-foreground mt-0.5">

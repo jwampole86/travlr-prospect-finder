@@ -496,6 +496,7 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
   };
   const dragStart = (e: ReactPointerEvent<HTMLElement>) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('button, input, a, label, textarea')) return;
+    justDragged.current = false; // a new gesture: only the click that ends a drag is ignored, never a later tap
     const r = sectionRef.current?.getBoundingClientRect();
     if (!r) return;
     const v = viewport();

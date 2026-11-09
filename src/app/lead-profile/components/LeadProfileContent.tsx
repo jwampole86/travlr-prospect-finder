@@ -17,6 +17,7 @@ import { showErrorWithRetry } from '@/lib/hooks/useRetryToast';
 import SMSSendModal from './SMSSendModal';
 import BreadcrumbNav from '@/components/ui/BreadcrumbNav';
 import LeadTaskBoard from './LeadTaskBoard';
+import PhotoRightsPanel from './PhotoRightsPanel';
 import LeadPicker from './LeadPicker';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -267,7 +268,7 @@ function LeadProfileSkeleton() {
 
 export default function LeadProfileContent({ leadId }: { leadId: string | null }) {
   const router = useRouter();
-  const { user, session } = useAuth();
+  const { user, session, role } = useAuth();
 
   // ── Lead resolution: try DB first, fall back to mockLeads ────────────────
   const [lead, setLead] = useState<Lead | undefined>(undefined);
@@ -2255,6 +2256,9 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
 
               {/* ── Task Board & Follow-up Sequence ── */}
               <LeadTaskBoard leadId={lead.id} leadName={lead.contactName || lead.address} />
+
+              {/* Admins decide which captured photos may be published */}
+              {(role === 'admin' || role === 'owner') && <PhotoRightsPanel leadId={lead.id} />}
 
               {/* Enrichment Timeline */}
               <div className="bg-card border border-border rounded-xl p-5">

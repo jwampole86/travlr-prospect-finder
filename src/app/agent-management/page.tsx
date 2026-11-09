@@ -249,7 +249,7 @@ export default function AgentManagementPage() {
       <div className="px-4 sm:px-6 py-5 max-w-screen-xl mx-auto space-y-6">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" data-ava-anchor="team-header">
           <div>
             <h1 className="text-xl font-bold text-foreground">Agent Management</h1>
             <p className="text-sm text-muted-foreground mt-0.5">Invite, manage, and monitor your outreach agents</p>
@@ -370,7 +370,7 @@ export default function AgentManagementPage() {
             ))}
           </div>
         ) : (
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden" data-ava-anchor="team-active">
             <div className="px-4 py-3 border-b border-border">
               <h2 className="text-sm font-semibold text-foreground">Active Agents ({activeAgents.length})</h2>
             </div>

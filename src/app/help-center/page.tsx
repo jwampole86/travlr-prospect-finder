@@ -254,7 +254,7 @@ export default function HelpCenterPage() {
       <div className="min-h-screen bg-background">
         {/* Hero */}
         <div className="bg-gradient-to-br from-primary/8 via-background to-background border-b border-border px-6 py-10">
-          <div className="max-w-3xl mx-auto text-center">
+          <div className="max-w-3xl mx-auto text-center" data-ava-anchor="help-search">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-4">
               <HelpCircle size={12} />
               Help Center
@@ -286,7 +286,7 @@ export default function HelpCenterPage() {
         {/* Body */}
         <div className="flex max-w-7xl mx-auto px-4 py-6 gap-6">
           {/* Left: Feature Group Nav */}
-          <aside className="w-52 shrink-0 hidden lg:block">
+          <aside className="w-52 shrink-0 hidden lg:block" data-ava-anchor="help-topics">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">Topics</p>
             <nav className="space-y-0.5">
               {filteredGroups.map((group) => {

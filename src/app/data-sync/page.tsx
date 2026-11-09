@@ -388,7 +388,7 @@ export default function DataSyncPage() {
       <div className="p-4 sm:p-6 space-y-6">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" data-ava-anchor="sync-header">
           <div>
             <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
               <Radio size={20} className="text-primary" />
@@ -607,7 +607,7 @@ export default function DataSyncPage() {
 
         {/* ── PRE-RUN: Configured URLs table ── */}
         {!result && (
-          <div className="space-y-4">
+          <div className="space-y-4" data-ava-anchor="sync-urls">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">
                 Configured Sync URLs

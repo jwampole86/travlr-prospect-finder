@@ -47,6 +47,7 @@ const adminNavGroups: NavGroup[] = [
       { key: 'nav-team-chat', label: 'Team Chat', href: '/team-chat', icon: MessageCircle, badge: null },
       { key: 'nav-agent-profile', label: 'My Profile & Prefs', href: '/agent-profile', icon: UserCheck, badge: null },
       { key: 'nav-system-health', label: 'System Health', href: '/system-health', icon: Globe, badge: null },
+      { key: 'nav-ava-knowledge', label: 'AVA Knowledge', href: '/ava-knowledge', icon: Brain, badge: 'New' },
     ],
   },
   {
@@ -351,6 +352,7 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
   'nav-campaigns': 'Plan and launch campaigns',
   'nav-cohost': 'Co-host prospects and offers',
   'nav-seller-pipeline': 'Seller replies, permissions and partners',
+  'nav-ava-knowledge': 'Teach AVA answers for your team and see what she could not answer',
   'nav-sms-campaign-analytics': 'Texting results by campaign',
   'nav-sms-inbound-threads': 'Replies from homeowners',
   'nav-bulk-outreach': 'Send to many leads at once',

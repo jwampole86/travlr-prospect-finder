@@ -66,8 +66,74 @@ export const TRAVLR_TOURS: TourDefinition[] = [
     keywords: ['seller', 'sellers', 'owner', 'services', 'sale', 'opportunities', 'partners'],
     steps: [
       { id: 'intro', anchor: 'seller-intro', route: '/seller-pipeline', say: 'When a homeowner replies that they may sell, it lands here for a person to review. Nothing is sent automatically.' },
-      { id: 'tabs', anchor: 'seller-tabs', route: '/seller-pipeline', say: 'Switch between the dashboard, opportunities, partners and revenue here.' },
+      { id: 'tabs', anchor: 'seller-tabs', route: '/seller-pipeline', say: 'Switch between the dashboard, opportunities, the outreach campaign messages, partners and revenue here.' },
       { id: 'content', anchor: 'seller-content', route: '/seller-pipeline', say: 'Each opportunity needs the owner\'s recorded permission before it moves forward.' }
+    ]
+  },
+  {
+    id: 'data-sync',
+    title: 'Data Source Sync',
+    summary: 'Keep your lead data fresh',
+    roles: [...ADMINS],
+    keywords: ['sync', 'data', 'source', 'sources', 'fresh', 'import', 'provider', 'zillow', 'trulia'],
+    steps: [
+      { id: 'header', anchor: 'sync-header', route: '/data-sync', say: 'This is Data Source Sync. Admins run and watch the jobs that bring new leads in from your configured sources.' },
+      { id: 'urls', anchor: 'sync-urls', route: '/data-sync', say: 'These are the sync URLs set up for your markets. Data quality sits upstream of every call and campaign, so keep this fresh before agents start working leads.' }
+    ]
+  },
+  {
+    id: 'agent-management',
+    title: 'Agent management',
+    summary: 'Invite and manage your agents',
+    roles: [...ADMINS],
+    keywords: ['agent', 'agents', 'team', 'invite', 'invitations', 'onboarding', 'manage', 'roles'],
+    steps: [
+      { id: 'header', anchor: 'team-header', route: '/agent-management', say: 'Agent Management is where you invite, manage and monitor your outreach agents.' },
+      { id: 'active', anchor: 'team-active', route: '/agent-management', say: 'Active agents are listed here. Before you assign call volume, make sure the agent is active and has finished their onboarding.' }
+    ]
+  },
+  {
+    id: 'message-templates',
+    title: 'Message templates',
+    summary: 'Email and text templates',
+    roles: [...ADMINS],
+    keywords: ['template', 'templates', 'message', 'messages', 'sms', 'email', 'text', 'tcpa', 'merge'],
+    steps: [
+      { id: 'header', anchor: 'templates-header', route: '/templates', say: 'Message Templates is where you create and manage email and text templates, with merge fields that fill in each homeowner\'s details.' },
+      { id: 'kpis', anchor: 'templates-kpis', route: '/templates', say: 'These counts show how many templates you have, how many are email or text, and whether any have TCPA issues to fix before sending.' }
+    ]
+  },
+  {
+    id: 'follow-up-sequences',
+    title: 'Follow-up sequences',
+    summary: 'Automated cadences across email, text and calls',
+    roles: [...ADMINS],
+    keywords: ['follow', 'sequence', 'sequences', 'cadence', 'cadences', 'schedule', 'scheduling', 'automation'],
+    steps: [
+      { id: 'header', anchor: 'sequences-header', route: '/follow-up-sequences', say: 'Follow-up sequences run your cadences across email, text and call steps. The counts show how many are active or paused, and you can start a new sequence from here.' }
+    ]
+  },
+  {
+    id: 'ava-knowledge',
+    title: 'Teach AVA',
+    summary: 'See what she could not answer and write the answer',
+    roles: [...ADMINS],
+    keywords: ['teach', 'ava', 'knowledge', 'answer', 'answers', 'train', 'unanswered'],
+    steps: [
+      { id: 'gaps', anchor: 'knowledge-gaps', route: '/ava-knowledge', say: 'These are help topics AVA could not answer, as words only. Pick one to write the answer for your whole team.' },
+      { id: 'form', anchor: 'knowledge-form', route: '/ava-knowledge', say: 'Write the question and the answer here. A published answer is used by AVA right away, and only for your organization.' },
+      { id: 'list', anchor: 'knowledge-list', route: '/ava-knowledge', say: 'Your team\'s answers are listed here. You can edit, unpublish or remove any of them.' }
+    ]
+  },
+  {
+    id: 'help-center',
+    title: 'Help Center',
+    summary: 'Where to find answers',
+    roles: [...STAFF],
+    keywords: ['help', 'support', 'answers', 'articles', 'tutorials', 'docs', 'documentation'],
+    steps: [
+      { id: 'search', anchor: 'help-search', route: '/help-center', say: 'The Help Center is your first stop for questions. Search articles, watch tutorials and find answers to common questions here.' },
+      { id: 'topics', anchor: 'help-topics', route: '/help-center', say: 'Pick a topic on the left to browse its guides.' }
     ]
   }
 ];

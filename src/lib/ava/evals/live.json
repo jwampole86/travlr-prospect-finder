@@ -286,6 +286,12 @@
       "entries": [
         "seller-what-is"
       ]
+    },
+    {
+      "q": "Where can I add my own answers for AVA to use?",
+      "entries": [
+        "ava-teach"
+      ]
     }
   ],
   "unsupported": [
