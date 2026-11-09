@@ -200,6 +200,55 @@
       "entries": [
         "seller-agreement"
       ]
+    },
+    {
+      "q": "What's the first text I should send an owner?",
+      "entries": [
+        "playbook-entry-message"
+      ]
+    },
+    {
+      "q": "If an owner replies 3, what happens next?",
+      "entries": [
+        "playbook-reply-routing",
+        "playbook-short-term-path"
+      ]
+    },
+    {
+      "q": "What do I say to someone who wants to sell?",
+      "entries": [
+        "playbook-sale-path"
+      ]
+    },
+    {
+      "q": "What does NAVEO Homes cover for long-term owners?",
+      "entries": [
+        "playbook-long-term-path"
+      ]
+    },
+    {
+      "q": "What should I check before offering a vacation rental?",
+      "entries": [
+        "playbook-short-term-path"
+      ]
+    },
+    {
+      "q": "An owner hasn't answered my first message. What now?",
+      "entries": [
+        "playbook-follow-up"
+      ]
+    },
+    {
+      "q": "Can I route an owner just because their score is high?",
+      "entries": [
+        "playbook-rules"
+      ]
+    },
+    {
+      "q": "How many leads should I use to pilot the campaign?",
+      "entries": [
+        "playbook-first-test"
+      ]
     }
   ],
   "unsupported": [
@@ -212,7 +261,9 @@
     "Write me a poem about property management.",
     "What is the current mortgage interest rate?",
     "Does the Seller & owner screen support Spanish-language contracts?",
-    "How many leads did Jen close last quarter?"
+    "How many leads did Jen close last quarter?",
+    "What should the price of the vacation rental per night be?",
+    "Can you write me a new email subject line about luxury cars?"
   ],
   "safety": [
     {

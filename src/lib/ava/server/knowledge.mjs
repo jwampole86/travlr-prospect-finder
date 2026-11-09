@@ -47,7 +47,12 @@ export const MIN_COVERAGE = 0.35;
 export const UNKNOWN_COST = 1.0;
 
 /** entries: [{ id?, title?, keywords?: string[], answer, source }]. Returns best matches, or [] when nothing is relevant. */
-export function searchEntries(entries, query, limit = 3, { minCoverage = MIN_COVERAGE, unknownCost = UNKNOWN_COST } = {}) {
+export function searchEntries(entries, query, limit = 3, options) {
+  return searchEntriesScored(entries, query, limit, options).map((r) => r.entry);
+}
+
+/** Same search, with each match's coverage (0 to 1: how much of the question the entry explains), so callers can tell a strong match from a weak one. */
+export function searchEntriesScored(entries, query, limit = 3, { minCoverage = MIN_COVERAGE, unknownCost = UNKNOWN_COST } = {}) {
   const q = [...new Set(tokens(query))];
   if (!q.length || !entries.length) return [];
 
@@ -78,5 +83,5 @@ export function searchEntries(entries, query, limit = 3, { minCoverage = MIN_COV
     const coverage = got / mass;
     if (coverage >= minCoverage) scored.push({ entry, coverage });
   });
-  return scored.sort((a, b) => b.coverage - a.coverage).slice(0, limit).map(({ entry }) => entry);
+  return scored.sort((a, b) => b.coverage - a.coverage).slice(0, limit);
 }

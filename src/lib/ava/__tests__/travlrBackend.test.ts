@@ -144,6 +144,17 @@ describe('knowledge search', () => {
     expect(res.entries.length).toBeGreaterThan(0);
     expect(res.entries[0].source).toBeTruthy();
   });
+  it('lets the model choose among the real entries when the word match is missing or weak, and carries on if that fails', async () => {
+    const pick = (ids: string[]) => async (entries: Array<{ id: string }>) => entries.filter((e) => ids.includes(e.id)) as never;
+    const chosen = await backend({ selectKnowledge: pick(['seller-stages']) }).searchKnowledge({ query: 'what happens next once a homeowner texts that they might sell' });
+    expect(chosen.entries[0].source).toBe('Seller & owner services');
+    const broken = await backend({ selectKnowledge: async () => { throw new Error('down'); } }).searchKnowledge({ query: 'what is the capital of France' });
+    expect(broken.entries).toEqual([]);
+    let called = 0;
+    await backend({ selectKnowledge: async () => { called++; return []; } }).searchKnowledge({ query: 'How do I clock in and track breaks?' });
+    expect(called).toBe(0); // a strong word match needs no help
+  });
+
   it('returns nothing for unrelated questions', async () => {
     expect((await backend().searchKnowledge({ query: 'what is the capital of France' })).entries).toEqual([]);
   });

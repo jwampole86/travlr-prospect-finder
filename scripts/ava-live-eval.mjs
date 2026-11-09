@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createGateway } from '../src/lib/ava/server/gateway.mjs';
 import { createLlm } from '../src/lib/ava/server/llm.mjs';
-import { searchEntries } from '../src/lib/ava/server/knowledge.mjs';
+import { searchEntries, searchEntriesScored } from '../src/lib/ava/server/knowledge.mjs';
 import { selectEntries } from '../src/lib/ava/server/selector.mjs';
 
 const root = new URL('../', import.meta.url);
@@ -28,8 +28,12 @@ const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf
 const backend = {
   live: { leads: true, knowledge: true, followups: true },
   async searchKnowledge({ query }) {
-    let found = searchEntries(kb.entries, query, 3);
-    if (!found.length) { try { found = await selectEntries({ llm, entries: kb.entries, query }); } catch { /* none */ } }
+    // The same steps as the app's backend (src/lib/ava/travlrBackend.ts): word match first, model choice when it is missing or weak.
+    const lexical = searchEntriesScored(kb.entries, query, 3);
+    let found = lexical.map((r) => r.entry);
+    if (!lexical.length || lexical[0].coverage < 0.5) {
+      try { const chosen = await selectEntries({ llm, entries: kb.entries, query }); found = [...chosen, ...found.filter((e) => !chosen.some((c) => c.id === e.id))].slice(0, 3); } catch { /* none */ }
+    }
     const entries = found.map((e) => ({ answer: e.answer, source: e.source, route: e.route }));
     return { source: 'backend', label: 'Approved AVYRO help', version: kb.version, entries };
   }

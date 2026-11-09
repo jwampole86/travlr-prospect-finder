@@ -1,7 +1,7 @@
 // Builds AVA's approved knowledge base from the app's own in-product help copy, so every answer is verbatim
 // content users can also read in the app, and the version changes whenever that copy changes.
 //   node scripts/build-ava-kb.mjs          (writes src/lib/ava/knowledge.json)
-// Plus scripts/ava-kb-authored.json: reviewed entries written from how a screen's rules work (seller & owner services).
+// Plus scripts/ava-kb-playbook.json (the approved outreach campaign) and scripts/ava-kb-authored.json: reviewed entries written from how a screen's rules work (seller & owner services).
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -72,6 +72,8 @@ for (const s of evalLiteral(text.how.slice(howArr, end + 1).replace(/\bicon:\s*[
 // 5. Content written from how a screen's rules actually work, kept in its own reviewed file
 const authored = JSON.parse(read('scripts/ava-kb-authored.json'));
 for (const e of authored.entries) add(e);
+const playbook = JSON.parse(read('scripts/ava-kb-playbook.json'));
+for (const e of playbook.entries) add(e);
 
 const hash = createHash('sha256').update(JSON.stringify(entries)).digest('hex').slice(0, 8);
 const version = `${new Date().toISOString().slice(0, 10)}-${hash}`;

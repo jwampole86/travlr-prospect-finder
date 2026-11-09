@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { searchEntries } from './server/knowledge.mjs';
+import { searchEntriesScored } from './server/knowledge.mjs';
 import { ToolDenied, ToolError, ToolTimeout } from './server/errors.mjs';
 import { KNOWLEDGE } from './knowledge';
 
@@ -71,6 +71,8 @@ export function mapLead(row: Row) {
   };
 }
 
+/** Below this share of the question explained, a word match is treated as weak. */
+const WEAK_MATCH = 0.5;
 const LEAD_COLS = 'id,address,city,owner_name,luxury,prospect_score,verified_owner,verified_number,fully_verified,verification_status,stage,updated_at,last_checked,primary_agent_id,version';
 const PRIORITY_SCORE = 80;
 const dateOf = (d: Date) => d.toISOString().slice(0, 10);
@@ -118,10 +120,15 @@ export function createTravlrBackend(deps: BackendDeps) {
     },
 
     async searchKnowledge({ query }: { query: string }, ctx?: Ctx) {
-      let found: KnowledgeEntryLike[] = searchEntries(KNOWLEDGE.entries, query, 3);
-      // A question worded unlike the article ("how many minutes until my first sync finishes") shares few words with it.
-      if (!found.length && deps.selectKnowledge) {
-        try { found = await deps.selectKnowledge(KNOWLEDGE.entries, query, ctx?.signal); } catch { /* carry on without it: she will say she does not have it */ }
+      const lexical: Array<{ entry: KnowledgeEntryLike; coverage: number }> = searchEntriesScored(KNOWLEDGE.entries, query, 3);
+      let found: KnowledgeEntryLike[] = lexical.map((r) => r.entry);
+      // A question worded unlike the article ("how many minutes until my first sync finishes") shares few words with it, so a missing or
+      // weak word match is checked by letting the model choose among the real entries; what it chooses comes first.
+      if ((!lexical.length || lexical[0].coverage < WEAK_MATCH) && deps.selectKnowledge) {
+        try {
+          const chosen = await deps.selectKnowledge(KNOWLEDGE.entries, query, ctx?.signal);
+          found = [...chosen, ...found.filter((e) => !chosen.some((c) => c.id === e.id))].slice(0, 3);
+        } catch { /* carry on without it: she will say she does not have it */ }
       }
       const entries = found.map((e) => ({ answer: e.answer, source: e.source, route: e.route }));
       return { source: 'backend', label: 'Approved AVYRO help', version: KNOWLEDGE.version, entries };
