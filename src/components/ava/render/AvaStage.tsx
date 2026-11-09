@@ -79,6 +79,12 @@ function PerfWatch({ active, level, onLevel }: { active: boolean; level: PerfLev
   return null;
 }
 
+// Constants, so a re-render never hands the canvas a fresh object and makes it re-apply its camera, pixel ratio or size.
+const CAMERA = { position: [CAMERA_X, 0.5, 3.1] as [number, number, number], fov: 30, near: 0.1, far: 20 };
+const GL = { alpha: true, antialias: true, powerPreference: 'high-performance' as const };
+const DPR_FULL: [number, number] = [1, 2];
+const RESIZE = { offsetSize: true, scroll: false };
+
 export function AvaStage(props: StageProps) {
   const [level, setLevel] = useState<PerfLevel>(0);
   const { className, mode, onFailure, active = true, onReady, ...rest } = props;
@@ -88,13 +94,13 @@ export function AvaStage(props: StageProps) {
     <Boundary fallback={simple} onError={onFailure}>
       <div className={`${className ?? ''} stage-3d`} aria-hidden="true" data-testid="ava-3d">
         <Canvas
-          camera={{ position: [CAMERA_X, 0.5, 3.1], fov: 30, near: 0.1, far: 20 }}
-          gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
-          dpr={level === 0 ? [1, 2] : 1}
+          camera={CAMERA}
+          gl={GL}
+          dpr={level === 0 ? DPR_FULL : 1}
           // Measure the layout size, not the on-screen size. She is scaled up with a CSS transform while she floats to point; the default
           // measurement includes that transform, so the canvas resized to the larger box and never resized back, leaving her too big
           // and cropped after the tour.
-          resize={{ offsetSize: true, scroll: false }}
+          resize={RESIZE}
           frameloop={active && level < 2 ? 'always' : 'demand'}
           onCreated={({ camera, gl }) => {
             camera.lookAt(CAMERA_X, 0.5, 0);

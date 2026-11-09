@@ -60,6 +60,14 @@ const Icon = {
 
 const HIGHLIGHT_CSS = '[data-ava-anchor].ava-highlight{outline:3px solid #00B2FF;outline-offset:3px;border-radius:12px;box-shadow:0 0 0 6px rgba(0,178,255,.25),0 0 24px rgba(0,178,255,.35);transition:box-shadow .25s,outline-color .25s}';
 
+/** Her measured frame rate, in its own component so the numbers ticking over never re-render the whole widget (and the 3D scene with it). */
+function PerfLine() {
+  const [perf, setPerf] = useState<PerfSnapshot>(() => perfSnapshot());
+  useEffect(() => subscribePerf(setPerf), []);
+  if (perf.fps <= 0) return <p className="you-perf" data-testid="perf">3D smoothness: still measuring. On a slower device AVA lowers her own quality to keep moving smoothly.</p>;
+  return <p className="you-perf" data-testid="perf">3D smoothness: about {perf.fps} frames a second ({PERF_LABEL[perf.level]}). On a slower device AVA lowers her own quality to keep moving smoothly.</p>;
+}
+
 /** The life of one change AVA prepared: prepared, approved, done, confirmed. Shows the true outcome, including when it did not happen. */
 function ActionSteps({ summary, status }: { summary: string; status: ActionStatus }) {
   const { complete, ended } = actionProgress(status);
@@ -123,8 +131,6 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     saveLayout(next);
     setLayout(next);
   }, []);
-  const [perf, setPerf] = useState<PerfSnapshot>(() => perfSnapshot());
-  useEffect(() => subscribePerf(setPerf), []);
   const sectionRef = useRef<HTMLElement>(null);
   const drag = useRef<{ x: number; y: number; right: number; bottom: number; moved: boolean } | null>(null);
   const justDragged = useRef(false);
@@ -637,9 +643,7 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                   <label className="switch"><input type="checkbox" checked={profile.personalization} onChange={(e) => void learning.setConsent({ personalization: e.target.checked })} /> Tailor AVA to me</label>
                   <label className="switch"><input type="checkbox" checked={profile.sharing} onChange={(e) => void learning.setConsent({ sharing: e.target.checked })} /> Share anonymous usage to improve AVYRO <small>(no name, no text; just which features and help topics are used)</small></label>
                   <h3 className="you-sub">How AVA sits on your screen</h3>
-                  {perf.fps > 0 && view === '3d' && (
-                    <p className="you-perf" data-testid="perf">3D smoothness: about {perf.fps} frames a second ({PERF_LABEL[perf.level]}). On a slower device AVA lowers her own quality to keep moving smoothly.</p>
-                  )}
+                  {view === '3d' && <PerfLine />}
                   {host.briefing && staff && (
                     <label className="switch"><input type="checkbox" checked={layout.briefing} onChange={(e) => updateLayout({ briefing: e.target.checked })} /> Morning briefing <small>(a short summary of what needs you, the first time you open me each day)</small></label>
                   )}
