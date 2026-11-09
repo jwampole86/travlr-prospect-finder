@@ -48,7 +48,8 @@
     "serve": "next start",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "ava:kb": "node scripts/build-ava-kb.mjs"
+    "ava:kb": "node scripts/build-ava-kb.mjs",
+    "ava:eval": "node scripts/ava-live-eval.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

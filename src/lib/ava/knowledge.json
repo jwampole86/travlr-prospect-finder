@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-04-a8444c1f",
+  "version": "2026-11-09-a88c8575",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -520,6 +520,167 @@
       "answer": "See what is actually converting: the acquisition funnel, agent performance and market data, with every number tied back to the people behind it. Includes: Acquisition funnel and campaign results; Agent performance and coaching; Market and regulation intelligence.",
       "source": "How it works: Grow",
       "kind": "overview"
+    },
+    {
+      "id": "seller-what-is",
+      "title": "What are Seller & owner services?",
+      "keywords": [
+        "seller",
+        "sell",
+        "selling",
+        "opportunity",
+        "pipeline",
+        "owner services",
+        "sale"
+      ],
+      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has four tabs: Dashboard, Opportunities, Partners and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "seller-how-flagged",
+      "title": "How does a lead become a seller opportunity?",
+      "keywords": [
+        "seller signal",
+        "flagged",
+        "reply",
+        "intent",
+        "wants to sell",
+        "thinking of selling",
+        "offer",
+        "flag",
+        "scan",
+        "past replies",
+        "manually"
+      ],
+      "answer": "AVYRO reads a homeowner's text reply for signs they might sell, such as saying they want to sell, are thinking about selling, want to put the property on the market, or ask for an offer or what it is worth. A clear statement counts as explicit; a mention of selling counts as possible; a reply that says they are not selling is not flagged. The reply is flagged for a person only, so nobody is contacted automatically. You can also flag a lead as a seller manually on the Opportunities tab: paste the lead's link or id and add a note, for example after a phone call. The Dashboard can also scan past replies for sellers; it shows how many it found and asks you to confirm before adding them, and nothing is sent to them.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "seller-stages",
+      "title": "What are the stages of a seller opportunity?",
+      "keywords": [
+        "stages",
+        "stage",
+        "signal",
+        "permission",
+        "qualified",
+        "routed",
+        "consultation",
+        "agreement",
+        "outcome"
+      ],
+      "answer": "An opportunity moves through seven stages, in order: Seller signal, Permission and verification, Qualified, Routed to a service, Human consultation, Agreement, and Outcome. It can only move forward when the requirements for the next stage are met, and the screen lists what is still missing.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "seller-qualify-requirements",
+      "title": "What do I need before an opportunity can be Qualified?",
+      "keywords": [
+        "qualified",
+        "qualify",
+        "requirements",
+        "blocked",
+        "cannot move",
+        "can't move",
+        "missing",
+        "authority",
+        "timeline",
+        "occupancy"
+      ],
+      "answer": "To move an opportunity to Qualified you need to: confirm the person is the owner or an authorized decision-maker; record the owner's timeline; record whether the property is occupied, vacant or rented; record whether the owner decides alone; and record the owner's permission for a consultation. If anything is missing, the opportunity stays where it is and the screen shows what to add.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "seller-permission",
+      "title": "Why does seller work need the owner's permission?",
+      "keywords": [
+        "permission",
+        "consent",
+        "authorization",
+        "authorized",
+        "blocked",
+        "opt out",
+        "stop",
+        "revoke"
+      ],
+      "answer": "Each step needs the owner's recorded permission for that specific purpose: estimate follow-up, sale consultation, long-term management, short-term rental management, readiness services, or sharing details with a partner. Permissions are kept in an append-only record, so a withdrawal is added as a new entry and the history is never overwritten. An opt-out or STOP reply withdraws every purpose at once, and an opportunity with no valid permission is blocked until a person records it again.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "seller-services",
+      "title": "Which services can an owner be routed to?",
+      "keywords": [
+        "services",
+        "route",
+        "routing",
+        "partner",
+        "management",
+        "rental",
+        "interim",
+        "readiness",
+        "licensed"
+      ],
+      "answer": "An owner can be routed to one of five services: a licensed sale partner, long-term management, short-term rental management, interim rental before sale, or property readiness services. Each needs its own permission from the owner (sharing details with a partner for a sale, long-term management, short-term rental management for both short-term and interim rental, or readiness services). A person must also review and approve that the owner is eligible for the service before the opportunity can be routed.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "seller-sale-partner",
+      "title": "What does a sale partner need before I can route an owner to them?",
+      "keywords": [
+        "sale partner",
+        "licensed partner",
+        "license",
+        "legal review",
+        "agreement on file",
+        "partners tab"
+      ],
+      "answer": "Before an owner is routed to a licensed sale partner, choose the partner on the opportunity, and the partner must have a verified license, have had their arrangement reviewed legally, and have the signed partner agreement on file. You manage partners in the Partners tab.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "seller-agreement",
+      "title": "What is needed to reach the Agreement stage?",
+      "keywords": [
+        "agreement",
+        "contract",
+        "service agreement",
+        "outcome",
+        "revenue"
+      ],
+      "answer": "An opportunity can only move to the Agreement stage once an agreement has been added to it. Add invoices and costs from each opportunity; the Revenue tab then shows what was invoiced, collected and spent for each service, and the margin (collected revenue minus the cost of delivering the service).",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "seller-who-can-see",
+      "title": "Who can see Seller & owner services?",
+      "keywords": [
+        "access",
+        "admin",
+        "who can see",
+        "permissions",
+        "role",
+        "seller pipeline access"
+      ],
+      "answer": "Seller & owner services is for admins and owners. It only shows your own organization's opportunities.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
     }
   ]
 }

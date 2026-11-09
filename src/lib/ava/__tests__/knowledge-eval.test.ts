@@ -28,6 +28,14 @@ describe('AVA answer quality on the real in-app help content', () => {
     expect(result.refusalRate).toBe(1);
   });
 
+  it('covers Seller & owner services, written from how the screens work', () => {
+    const seller = KNOWLEDGE.entries.filter((e) => e.id.startsWith('seller-'));
+    expect(seller.length).toBeGreaterThanOrEqual(8);
+    expect(seller.every((e) => e.source === 'Seller & owner services' && e.route === '/seller-pipeline')).toBe(true);
+    expect(searchEntries(KNOWLEDGE.entries, 'What are the stages of a seller opportunity?', 1)[0]?.id).toBe('seller-stages');
+    expect(searchEntries(KNOWLEDGE.entries, 'What do I need before an opportunity can be qualified?', 1)[0]?.id).toBe('seller-qualify-requirements');
+  });
+
   it('declines an empty question', () => {
     expect(searchEntries(KNOWLEDGE.entries, '')).toEqual([]);
   });

@@ -5,6 +5,7 @@ import { getApiActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { createGateway } from './server/gateway.mjs';
 import { createLlm } from './server/llm.mjs';
+import { selectEntries } from './server/selector.mjs';
 import { createCombinedAudit } from './combinedAudit';
 import { createSupabaseAudit } from './auditSink';
 import { createSignedPendingStore } from './pendingStore';
@@ -69,9 +70,13 @@ export function avaDeps(): AvaHandlerDeps {
       if (cookie) headers.cookie = cookie;
       if (authorization) headers.authorization = authorization;
       const learning = createLearningStore(db, (actor as { organizationId?: string | null }).organizationId);
+      const llm = createLlm(llmEnv());
       return createGateway({
-        llm: createLlm(llmEnv()),
-        backend: createTravlrBackend({ db, origin: new URL(req.url).origin, forwardHeaders: headers }),
+        llm,
+        backend: createTravlrBackend({
+          db, origin: new URL(req.url).origin, forwardHeaders: headers,
+          selectKnowledge: (entries, query, signal) => selectEntries({ llm: llm as never, entries, query, signal }) as never
+        }),
         audit: createCombinedAudit(createSupabaseAudit(db)),
         pending: createSignedPendingStore({ db, secret: confirmSecret() }),
         // Tailor tone and depth to this person, from their own profile (ids and counts only). Off when they turned personalization off.

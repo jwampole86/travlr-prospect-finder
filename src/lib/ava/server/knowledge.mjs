@@ -5,7 +5,7 @@
 // content never mentions ("how do I reset the dishwasher") therefore returns nothing, and AVA says she does not know
 // instead of stretching a loosely related article.
 const STOP = new Set(
-  'a an and are as at be been being by can could do does did for from get got had has have how i if in into is it its me my of on or our so than that the their them then there these they this those to us was we were what when where which who whom why will with would you your please show tell about need want like just also any some there here mean means meant before after ava out up work works working one more given give gives much'.split(' ')
+  'a an and are as at be been being by can could do does did for from get got had has have how i if in into is it its me my of on or our so than that the their them then there these they this those to us was we were what when where which who whom why will with would you your please show tell about need want like just also any some there here mean means meant before after ava out up work works working one more given give gives much many once'.split(' ')
 );
 
 // Words that mean the same thing for this product, so natural paraphrases still match.

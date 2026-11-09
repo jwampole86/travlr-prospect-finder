@@ -18,7 +18,11 @@ export interface BackendDeps {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   now?: () => Date;
+  /** Finds help by meaning when the word search finds nothing (the model only chooses among real entries). Optional. */
+  selectKnowledge?: (entries: KnowledgeEntryLike[], query: string, signal?: AbortSignal) => Promise<KnowledgeEntryLike[]>;
 }
+
+interface KnowledgeEntryLike { id: string; title?: string; answer: string; source: string; route?: string }
 
 const isAdminRole = (role: string) => role === 'admin' || role === 'owner';
 
@@ -113,8 +117,13 @@ export function createTravlrBackend(deps: BackendDeps) {
       return { source: 'backend', label: 'AVYRO leads', asOf: now().toISOString(), newestRecordAt: newest, leads };
     },
 
-    async searchKnowledge({ query }: { query: string }) {
-      const entries = searchEntries(KNOWLEDGE.entries, query, 3).map((e: { answer: string; source: string; route?: string }) => ({ answer: e.answer, source: e.source, route: e.route }));
+    async searchKnowledge({ query }: { query: string }, ctx?: Ctx) {
+      let found: KnowledgeEntryLike[] = searchEntries(KNOWLEDGE.entries, query, 3);
+      // A question worded unlike the article ("how many minutes until my first sync finishes") shares few words with it.
+      if (!found.length && deps.selectKnowledge) {
+        try { found = await deps.selectKnowledge(KNOWLEDGE.entries, query, ctx?.signal); } catch { /* carry on without it: she will say she does not have it */ }
+      }
+      const entries = found.map((e) => ({ answer: e.answer, source: e.source, route: e.route }));
       return { source: 'backend', label: 'Approved AVYRO help', version: KNOWLEDGE.version, entries };
     },
 

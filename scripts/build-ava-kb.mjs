@@ -1,6 +1,7 @@
 // Builds AVA's approved knowledge base from the app's own in-product help copy, so every answer is verbatim
 // content users can also read in the app, and the version changes whenever that copy changes.
 //   node scripts/build-ava-kb.mjs          (writes src/lib/ava/knowledge.json)
+// Plus scripts/ava-kb-authored.json: reviewed entries written from how a screen's rules work (seller & owner services).
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -67,6 +68,10 @@ for (let i = howArr; i < text.how.length; i++) {
 for (const s of evalLiteral(text.how.slice(howArr, end + 1).replace(/\bicon:\s*[A-Za-z0-9_]+,?/g, ''))) {
   add({ id: 'how-' + slug(s.name), title: `${s.name}: how AVYRO works`, keywords: [s.name], answer: `${s.body} Includes: ${s.points.join('; ')}.`, source: `How it works: ${s.name}`, kind: 'overview' });
 }
+
+// 5. Content written from how a screen's rules actually work, kept in its own reviewed file
+const authored = JSON.parse(read('scripts/ava-kb-authored.json'));
+for (const e of authored.entries) add(e);
 
 const hash = createHash('sha256').update(JSON.stringify(entries)).digest('hex').slice(0, 8);
 const version = `${new Date().toISOString().slice(0, 10)}-${hash}`;
