@@ -6,6 +6,8 @@ const SUFFIX: Record<string, string> = {
 };
 const DIRECTION: Record<string, string> = { north: 'n', south: 's', east: 'e', west: 'w', northeast: 'ne', northwest: 'nw', southeast: 'se', southwest: 'sw' };
 // "#4B", "Apt 4B", "Unit 12", "Suite 200", "Ste 5", "Floor 3", "Fl 3", "Bldg C" at the end of an address.
+// "#penthouse 5", "# 4 B": after a "#" the whole rest of the address is the unit, spaces included.
+const HASH_UNIT_RE = /\s*#\s*([a-z0-9][a-z0-9 -]{0,19})$/i;
 const UNIT_RE = /(?:,|\s)\s*(?:(?:apt|apartment|unit|ste|suite|fl|floor|bldg|building|rm|room|no)\.?\s*#?\s*|#\s*)([a-z0-9][a-z0-9-]*)\s*$/i;
 
 export interface NormalizedAddress {
@@ -23,20 +25,36 @@ export interface NormalizedAddress {
 
 const clean = (s: string) => s.toLowerCase().replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim();
 
+/**
+ * Some sources write the whole address into the street line ("1438 Hillcrest Rd, Santa Barbara, CA 93103"). The city, state and ZIP are
+ * already known separately, so they are taken off the end when they match, and only then. Never leaves less than a number and a street.
+ */
+function stripLocality(raw: string, city: string, state: string, zip5: string): string {
+  const words = raw.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+  const lower = words.map((w) => w.toLowerCase().replace(/\./g, ''));
+  let end = lower.length;
+  const MIN = 2;
+  if (end > MIN && /^\d{5}(-\d{4})?$/.test(lower[end - 1]) && (!zip5 || lower[end - 1].slice(0, 5) === zip5)) end--;
+  if (state && end > MIN && lower[end - 1] === state) end--;
+  const cityWords = city.split(' ').filter(Boolean);
+  if (cityWords.length && end - cityWords.length >= MIN && cityWords.every((w, i) => lower[end - cityWords.length + i] === w)) end -= cityWords.length;
+  return end === words.length ? raw : words.slice(0, end).join(' ');
+}
+
 export function normalizeAddress(input: { address?: string | null; city?: string | null; state?: string | null; zip?: string | null }): NormalizedAddress {
-  let raw = String(input.address ?? '').trim();
+  const zip5 = (String(input.zip ?? '').match(/\d{5}/) ?? [''])[0];
+  const city = clean(String(input.city ?? ''));
+  const state = clean(String(input.state ?? '')).slice(0, 2);
+  let raw = stripLocality(String(input.address ?? '').trim(), city, state, zip5);
   let unit: string | null = null;
-  const m = UNIT_RE.exec(raw);
+  const m = HASH_UNIT_RE.exec(raw) ?? UNIT_RE.exec(raw);
   if (m) {
-    unit = m[1].toLowerCase();
+    unit = m[1].toLowerCase().trim().replace(/\s+/g, ' ');
     raw = raw.slice(0, m.index).trim();
   }
   const words = clean(raw).split(' ').filter(Boolean);
   const streetNumber = /^\d+[a-z]?$/.test(words[0] ?? '') ? words.shift()! : '';
   const streetName = words.map((w, i) => (i === words.length - 1 ? SUFFIX[w] ?? w : DIRECTION[w] ?? w)).join(' ');
-  const zip5 = (String(input.zip ?? '').match(/\d{5}/) ?? [''])[0];
-  const city = clean(String(input.city ?? ''));
-  const state = clean(String(input.state ?? '')).slice(0, 2);
   const usable = !!streetNumber && !!streetName && !!zip5;
   return { streetNumber, streetName, unit, city, state, zip5, key: usable ? `${zip5}|${streetNumber}|${streetName}` : '', usable };
 }

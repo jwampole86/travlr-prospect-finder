@@ -22,6 +22,21 @@ describe('normalizeAddress', () => {
     expect(addr('12 Pine Ave').unit).toBeNull();
   });
 
+  it('takes a city, state and ZIP written into the street line off the end, only when they match', () => {
+    const plain = addr('1438 Hillcrest Rd', '93103', 'Santa Barbara', 'CA');
+    expect(addr('1438 Hillcrest Rd, Santa Barbara, CA 93103', '93103', 'Santa Barbara', 'CA').key).toBe(plain.key);
+    expect(addr('1438 Hillcrest Rd Santa Barbara CA 93103', '93103', 'Santa Barbara', 'CA').streetName).toBe('hillcrest rd');
+    expect(addr('12 Pine Ave #4B, Denver, CO 80202', '80202', 'Denver', 'CO')).toMatchObject({ unit: '4b', streetName: 'pine ave' });
+    // a different city in the text is left alone, and a street is never stripped to nothing
+    expect(addr('12 Denver Ave', '80202', 'Denver', 'CO').streetName).toBe('denver ave');
+    expect(addr('12 Elm St, Aspen, CO 81611', '80202', 'Denver', 'CO').streetName).toContain('aspen');
+  });
+
+  it('reads a unit after a hash even when it has a space in it', () => {
+    expect(addr('495 Liholiho St #Penthouse 5', '96793')).toMatchObject({ unit: 'penthouse 5', streetName: 'liholiho st' });
+    expect(addr('495 Liholiho St #Penthouse 2', '96793').key).toBe(addr('495 Liholiho St #Penthouse 5', '96793').key);
+  });
+
   it('is unusable without a street number, street name or ZIP', () => {
     expect(addr('Pine Ave').usable).toBe(false);
     expect(addr('12').usable).toBe(false);
@@ -62,16 +77,23 @@ describe('resolveIdentity', () => {
     expect(r).toMatchObject({ action: 'link', propertyId: 'p1', unit: '5' });
   });
 
-  it('will not guess whether a unit-less address means the building or one of its units', () => {
+  it('links a unit-less address to the building without guessing a unit, at lower confidence', () => {
     const r = resolveIdentity({ address: addr('12 Pine Ave') }, [prop('p1', '12 Pine Ave', { units: ['4b', '5'] })]);
-    expect(r.action).toBe('create');
-    expect((r as { reviews: Array<{ reason: string }> }).reviews[0].reason).toBe('unit_ambiguity');
+    expect(r).toMatchObject({ action: 'link', propertyId: 'p1', unit: null, confidence: 0.6 });
   });
 
   it('sends a near-identical street name to review instead of merging', () => {
     const r = resolveIdentity({ address: addr('12 Pyne Ave') }, [prop('p1', '12 Pine Ave')]);
     expect(r.action).toBe('create');
     expect((r as { reviews: Array<{ reason: string; candidateId: string }> }).reviews).toEqual([expect.objectContaining({ reason: 'similar_address', candidateId: 'p1' })]);
+  });
+
+  it('flags the same street written with different spacing, and does not flag different streets one character apart', () => {
+    const spaced = resolveIdentity({ address: addr('13500 Golfview Dr') }, [prop('p1', '13500 Golf View Dr')]);
+    expect((spaced as { reviews: Array<{ reason: string; score: number }> }).reviews).toEqual([expect.objectContaining({ reason: 'similar_address', score: 0.9 })]);
+    for (const [a, b] of [['930 M St NW', '930 O St NW'], ['51 NW 28th St', '51 NW 26th St'], ['600 Clinton Ave W', '600 Clinton Ave NW'], ['408 S 13th St', '408 SW 13th St']]) {
+      expect((resolveIdentity({ address: addr(a, '20001') }, [prop('p1', b, {}, '20001')]) as { reviews: unknown[] }).reviews, `${a} vs ${b}`).toEqual([]);
+    }
   });
 
   it('flags nearby coordinates at different addresses, but ignores the database default coordinates', () => {
