@@ -88,7 +88,7 @@ export default function HomeownerReportView({
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/travlr-badge.png" alt="NAVEO Stays" width={40} height={40} className="w-10 h-10 object-contain" />
+            <img src="/brand/naveo-stays-symbol-256.png" alt="NAVEO Stays" width={40} height={40} className="w-10 h-10 object-contain" />
             <div>
               <p className="text-sm font-bold leading-none">NAVEO Stays</p>
               <p className="text-[11px] text-indigo-200/80 mt-1">Property Revenue Report &middot; <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="underline decoration-indigo-300/60 underline-offset-2 hover:text-white">{WEBSITE_LABEL}</a></p>

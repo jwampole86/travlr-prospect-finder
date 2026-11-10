@@ -16,6 +16,14 @@ describe('which NAVEO a message comes from', () => {
     expect(OUTREACH_BRANDS.stays.siteUrl).toBe('https://staynaveo.com');
   });
 
+  it('each brand has its own logo files, and none of them is a TRAVLR file', async () => {
+    const { existsSync } = await import('node:fs');
+    for (const b of Object.values(OUTREACH_BRANDS)) for (const f of [b.logo, b.symbol]) {
+      expect(existsSync(`public${f}`), f).toBe(true);
+      expect(f).not.toMatch(/travlr/i);
+    }
+  });
+
   it('fills the brand fields in either brace style', () => {
     const t = 'Hi, {brand} here. {{brand}} | {brand_signature} | {{brand_site}}';
     expect(applyOutreachBrand(t, OUTREACH_BRANDS.stays)).toBe('Hi, NAVEO Stays here. NAVEO Stays | NAVEO Stays | staynaveo.com | staynaveo.com');

@@ -423,7 +423,7 @@ function EstimateLandingContent() {
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-40 print:hidden">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/travlr-badge.png" alt="NAVEO Stays" width={36} height={36} className="w-9 h-9 object-contain" />
+          <img src="/brand/naveo-stays-symbol-256.png" alt="NAVEO Stays" width={36} height={36} className="w-9 h-9 object-contain" />
           <div>
             <p className="text-sm font-bold text-foreground">NAVEO Stays</p>
             <p className="text-[10px] text-muted-foreground">{t('estimate.subtitle')}</p>
