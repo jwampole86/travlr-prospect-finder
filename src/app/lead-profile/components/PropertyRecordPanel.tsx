@@ -25,7 +25,7 @@ async function call<T>(url: string, init?: { method?: string; body?: unknown }):
  * Admin-only. The property registry gives every address one identity across AVYRO and NAVEO. This shows the other records at this property, and
  * any possible duplicates a person should decide: it never changes a lead, only how registry records are grouped.
  */
-export default function PropertyRecordPanel({ leadId }: { leadId: string }) {
+export default function PropertyRecordPanel({ leadId, address }: { leadId: string; address?: string }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export default function PropertyRecordPanel({ leadId }: { leadId: string }) {
         <h3 className="text-sm font-semibold text-foreground">Property record</h3>
         {reviews.length > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">{reviews.length} to review</span>}
       </div>
-      {data.property && <p className="text-xs text-muted-foreground mb-3">{data.property.street_number} {data.property.street_name}, {data.property.zip5}{data.unit ? ' (this lead is one unit in the building)' : ''}</p>}
+      {(address || data.property) && <p className="text-xs text-muted-foreground mb-3">{address ?? `${data.property?.street_number} ${data.property?.street_name}`}{data.unit ? ' (this lead is one unit in the building)' : ''}</p>}
       {error && <p role="alert" className="mb-2 text-xs text-red-700">{error}</p>}
 
       {others.length > 0 && (
