@@ -14,8 +14,8 @@ export const TRUST_STORY = 'A founder-led company that also runs its own luxury 
 export const ABOUT_URL = 'https://avyropro.ai/about';
 
 // Why a homeowner would partner with us rather than list on a booking site alone. Keep claims qualitative and true to how we operate.
-export const WHY_TITLE = 'Why partner with TRAVLR instead of listing it yourself?';
-export const WHY_INTRO = 'Booking sites are open to everyone, which is great for reach and hard on owners. With more than 10 years of experience, TRAVLR places your home in an exclusive collection of luxury rentals, so it attracts high-quality guests who respect your home.';
+export const WHY_TITLE = 'Why partner with NAVEO Stays instead of listing it yourself?';
+export const WHY_INTRO = 'Booking sites are open to everyone, which is great for reach and hard on owners. With more than 10 years of experience, NAVEO Stays places your home in an exclusive collection of luxury rentals, so it attracts high-quality guests who respect your home.';
 export interface WhyItem { key: 'guests' | 'time' | 'pricing' | 'protection' | 'compliance' | 'reputation'; title: string; alone: string; withUs: string }
 export const WHY_ITEMS: WhyItem[] = [
   { key: 'guests', title: 'The right guests', alone: 'Anyone can book an open listing, including first-time renters and party bookings.', withUs: 'Your home joins a curated luxury collection, with guest screening and house rules we enforce, so stays come from guests who care for the home.' },

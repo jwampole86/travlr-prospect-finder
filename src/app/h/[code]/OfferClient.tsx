@@ -104,7 +104,7 @@ export default function OfferClient({ data }: { data: OfferData }) {
       {/* Top bar */}
       <header className="ho-header border-b sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-          <span className="ho-tx flex items-center gap-2 font-bold tracking-tight"><span className="ho-logo w-7 h-7 rounded-lg flex items-center justify-center text-sm">T</span> TRAVLR <span className="ho-mu hidden sm:inline font-medium">Vacation Homes</span></span>
+          <span className="ho-tx flex items-center gap-2 font-bold tracking-tight"><span className="ho-logo w-7 h-7 rounded-lg flex items-center justify-center text-sm">T</span> NAVEO Stays <span className="ho-mu hidden sm:inline font-medium">Vacation Homes</span></span>
           <div className="flex items-center gap-2">
             <button onClick={cycleTheme} aria-label={`Color theme: ${theme}. Click to change.`} title={`Theme: ${theme}`} className="ho-btn-outline h-9 w-9 rounded-full inline-flex items-center justify-center"><ThemeIcon size={16} /></button>
             <button onClick={() => toForm('header')} className="ho-btn h-9 px-4 rounded-full text-sm font-semibold transition-colors">Free listing audit</button>
@@ -163,7 +163,7 @@ export default function OfferClient({ data }: { data: OfferData }) {
               <div className="mt-5 space-y-3">
                 <div><div className="ho-mu flex justify-between text-xs mb-1"><span>Today (estimated)</span><span className="ho-tx-2 tabular-nums font-semibold">{usd(data.current.revenue)}</span></div>
                   <div className="ho-track h-4 rounded-full overflow-hidden"><div className="ho-bar-now h-full rounded-full transition-all duration-700" style={{ width: revVisible ? `${(data.current.revenue / chartMax) * 100}%` : '0%' }} /></div></div>
-                <div><div className="ho-mu flex justify-between text-xs mb-1"><span>With TRAVLR ({sc.label.toLowerCase()})</span><span className="ho-ac tabular-nums font-bold">{usd(sc.annual)}</span></div>
+                <div><div className="ho-mu flex justify-between text-xs mb-1"><span>With NAVEO Stays ({sc.label.toLowerCase()})</span><span className="ho-ac tabular-nums font-bold">{usd(sc.annual)}</span></div>
                   <div className="ho-track h-4 rounded-full overflow-hidden"><div className="ho-bar-with h-full rounded-full transition-all duration-700" style={{ width: revVisible ? `${(sc.annual / chartMax) * 100}%` : '0%' }} /></div></div>
               </div>
 
@@ -233,7 +233,7 @@ export default function OfferClient({ data }: { data: OfferData }) {
 
         {/* Trust */}
         <aside className="ho-card rounded-2xl p-5">
-          <p className="flex items-center gap-2 text-sm font-bold"><BadgeCheck size={16} className="ho-good-tx" /> Why owners trust TRAVLR</p>
+          <p className="flex items-center gap-2 text-sm font-bold"><BadgeCheck size={16} className="ho-good-tx" /> Why owners trust NAVEO Stays</p>
           <p className="ho-mu mt-1.5 text-[13px] leading-relaxed">{TRUST_STORY} Every item below links to its public source.</p>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2">
             {TRUST_ITEMS.map(i => (
@@ -264,7 +264,7 @@ export default function OfferClient({ data }: { data: OfferData }) {
                     {error && <p className="ho-bad-tx sm:col-span-2 text-sm font-medium">{error}</p>}
                     <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
                       <button disabled={status === 'sending'} className="ho-btn h-12 px-7 rounded-full font-semibold inline-flex items-center gap-2 disabled:opacity-60">{status === 'sending' ? <Loader2 size={17} className="animate-spin" /> : <ArrowRight size={17} />} Request my audit</button>
-                      <p className="ho-mu text-xs max-w-sm">By submitting, you agree TRAVLR may contact you about this audit by email, phone or text message. Reply STOP to any text to opt out.</p>
+                      <p className="ho-mu text-xs max-w-sm">By submitting, you agree NAVEO Stays may contact you about this audit by email, phone or text message. Reply STOP to any text to opt out.</p>
                     </div>
                   </form>
                 </>
@@ -287,7 +287,7 @@ export default function OfferClient({ data }: { data: OfferData }) {
 
       <footer className="ho-surface ho-bd border-t">
         <div className="max-w-5xl mx-auto px-4 py-8 text-sm space-y-3">
-          <p className="ho-tx flex items-center gap-2 font-semibold"><BadgeCheck size={16} className="ho-good-tx" /> TRAVLR Vacation Homes</p>
+          <p className="ho-tx flex items-center gap-2 font-semibold"><BadgeCheck size={16} className="ho-good-tx" /> NAVEO Stays</p>
           <p className="ho-mu"><Wrench size={13} className="inline mr-1.5 -mt-0.5" />Questions? <a className="ho-link font-medium hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>{CONTACT_PHONE && <> &middot; <a className="ho-link font-medium hover:underline" href={telHref(CONTACT_PHONE)}>{CONTACT_PHONE}</a></>}</p>
           <p className="ho-mu text-xs">Figures on this page are estimates from public booking and market data and are not guarantees of future earnings.</p>
           {optedOut ? <p className="ho-good-tx text-xs font-medium">You will not be contacted about this.</p> : confirmStop ? (

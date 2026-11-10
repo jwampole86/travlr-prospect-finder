@@ -88,9 +88,9 @@ export default function HomeownerReportView({
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/travlr-badge.png" alt="TRAVLR" width={40} height={40} className="w-10 h-10 object-contain" />
+            <img src="/brand/travlr-badge.png" alt="NAVEO Stays" width={40} height={40} className="w-10 h-10 object-contain" />
             <div>
-              <p className="text-sm font-bold leading-none">TRAVLR Vacation Homes</p>
+              <p className="text-sm font-bold leading-none">NAVEO Stays</p>
               <p className="text-[11px] text-indigo-200/80 mt-1">Property Revenue Report &middot; <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="underline decoration-indigo-300/60 underline-offset-2 hover:text-white">{WEBSITE_LABEL}</a></p>
             </div>
           </div>
@@ -172,7 +172,7 @@ export default function HomeownerReportView({
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Per month</p>
                   <div className="mt-4 space-y-4">
                     <div>
-                      <div className="flex justify-between text-sm mb-1.5"><span className="font-medium">Vacation rental with TRAVLR</span><strong className="text-emerald-700">{usd(exp.netMonthly)}</strong></div>
+                      <div className="flex justify-between text-sm mb-1.5"><span className="font-medium">Vacation rental with NAVEO Stays</span><strong className="text-emerald-700">{usd(exp.netMonthly)}</strong></div>
                       <div className="h-3 rounded-full bg-slate-100"><div className="h-3 rounded-full bg-emerald-600" style={{ width: '100%' }} /></div>
                     </div>
                     <div>
@@ -216,7 +216,7 @@ export default function HomeownerReportView({
 
             {/* ── Why partner ──────────────────────────────────── */}
             <section className="break-inside-avoid">
-              <SectionTitle eyebrow="Why partner with TRAVLR" title="Hands-off for you. Fully managed by us." sub="You own a valuable asset. We turn it into a well-run vacation rental business, and handle the work that makes it profitable." />
+              <SectionTitle eyebrow="Why partner with NAVEO Stays" title="Hands-off for you. Fully managed by us." sub="You own a valuable asset. We turn it into a well-run vacation rental business, and handle the work that makes it profitable." />
               <div className="grid sm:grid-cols-2 print:grid-cols-2 gap-4">
                 {SERVICES.map(s => (
                   <div key={s.title} className="break-inside-avoid flex gap-3.5 rounded-xl border border-slate-200 p-4">
@@ -310,7 +310,7 @@ export default function HomeownerReportView({
 
           {variant === 'full' && reg.found && (
             <p className="mt-3 text-[11px] text-slate-500 leading-relaxed">
-              Compiled from public sources{reg.sourceName ? `, including ${reg.sourceName}` : ''}{verified ? `, last checked ${verified}` : ''}. Rules change, so your TRAVLR specialist confirms the current requirements for your exact address before anything is listed.{' '}
+              Compiled from public sources{reg.sourceName ? `, including ${reg.sourceName}` : ''}{verified ? `, last checked ${verified}` : ''}. Rules change, so your NAVEO Stays specialist confirms the current requirements for your exact address before anything is listed.{' '}
               {reg.sourceUrl && <a href={reg.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline inline-flex items-center gap-0.5">View the official source <ExternalLink size={10} /></a>}
             </p>
           )}
@@ -344,7 +344,7 @@ export default function HomeownerReportView({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                 <div>
                   <p className="text-lg font-bold">Ready to see what your home can really earn?</p>
-                  <p className="mt-1 text-sm text-indigo-100/90 max-w-lg">A TRAVLR specialist will contact you within one business day to refine these numbers with your home&rsquo;s details. No obligation.</p>
+                  <p className="mt-1 text-sm text-indigo-100/90 max-w-lg">A NAVEO Stays specialist will contact you within one business day to refine these numbers with your home&rsquo;s details. No obligation.</p>
                 </div>
                 <div className="flex flex-col gap-2.5 shrink-0 text-sm">
                   {onContact && (
@@ -358,7 +358,7 @@ export default function HomeownerReportView({
                     </>
                   )}
                   <div className="flex flex-col gap-1.5 text-indigo-100/90">
-                    <span className="inline-flex items-center gap-2 font-semibold text-white">Contact TRAVLR</span>
+                    <span className="inline-flex items-center gap-2 font-semibold text-white">Contact NAVEO Stays</span>
                     <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:underline"><ExternalLink size={14} /> {WEBSITE_LABEL} (our official website)</a>
                     <a href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center gap-2 hover:underline"><ArrowRight size={14} /> {CONTACT_EMAIL}</a>
                     {CONTACT_PHONE && <a href={telHref(CONTACT_PHONE)} className="inline-flex items-center gap-2 hover:underline"><Phone size={14} /> {CONTACT_PHONE}</a>}
@@ -371,7 +371,7 @@ export default function HomeownerReportView({
 
         <footer className="text-[11px] leading-relaxed text-slate-500 border-t border-slate-100 pt-5">
           <p>
-            This report is an estimate for planning purposes, not a guarantee of income. Projections are based on typical performance for homes like yours and local market data and will vary with seasonality, pricing, regulations, property condition and guest demand. Regulatory information is a summary of public sources and is not legal advice; please confirm requirements with your local authority. TRAVLR Vacation Homes is not responsible for decisions made solely on this estimate.
+            This report is an estimate for planning purposes, not a guarantee of income. Projections are based on typical performance for homes like yours and local market data and will vary with seasonality, pricing, regulations, property condition and guest demand. Regulatory information is a summary of public sources and is not legal advice; please confirm requirements with your local authority. NAVEO Stays is not responsible for decisions made solely on this estimate.
           </p>
           {onPrint && variant === 'full' && (
             <button onClick={onPrint} className="print:hidden mt-4 inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:underline"><Printer size={13} /> Print this report</button>

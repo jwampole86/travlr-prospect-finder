@@ -11,12 +11,12 @@ const SUGGESTIONS = [
   'What permits will I need, and what do they cost?',
   'Which smart-home equipment is worth getting?',
   'What will I see in my owner dashboard?',
-  'How does TRAVLR get paid?',
+  'How does NAVEO Stays get paid?',
 ];
 
 const GREETING: Msg = {
   role: 'assistant',
-  content: 'Hi! I can answer questions about your report: permits, costs, equipment, the owner dashboard and how TRAVLR works. What would you like to know?',
+  content: 'Hi! I can answer questions about your report: permits, costs, equipment, the owner dashboard and how NAVEO Stays works. What would you like to know?',
 };
 
 /** Floating question assistant, grounded in the homeowner's own report. Hidden when printing. */
@@ -57,10 +57,10 @@ export default function ReportChat({ address, equipment, onTalkToPerson }: {
       });
       const data = await res.json().catch(() => ({}));
       if (data.reply || data.error) setMessages(m => [...m, { role: 'assistant', content: data.reply || data.error }]);
-      else setMessages(m => [...m, { role: 'assistant', content: 'Sorry, something went wrong. A TRAVLR specialist can answer that for you.' }]);
+      else setMessages(m => [...m, { role: 'assistant', content: 'Sorry, something went wrong. A NAVEO Stays specialist can answer that for you.' }]);
       if (data.handoff || !res.ok) setHandoff(true);
     } catch {
-      setMessages(m => [...m, { role: 'assistant', content: 'I could not connect just now. Please try again, or ask a TRAVLR specialist.' }]);
+      setMessages(m => [...m, { role: 'assistant', content: 'I could not connect just now. Please try again, or ask a NAVEO Stays specialist.' }]);
       setHandoff(true);
     } finally {
       setSending(false);
@@ -83,7 +83,7 @@ export default function ReportChat({ address, equipment, onTalkToPerson }: {
           className="fixed z-50 inset-0 sm:inset-auto sm:right-6 sm:bottom-6 sm:w-[380px] sm:h-[560px] sm:max-h-[calc(100vh-3rem)] flex flex-col bg-white sm:rounded-2xl sm:border sm:border-slate-200 shadow-2xl overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 bg-indigo-700 text-white">
             <div>
-              <p className="text-sm font-bold leading-tight">TRAVLR assistant</p>
+              <p className="text-sm font-bold leading-tight">NAVEO Stays assistant</p>
               <p className="text-[11px] text-indigo-200 leading-tight">AI answers about your report</p>
             </div>
             <button onClick={() => setOpen(false)} aria-label="Close" className="w-10 h-10 -mr-2 rounded-lg hover:bg-white/10 flex items-center justify-center"><X size={18} /></button>
@@ -105,7 +105,7 @@ export default function ReportChat({ address, equipment, onTalkToPerson }: {
             {sending && <div className="flex justify-start"><span className="inline-flex items-center gap-2 text-xs text-slate-500 bg-white border border-slate-200 rounded-2xl px-3.5 py-2.5"><Loader2 size={13} className="animate-spin" /> Thinking…</span></div>}
             {handoff && !sending && (
               <button onClick={() => { setOpen(false); onTalkToPerson(); }} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700">
-                <CalendarCheck size={15} /> Talk to a TRAVLR specialist
+                <CalendarCheck size={15} /> Talk to a NAVEO Stays specialist
               </button>
             )}
             <div ref={endRef} />

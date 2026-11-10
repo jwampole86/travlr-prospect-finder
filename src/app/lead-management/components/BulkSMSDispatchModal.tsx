@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MessageSquare, X, Send, CheckCircle, AlertCircle, Clock, Calendar, Eye, ShieldCheck, Zap, RefreshCw, ChevronRight, ChevronLeft, ChevronDown, Users, BarChart2, User, MapPin, Phone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { runPersonalizationReconciliation, TRAVLR_OUTREACH_TEMPLATE, type SmsRecipient, type ResolvedPersonalization, type PersonalizationReconciliation,  } from '@/lib/services/smsPersonalizationService';
+import { runPersonalizationReconciliation, OUTREACH_TEMPLATE, type SmsRecipient, type ResolvedPersonalization, type PersonalizationReconciliation,  } from '@/lib/services/smsPersonalizationService';
 
 interface Lead {
   id: string;
@@ -19,6 +19,8 @@ interface Lead {
   verifiedOwner?: boolean;
   verifiedNumber?: boolean;
   verifiedAddress?: string;
+  /** 'sale' or 'rent': the text comes from NAVEO Homes for a home for sale and NAVEO Stays for one for rent. */
+  priceType?: string;
 }
 
 interface BulkSMSDispatchModalProps {
@@ -42,15 +44,15 @@ type BatchFrequency = 'immediate' | 'daily' | 'weekly';
 const FALLBACK_TEMPLATES: SMSTemplate[] = [
   {
     id: 'travlr_outreach',
-    name: 'TRAVLR Outreach (Personalized)',
+    name: 'NAVEO Outreach (Personalized)',
     category: 'Outreach',
-    body: TRAVLR_OUTREACH_TEMPLATE,
+    body: OUTREACH_TEMPLATE,
   },
   {
     id: 'intro',
     name: 'Initial Outreach (Generic)',
     category: 'Outreach',
-    body: `Hi {first_name}! This is Jennifer with TRAVLR Vacation Homes. I came across {address} and wanted to reach out. We handle guests, cleaning, maintenance, and pricing so owners don't have to. Would you be open to a quick call?\n\nReply STOP to opt out.`,
+    body: `Hi {first_name}! This is Jennifer with {brand}. I came across {address} and wanted to reach out. We handle guests, cleaning, maintenance, and pricing so owners don't have to. Would you be open to a quick call?\n\nReply STOP to opt out.`,
   },
   {
     id: 'followup1',
@@ -157,6 +159,7 @@ export default function BulkSMSDispatchModal({
     verifiedNumber: l.verifiedNumber ?? true,
     verifiedAddress: l.verifiedAddress || null,
     hasPhone: !!(l.contactPhone?.trim()),
+    priceType: l.priceType || null,
   })), [selectedLeads]);
 
   // Run reconciliation whenever template or recipients change
@@ -670,7 +673,7 @@ export default function BulkSMSDispatchModal({
                 <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors">
                   <input type="checkbox" checked={tcpaChecked} onChange={e => setTcpaChecked(e.target.checked)} className="w-4 h-4 mt-0.5 accent-primary shrink-0" />
                   <span className="text-sm text-foreground">
-                    I confirm that all {readyCount} recipients have provided prior express written consent to receive SMS marketing messages from TRAVLR.
+                    I confirm that all {readyCount} recipients have provided prior express written consent to receive SMS marketing messages from NAVEO (NAVEO Stays or NAVEO Homes, by property).
                   </span>
                 </label>
                 <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors">

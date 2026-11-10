@@ -1,5 +1,5 @@
 /**
- * TRAVLR Vacation Homes — Master SMS Templates
+ * NAVEO Stays — Master SMS Templates
  * 5 outreach stages with exact body text from the SMS template spec.
  *
  * Variables:
@@ -29,7 +29,7 @@ export const SMS_TEMPLATE_SEEDS: SMSTemplateSeed[] = [
     name: 'SMS — Initial Outreach',
     tag: 'outreach',
     category: 'Initial Outreach',
-    body: `Hi {{contactName}}, this is {{senderName}} with TRAVLR Vacation Homes. I came across {{address}} and wanted to reach out. We're a luxury vacation rental and property management company, and {{localBlurb}}. We handle guests, cleaning, maintenance, and pricing so owners don't have to. Would you be open to a quick call?`,
+    body: `Hi {{contactName}}, this is {{senderName}} with NAVEO Stays. I came across {{address}} and wanted to reach out. We're a luxury vacation rental and property management company, and {{localBlurb}}. We handle guests, cleaning, maintenance, and pricing so owners don't have to. Would you be open to a quick call?`,
     requiredVars: ['{{senderName}}', '{{contactName}}', '{{address}}', '{{localBlurb}}'],
     blockingVars: ['{{senderName}}', '{{address}}'],
   },
@@ -59,7 +59,7 @@ export const SMS_TEMPLATE_SEEDS: SMSTemplateSeed[] = [
     name: 'SMS — Proposal Introduction',
     tag: 'proposal',
     category: 'Proposal',
-    body: `Hi {{contactName}}, thanks again for speaking with me about {{address}}. I'd like to formally propose {{proposedRent}}/month for {{leaseTerm}}, starting {{proposedStartDate}}. TRAVLR would handle the full guest and property experience, and {{localBlurb}}. Happy to talk through any questions.`,
+    body: `Hi {{contactName}}, thanks again for speaking with me about {{address}}. I'd like to formally propose {{proposedRent}}/month for {{leaseTerm}}, starting {{proposedStartDate}}. NAVEO Stays would handle the full guest and property experience, and {{localBlurb}}. Happy to talk through any questions.`,
     requiredVars: [
       '{{senderName}}',
       '{{contactName}}',

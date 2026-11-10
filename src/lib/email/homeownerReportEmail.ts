@@ -16,7 +16,7 @@ export function buildHomeownerReportEmail(report: HomeownerReport, firstName: st
   const reqs = reg.requirements.filter(r => r.required === true).slice(0, 4);
   const toneColor = reg.tone === 'good' ? '#047857' : reg.tone === 'bad' ? '#be123c' : reg.tone === 'caution' ? '#b45309' : '#475569';
 
-  const subject = `Your TRAVLR property revenue report for ${report.street || report.address}`;
+  const subject = `Your NAVEO Stays property revenue report for ${report.street || report.address}`;
   const text = [
     `Hi ${firstName.trim() || 'there'},`,
     '',
@@ -29,7 +29,7 @@ export function buildHomeownerReportEmail(report: HomeownerReport, firstName: st
     `View your full report (with costs, a five-year comparison and the permits required for your area): ${reportUrl}`,
     '',
     `Schedule a call: ${reportUrl}${reportUrl.includes('?') ? '&' : '?'}contact=call`,
-    'A TRAVLR specialist will contact you within one business day. You can reply to this email at any time.',
+    'A NAVEO Stays specialist will contact you within one business day. You can reply to this email at any time.',
     'Want to check us out first? Visit our official website: https://avyropro.ai',
     '',
     'This is an estimate, not a guarantee of income.',
@@ -40,7 +40,7 @@ export function buildHomeownerReportEmail(report: HomeownerReport, firstName: st
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
 <tr><td style="background:#1e1b4b;padding:28px 32px;color:#ffffff;">
-  <div style="font-size:13px;font-weight:700;letter-spacing:.02em;">TRAVLR Vacation Homes</div>
+  <div style="font-size:13px;font-weight:700;letter-spacing:.02em;">NAVEO Stays</div>
   <div style="font-size:12px;color:#c7d2fe;margin-top:2px;">Property Revenue Report</div>
   <div style="font-size:14px;color:#e0e7ff;margin-top:22px;">${street}${place ? `, ${place}` : ''}</div>
   <div style="font-size:14px;color:#c7d2fe;margin-top:14px;">Your home could earn an estimated</div>
@@ -69,11 +69,11 @@ export function buildHomeownerReportEmail(report: HomeownerReport, firstName: st
     <td width="10"></td>
     <td style="border:1px solid #e2e8f0;border-radius:12px;"><a href="mailto:${contactEmail}?subject=${encodeURIComponent('Question about my estimate: ' + report.address)}" style="display:inline-block;padding:12px 22px;font-size:14px;font-weight:600;color:#334155;text-decoration:none;">Ask a question</a></td>
   </tr></table>
-  <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#334155;">A TRAVLR specialist will contact you within one business day to refine these numbers with your home&rsquo;s details. You can also just reply to this email.</p>
+  <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#334155;">A NAVEO Stays specialist will contact you within one business day to refine these numbers with your home&rsquo;s details. You can also just reply to this email.</p>
   <p style="margin:0 0 8px 0;font-size:13px;line-height:1.6;color:#64748b;">Want to check us out first? Visit our official website at <a href="https://avyropro.ai" style="color:#4f46e5;font-weight:600;text-decoration:underline;">avyropro.ai</a>. We are an <a href="https://www.airbnb.com/users/profile/1462768828819189174" style="color:#4f46e5;text-decoration:underline;">Airbnb Superhost</a> and <a href="https://www.vrbo.com/2756367" style="color:#4f46e5;text-decoration:underline;">Vrbo Premier Host</a>, and have been featured in <a href="https://www.wsj.com/real-estate/luxury-homes/luxury-short-term-rentals-005cb146" style="color:#4f46e5;text-decoration:underline;">The Wall Street Journal</a>.</p>
 </td></tr>
 <tr><td style="padding:16px 32px 28px 32px;border-top:1px solid #f1f5f9;font-size:11px;line-height:1.6;color:#94a3b8;">
-  This is an estimate for planning purposes, not a guarantee of income. Actual results vary with season, pricing, regulations and guest demand. Regulatory information summarizes public sources and is not legal advice.<br/>TRAVLR Vacation Homes &middot; <a href="https://avyropro.ai" style="color:#6366f1;text-decoration:underline;">avyropro.ai</a>
+  This is an estimate for planning purposes, not a guarantee of income. Actual results vary with season, pricing, regulations and guest demand. Regulatory information summarizes public sources and is not legal advice.<br/>NAVEO Stays &middot; <a href="https://avyropro.ai" style="color:#6366f1;text-decoration:underline;">avyropro.ai</a>
 </td></tr>
 </table>
 </td></tr></table></body></html>`;

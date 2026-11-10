@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { outreachBrandFor } from '@/lib/brands';
 import { createClient } from '@supabase/supabase-js';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
 import { dispatchSMS } from '@/lib/services/twilioService';
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
         // Load lead for opt-in check and personalization
         const { data: lead } = await supabase
           .from('leads')
-          .select('id, first_name, last_name, address, email, phone, sms_opt_in, email_opt_in, do_not_contact, stage')
+          .select('id, first_name, last_name, address, email, phone, sms_opt_in, email_opt_in, do_not_contact, stage, price_type')
           .eq('id', enrollment.lead_id)
           .single();
 
@@ -129,11 +130,14 @@ export async function POST(req: NextRequest) {
         }
 
         // Build personalized message
+        const brand = outreachBrandFor(lead.price_type);
         const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'there';
         const vars: Record<string, string> = {
           '{{leadName}}': leadName,
           '{{address}}': lead.address || '',
-          '{{agentName}}': 'TRAVLR Team',
+          // NAVEO Stays for a home that is for rent, NAVEO Homes for one that is for sale.
+          '{{brand}}': brand.name,
+          '{{agentName}}': `${brand.name} Team`,
           '{{unsubscribeUrl}}': await getUnsubscribeUrl(supabase, lead.id, enrollment.id),
         };
 
@@ -142,8 +146,8 @@ export async function POST(req: NextRequest) {
         let sendError: string | undefined;
 
         if (channel === 'email' && lead.email) {
-          const subject = resolveVars(currentStep.subject || 'A message from TRAVLR', vars);
-          const html = buildEmailHtml(leadName, currentStep.template_key, vars);
+          const subject = resolveVars(currentStep.subject || 'A message from {{brand}}', vars);
+          const html = buildEmailHtml(leadName, currentStep.template_key, vars, brand.name);
           const { data: emailData, error: emailErr } = await resend.emails.send({
             from: emailFrom,
             to: [lead.email],
@@ -155,7 +159,7 @@ export async function POST(req: NextRequest) {
           sendError = emailErr?.message;
         } else if (channel === 'sms' && lead.phone) {
           // Twilio SMS dispatch (scaffolded — requires configured credentials)
-          const smsResult = await dispatchSMSForCadence(lead.phone, resolveVars(getSMSTemplate(currentStep.template_key), vars), lead.id);
+          const smsResult = await dispatchSMSForCadence(lead.phone, resolveVars(getSMSTemplate(currentStep.template_key, brand.key), vars), lead.id);
           sent = smsResult.success;
           providerId = smsResult.messageSid;
           sendError = smsResult.error;
@@ -308,7 +312,7 @@ async function logEvent(supabase: any, data: {
   });
 }
 
-function buildEmailHtml(leadName: string, templateKey: string, vars: Record<string, string>): string {
+function buildEmailHtml(leadName: string, templateKey: string, vars: Record<string, string>, brandName: string): string {
   const unsubUrl = vars['{{unsubscribeUrl}}'] || '#';
   const templates: Record<string, string> = {
     initial_outreach: `<p>Hi ${leadName},</p><p>I came across your property and wanted to reach out about a potential short-term rental opportunity that could significantly increase your monthly income.</p><p>Would you be open to a quick conversation?</p>`,
@@ -320,7 +324,7 @@ function buildEmailHtml(leadName: string, templateKey: string, vars: Record<stri
   const body = templates[templateKey] || `<p>Hi ${leadName},</p><p>Thank you for your interest. We'd love to connect with you.</p>`;
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
     ${body}
-    <p style="margin-top:24px">Best,<br><strong>TRAVLR Team</strong></p>
+    <p style="margin-top:24px">Best,<br><strong>${brandName} Team</strong></p>
     <hr style="margin-top:32px;border:none;border-top:1px solid #eee">
     <p style="font-size:11px;color:#999;margin-top:12px">
       You're receiving this because you expressed interest in short-term rental management.
@@ -329,15 +333,24 @@ function buildEmailHtml(leadName: string, templateKey: string, vars: Record<stri
   </body></html>`;
 }
 
-function getSMSTemplate(templateKey: string): string {
+function getSMSTemplate(templateKey: string, brand: 'stays' | 'homes' = 'stays'): string {
+  // A home for sale is not pitched vacation-rental income: NAVEO Homes asks what the owner wants (a 1 to 4 reply is recorded for the team).
+  if (brand === 'homes') {
+    const homes: Record<string, string> = {
+      initial_outreach: 'Hi {{leadName}}, this is {{brand}}. We came across {{address}}. Are you mainly looking to sell, rent long-term, rent short-term, or still deciding? Reply with 1, 2, 3 or 4. Reply STOP to opt out.',
+      follow_up_1: 'Hi {{leadName}}, following up from {{brand}} about {{address}}. Reply with 1, 2, 3 or 4: 1 sale, 2 long-term rent, 3 short-term rent, 4 still deciding. Reply STOP to opt out.',
+      closing: 'Hi {{leadName}}, last message from {{brand}}. Reach out anytime if you want to talk through options for {{address}}. STOP to opt out.',
+    };
+    return homes[templateKey] || 'Hi {{leadName}}, this is {{brand}}. Reply STOP to opt out.';
+  }
   const templates: Record<string, string> = {
-    initial_outreach: 'Hi {{leadName}}, this is TRAVLR. We help property owners earn more with short-term rentals. Interested in a free estimate for {{address}}? Reply YES or STOP to opt out.',
-    follow_up_1: 'Hi {{leadName}}, following up from TRAVLR. Your property at {{address}} could earn significantly more as a short-term rental. Reply YES to learn more or STOP to opt out.',
-    check_in: 'Hi {{leadName}}, TRAVLR here. Still interested in a free rental estimate for {{address}}? Reply YES or STOP to opt out.',
+    initial_outreach: 'Hi {{leadName}}, this is {{brand}}. We help property owners earn more with short-term rentals. Interested in a free estimate for {{address}}? Reply YES or STOP to opt out.',
+    follow_up_1: 'Hi {{leadName}}, following up from {{brand}}. Your property at {{address}} could earn significantly more as a short-term rental. Reply YES to learn more or STOP to opt out.',
+    check_in: 'Hi {{leadName}}, {{brand}} here. Still interested in a free rental estimate for {{address}}? Reply YES or STOP to opt out.',
     proposal_introduction: 'Hi {{leadName}}, your rental estimate is ready! Reply YES to see what {{address}} could earn monthly. STOP to opt out.',
-    closing: 'Hi {{leadName}}, last message from TRAVLR. Reach out anytime if you want to explore short-term rental income for {{address}}. STOP to opt out.',
+    closing: 'Hi {{leadName}}, last message from {{brand}}. Reach out anytime if you want to explore short-term rental income for {{address}}. STOP to opt out.',
   };
-  return templates[templateKey] || 'Hi {{leadName}}, this is TRAVLR. Reply STOP to opt out.';
+  return templates[templateKey] || 'Hi {{leadName}}, this is {{brand}}. Reply STOP to opt out.';
 }
 
 async function dispatchSMSForCadence(to: string, body: string, leadId: string): Promise<{ success: boolean; messageSid?: string; error?: string }> {

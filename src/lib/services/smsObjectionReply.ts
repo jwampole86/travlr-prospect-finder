@@ -36,14 +36,14 @@ function figuresAllowed(reply: string, range: { lo: number; hi: number } | null)
 
 async function transcript(db: Db, leadId: string) {
   const { data } = await db.from('outreach_history').select('sent_at,metadata').eq('lead_id', leadId).eq('channel', 'sms').lte('sent_at', new Date().toISOString()).order('sent_at', { ascending: false }).limit(10);
-  return (data ?? []).reverse().map(r => { const m = (r.metadata ?? {}) as Row; const inbound = m.direction === 'inbound'; return { who: inbound ? 'Homeowner' : 'TRAVLR', text: String(inbound ? m.body ?? '' : m.message ?? '').replace(/\s+/g, ' ').slice(0, 450) }; }).filter(x => x.text);
+  return (data ?? []).reverse().map(r => { const m = (r.metadata ?? {}) as Row; const inbound = m.direction === 'inbound'; return { who: inbound ? 'Homeowner' : 'NAVEO Stays', text: String(inbound ? m.body ?? '' : m.message ?? '').replace(/\s+/g, ' ').slice(0, 450) }; }).filter(x => x.text);
 }
 
 async function decide(ctx: { name: string | null; address: string; listing: string; regulation: string | null; range: { lo: number; hi: number } | null; convo: Array<{ who: string; text: string }>; message: string }): Promise<Decision | null> {
   const key = process.env.ANTHROPIC_API_KEY; if (!key) return null;
   const client = new Anthropic({ apiKey: key, maxRetries: 1, timeout: 9_000 });
   const range = ctx.range ? `${k(ctx.range.lo)}-${k(ctx.range.hi)} a year after costs (about ${money(Math.round(ctx.range.lo / 12 / 100) * 100)}-${money(Math.round(ctx.range.hi / 12 / 100) * 100)} a month)` : null;
-  const system = `You answer a homeowner's text reply for TRAVLR Vacation Homes, which manages vacation rentals, before a human specialist takes over. We texted them a rough estimate of what their home could earn as a managed vacation rental.
+  const system = `You answer a homeowner's text reply for NAVEO Stays, which manages vacation rentals, before a human specialist takes over. We texted them a rough estimate of what their home could earn as a managed vacation rental.
 Facts you may use:
 - Homeowner: ${ctx.name ?? 'unknown first name'}. Home: ${ctx.address}. Listing type: ${ctx.listing}. Short-term rental rules for the city: ${ctx.regulation ?? 'unknown'}.
 - ${range ? `The only estimate we quoted: ${range}. This is the ONLY money you may mention, and only as an estimate ("could", "our estimate").` : 'We quoted no figure, so mention no dollar amounts.'}
@@ -59,7 +59,7 @@ How to handle common replies:
 - already_managed: respect it, offer a no-obligation second opinion on the numbers only if natural.
 - tenant_or_lease: thank them and invite them to text us when the lease is nearing its end so we can run the numbers. Do not promise that anyone will contact them on a date.
 - bad_timing: be gracious, invite them to text whenever it suits them. Do not promise a follow-up date.
-- trust ("is this a scam", "how did you get my number"): say who we are (TRAVLR Vacation Homes, a vacation rental management company), that we found their property from public listing information, and offer to answer questions. Do not mention STOP; we add it.
+- trust ("is this a scam", "how did you get my number"): say who we are (NAVEO Stays, a vacation rental management company), that we found their property from public listing information, and offer to answer questions. Do not mention STOP; we add it.
 - fees_or_terms: do not quote fees or terms, and do not say what the estimate includes or what the owner "keeps" beyond "after costs". Say a specialist can walk them through how the numbers work for their home.
 - regulation: say rules vary by city and a specialist can check theirs.
 Never claim certainty about earnings, never invent facts, never pressure, never mention AI.`;

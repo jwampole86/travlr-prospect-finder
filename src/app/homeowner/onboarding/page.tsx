@@ -28,7 +28,7 @@ const STEPS = [
   { id: 1, label: 'Bank Details', icon: CreditCard, description: 'Confirm your payout account' },
   { id: 2, label: 'Blackout Dates', icon: Calendar, description: 'Set personal-use dates' },
   { id: 3, label: 'Payout Frequency', icon: DollarSign, description: 'Choose payout schedule' },
-  { id: 4, label: 'Activate Listing', icon: Home, description: 'Go live on TRAVLR' },
+  { id: 4, label: 'Activate Listing', icon: Home, description: 'Go live on NAVEO Stays' },
 ];
 
 function HomeownerOnboardingContent() {
@@ -303,16 +303,16 @@ function HomeownerOnboardingContent() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">You're Live!</h1>
             <p className="text-muted-foreground mt-2">
-              Your property listing has been activated on TRAVLR. Bookings will start flowing in shortly.
+              Your property listing has been activated on NAVEO Stays. Bookings will start flowing in shortly.
             </p>
           </div>
           <div className="bg-card border border-border rounded-xl p-4 text-left space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">What happens next</p>
             {[
-              'Your property is now visible to TRAVLR guests',
+              'Your property is now visible to NAVEO Stays guests',
               'Payouts will be processed on your selected schedule',
               'You can manage blackout dates anytime from your dashboard',
-              'Your TRAVLR team will reach out within 24 hours',
+              'Your NAVEO Stays team will reach out within 24 hours',
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-2">
                 <CheckCircle2 size={13} className="text-emerald-600 shrink-0 mt-0.5" />
@@ -342,7 +342,7 @@ function HomeownerOnboardingContent() {
             </div>
             <div>
               <h1 className="text-sm font-bold text-foreground">Property Onboarding</h1>
-              <p className="text-xs text-muted-foreground">TRAVLR Partnership Setup</p>
+              <p className="text-xs text-muted-foreground">NAVEO Stays Partnership Setup</p>
             </div>
           </div>
           <span className="text-xs text-muted-foreground">Step {currentStep} of {STEPS.length}</span>
@@ -386,7 +386,7 @@ function HomeownerOnboardingContent() {
             <div>
               <h2 className="text-xl font-bold text-foreground">Confirm Bank Details</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Your payout account details for TRAVLR rental income. All information is encrypted and secure.
+                Your payout account details for NAVEO Stays rental income. All information is encrypted and secure.
               </p>
             </div>
 
@@ -705,7 +705,7 @@ function HomeownerOnboardingContent() {
             <div>
               <h2 className="text-xl font-bold text-foreground">Activate Your Listing</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Everything is set. Activate your property listing to start accepting bookings through TRAVLR.
+                Everything is set. Activate your property listing to start accepting bookings through NAVEO Stays.
               </p>
             </div>
 

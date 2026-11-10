@@ -339,7 +339,7 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
     '{{address}}': '123 Example Lane, Aspen, CO',
     '{{city}}': 'Aspen',
     '{{agent_name}}': 'Jen',
-    '{{company_name}}': 'TRAVLR',
+    '{{company_name}}': 'NAVEO Stays',
     '{{prospect_score}}': '82',
     '{{estimated_revenue}}': '$4,200',
     '{{unsubscribe_link}}': 'https://staytravlr.com/unsubscribe',
@@ -579,7 +579,7 @@ function TemplateEditor({ template, allTemplates, onSave, onCancel }: EditorProp
           onChange={(e) => setBody(e.target.value)}
           rows={type === 'sms' ? 5 : 10}
           placeholder={
-            type === 'sms' ?'Hi {{contactName}}, this is {{senderName}} with TRAVLR Vacation Homes. I came across {{address}} and wanted to reach out. {{localBlurb}}. Would you be open to a quick call?' :'Hi {{first_name}},\n\nI noticed your property at {{address}} and wanted to reach out about a short-term rental opportunity...\n\nBest,\n{{agent_name}}'
+            type === 'sms' ?'Hi {{contactName}}, this is {{senderName}} with NAVEO Stays. I came across {{address}} and wanted to reach out. {{localBlurb}}. Would you be open to a quick call?' :'Hi {{first_name}},\n\nI noticed your property at {{address}} and wanted to reach out about a short-term rental opportunity...\n\nBest,\n{{agent_name}}'
           }
           className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none font-mono"
         />

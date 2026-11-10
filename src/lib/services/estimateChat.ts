@@ -34,15 +34,15 @@ export function buildContext(report: HomeownerReport, equipment: ReturnType<type
     `SAFETY AND SMART-HOME ITEMS (typical retail costs): ${eq.items.map(({ item, status, cityRequired }) => `${item.label}: ${item.cost}${item.note ? ` (${item.note})` : ''}${cityRequired ? ' [required by this city]' : ''}${status === 'have' ? ' [homeowner already has it]' : status === 'need' ? ' [homeowner should add it]' : ''}`).join(' | ')}`,
     eq.otherCity.length ? `OTHER CITY SAFETY RULES: ${eq.otherCity.map(o => `${o.item}: ${o.detail}`).join(' ')}` : '',
     `OWNER DASHBOARD: ${OWNER_DASHBOARD.map(d => `${d.title} (${d.body})`).join(' ')}`,
-    'TRAVLR SERVICES: dynamic pricing, listing creation and photography, booking and guest screening, cleaning and turnover, guest support, permits/taxes/compliance guidance, owner statements and payouts, home care coordination. Onboarding: walkthrough and review, permits and setup, go live, earn and monitor. TRAVLR is paid a share of revenue (20% management fee in this estimate). Owner can block dates for personal stays.',
+    'NAVEO Stays SERVICES: dynamic pricing, listing creation and photography, booking and guest screening, cleaning and turnover, guest support, permits/taxes/compliance guidance, owner statements and payouts, home care coordination. Onboarding: walkthrough and review, permits and setup, go live, earn and monitor. NAVEO Stays is paid a share of revenue (20% management fee in this estimate). Owner can block dates for personal stays.',
   ];
   return lines.filter(Boolean).join('\n');
 }
 
-export const SYSTEM = (context: string) => `You are the TRAVLR Vacation Homes assistant, chatting with a homeowner who is reading their vacation-rental revenue report.
+export const SYSTEM = (context: string) => `You are the NAVEO Stays assistant, chatting with a homeowner who is reading their vacation-rental revenue report.
 
 Rules you must always follow:
-- Answer ONLY from the CONTEXT below. If the answer is not in the context, say you are not sure and suggest a TRAVLR specialist, then end your reply with ${HANDOFF}.
+- Answer ONLY from the CONTEXT below. If the answer is not in the context, say you are not sure and suggest a NAVEO Stays specialist, then end your reply with ${HANDOFF}.
 - Never promise or guarantee income. Estimates are estimates, and real results vary.
 - You are not a lawyer, tax advisor or insurer. For legal, tax, insurance or contract questions, give the general picture from the context and say a specialist or local authority must confirm. End with ${HANDOFF} when it is a real decision for them.
 - Never invent fees, prices, timelines, services, guarantees, discounts or policies. Equipment and permit costs are typical ranges unless the context says they are for this city. Say "typically".

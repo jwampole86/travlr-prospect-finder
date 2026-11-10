@@ -1,5 +1,6 @@
 'use client';
 
+import { outreachBrandFor } from '@/lib/brands';
 import React, { useState, useMemo } from 'react';
 import { MessageSquare, X, ChevronDown, Send, CheckCircle, Phone, AlertCircle, RefreshCw, Eye, ClipboardCheck, ShieldX, TrendingUp, AlertTriangle, XCircle, Info } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -18,13 +19,15 @@ interface SMSSendModalProps {
   leadAddress?: string;
   contactConfidence?: number;
   bulkCount?: number;
+  /** 'sale' or 'rent': decides which NAVEO the text is from. */
+  priceType?: string | null;
 }
 
 const SMS_TEMPLATES = [
   {
     id: 'intro',
     label: 'Initial Introduction',
-    body: `Hi {name}, this is {agent} from TRAVLR. We help homeowners like you earn more from your property through short-term rentals. Would you be open to a quick 10-minute call this week?\n\nReply STOP to opt out.`,
+    body: `Hi {name}, this is {agent} from {brand}. We help homeowners like you earn more from your property through short-term rentals. Would you be open to a quick 10-minute call this week?\n\nReply STOP to opt out.`,
   },
   {
     id: 'followup',
@@ -52,10 +55,11 @@ const SMS_TEMPLATES = [
   },
 ];
 
-function fillTemplate(body: string, name: string, agent: string): string {
+function fillTemplate(body: string, name: string, agent: string, brand: string): string {
   return body
     .replace(/\{name\}/g, name || 'there')
-    .replace(/\{agent\}/g, agent || 'your TRAVLR agent');
+    .replace(/\{brand\}/g, brand)
+    .replace(/\{agent\}/g, agent || `your ${brand} agent`);
 }
 
 function isValidPhone(phone: string): boolean {
@@ -164,11 +168,13 @@ function computeDeliveryScore(
 
 type Step = 'compose' | 'confirm' | 'sent';
 
-export default function SMSSendModal({ leadId, leadName, recipientPhone, onClose, onSent, enrichmentStage = 0, leadAddress, contactConfidence, bulkCount }: SMSSendModalProps) {
+export default function SMSSendModal({ leadId, leadName, recipientPhone, onClose, onSent, enrichmentStage = 0, leadAddress, contactConfidence, bulkCount, priceType }: SMSSendModalProps) {
+  // NAVEO Stays for a home that is for rent, NAVEO Homes for one that is for sale.
+  const brandName = outreachBrandFor(priceType).name;
   const [step, setStep] = useState<Step>('compose');
   const [selectedTemplateId, setSelectedTemplateId] = useState('intro');
   const [phone, setPhone] = useState(recipientPhone || '');
-  const [rawBody, setBody] = useState(() => fillTemplate(SMS_TEMPLATES[0].body, leadName, 'your TRAVLR agent'));
+  const [rawBody, setBody] = useState(() => fillTemplate(SMS_TEMPLATES[0].body, leadName, `your ${brandName} agent`, brandName));
   const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
@@ -199,7 +205,7 @@ export default function SMSSendModal({ leadId, leadName, recipientPhone, onClose
     setSelectedTemplateId(id);
     const tpl = SMS_TEMPLATES.find(t => t.id === id);
     if (tpl) {
-      setBody(fillTemplate(tpl.body, leadName, 'your TRAVLR agent'));
+      setBody(fillTemplate(tpl.body, leadName, `your ${brandName} agent`, brandName));
     }
   }
 

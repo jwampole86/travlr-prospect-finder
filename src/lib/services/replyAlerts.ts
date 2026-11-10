@@ -31,12 +31,12 @@ export async function sendTeamAlert(a: { key: string; text: string; url?: string
     const { getSupabaseAdmin } = await import('@/lib/supabaseAdmin');
     const { error } = await getSupabaseAdmin().from('team_alert_log').insert({ key: a.key.slice(0, 200) });
     if (error?.code === '23505') return;
-    const body = `TRAVLR: ${a.text.replace(/\s+/g, ' ').trim().slice(0, 200)}${a.url ? ` ${a.url}` : ''}`;
+    const body = `NAVEO: ${a.text.replace(/\s+/g, ' ').trim().slice(0, 200)}${a.url ? ` ${a.url}` : ''}`;
     const tasks: Array<Promise<unknown>> = [];
     if (ALERT_PHONE) tasks.push(dispatchSMS({ to: ALERT_PHONE, leadId: 'internal-reply-alert', body }).then(r => { if (!r.success) console.warn('[teamAlert] text not sent:', r.error); }));
     if (a.email && ALERT_EMAIL) {
       tasks.push(getResendClient().emails.send({
-        from: getResendFrom(), to: [ALERT_EMAIL], subject: `TRAVLR: ${a.text.slice(0, 90)}`,
+        from: getResendFrom(), to: [ALERT_EMAIL], subject: `NAVEO: ${a.text.slice(0, 90)}`,
         text: `${a.text}${a.url ? `\n\nOpen: ${a.url}` : ''}`,
         html: `<p>${esc(a.text)}</p>${a.url ? `<p><a href="${esc(a.url)}">Open it</a></p>` : ''}`,
       }));
@@ -58,14 +58,14 @@ export async function sendReplyAlert(a: ReplyAlert): Promise<void> {
   if (ALERT_EMAIL) {
     tasks.push((async () => {
       await getResendClient().emails.send({
-        from: getResendFrom(), to: [ALERT_EMAIL], subject: `TRAVLR text reply: ${who} ${label}`,
-        text: `${who} ${label} to a TRAVLR text.\n\nThey wrote: "${quote.slice(0, 500)}"\nTheir number: ${a.from}\n\nOpen: ${a.url}`,
-        html: `<p><strong>${esc(who)}</strong> ${label} to a TRAVLR text.</p><p>They wrote: &ldquo;${esc(quote.slice(0, 500))}&rdquo;<br>Their number: ${esc(a.from)}</p><p><a href="${esc(a.url)}">Open it</a></p>`,
+        from: getResendFrom(), to: [ALERT_EMAIL], subject: `NAVEO text reply: ${who} ${label}`,
+        text: `${who} ${label} to a NAVEO text.\n\nThey wrote: "${quote.slice(0, 500)}"\nTheir number: ${a.from}\n\nOpen: ${a.url}`,
+        html: `<p><strong>${esc(who)}</strong> ${label} to a NAVEO text.</p><p>They wrote: &ldquo;${esc(quote.slice(0, 500))}&rdquo;<br>Their number: ${esc(a.from)}</p><p><a href="${esc(a.url)}">Open it</a></p>`,
       });
     })());
   }
   if (ALERT_PHONE) {
-    tasks.push(dispatchSMS({ to: ALERT_PHONE, leadId: 'internal-reply-alert', body: `TRAVLR: ${who} ${label}: "${quote.slice(0, 110)}" ${a.url}` }));
+    tasks.push(dispatchSMS({ to: ALERT_PHONE, leadId: 'internal-reply-alert', body: `NAVEO: ${who} ${label}: "${quote.slice(0, 110)}" ${a.url}` }));
   }
   const results = await Promise.allSettled(tasks);
   for (const r of results) if (r.status === 'rejected') console.warn('[replyAlert]', r.reason instanceof Error ? r.reason.message : r.reason);

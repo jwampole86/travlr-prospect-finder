@@ -49,6 +49,15 @@ describe('the messages', () => {
     expect(ENTRY_MARKER).toBe('Reply with 1, 2, 3 or 4');
   });
 
+  it('names the NAVEO that matches the property in the first messages, and never names TRAVLR anywhere', () => {
+    for (const m of MESSAGES.filter((x) => x.step === 'entry')) {
+      expect(renderMessage(m.body, { brand: 'NAVEO Stays' })).toContain('NAVEO Stays');
+      expect(renderMessage(m.body, { brand: 'NAVEO Homes' })).toContain('NAVEO Homes');
+      expect(renderMessage(m.body, { brand: 'NAVEO Homes' })).not.toContain('NAVEO Stays');
+    }
+    for (const m of MESSAGES) expect(JSON.stringify(m)).not.toMatch(/travlr/i);
+  });
+
   it('keeps the compliance promises: no price or sale guarantee, and the branch messages do not claim anything automatic', () => {
     const sale = messagesForChoice('sale').map((m) => m.body).join('\n');
     expect(sale).toMatch(/not a listing appointment/i);
@@ -61,10 +70,11 @@ describe('the messages', () => {
 
   it('fills in the owner\'s details, with plain fallbacks', () => {
     const entry = MESSAGES.find((m) => m.id === 'entry-sms')!;
-    const filled = renderMessage(entry.body, { first_name: 'Sam', agent_name: 'Jen', address: '12 Pine St, Denver' });
-    expect(filled).toContain('Hi Sam, this is Jen with NAVEO / AVYRO.');
+    const filled = renderMessage(entry.body, { first_name: 'Sam', agent_name: 'Jen', address: '12 Pine St, Denver', brand: 'NAVEO Homes' });
+    expect(filled).toContain('Hi Sam, this is Jen with NAVEO Homes.');
     expect(filled).toContain('12 Pine St, Denver');
     expect(filled).not.toContain('{{');
     expect(renderMessage('Hi {{ first_name }} about {{address}} from {{agent_name}}')).toBe('Hi there about your property from your AVYRO team');
+    expect(renderMessage('{{brand}}')).toBe('NAVEO');
   });
 });

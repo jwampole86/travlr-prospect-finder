@@ -9,17 +9,17 @@ import { TRUST_ITEMS, TRUST_AFFILIATIONS, TRUST_STORY, WHY_INTRO, WHY_ITEMS } fr
 export const APPROVED_NUMBERS: string[] = [];
 
 /**
- * Everything the live teleprompter may say about TRAVLR itself. It is assembled from the approved call scripts, the
+ * Everything the live teleprompter may say about NAVEO Stays itself. It is assembled from the approved call scripts, the
  * website-sourced trust content, the public avyropro.ai pages (About, Homeowners, Guest Services, Contact) and the structure of the
  * standard Short-Term Rental Management Agreement. Add a fact here only if it is true and approved.
  */
-export const TRAVLR_KNOWLEDGE = `ABOUT TRAVLR
+export const TRAVLR_KNOWLEDGE = `ABOUT NAVEO Stays
 ${TRAVLR_PROOF_POINTS.map(p => `- ${p}`).join('\n')}
 - ${TRUST_STORY}
 - ${WHY_INTRO}
 - Credentials (public, verifiable on avyropro.ai): ${TRUST_ITEMS.map(t => t.title).join('; ')}. Affiliations: ${TRUST_AFFILIATIONS}.
-- The Wall Street Journal article is "The Short-Term Rental Hosts Spending Big to Trick Out Luxury Homes", which covers how TRAVLR's owners turned a hillside geodome in Palm Desert into a standout luxury short-term rental. Palm Springs Life ran "Book Your Stay at This Geodome in Palm Desert", a tour of TRAVLR's five-bedroom Perch retreat.
-- Our story: founders Jen and Spencer took a family vacation to La Quinta, California more than a decade ago, saw how much better group travel could be, left careers in digital marketing and law, and started TRAVLR to combine the space and character of private vacation homes with personalized service, modern technology and resort-style amenities. We started with guests (families, friends, companies on reunions, retreats and weekend getaways) and then built a program for luxury homeowners, an effortless ownership solution.
+- The Wall Street Journal article is "The Short-Term Rental Hosts Spending Big to Trick Out Luxury Homes", which covers how NAVEO Stays' owners turned a hillside geodome in Palm Desert into a standout luxury short-term rental. Palm Springs Life ran "Book Your Stay at This Geodome in Palm Desert", a tour of NAVEO Stays' five-bedroom Perch retreat.
+- Our story: founders Jen and Spencer took a family vacation to La Quinta, California more than a decade ago, saw how much better group travel could be, left careers in digital marketing and law, and started NAVEO Stays to combine the space and character of private vacation homes with personalized service, modern technology and resort-style amenities. We started with guests (families, friends, companies on reunions, retreats and weekend getaways) and then built a program for luxury homeowners, an effortless ownership solution.
 - We describe ourselves as boutique luxury vacation rental management, with white-glove service, local expertise and personalized guest experiences.
 - Contact: phone (949) 539-8862, available 24/7; email info@staytrvlr.com, answered within 24 hours; website avyropro.ai. The free homeowner revenue estimate is at avyropro.ai/estimate.
 
@@ -65,4 +65,4 @@ ${APPROVED_NUMBERS.length ? APPROVED_NUMBERS.map(n => `- ${n}`).join('\n') : '- 
 WHAT THE AGENT MUST NEVER STATE
 - Any guaranteed revenue, occupancy or rent. Estimates are estimates from public data, not promises.
 - Anything about a market, city rule, permit or tax that is not in the lead profile. Say you will confirm and follow up.
-- Anything about TRAVLR that is not in this knowledge. If asked something not covered, say you will find out and follow up today.`;
+- Anything about NAVEO Stays that is not in this knowledge. If asked something not covered, say you will find out and follow up today.`;

@@ -245,7 +245,7 @@ export default function QuestionnairePublicPage() {
         <div className="text-center max-w-md">
           <AlertCircle size={40} className="text-warning mx-auto mb-4" />
           <h1 className="text-xl font-bold text-foreground mb-2">Questionnaire Not Found</h1>
-          <p className="text-sm text-muted-foreground">This link may be invalid or expired. Please contact your TRAVLR agent for a new link.</p>
+          <p className="text-sm text-muted-foreground">This link may be invalid or expired. Please contact your NAVEO Stays agent for a new link.</p>
         </div>
       </div>
     );
@@ -266,19 +266,19 @@ export default function QuestionnairePublicPage() {
           {result === 'qualified' && (
             <div className="bg-success/10 border border-success/20 rounded-xl p-4 mb-4">
               <p className="text-sm font-semibold text-success">Great news — your property looks like a strong fit!</p>
-              <p className="text-xs text-muted-foreground mt-1">Your TRAVLR agent will follow up within 1–2 business days.</p>
+              <p className="text-xs text-muted-foreground mt-1">Your NAVEO Stays agent will follow up within 1–2 business days.</p>
             </div>
           )}
           {result === 'needs_review' && (
             <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 mb-4">
               <p className="text-sm font-semibold text-warning">Your submission is under review.</p>
-              <p className="text-xs text-muted-foreground mt-1">Your TRAVLR agent will follow up within 1–2 business days to discuss next steps.</p>
+              <p className="text-xs text-muted-foreground mt-1">Your NAVEO Stays agent will follow up within 1–2 business days to discuss next steps.</p>
             </div>
           )}
           {result === 'not_a_fit' && (
             <div className="bg-muted border border-border rounded-xl p-4 mb-4">
               <p className="text-sm font-semibold text-foreground">Thank you for your interest.</p>
-              <p className="text-xs text-muted-foreground mt-1">Based on your responses, we may not be the right fit at this time. Your TRAVLR agent will be in touch to explain further.</p>
+              <p className="text-xs text-muted-foreground mt-1">Based on your responses, we may not be the right fit at this time. Your NAVEO Stays agent will be in touch to explain further.</p>
             </div>
           )}
           <div className="text-left bg-muted/50 rounded-xl p-4">
@@ -310,7 +310,7 @@ export default function QuestionnairePublicPage() {
       <div className="bg-primary text-white px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest opacity-80">TRAVLR</p>
+            <p className="text-xs font-semibold uppercase tracking-widest opacity-80">NAVEO Stays</p>
             <h1 className="text-lg font-bold">Property Qualification</h1>
           </div>
           <button
@@ -479,7 +479,7 @@ export default function QuestionnairePublicPage() {
                     <p className="text-xs text-amber-700 mt-1">
                       We are currently conducting dedicated regulatory research for {state} to ensure we provide accurate, verified information.
                       We will not present unverified generic regulation questions for this state.
-                      Your TRAVLR agent will discuss local requirements with you directly.
+                      Your NAVEO Stays agent will discuss local requirements with you directly.
                     </p>
                   </div>
                 </div>
@@ -532,7 +532,7 @@ export default function QuestionnairePublicPage() {
               <div className="bg-muted/50 border border-border rounded-xl p-5 text-center">
                 <MapPin size={24} className="text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm font-medium text-foreground">No location-specific questions available</p>
-                <p className="text-xs text-muted-foreground mt-1">Your TRAVLR agent will discuss local STR requirements with you directly.</p>
+                <p className="text-xs text-muted-foreground mt-1">Your NAVEO Stays agent will discuss local STR requirements with you directly.</p>
               </div>
             )}
           </div>

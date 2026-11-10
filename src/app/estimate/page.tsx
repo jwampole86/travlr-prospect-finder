@@ -86,7 +86,7 @@ function AddressAutocomplete({
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(value)}&format=json&addressdetails=1&limit=6&countrycodes=us`,
-          { headers: { 'Accept-Language': 'en', 'User-Agent': 'TRAVLR-Estimate/1.0' } }
+          { headers: { 'Accept-Language': 'en', 'User-Agent': 'NAVEO-Stays-Estimate/1.0' } }
         );
         const data = await res.json();
         const mapped: AddressSuggestion[] = (data ?? [])
@@ -423,9 +423,9 @@ function EstimateLandingContent() {
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-40 print:hidden">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/travlr-badge.png" alt="TRAVLR" width={36} height={36} className="w-9 h-9 object-contain" />
+          <img src="/brand/travlr-badge.png" alt="NAVEO Stays" width={36} height={36} className="w-9 h-9 object-contain" />
           <div>
-            <p className="text-sm font-bold text-foreground">TRAVLR Vacation Homes</p>
+            <p className="text-sm font-bold text-foreground">NAVEO Stays</p>
             <p className="text-[10px] text-muted-foreground">{t('estimate.subtitle')}</p>
           </div>
           <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline" aria-label={t('estimate.visitSite', { site: WEBSITE_LABEL })}>
@@ -628,7 +628,7 @@ function EstimateLandingContent() {
                 {validating || submitting ? <><Loader2 size={14} className="animate-spin" /> {submitting ? t('estimate.sending') : t('estimate.checking')}</> : <>{t('estimate.sendReport')}<ChevronRight size={14} /></>}
               </button>
               <p className="text-[10px] text-muted-foreground text-center">
-                {t('estimate.agree', { brand: 'TRAVLR Vacation Homes' })}
+                {t('estimate.agree', { brand: 'NAVEO Stays' })}
               </p>
             </div>
           </div>
@@ -643,7 +643,7 @@ function EstimateLandingContent() {
               </div>
               <h2 className="text-2xl font-bold text-foreground">{t('estimate.reportReady', { name: contact.firstName })}</h2>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                {emailed ? t('estimate.emailedCopy', { email: contact.email }) : t('estimate.emailFailed')} {t('estimate.specialist', { brand: 'TRAVLR' })}
+                {emailed ? t('estimate.emailedCopy', { email: contact.email }) : t('estimate.emailFailed')} {t('estimate.specialist', { brand: 'NAVEO Stays' })}
               </p>
               <p className="text-xs text-muted-foreground">
                 {resendState === 'sent' ? t('estimate.resendSent') : emailed ? t('estimate.checkSpam') : ''}

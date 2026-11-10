@@ -10,6 +10,7 @@ import { hoaReply, isHoaObjection } from '@/lib/services/smsHoaReply';
 import { isSchedulingThread, schedulingReply } from '@/lib/services/smsCallScheduler';
 import { objectionReply } from '@/lib/services/smsObjectionReply';
 import { CHOICES, parseChoice } from '@/lib/seller/outreachCampaign';
+import { outreachBrandFor } from '@/lib/brands';
 import { askedCampaignQuestion } from '@/lib/seller/replyChoice';
 
 /**
@@ -42,6 +43,9 @@ export async function POST(req: NextRequest) {
 
   const intent = classifyReply(text);
   const lead = await findLeadByPhone(db, from);
+  // The replies we send name the NAVEO that texted them: NAVEO Homes for a home that is for sale, NAVEO Stays for one that is for rent.
+  const { data: listing } = lead ? await db.from('leads').select('price_type').eq('id', lead.id).maybeSingle() : { data: null };
+  const brand = outreachBrandFor((listing as { price_type?: string | null } | null)?.price_type);
   const now = new Date().toISOString();
 
   await db.from('outreach_history').insert({
@@ -94,7 +98,7 @@ export async function POST(req: NextRequest) {
     if (threadId) await db.from('sms_conversation_threads').update({ conversation_status: 'opted_out' }).eq('id', threadId);
     await log('sms_opt_out', 'Lead opted out of SMS');
     // Twilio sends its own confirmation for STOP keywords; "NO" is ours to answer.
-    if (mode === 'no') reply = 'You are opted out and will not receive more texts from TRAVLR Vacation Homes.';
+    if (mode === 'no') reply = `You are opted out and will not receive more texts from ${brand.name}.`;
   } else if (mode === 'yes') {
     if (lead && trusted) {
       await recordOptIn(db, { leadId: lead.id, phone: from });
@@ -113,7 +117,7 @@ export async function POST(req: NextRequest) {
       const later = !!fu?.ok && !!fu.sendAt && Date.parse(fu.sendAt) - Date.now() > 2 * 3_600_000;
       reply = fu?.ok
         ? `Thanks for replying YES! We'll text you ${later ? 'in the morning' : 'shortly'} to find a time for a quick call. Your free estimate: ${site}/estimate. Reply STOP anytime to opt out.`
-        : `Thanks! A TRAVLR specialist will reach out shortly. Your free estimate: ${site}/estimate. Reply STOP anytime to opt out.`;
+        : `Thanks! A ${brand.name} specialist will reach out shortly. Your free estimate: ${site}/estimate. Reply STOP anytime to opt out.`;
     } else if (lead) {
       // Signature could not be verified (no Twilio webhook token): alert a human, but do not record consent.
       await notifyAdmins(db, {
@@ -124,7 +128,7 @@ export async function POST(req: NextRequest) {
     }
   } else if (mode === 'help') {
     await log('sms_help_request', 'Lead requested HELP via SMS');
-    reply = 'TRAVLR Vacation Homes: avyropro.ai. Reply YES for a call about your free estimate, STOP to opt out.';
+    reply = `${brand.name}: avyropro.ai. Reply YES for a call about your free estimate, STOP to opt out.`;
   } else if (mode !== 'scheduled' && lead && toE164(from)) {
     await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['New Lead', 'Contacted']);
     // A question gets an answer right away at any hour; the team is alerted below either way.
@@ -154,7 +158,7 @@ export async function POST(req: NextRequest) {
     } else {
       if (l && ['identified', 'reviewed', 'contacted'].includes(l.pipeline_stage)) await db.from('str_listings').update({ pipeline_stage: 'replied', stage_updated_at: now }).eq('property_id', sentTo.property_id);
       await notifyAdmins(db, { title: 'Co-host prospect replied', message: `A co-host prospect${l?.market ? ` (${l.market})` : ''} replied: "${text.slice(0, 80)}"`, metadata: { property_id: sentTo.property_id, reason: 'cohost_sms_reply' } }).catch(() => {});
-      if (!reply && intent === 'yes') reply = 'Thanks! A TRAVLR specialist will reach out shortly. Reply STOP anytime to opt out.';
+      if (!reply && intent === 'yes') reply = 'Thanks! A NAVEO Stays specialist will reach out shortly. Reply STOP anytime to opt out.';
     }
   }
 

@@ -27,10 +27,10 @@ export function phonesFor(owner: Row | null | undefined): HostPhone[] {
   return [...out.values()];
 }
 
-/** The text always identifies TRAVLR and carries an opt-out line, whatever the sender edited. */
+/** The text always identifies NAVEO Stays and carries an opt-out line, whatever the sender edited. */
 export function prepareBody(raw: string): string {
   let b = toGsm(raw).trim();
-  if (!/travlr/i.test(b)) b = `TRAVLR Vacation Homes: ${b}`;
+  if (!/travlr/i.test(b)) b = `NAVEO Stays: ${b}`;
   if (!/\bstop\b/i.test(b)) b = `${b}\nReply STOP to opt out`;
   return b;
 }

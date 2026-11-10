@@ -1,5 +1,5 @@
 /**
- * TRAVLR Email Template Seeds
+ * NAVEO Stays Email Template Seeds
  * Market templates use the shared {{localBlurb}} resolver so every active state/city
  * stays current with the lead geography in localBlurbs.ts.
  * Variables: {{senderName}}, {{contactName}}, {{address}}, {{localBlurb}},
@@ -27,7 +27,7 @@ const CO_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company. We launched our Colorado subsidiary in early 2025 and are actively growing our portfolio across Aspen, Breckenridge, and Vail, which is what brought {{address}} to my attention.
+I came across {{address}} and wanted to reach out directly — I'm with NAVEO Stays, a luxury vacation rental and property management company. We launched our Colorado subsidiary in early 2025 and are actively growing our portfolio across Aspen, Breckenridge, and Vail, which is what brought {{address}} to my attention.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -37,7 +37,7 @@ Looking forward to hearing from you.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'CO — Follow-Up #1',
@@ -49,13 +49,13 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Just following up on my previous message about {{address}}. I am still very interested and would love the chance to connect, even briefly.
 
-For context, TRAVLR Vacation Homes has managed luxury vacation properties for homeowners for over 10 years, and launched our Colorado operation in early 2025, now serving Aspen, Breckenridge, and Vail. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
+For context, NAVEO Stays has managed luxury vacation properties for homeowners for over 10 years, and launched our Colorado operation in early 2025, now serving Aspen, Breckenridge, and Vail. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
 
 If now isn't the right time, no worries at all — just let me know and I'll follow up down the line. But if you're open to it, I'm happy to work around your schedule for a quick call or even answer questions over email first.
 
 Thanks so much for your time,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'CO — Check-In / Re-Engage',
@@ -67,7 +67,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 I wanted to check in on {{address}}. Is the property still available? I remain very interested and wanted to see if the timing might work better now.
 
-As a reminder, I'm with TRAVLR Vacation Homes — we bring 10+ years of luxury vacation rental management experience and have been building our Colorado presence across Aspen, Breckenridge, and Vail since early 2025. Happy to share references or more on how we operate if that's helpful.
+As a reminder, I'm with NAVEO Stays — we bring 10+ years of luxury vacation rental management experience and have been building our Colorado presence across Aspen, Breckenridge, and Vail since early 2025. Happy to share references or more on how we operate if that's helpful.
 
 If your plans have changed or you've already moved forward with someone else, I completely understand — just a quick reply either way would be appreciated so I can update my notes.
 
@@ -75,7 +75,7 @@ If you're still open to exploring this, I'd love to reconnect.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'CO — Proposal Introduction',
@@ -85,9 +85,9 @@ TRAVLR Vacation Homes | staytravlr.com`,
     subject: 'Proposal for {{address}} — Guaranteed Rent',
     body: `Hi {{contactName}},
 
-Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
+Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of NAVEO Stays.
 
-A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, now operating in Colorado across Aspen, Breckenridge, and Vail since launching our subsidiary in early 2025. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: NAVEO Stays is a luxury vacation rental and property management company with over 10 years of experience, now operating in Colorado across Aspen, Breckenridge, and Vail since launching our subsidiary in early 2025. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -98,11 +98,11 @@ Proposed terms:
 
 This arrangement means consistent, predictable income for you with none of the usual workload of running a short-term rental — no guest communication, no turnover coordination, no maintenance calls at 11pm.
 
-I've attached more details for your review, and you're welcome to look through our track record at staytravlr.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
+I've attached more details for your review, and you're welcome to look through our track record at staynaveo.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
 
 Looking forward to moving forward together,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'CO — Closing / Contract',
@@ -121,11 +121,11 @@ A few next steps on my end:
 2. We coordinate a walkthrough date
 3. First payment is processed per the agreed terms
 
-Thank you again for trusting TRAVLR Vacation Homes with {{address}} — excited to get started and to have you as one of our partner homeowners in Colorado.
+Thank you again for trusting NAVEO Stays with {{address}} — excited to get started and to have you as one of our partner homeowners in Colorado.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
 ];
 
@@ -139,7 +139,7 @@ const CA_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company based in Palm Springs / Palm Desert, where we've operated for over 10 years, with an active presence across the LA basin and Southern California coast — including Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach.
+I came across {{address}} and wanted to reach out directly — I'm with NAVEO Stays, a luxury vacation rental and property management company based in Palm Springs / Palm Desert, where we've operated for over 10 years, with an active presence across the LA basin and Southern California coast — including Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -149,7 +149,7 @@ Looking forward to hearing from you.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'CA — Follow-Up #1',
@@ -161,13 +161,13 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Just following up on my previous message about {{address}}. I am still very interested and would love the chance to connect, even briefly.
 
-For context, TRAVLR Vacation Homes has been managing luxury vacation properties across Southern California for over 10 years, with a presence spanning Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
+For context, NAVEO Stays has been managing luxury vacation properties across Southern California for over 10 years, with a presence spanning Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
 
 If now isn't the right time, no worries at all — just let me know and I'll follow up down the line. But if you're open to it, I'm happy to work around your schedule for a quick call or even answer questions over email first.
 
 Thanks so much for your time,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'CA — Check-In / Re-Engage',
@@ -179,7 +179,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 I wanted to check in on {{address}}. Is the property still available? I remain very interested and wanted to see if the timing might work better now.
 
-As a reminder, I'm with TRAVLR Vacation Homes — we've been a Southern California presence for over 10 years, managing luxury vacation rentals across Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach. Happy to share references or more on how we operate if that's helpful.
+As a reminder, I'm with NAVEO Stays — we've been a Southern California presence for over 10 years, managing luxury vacation rentals across Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach. Happy to share references or more on how we operate if that's helpful.
 
 If your plans have changed or you've already moved forward with someone else, I completely understand — just a quick reply either way would be appreciated so I can update my notes.
 
@@ -187,7 +187,7 @@ If you're still open to exploring this, I'd love to reconnect.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'CA — Proposal Introduction',
@@ -197,9 +197,9 @@ TRAVLR Vacation Homes | staytravlr.com`,
     subject: 'Proposal for {{address}} — Guaranteed Rent',
     body: `Hi {{contactName}},
 
-Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
+Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of NAVEO Stays.
 
-A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, proudly serving Southern California — including Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: NAVEO Stays is a luxury vacation rental and property management company with over 10 years of experience, proudly serving Southern California — including Los Angeles, Sherman Oaks, Hollywood, Malibu, and Newport Beach. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -210,11 +210,11 @@ Proposed terms:
 
 This arrangement means consistent, predictable income for you with none of the usual workload of running a short-term rental — no guest communication, no turnover coordination, no maintenance calls at 11pm.
 
-I've attached more details for your review, and you're welcome to look through our track record at staytravlr.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
+I've attached more details for your review, and you're welcome to look through our track record at staynaveo.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
 
 Looking forward to moving forward together,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'CA — Closing / Contract',
@@ -233,11 +233,11 @@ A few next steps on my end:
 2. We coordinate a walkthrough date
 3. First payment is processed per the agreed terms
 
-Thank you again for trusting TRAVLR Vacation Homes with {{address}} — excited to get started and to have you as one of our partner homeowners here in Southern California.
+Thank you again for trusting NAVEO Stays with {{address}} — excited to get started and to have you as one of our partner homeowners here in Southern California.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
 ];
 
@@ -251,7 +251,7 @@ const NV_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company. We're growing our presence in Nevada, focused on Las Vegas and Henderson, which is what brought {{address}} to my attention.
+I came across {{address}} and wanted to reach out directly — I'm with NAVEO Stays, a luxury vacation rental and property management company. We're growing our presence in Nevada, focused on Las Vegas and Henderson, which is what brought {{address}} to my attention.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -261,7 +261,7 @@ Looking forward to hearing from you.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'NV — Follow-Up #1',
@@ -273,13 +273,13 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Just following up on my previous message about {{address}}. I am still very interested and would love the chance to connect, even briefly.
 
-For context, TRAVLR Vacation Homes has managed luxury vacation properties for homeowners for over 10 years and is actively expanding into Nevada, including Las Vegas and Henderson. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
+For context, NAVEO Stays has managed luxury vacation properties for homeowners for over 10 years and is actively expanding into Nevada, including Las Vegas and Henderson. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
 
 If now isn't the right time, no worries at all — just let me know and I'll follow up down the line. But if you're open to it, I'm happy to work around your schedule for a quick call or even answer questions over email first.
 
 Thanks so much for your time,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'NV — Check-In / Re-Engage',
@@ -291,7 +291,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 I wanted to check in on {{address}}. Is the property still available? I remain very interested and wanted to see if the timing might work better now.
 
-As a reminder, I'm with TRAVLR Vacation Homes — we bring 10+ years of luxury vacation rental management experience and are building our footprint in Las Vegas and Henderson. Happy to share references or more on how we operate if that's helpful.
+As a reminder, I'm with NAVEO Stays — we bring 10+ years of luxury vacation rental management experience and are building our footprint in Las Vegas and Henderson. Happy to share references or more on how we operate if that's helpful.
 
 If your plans have changed or you've already moved forward with someone else, I completely understand — just a quick reply either way would be appreciated so I can update my notes.
 
@@ -299,7 +299,7 @@ If you're still open to exploring this, I'd love to reconnect.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'NV — Proposal Introduction',
@@ -309,9 +309,9 @@ TRAVLR Vacation Homes | staytravlr.com`,
     subject: 'Proposal for {{address}} — Guaranteed Rent',
     body: `Hi {{contactName}},
 
-Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
+Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of NAVEO Stays.
 
-A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, now expanding into Nevada across Las Vegas and Henderson. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: NAVEO Stays is a luxury vacation rental and property management company with over 10 years of experience, now expanding into Nevada across Las Vegas and Henderson. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -322,11 +322,11 @@ Proposed terms:
 
 This arrangement means consistent, predictable income for you with none of the usual workload of running a short-term rental — no guest communication, no turnover coordination, no maintenance calls at 11pm.
 
-I've attached more details for your review, and you're welcome to look through our track record at staytravlr.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
+I've attached more details for your review, and you're welcome to look through our track record at staynaveo.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
 
 Looking forward to moving forward together,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'NV — Closing / Contract',
@@ -345,11 +345,11 @@ A few next steps on my end:
 2. We coordinate a walkthrough date
 3. First payment is processed per the agreed terms
 
-Thank you again for trusting TRAVLR Vacation Homes with {{address}} — excited to get started and to have you as one of our partner homeowners in Nevada.
+Thank you again for trusting NAVEO Stays with {{address}} — excited to get started and to have you as one of our partner homeowners in Nevada.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
 ];
 
@@ -363,7 +363,7 @@ const WA_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company. We're expanding into Washington State, with a focus on Seattle, Bellevue, and Renton, which is what brought {{address}} to my attention.
+I came across {{address}} and wanted to reach out directly — I'm with NAVEO Stays, a luxury vacation rental and property management company. We're expanding into Washington State, with a focus on Seattle, Bellevue, and Renton, which is what brought {{address}} to my attention.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -373,7 +373,7 @@ Looking forward to hearing from you.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'WA — Follow-Up #1',
@@ -385,13 +385,13 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Just following up on my previous message about {{address}}. I am still very interested and would love the chance to connect, even briefly.
 
-For context, TRAVLR Vacation Homes has managed luxury vacation properties for homeowners for over 10 years and is actively expanding into Washington State, including Seattle, Bellevue, and Renton. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
+For context, NAVEO Stays has managed luxury vacation properties for homeowners for over 10 years and is actively expanding into Washington State, including Seattle, Bellevue, and Renton. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
 
 If now isn't the right time, no worries at all — just let me know and I'll follow up down the line. But if you're open to it, I'm happy to work around your schedule for a quick call or even answer questions over email first.
 
 Thanks so much for your time,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'WA — Check-In / Re-Engage',
@@ -403,7 +403,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 I wanted to check in on {{address}}. Is the property still available? I remain very interested and wanted to see if the timing might work better now.
 
-As a reminder, I'm with TRAVLR Vacation Homes — we bring 10+ years of luxury vacation rental management experience and are building our presence across Seattle, Bellevue, and Renton. Happy to share references or more on how we operate if that's helpful.
+As a reminder, I'm with NAVEO Stays — we bring 10+ years of luxury vacation rental management experience and are building our presence across Seattle, Bellevue, and Renton. Happy to share references or more on how we operate if that's helpful.
 
 If your plans have changed or you've already moved forward with someone else, I completely understand — just a quick reply either way would be appreciated so I can update my notes.
 
@@ -411,7 +411,7 @@ If you're still open to exploring this, I'd love to reconnect.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'WA — Proposal Introduction',
@@ -421,9 +421,9 @@ TRAVLR Vacation Homes | staytravlr.com`,
     subject: 'Proposal for {{address}} — Guaranteed Rent',
     body: `Hi {{contactName}},
 
-Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
+Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of NAVEO Stays.
 
-A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, now expanding into Washington State across Seattle, Bellevue, and Renton. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: NAVEO Stays is a luxury vacation rental and property management company with over 10 years of experience, now expanding into Washington State across Seattle, Bellevue, and Renton. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -434,11 +434,11 @@ Proposed terms:
 
 This arrangement means consistent, predictable income for you with none of the usual workload of running a short-term rental — no guest communication, no turnover coordination, no maintenance calls at 11pm.
 
-I've attached more details for your review, and you're welcome to look through our track record at staytravlr.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
+I've attached more details for your review, and you're welcome to look through our track record at staynaveo.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
 
 Looking forward to moving forward together,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'WA — Closing / Contract',
@@ -457,11 +457,11 @@ A few next steps on my end:
 2. We coordinate a walkthrough date
 3. First payment is processed per the agreed terms
 
-Thank you again for trusting TRAVLR Vacation Homes with {{address}} — excited to get started and to have you as one of our partner homeowners in Washington.
+Thank you again for trusting NAVEO Stays with {{address}} — excited to get started and to have you as one of our partner homeowners in Washington.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
 ];
 
@@ -475,7 +475,7 @@ const MD_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company. We're expanding into Maryland, with Baltimore among our first target markets, which is what brought {{address}} to my attention.
+I came across {{address}} and wanted to reach out directly — I'm with NAVEO Stays, a luxury vacation rental and property management company. We're expanding into Maryland, with Baltimore among our first target markets, which is what brought {{address}} to my attention.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -485,7 +485,7 @@ Looking forward to hearing from you.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'MD — Follow-Up #1',
@@ -497,13 +497,13 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Just following up on my previous message about {{address}}. I am still very interested and would love the chance to connect, even briefly.
 
-For context, TRAVLR Vacation Homes has managed luxury vacation properties for homeowners for over 10 years and is actively expanding into Maryland, with Baltimore among our first target markets. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
+For context, NAVEO Stays has managed luxury vacation properties for homeowners for over 10 years and is actively expanding into Maryland, with Baltimore among our first target markets. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
 
 If now isn't the right time, no worries at all — just let me know and I'll follow up down the line. But if you're open to it, I'm happy to work around your schedule for a quick call or even answer questions over email first.
 
 Thanks so much for your time,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'MD — Check-In / Re-Engage',
@@ -515,7 +515,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 I wanted to check in on {{address}}. Is the property still available? I remain very interested and wanted to see if the timing might work better now.
 
-As a reminder, I'm with TRAVLR Vacation Homes — we bring 10+ years of luxury vacation rental management experience and are expanding into Maryland, with Baltimore among our first target markets. Happy to share references or more on how we operate if that's helpful.
+As a reminder, I'm with NAVEO Stays — we bring 10+ years of luxury vacation rental management experience and are expanding into Maryland, with Baltimore among our first target markets. Happy to share references or more on how we operate if that's helpful.
 
 If your plans have changed or you've already moved forward with someone else, I completely understand — just a quick reply either way would be appreciated so I can update my notes.
 
@@ -523,7 +523,7 @@ If you're still open to exploring this, I'd love to reconnect.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'MD — Proposal Introduction',
@@ -533,9 +533,9 @@ TRAVLR Vacation Homes | staytravlr.com`,
     subject: 'Proposal for {{address}} — Guaranteed Rent',
     body: `Hi {{contactName}},
 
-Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
+Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of NAVEO Stays.
 
-A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, now expanding into Maryland with Baltimore among our first target markets. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: NAVEO Stays is a luxury vacation rental and property management company with over 10 years of experience, now expanding into Maryland with Baltimore among our first target markets. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -546,11 +546,11 @@ Proposed terms:
 
 This arrangement means consistent, predictable income for you with none of the usual workload of running a short-term rental — no guest communication, no turnover coordination, no maintenance calls at 11pm.
 
-I've attached more details for your review, and you're welcome to look through our track record at staytravlr.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
+I've attached more details for your review, and you're welcome to look through our track record at staynaveo.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
 
 Looking forward to moving forward together,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'MD — Closing / Contract',
@@ -569,11 +569,11 @@ A few next steps on my end:
 2. We coordinate a walkthrough date
 3. First payment is processed per the agreed terms
 
-Thank you again for trusting TRAVLR Vacation Homes with {{address}} — excited to get started and to have you as one of our partner homeowners in Maryland.
+Thank you again for trusting NAVEO Stays with {{address}} — excited to get started and to have you as one of our partner homeowners in Maryland.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
 ];
 
@@ -587,7 +587,7 @@ const MASTER_TEMPLATES: TemplateSeed[] = [
     subject: 'Interested in Your Property at {{address}}',
     body: `Hi {{contactName}},
 
-I came across {{address}} and wanted to reach out directly — I'm with TRAVLR Vacation Homes, a luxury vacation rental and property management company. We've operated in Palm Springs / Palm Desert, California for over 10 years, and {{localBlurb}}.
+I came across {{address}} and wanted to reach out directly — I'm with NAVEO Stays, a luxury vacation rental and property management company. We've operated in Palm Springs / Palm Desert, California for over 10 years, and {{localBlurb}}.
 
 We handle everything end-to-end: guest services, concierge, cleaning, maintenance, and revenue optimization, so homeowners get consistent income without the day-to-day workload of hosting.
 
@@ -597,7 +597,7 @@ Looking forward to hearing from you.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'Master — Follow-Up #1',
@@ -609,13 +609,13 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 Just following up on my previous message about {{address}}. I am still very interested and would love the chance to connect, even briefly.
 
-For context, TRAVLR Vacation Homes has managed luxury vacation properties for homeowners for over 10 years, and {{localBlurb}}. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
+For context, NAVEO Stays has managed luxury vacation properties for homeowners for over 10 years, and {{localBlurb}}. We take care of everything — cleaning, maintenance, guest services, and pricing — so owners see reliable income with none of the operational hassle.
 
 If now isn't the right time, no worries at all — just let me know and I'll follow up down the line. But if you're open to it, I'm happy to work around your schedule for a quick call or even answer questions over email first.
 
 Thanks so much for your time,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'Master — Check-In / Re-Engage',
@@ -627,7 +627,7 @@ TRAVLR Vacation Homes | staytravlr.com`,
 
 I wanted to check in on {{address}}. Is the property still available? I remain very interested and wanted to see if the timing might work better now.
 
-As a reminder, I'm with TRAVLR Vacation Homes — we bring 10+ years of luxury vacation rental management experience, and {{localBlurb}}. Happy to share references or more on how we operate if that's helpful.
+As a reminder, I'm with NAVEO Stays — we bring 10+ years of luxury vacation rental management experience, and {{localBlurb}}. Happy to share references or more on how we operate if that's helpful.
 
 If your plans have changed or you've already moved forward with someone else, I completely understand — just a quick reply either way would be appreciated so I can update my notes.
 
@@ -635,7 +635,7 @@ If you're still open to exploring this, I'd love to reconnect.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'Master — Proposal Introduction',
@@ -645,9 +645,9 @@ TRAVLR Vacation Homes | staytravlr.com`,
     subject: 'Proposal for {{address}} — Guaranteed Rent',
     body: `Hi {{contactName}},
 
-Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of TRAVLR Vacation Homes.
+Thank you for speaking with me about {{address}}. As discussed, I'd like to formally propose the following terms on behalf of NAVEO Stays.
 
-A bit more about us: TRAVLR is a luxury vacation rental and property management company with over 10 years of experience, and {{localBlurb}}. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
+A bit more about us: NAVEO Stays is a luxury vacation rental and property management company with over 10 years of experience, and {{localBlurb}}. We manage every part of the guest and property experience — concierge, cleaning, maintenance, and revenue optimization — so homeowners get premium results without lifting a finger.
 
 Proposed terms:
 * Guaranteed monthly payment: {{proposedRent}}
@@ -658,11 +658,11 @@ Proposed terms:
 
 This arrangement means consistent, predictable income for you with none of the usual workload of running a short-term rental — no guest communication, no turnover coordination, no maintenance calls at 11pm.
 
-I've attached more details for your review, and you're welcome to look through our track record at staytravlr.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
+I've attached more details for your review, and you're welcome to look through our track record at staynaveo.com. Happy to hop on a call to walk through any questions or adjust terms to fit your needs.
 
 Looking forward to moving forward together,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
   {
     name: 'Master — Closing / Contract',
@@ -681,11 +681,11 @@ A few next steps on my end:
 2. We coordinate a walkthrough date
 3. First payment is processed per the agreed terms
 
-Thank you again for trusting TRAVLR Vacation Homes with {{address}} — excited to get started and to have you as one of our partner homeowners.
+Thank you again for trusting NAVEO Stays with {{address}} — excited to get started and to have you as one of our partner homeowners.
 
 Best,
 {{senderName}}
-TRAVLR Vacation Homes | staytravlr.com`,
+NAVEO Stays | staynaveo.com`,
   },
 ];
 

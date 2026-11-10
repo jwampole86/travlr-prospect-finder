@@ -50,10 +50,10 @@ export function buildHtml(body: string, unsub: string): string {
 <body style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a;line-height:1.6;font-size:15px;">
 <div>${blocks}</div>
 <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0;">
-<p style="font-size:11px;color:#6b7280;line-height:1.5;">TRAVLR Vacation Homes, ${esc(POSTAL)}.<br>You are receiving this one-time introduction because your home is listed as a vacation rental. If you would rather not hear from us, <a href="${unsub}" style="color:#6b7280;">unsubscribe here</a> and we will not contact you again.</p>
+<p style="font-size:11px;color:#6b7280;line-height:1.5;">NAVEO Stays, ${esc(POSTAL)}.<br>You are receiving this one-time introduction because your home is listed as a vacation rental. If you would rather not hear from us, <a href="${unsub}" style="color:#6b7280;">unsubscribe here</a> and we will not contact you again.</p>
 </body></html>`;
 }
-const plainText = (body: string, unsub: string) => `${body}\n\n--\nTRAVLR Vacation Homes, ${POSTAL}\nTo stop hearing from us: ${unsub}`;
+const plainText = (body: string, unsub: string) => `${body}\n\n--\nNAVEO Stays, ${POSTAL}\nTo stop hearing from us: ${unsub}`;
 
 /** Addresses we may use for this owner: the contactable people on the property record and skip-trace matches, never a typed-in guess. */
 export function knownEmails(owner: Row | null | undefined): string[] {

@@ -28,3 +28,38 @@ export function estimateLinkFor(brand: BrandKey, address: string, engineUrl: str
   const url = `${engineUrl.replace(/\/$/, '')}/estimate?address=${encodeURIComponent(address).replace(/%20/g, '+').replace(/%2C/g, ',')}`;
   return brand === DEFAULT_BRAND ? url : `${url}&brand=${brand}`;
 }
+
+// ─── What homeowners and sellers are told we are called ──────────────────────────────────────────────────────────────────────────────
+// Every text and email to an owner names NAVEO, never TRAVLR. Which NAVEO depends on the property: a home for rent is a NAVEO Stays
+// conversation (vacation / short-term rental management), a home for sale is a NAVEO Homes conversation (seller solutions, long-term
+// rental, and an options chat). Change the names or the rule here and every message follows.
+
+export type OutreachBrandKey = 'stays' | 'homes';
+
+export interface OutreachBrand {
+  key: OutreachBrandKey;
+  /** What we call ourselves in a message. */
+  name: string;
+  /** The brand's own website, when it has one. NAVEO Homes has none configured yet, so messages never invent a link for it. */
+  siteUrl: string | null;
+  /** The one-line sign-off for emails. */
+  signature: string;
+}
+
+export const OUTREACH_BRANDS: Record<OutreachBrandKey, OutreachBrand> = {
+  stays: { key: 'stays', name: 'NAVEO Stays', siteUrl: 'https://staynaveo.com', signature: 'NAVEO Stays | staynaveo.com' },
+  homes: { key: 'homes', name: 'NAVEO Homes', siteUrl: null, signature: 'NAVEO Homes' },
+};
+
+/** For rent (or unknown) -> NAVEO Stays; for sale -> NAVEO Homes. Unknown goes to Stays because that is what the existing owner campaigns are. */
+export function outreachBrandFor(priceType: string | null | undefined): OutreachBrand {
+  return String(priceType ?? '').toLowerCase() === 'sale' ? OUTREACH_BRANDS.homes : OUTREACH_BRANDS.stays;
+}
+
+/** Fills {brand} / {{brand}} and {brand_site} / {{brand_site}} in a message. */
+export function applyOutreachBrand(text: string, brand: OutreachBrand): string {
+  return text
+    .replace(/\{\{?\s*brand\s*\}?\}/g, brand.name)
+    .replace(/\{\{?\s*brand_signature\s*\}?\}/g, brand.signature)
+    .replace(/\{\{?\s*brand_site\s*\}?\}/g, brand.siteUrl ? brand.siteUrl.replace(/^https?:\/\//, '') : '');
+}

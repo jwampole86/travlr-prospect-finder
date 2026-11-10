@@ -114,7 +114,7 @@ export default function InfoRequestPage() {
           </div>
           <h1 className="text-xl font-bold text-foreground mb-2">Thanks! We'll be in touch.</h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Your contact info has been received. A TRAVLR team member will reach out shortly to discuss your property.
+            Your contact info has been received. A NAVEO Stays team member will reach out shortly to discuss your property.
           </p>
         </div>
       </div>
@@ -131,7 +131,7 @@ export default function InfoRequestPage() {
             <Home size={16} className="text-primary-foreground" />
           </div>
           <div>
-            <p className="text-sm font-bold text-foreground">TRAVLR Vacation Homes</p>
+            <p className="text-sm font-bold text-foreground">NAVEO Stays</p>
             <p className="text-[10px] text-muted-foreground">Property Contact Confirmation</p>
           </div>
         </div>
@@ -141,7 +141,7 @@ export default function InfoRequestPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-2">Confirm Your Contact Info</h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            A TRAVLR team member reached out about your property. Confirm your details below and we'll follow up directly.
+            A NAVEO Stays team member reached out about your property. Confirm your details below and we'll follow up directly.
           </p>
         </div>
 
@@ -226,7 +226,7 @@ export default function InfoRequestPage() {
           </div>
 
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            By submitting, you agree TRAVLR may contact you about this property. Your info is subject to our{' '}
+            By submitting, you agree NAVEO Stays may contact you about this property. Your info is subject to our{' '}
             <a href="/privacy-policy" className="text-primary hover:underline">Privacy Policy</a>.
             You may opt out at any time.
           </p>

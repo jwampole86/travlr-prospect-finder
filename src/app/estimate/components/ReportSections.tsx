@@ -90,13 +90,13 @@ export function PermitsSection({ report }: { report: HomeownerReport }) {
         </div>
 
         <aside className="lg:col-span-2 print:col-span-2 break-inside-avoid rounded-2xl bg-indigo-50 border border-indigo-200 p-5 self-start">
-          <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-2"><FileCheck2 size={14} /> How TRAVLR helps</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-2"><FileCheck2 size={14} /> How NAVEO Stays helps</p>
           <ul className="mt-3 space-y-3">
             {PERMIT_HELP.map(h => (
               <li key={h} className="flex gap-2.5 text-sm text-slate-700 leading-relaxed"><CheckCircle2 size={16} className="mt-0.5 shrink-0 text-indigo-600" />{h}</li>
             ))}
           </ul>
-          <p className="mt-4 text-[12px] text-slate-600 leading-relaxed">Permit fees are paid to the city and are separate from TRAVLR&rsquo;s management fee.</p>
+          <p className="mt-4 text-[12px] text-slate-600 leading-relaxed">Permit fees are paid to the city and are separate from NAVEO Stays&rsquo; management fee.</p>
         </aside>
       </div>
     </section>
@@ -172,7 +172,7 @@ export function OwnerDashboardSection() {
       <SectionTitle
         eyebrow="Your owner dashboard"
         title="See everything about your home in one place"
-        sub="When you join TRAVLR you get your own secure homeowner dashboard. No chasing emails or spreadsheets: your earnings, bookings and updates are always a click away."
+        sub="When you join NAVEO Stays you get your own secure homeowner dashboard. No chasing emails or spreadsheets: your earnings, bookings and updates are always a click away."
       />
       <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 sm:p-6">
         <div className="flex items-center gap-2 text-indigo-700 text-xs font-bold uppercase tracking-wider"><LayoutDashboard size={14} /> Included with every home</div>

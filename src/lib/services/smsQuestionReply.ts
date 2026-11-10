@@ -39,7 +39,7 @@ export async function questionReply(db: Db, leadId: string, from: string, questi
   } catch { /* the holding reply below covers it */ }
 
   const when = inSendWindow(lead.state) ? 'shortly' : 'first thing in the morning';
-  const message = answer ? `${answer} Reply STOP to opt out.` : `Good question! A TRAVLR specialist will text you back ${when} with the details. Reply STOP to opt out.`;
+  const message = answer ? `${answer} Reply STOP to opt out.` : `Good question! A NAVEO Stays specialist will text you back ${when} with the details. Reply STOP to opt out.`;
   await db.from('outreach_history').insert({ lead_id: leadId, channel: 'sms', status: 'sent', sent_at: new Date().toISOString(), metadata: { kind: 'auto_answer', direction: 'outbound', to: from, message, answered: !!answer, twilio_status: 'sent', question: question.slice(0, 300) } });
   return message;
 }

@@ -29,7 +29,7 @@ const BED_RENT_MULT: Record<number, number> = { 1: 0.9, 2: 1.0, 3: 1.2, 4: 1.55,
 
 // Cost shares of gross revenue. They add to 35%, so net is 65% of gross, matching the lead database.
 const COST_SHARES = [
-  { label: 'TRAVLR management fee', pct: 20 },
+  { label: 'NAVEO Stays management fee', pct: 20 },
   { label: 'Cleaning & turnover', pct: 7 },
   { label: 'Platform & payment fees', pct: 3 },
   { label: 'Supplies & utilities', pct: 5 },
@@ -153,7 +153,7 @@ async function regulationFor(db: ReturnType<typeof getSupabaseAdmin>, a: ParsedA
   const place = [a.city, a.state].filter(Boolean).join(', ') || 'your area';
   const empty: RegulationReport = {
     found: false, jurisdiction: place, status: 'UNKNOWN', tone: 'unknown', headline: REG_HEADLINE.UNKNOWN,
-    summary: `We have not finished documenting the short-term rental rules for ${place}. The checklist below covers what almost every market requires, and your TRAVLR specialist will confirm the exact permit and tax steps for your address before anything is listed.`,
+    summary: `We have not finished documenting the short-term rental rules for ${place}. The checklist below covers what almost every market requires, and your NAVEO Stays specialist will confirm the exact permit and tax steps for your address before anything is listed.`,
     requirements: [], taxes: null, additional: null, sourceName: null, sourceUrl: null, lastVerified: null, aiResearched: false,
     typicalChecklist: GENERIC_CHECKLIST, note: null, permit: null,
   };
@@ -307,7 +307,7 @@ export async function buildHomeownerReport(rawAddress: string): Promise<Homeowne
     fiveYearLongTermTotal: sumLtr,
     regulation: regulation ?? {
       found: false, jurisdiction: place || 'your area', status: 'UNKNOWN', tone: 'unknown', headline: REG_HEADLINE.UNKNOWN,
-      summary: 'Your TRAVLR specialist will confirm the permit and tax steps for your address.',
+      summary: 'Your NAVEO Stays specialist will confirm the permit and tax steps for your address.',
       requirements: [], taxes: null, additional: null, sourceName: null, sourceUrl: null, lastVerified: null,
       aiResearched: false, typicalChecklist: GENERIC_CHECKLIST, note: null, permit: null,
     },

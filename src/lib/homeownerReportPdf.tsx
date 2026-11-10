@@ -87,13 +87,13 @@ export function HomeownerReportPdf({ report, equipment }: { report: HomeownerRep
   const toneColor = reg.tone === 'good' ? C.green : reg.tone === 'bad' ? '#be123c' : reg.tone === 'caution' ? C.amber : C.muted;
 
   return (
-    <Document title={t(`TRAVLR - Property Revenue Report ${report.street}`)} author="TRAVLR Vacation Homes" subject="Vacation rental revenue estimate">
+    <Document title={t(`NAVEO Stays - Property Revenue Report ${report.street}`)} author="NAVEO Stays" subject="Vacation rental revenue estimate">
       <Page size="LETTER" style={s.page}>
-        <Text fixed style={s.footerLeft}>TRAVLR Vacation Homes  |  {CONTACT_EMAIL}  |  Estimate for planning purposes, not a guarantee of income</Text>
+        <Text fixed style={s.footerLeft}>NAVEO Stays  |  {CONTACT_EMAIL}  |  Estimate for planning purposes, not a guarantee of income</Text>
 
         <View style={s.hero}>
           <View style={s.brandRow}>
-            <View><Text style={s.brand}>TRAVLR Vacation Homes</Text><Text style={s.heroSmall}>Property Revenue Report  |  <Link src={WEBSITE_URL} style={{ color: '#c7d2fe' }}>{WEBSITE_LABEL}</Link></Text></View>
+            <View><Text style={s.brand}>NAVEO Stays</Text><Text style={s.heroSmall}>Property Revenue Report  |  <Link src={WEBSITE_URL} style={{ color: '#c7d2fe' }}>{WEBSITE_LABEL}</Link></Text></View>
             <Text style={s.heroSmall}>Prepared {dateLabel(report.generatedAt)}</Text>
           </View>
           <Text style={s.heroAddr}>{t(`${report.street}${place ? `, ${place}` : ''}${report.zip ? ` ${report.zip}` : ''}`)}</Text>
@@ -152,7 +152,7 @@ export function HomeownerReportPdf({ report, equipment }: { report: HomeownerRep
             <View style={[s.card, { flex: 1 }]}>
               <Text style={s.h3}>Per month</Text>
               <View style={{ marginTop: 8 }}>
-                <Kv k="Vacation rental with TRAVLR" v={usd(exp.netMonthly)} bold />
+                <Kv k="Vacation rental with NAVEO Stays" v={usd(exp.netMonthly)} bold />
                 <View style={{ height: 7, backgroundColor: '#f1f5f9', borderRadius: 4 }}><View style={{ height: 7, width: '100%', backgroundColor: C.green, borderRadius: 4 }} /></View>
                 <Kv k="Typical long-term lease" v={usd(report.longTermRent)} bold />
                 <View style={{ height: 7, backgroundColor: '#f1f5f9', borderRadius: 4 }}><View style={{ height: 7, width: `${Math.min(100, Math.max(6, Math.round((report.longTermRent / Math.max(exp.netMonthly, 1)) * 100)))}%`, backgroundColor: '#94a3b8', borderRadius: 4 }} /></View>
@@ -184,7 +184,7 @@ export function HomeownerReportPdf({ report, equipment }: { report: HomeownerRep
         </View>
 
         <View style={s.section}>
-          <Title eyebrow="Your owner dashboard" title="See everything about your home in one place" sub="When you join TRAVLR you get your own secure homeowner dashboard. Your earnings, bookings and updates are always a click away." />
+          <Title eyebrow="Your owner dashboard" title="See everything about your home in one place" sub="When you join NAVEO Stays you get your own secure homeowner dashboard. Your earnings, bookings and updates are always a click away." />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
             {OWNER_DASHBOARD.map(f => (
               <View key={f.title} wrap={false} style={[s.card, { width: '32%', backgroundColor: C.soft }]}>
@@ -220,7 +220,7 @@ export function HomeownerReportPdf({ report, equipment }: { report: HomeownerRep
               {reg.typicalChecklist.map(i => <Text key={i} style={{ marginTop: 3 }}>- {t(i)}</Text>)}
             </View>
           )}
-          {reg.found && <Text style={[s.small, { marginTop: 6 }]}>{t(`Compiled from public sources${reg.sourceName ? `, including ${reg.sourceName}` : ''}${verified ? `, last checked ${verified}` : ''}. Rules change, so your TRAVLR specialist confirms the current requirements for your exact address before anything is listed.`)}</Text>}
+          {reg.found && <Text style={[s.small, { marginTop: 6 }]}>{t(`Compiled from public sources${reg.sourceName ? `, including ${reg.sourceName}` : ''}${verified ? `, last checked ${verified}` : ''}. Rules change, so your NAVEO Stays specialist confirms the current requirements for your exact address before anything is listed.`)}</Text>}
         </View>
 
         <View style={s.section}>
@@ -252,9 +252,9 @@ export function HomeownerReportPdf({ report, equipment }: { report: HomeownerRep
             {steps.map((st, i) => <View key={i} style={s.step}><View style={s.stepNo}><Text style={s.stepNoText}>{i + 1}</Text></View><Text style={{ flex: 1 }}>{t(st)}</Text></View>)}
           </View>
           <View wrap={false} style={[s.card, { marginTop: 8, backgroundColor: C.indigoSoft, borderColor: C.indigoLine }]}>
-            <Text style={[s.h3, { color: C.indigo }]}>How TRAVLR helps</Text>
+            <Text style={[s.h3, { color: C.indigo }]}>How NAVEO Stays helps</Text>
             {PERMIT_HELP.map(h => <Text key={h} style={{ marginTop: 3 }}>- {t(h)}</Text>)}
-            <Text style={[s.small, { marginTop: 4 }]}>Permit fees are paid to the city and are separate from TRAVLR&apos;s management fee.</Text>
+            <Text style={[s.small, { marginTop: 4 }]}>Permit fees are paid to the city and are separate from NAVEO Stays&apos;s management fee.</Text>
           </View>
         </View>
 
@@ -290,27 +290,27 @@ export function HomeownerReportPdf({ report, equipment }: { report: HomeownerRep
               <View key={i.key} wrap={false} style={[s.card, { width: '49%' }]}>
                 <Text style={s.h3}>{t(i.title)}</Text>
                 <Text style={[s.small, { marginTop: 3 }]}>On your own: {t(i.alone)}</Text>
-                <Text style={{ marginTop: 3, color: C.green }}>With TRAVLR: <Text style={{ color: C.ink }}>{t(i.withUs)}</Text></Text>
+                <Text style={{ marginTop: 3, color: C.green }}>With NAVEO Stays: <Text style={{ color: C.ink }}>{t(i.withUs)}</Text></Text>
               </View>
             ))}
           </View>
         </View>
 
         <View wrap={false} style={[s.section, s.card, { backgroundColor: C.soft }]}>
-          <Text style={s.h3}>Why homeowners trust TRAVLR</Text>
+          <Text style={s.h3}>Why homeowners trust NAVEO Stays</Text>
           {TRUST_ITEMS.map(i => <Link key={i.key} src={i.href} style={{ marginTop: 3, color: C.indigo }}>{`${i.title}: ${i.note}`}</Link>)}
           <Text style={[s.small, { marginTop: 4 }]}>{t(`Affiliations shown on our website: ${TRUST_AFFILIATIONS}.`)}</Text>
         </View>
 
         <View wrap={false} style={[s.section, { backgroundColor: C.indigoDark, borderRadius: 10, padding: 18 }]}>
           <Text style={{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: '#fff' }}>Ready to see what your home can really earn?</Text>
-          <Text style={{ marginTop: 4, color: '#e0e7ff' }}>A TRAVLR specialist will contact you within one business day to refine these numbers with your home's details. No obligation.</Text>
+          <Text style={{ marginTop: 4, color: '#e0e7ff' }}>A NAVEO Stays specialist will contact you within one business day to refine these numbers with your home's details. No obligation.</Text>
           <Text style={{ marginTop: 8, color: '#fff', fontFamily: 'Helvetica-Bold' }}>{CONTACT_EMAIL}{CONTACT_PHONE ? `   |   ${CONTACT_PHONE}` : ''}</Text>
           <Link src={WEBSITE_URL} style={{ marginTop: 4, color: '#c7d2fe', fontSize: 9.5 }}>Visit our official website: {WEBSITE_LABEL}</Link>
         </View>
 
         <Text style={{ marginTop: 14, fontSize: 7.5, color: C.muted }}>
-          This report is an estimate for planning purposes, not a guarantee of income. Projections are based on typical performance for homes like yours and local market data and will vary with seasonality, pricing, regulations, property condition and guest demand. Regulatory information is a summary of public sources and is not legal advice; please confirm requirements with your local authority. TRAVLR Vacation Homes is not responsible for decisions made solely on this estimate.
+          This report is an estimate for planning purposes, not a guarantee of income. Projections are based on typical performance for homes like yours and local market data and will vary with seasonality, pricing, regulations, property condition and guest demand. Regulatory information is a summary of public sources and is not legal advice; please confirm requirements with your local authority. NAVEO Stays is not responsible for decisions made solely on this estimate.
         </Text>
 
       </Page>

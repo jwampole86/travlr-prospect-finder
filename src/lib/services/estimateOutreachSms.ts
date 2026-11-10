@@ -1,4 +1,5 @@
 import 'server-only';
+import { outreachBrandFor } from '@/lib/brands';
 import { isProtectedContact } from '@/lib/protectedContacts';
 import Anthropic from '@anthropic-ai/sdk';
 import { buildHomeownerReport } from '@/lib/homeownerEstimate';
@@ -135,14 +136,14 @@ export function campaignFitReason(lead: OutreachLead): 'for_sale' | 'not_a_renta
 
 // ─── Copy ────────────────────────────────────────────────────────────────────
 
-interface Facts { greeting: string; street: string; platform: string | null; range: string; expected: string }
+interface Facts { greeting: string; street: string; platform: string | null; range: string; expected: string; /** Who the text is from: NAVEO Stays for a rental, NAVEO Homes for a sale. */ brand: string }
 
 function templateHook(f: Facts, seed: number): string {
   const on = f.platform ? ` on ${f.platform}` : '';
   const variants = [
-    `${f.greeting}, TRAVLR Vacation Homes here. We came across ${f.street}${on}. As a vacation rental it could potentially earn an estimated ${f.range}/yr.`,
-    `${f.greeting}! This is TRAVLR Vacation Homes. We saw ${f.street}${on} and estimate it could potentially earn ${f.range}/yr as a managed vacation rental.`,
-    `${f.greeting}, we're TRAVLR Vacation Homes. ${f.street}${on} caught our eye: we estimate it could potentially earn ${f.range}/yr as a vacation rental.`,
+    `${f.greeting}, ${f.brand} here. We came across ${f.street}${on}. As a vacation rental it could potentially earn an estimated ${f.range}/yr.`,
+    `${f.greeting}! This is ${f.brand}. We saw ${f.street}${on} and estimate it could potentially earn ${f.range}/yr as a managed vacation rental.`,
+    `${f.greeting}, we're ${f.brand}. ${f.street}${on} caught our eye: we estimate it could potentially earn ${f.range}/yr as a vacation rental.`,
   ];
   return variants[seed % variants.length];
 }
@@ -152,7 +153,7 @@ function hashSeed(s: string): number { let h = 0; for (const c of s) h = (h * 31
 /** Rejects hooks that could mislead or break compliance. The model only ever supplies this opening, never links or the opt-out line. */
 export function validateHook(hook: string, f: Facts): boolean {
   if (hook.length < 60 || hook.length > 200) return false;
-  if (!/travlr/i.test(hook)) return false;
+  if (!hook.includes(f.brand)) return false;
   if (/https?:|www\.|\.com\b|\bSTOP\b|\breply\b|\bYES\b/i.test(hook)) return false;
   if (/guarantee|promise|risk[- ]free|act now|limited time|urgent|last chance|you (?:will|'ll) (?:earn|make)/i.test(hook)) return false;
   if (!/estimat|potential|could|possible|may\b/i.test(hook)) return false;
@@ -173,10 +174,10 @@ export async function aiHook(f: Facts, tone: 'friendly' | 'direct', seed: number
   const openers = ['a warm greeting', 'a question about whether they have thought about vacation rentals', 'a direct statement of what you noticed', 'a short friendly intro'];
   const res = await client.messages.create({
     model: MODEL, max_tokens: 200, temperature: 0.8,
-    system: `You write the opening of a cold outreach text message from TRAVLR Vacation Homes, a vacation rental management company, to a homeowner. Output ONLY the message text, ONE or TWO very short sentences, at most ${maxChars} characters in total (count them; longer messages are discarded), plain ASCII, no emojis, no links, no sign-off.
+    system: `You write the opening of a cold outreach text message from ${f.brand}, a vacation rental management company, to a homeowner. Output ONLY the message text, ONE or TWO very short sentences, at most ${maxChars} characters in total (count them; longer messages are discarded), plain ASCII, no emojis, no links, no sign-off.
 Rules:
 - Start with ${openers[seed % openers.length]}. Begin with exactly this greeting: "${f.greeting}".
-- Say it is TRAVLR Vacation Homes.
+- Say it is ${f.brand}.
 - Mention the street address "${f.street}" once.
 ${f.platform ? `- Say you came across their listing on ${f.platform}.` : '- Say you came across their property. Do NOT name any listing website.'}
 - State that as a managed vacation rental the home could potentially earn an estimated ${f.range} per year after costs. Use exactly "${f.range}". Always say "estimated" or "could potentially". Never guarantee anything.
@@ -226,7 +227,7 @@ export async function draftOutreach(db: Db, lead: OutreachLead, opts: { site: st
 
   const firstName = firstNameOf(lead);
   const platform = platformOf(lead.source);
-  const facts: Facts = { greeting: firstName ? `Hi ${firstName}` : 'Hi there', street: lead.address ?? 'your property', platform, range, expected };
+  const facts: Facts = { greeting: firstName ? `Hi ${firstName}` : 'Hi there', street: lead.address ?? 'your property', platform, range, expected, brand: outreachBrandFor(lead.price_type).name };
   const seed = hashSeed(lead.id);
 
   let hook = '';

@@ -111,12 +111,12 @@ export default function ContactRequestModal({
   const bad = (k: string) => (errors[k] ? 'border-rose-300' : 'border-slate-200');
 
   return (
-    <div className="print:hidden fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-label="Contact TRAVLR">
+    <div className="print:hidden fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-label="Contact NAVEO Stays">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-lg max-h-[94vh] overflow-y-auto bg-white text-slate-900 rounded-t-3xl sm:rounded-2xl shadow-2xl">
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur px-6 pt-5 pb-4 border-b border-slate-100 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold">{status === 'done' ? 'Request received' : 'Talk to a TRAVLR specialist'}</h2>
+            <h2 className="text-lg font-bold">{status === 'done' ? 'Request received' : 'Talk to a NAVEO Stays specialist'}</h2>
             {status !== 'done' && <p className="text-xs text-slate-500 mt-0.5">We reply within one business day. No obligation.</p>}
           </div>
           <button onClick={onClose} aria-label="Close" className="p-1.5 -mr-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"><X size={18} /></button>
@@ -128,8 +128,8 @@ export default function ContactRequestModal({
             <p className="text-lg font-bold">{mode === 'call' ? 'Your call request is in' : 'We got your question'}</p>
             <p className="text-sm text-slate-600 max-w-sm mx-auto leading-relaxed">
               {mode === 'call'
-                ? 'A TRAVLR specialist will contact you within one business day and will aim for your preferred time.'
-                : 'A TRAVLR specialist will reply within one business day.'} We sent a confirmation to <strong>{form.email}</strong>.
+                ? 'A NAVEO Stays specialist will contact you within one business day and will aim for your preferred time.'
+                : 'A NAVEO Stays specialist will reply within one business day.'} We sent a confirmation to <strong>{form.email}</strong>.
             </p>
             <button onClick={onClose} className="mt-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition">Back to my report</button>
           </div>
@@ -208,7 +208,7 @@ export default function ContactRequestModal({
 
             <label className="flex items-start gap-2.5 text-[11px] text-slate-500 leading-snug cursor-pointer">
               <input type="checkbox" className="mt-0.5" checked={form.smsConsent} onChange={e => set('smsConsent', e.target.checked)} />
-              <span>I agree to receive text updates from TRAVLR Vacation Homes. Message &amp; data rates may apply. Reply STOP to opt out. (Optional)</span>
+              <span>I agree to receive text updates from NAVEO Stays. Message &amp; data rates may apply. Reply STOP to opt out. (Optional)</span>
             </label>
 
             {serverError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{serverError}</div>}

@@ -52,7 +52,8 @@ export function parseChoice(raw: string): Choice | null {
   return null;
 }
 
-export interface CampaignVars { first_name?: string; agent_name?: string; address?: string }
+/** `brand` is who the message is from: NAVEO Stays for a home for rent, NAVEO Homes for one for sale (see lib/brands.ts). */
+export interface CampaignVars { first_name?: string; agent_name?: string; address?: string; brand?: string }
 
 /** Fills {{first_name}}, {{agent_name}} and {{address}}, with a plain fallback when one is not known. */
 export function renderMessage(text: string, vars: CampaignVars = {}): string {
@@ -60,8 +61,9 @@ export function renderMessage(text: string, vars: CampaignVars = {}): string {
     first_name: vars.first_name?.trim() || 'there',
     agent_name: vars.agent_name?.trim() || 'your AVYRO team',
     address: vars.address?.trim() || 'your property',
+    brand: vars.brand?.trim() || 'NAVEO',
   };
-  return text.replace(/\{\{\s*(first_name|agent_name|address)\s*\}\}/g, (_, k: keyof typeof v) => v[k]);
+  return text.replace(/\{\{\s*(first_name|agent_name|address|brand)\s*\}\}/g, (_, k: keyof typeof v) => v[k]);
 }
 
 export interface CampaignMessage {
@@ -81,12 +83,12 @@ const STOP = ' Reply STOP to opt out.';
 export const MESSAGES: CampaignMessage[] = [
   {
     id: 'entry-sms', step: 'entry', channel: 'sms', title: 'First text: what are you looking for?',
-    body: `Hi {{first_name}}, this is {{agent_name}} with NAVEO / AVYRO.\nYou reached out (or we spoke) about your property at {{address}}.\nQuick question so we send the right info:\nAre you mainly looking to sell, rent long-term, rent short-term, or still deciding?\n${ENTRY_MARKER}.${STOP}`,
+    body: `Hi {{first_name}}, this is {{agent_name}} with {{brand}}.\nYou reached out (or we spoke) about your property at {{address}}.\nQuick question so we send the right info:\nAre you mainly looking to sell, rent long-term, rent short-term, or still deciding?\n${ENTRY_MARKER}.${STOP}`,
   },
   {
     id: 'entry-email', step: 'entry', channel: 'email', title: 'First email: what are you looking for?',
     subjects: ['Quick question about {{address}}', 'Sell, rent, or both? We need 10 seconds', "So we don't send the wrong options…"],
-    body: `Hi {{first_name}},\n\nThanks for connecting with us about {{address}}.\n\nTo make sure we only send relevant options (and respect your time), can you tell us what you're currently considering?\n\n1. Selling the property\n2. Long-term rental management\n3. Short-term / vacation rental (Airbnb-style)\n4. Still exploring / open to more than one\n\nJust reply with the number.\n\nWe'll only follow up with the path that matches what you choose.\n\n– {{agent_name}}\nNAVEO Homes / NAVEO Stays`,
+    body: `Hi {{first_name}},\n\nThanks for connecting with us about {{address}}.\n\nTo make sure we only send relevant options (and respect your time), can you tell us what you're currently considering?\n\n1. Selling the property\n2. Long-term rental management\n3. Short-term / vacation rental (Airbnb-style)\n4. Still exploring / open to more than one\n\nJust reply with the number.\n\nWe'll only follow up with the path that matches what you choose.\n\n– {{agent_name}}\n{{brand}}`,
   },
   {
     id: 'sale-sms', step: 'branch', choice: 'sale', channel: 'sms', title: 'Sale: text',
@@ -118,7 +120,7 @@ export const MESSAGES: CampaignMessage[] = [
   },
   {
     id: 'both-email', step: 'branch', choice: 'both', channel: 'email', title: 'Both or still deciding: email', subjects: ['Options map for {{address}}'],
-    body: `Hi {{first_name}},\n\nYou told us you're still weighing options for {{address}} (sale, long-term rent, short-term, or a combination).\n\nWe'll keep this practical:\n1. Confirm current situation (occupancy, timeline, goals)\n2. Show which paths are realistically available\n3. Give you one clear recommended next step (no pressure)\n\nReply YES and we'll schedule a short options conversation.\n\n– {{agent_name}}\nNAVEO Homes / Stays`,
+    body: `Hi {{first_name}},\n\nYou told us you're still weighing options for {{address}} (sale, long-term rent, short-term, or a combination).\n\nWe'll keep this practical:\n1. Confirm current situation (occupancy, timeline, goals)\n2. Show which paths are realistically available\n3. Give you one clear recommended next step (no pressure)\n\nReply YES and we'll schedule a short options conversation.\n\n– {{agent_name}}\n{{brand}}`,
   },
   {
     id: 'followup-day3-sms', step: 'follow_up', channel: 'sms', title: 'No reply, day 3: text',

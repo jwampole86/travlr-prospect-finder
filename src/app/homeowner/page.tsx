@@ -247,7 +247,7 @@ export default function HomeownerDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Welcome back</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Your TRAVLR property dashboard</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Your NAVEO Stays property dashboard</p>
         </div>
         {properties.length > 0 && (
           <div className="relative">
@@ -526,7 +526,7 @@ export default function HomeownerDashboardPage() {
         <div className="space-y-4">
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
             <AlertCircle size={14} className="text-amber-600 shrink-0" />
-            <p className="text-xs text-amber-700">You can view bookings but cannot modify live guest reservations. Contact your TRAVLR property manager for changes.</p>
+            <p className="text-xs text-amber-700">You can view bookings but cannot modify live guest reservations. Contact your NAVEO Stays property manager for changes.</p>
           </div>
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
@@ -563,7 +563,7 @@ export default function HomeownerDashboardPage() {
       {activeTab === 'requests' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Submit requests to your TRAVLR property manager</p>
+            <p className="text-sm text-muted-foreground">Submit requests to your NAVEO Stays property manager</p>
             <button
               onClick={() => setShowNewRequest(true)}
               className="flex items-center gap-2 px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"

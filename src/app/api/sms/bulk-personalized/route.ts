@@ -6,7 +6,7 @@ import { isSuppressed } from '@/lib/services/smsConsent';
 import {
   runPersonalizationReconciliation,
   resolveRecipientPersonalization,
-  TRAVLR_OUTREACH_TEMPLATE,
+  OUTREACH_TEMPLATE,
   type SmsRecipient,
 } from '@/lib/services/smsPersonalizationService';
 import { dispatchSMS, isTwilioConfigured } from '@/lib/services/twilioService';
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select(
-        'id, contact_name, contact_phone, owner_name, address, city, state, zip, verified_owner, verified_number, verified_address, has_phone, sms_opt_in, sms_opted_out_at, enrichment_status'
+        'id, contact_name, contact_phone, owner_name, address, city, state, zip, verified_owner, verified_number, verified_address, has_phone, sms_opt_in, sms_opted_out_at, enrichment_status, price_type'
       )
       .in('id', leadIds);
 
@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
       verifiedAddress: l.verified_address || null,
       hasPhone: l.has_phone === true,
       doNotContact: blockedIds.has(l.id),
+      priceType: l.price_type || null,
     }));
 
     // Filter out DNC leads before personalization
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
     const eligibleForPersonalization = recipients.filter(r => !r.doNotContact && r.phone?.trim());
 
     // Resolve template
-    const template = templateBody?.trim() || TRAVLR_OUTREACH_TEMPLATE;
+    const template = templateBody?.trim() || OUTREACH_TEMPLATE;
 
     // ── Run personalization reconciliation ────────────────────────────────────
     const reconciliation = runPersonalizationReconciliation(eligibleForPersonalization, template);
@@ -172,7 +173,7 @@ export async function POST(req: NextRequest) {
           // Send-time revalidation: reload this specific lead
           const { data: freshLead } = await supabase
             .from('leads')
-            .select('contact_phone, sms_opt_in, sms_opted_out_at, verified_owner, verified_number, verified_address, contact_name, owner_name, address, city, state, zip')
+            .select('contact_phone, sms_opt_in, sms_opted_out_at, verified_owner, verified_number, verified_address, contact_name, owner_name, address, city, state, zip, price_type')
             .eq('id', recipient.leadId)
             .single();
 
@@ -194,6 +195,7 @@ export async function POST(req: NextRequest) {
             verifiedOwner: freshLead.verified_owner === true,
             verifiedNumber: freshLead.verified_number === true,
             verifiedAddress: freshLead.verified_address || null,
+            priceType: freshLead.price_type || null,
           };
 
           const freshResolved = resolveRecipientPersonalization(freshRecipient, template);
@@ -299,10 +301,10 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   return NextResponse.json({
-    service: 'TRAVLR Bulk SMS Personalization',
+    service: 'NAVEO Bulk SMS Personalization',
     version: '1.0',
     twilioConfigured: isTwilioConfigured(),
-    template: TRAVLR_OUTREACH_TEMPLATE,
+    template: OUTREACH_TEMPLATE,
     actions: ['reconcile', 'send'],
     description: 'POST with { leadIds, action: "reconcile"|"send", templateBody? } to personalize and dispatch bulk SMS.',
   });

@@ -87,7 +87,7 @@ export function offerDrafts(d: Pick<OfferData, 'title' | 'city' | 'current' | 's
     : 'We found a few ways to lift bookings and rates.';
   return {
     subject: `Ideas to lift bookings for "${d.title.slice(0, 60)}"`,
-    email: `Hi,\n\nI'm reaching out from TRAVLR Vacation Homes. We run our own luxury vacation homes and help owners who already host on Airbnb or Vrbo earn more, either as a co-host on your existing listing or with full management.\n\nWe took a look at your listing in ${d.city} using public booking data. ${earn} I put together a short, free page that shows what we noticed and what it could look like for you:\n\n${url}\n\nIf it's useful, reply and we'll do a free listing audit. If not, no problem. Just let me know and I won't follow up.\n\nBest,\nTRAVLR Vacation Homes${process.env.COMPANY_POSTAL_ADDRESS ? `\n${process.env.COMPANY_POSTAL_ADDRESS}` : ''}`,
-    sms: `TRAVLR Vacation Homes: we put together a short look at your ${d.city.slice(0, 24)} listing: ${url}\nReply STOP to opt out`,
+    email: `Hi,\n\nI'm reaching out from NAVEO Stays. We run our own luxury vacation homes and help owners who already host on Airbnb or Vrbo earn more, either as a co-host on your existing listing or with full management.\n\nWe took a look at your listing in ${d.city} using public booking data. ${earn} I put together a short, free page that shows what we noticed and what it could look like for you:\n\n${url}\n\nIf it's useful, reply and we'll do a free listing audit. If not, no problem. Just let me know and I won't follow up.\n\nBest,\nNAVEO Stays${process.env.COMPANY_POSTAL_ADDRESS ? `\n${process.env.COMPANY_POSTAL_ADDRESS}` : ''}`,
+    sms: `NAVEO Stays: we put together a short look at your ${d.city.slice(0, 24)} listing: ${url}\nReply STOP to opt out`,
   };
 }

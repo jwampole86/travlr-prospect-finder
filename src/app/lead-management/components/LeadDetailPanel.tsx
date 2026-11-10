@@ -1,5 +1,6 @@
 'use client';
 
+import { outreachBrandFor } from '@/lib/brands';
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Lead, LeadStage } from '@/data/mockLeads';
 import { leadPriceDisplay } from '@/lib/leadPrice';
@@ -188,7 +189,8 @@ function PlatformMessageModal({ lead, onClose }: { lead: Lead; onClose: () => vo
   const estimateUrl = `${siteUrl}/estimate?address=${encodeURIComponent(lead.address)}`;
   const [copied, setCopied] = useState(false);
 
-  const messageTemplate = `Hi! I came across your listing at ${lead.address} and wanted to reach out — I'm with TRAVLR Vacation Homes, a property management company. If you're ever curious what ${lead.address} could earn as a managed vacation rental, here's a free instant estimate, no strings attached: ${estimateUrl}`;
+  const brandName = outreachBrandFor(lead.priceType).name;
+  const messageTemplate = `Hi! I came across your listing at ${lead.address} and wanted to reach out — I'm with ${brandName}, a property management company. If you're ever curious what ${lead.address} could earn as a managed vacation rental, here's a free instant estimate, no strings attached: ${estimateUrl}`;
 
   function handleCopy() {
     navigator.clipboard.writeText(messageTemplate).then(() => {
@@ -203,7 +205,7 @@ function PlatformMessageModal({ lead, onClose }: { lead: Lead; onClose: () => vo
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Message on Platform</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Pre-filled outreach with TRAVLR estimate link</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Pre-filled outreach with the estimate link</p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X size={16} /></button>
         </div>

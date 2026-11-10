@@ -215,7 +215,7 @@ export default function BulkEmailOutreachPage() {
         body: JSON.stringify({
           templateId: selectedTemplateId,
           leadIds: Array.from(selectedLeadIds),
-          senderName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'TRAVLR Team',
+          senderName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'NAVEO Stays Team',
           dryRun: true,
         }),
       });
@@ -248,7 +248,7 @@ export default function BulkEmailOutreachPage() {
         body: JSON.stringify({
           templateId: selectedTemplateId,
           leadIds: Array.from(selectedLeadIds),
-          senderName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'TRAVLR Team',
+          senderName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'NAVEO Stays Team',
           dryRun: false,
         }),
       });
@@ -307,7 +307,7 @@ export default function BulkEmailOutreachPage() {
     return body || '';
   }
 
-  const senderName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'TRAVLR Team';
+  const senderName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'NAVEO Stays Team';
 
   // ─── History stats ─────────────────────────────────────────────────────────
 

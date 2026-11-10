@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { applyOutreachBrand, outreachBrandFor } from '@/lib/brands';
 import { createClient } from '@supabase/supabase-js';
 import { resolveVariables } from '@/lib/services/variableResolutionService';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
@@ -21,6 +22,7 @@ interface Lead {
   city: string | null;
   state: string | null;
   price: number | null;
+  price_type?: string | null;
   beds: number | null;
   baths: number | null;
   source: string | null;
@@ -40,11 +42,12 @@ interface EmailTemplate {
 }
 
 function fillVariables(text: string, lead: Lead, senderName: string): string {
+  const brand = outreachBrandFor(lead.price_type);
   const resolved = resolveVariables(
     { contactName: lead.contact_name || '', address: lead.address || '', city: lead.city || '', state: lead.state || '' },
     { senderName }
   );
-  return (text || '')
+  return applyOutreachBrand(text || '', brand)
     .replace(/\{\{contactName\}\}/g, resolved.contactName)
     .replace(/\{\{senderName\}\}/g, resolved.senderName || senderName)
     .replace(/\{\{address\}\}/g, resolved.address)
@@ -99,9 +102,9 @@ export async function POST(req: NextRequest) {
     const authorization = await requireAdminActor(req);
     if (!authorization.actor) return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
     const body: BulkEmailPayload = await req.json();
-    const { templateId, leadIds, senderName = process.env.RESEND_FROM_NAME || 'TRAVLR Team', dryRun = false } = body;
+    const { templateId, leadIds, senderName: requestedSender, dryRun = false } = body;
     const resend = getResendClient();
-    const from = getResendFrom();
+    // The sender name is the NAVEO that matches the property (Stays for rent, Homes for sale) unless a person typed one in.
 
     if (!templateId || !leadIds?.length) {
       return NextResponse.json({ success: false, error: 'Missing templateId or leadIds' }, { status: 400 });
@@ -132,7 +135,7 @@ export async function POST(req: NextRequest) {
       const chunk = leadIds.slice(i, i + 100);
       const { data: chunkLeads } = await supabase
         .from('leads')
-        .select('id, email, contact_name, address, city, state, price, beds, baths, source, stage, email_opt_in, do_not_contact, portfolio')
+        .select('id, email, contact_name, address, city, state, price, price_type, beds, baths, source, stage, email_opt_in, do_not_contact, portfolio')
         .in('id', chunk);
       if (chunkLeads) allLeads.push(...(chunkLeads as Lead[]));
     }
@@ -161,8 +164,8 @@ export async function POST(req: NextRequest) {
         skipped,
         skippedReasons,
         templateName: tpl.name,
-        sampleSubject: eligible[0] ? fillVariables(tpl.subject, eligible[0], senderName) : tpl.subject,
-        sampleBody: eligible[0] ? fillVariables(extractTemplateText(tpl.body), eligible[0], senderName) : extractTemplateText(tpl.body),
+        sampleSubject: eligible[0] ? fillVariables(tpl.subject, eligible[0], requestedSender || outreachBrandFor(eligible[0].price_type).name) : tpl.subject,
+        sampleBody: eligible[0] ? fillVariables(extractTemplateText(tpl.body), eligible[0], requestedSender || outreachBrandFor(eligible[0].price_type).name) : extractTemplateText(tpl.body),
       });
     }
 
@@ -173,6 +176,9 @@ export async function POST(req: NextRequest) {
     const campaignId: string | null = (body as unknown as Record<string, unknown>).campaignId as string | null || null;
 
     for (const lead of eligible) {
+      const brand = outreachBrandFor(lead.price_type);
+      const senderName = requestedSender || brand.name;
+      const from = getResendFrom(brand.name); // the sender name an owner sees is always the NAVEO that matches the property; {{senderName}} in the text is the person
       const filledSubject = fillVariables(tpl.subject, lead, senderName);
       const filledBody = fillVariables(extractTemplateText(tpl.body), lead, senderName);
       const html = buildHtml(filledBody).replace('{{unsubscribeUrl}}', '#');

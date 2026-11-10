@@ -144,7 +144,7 @@ function triggerPDFExport(reportAddress: string): void {
   const header = document.createElement('div');
   header.style.cssText = 'background:#1d4ed8;color:white;padding:20px 24px;border-radius:8px;margin-bottom:20px;';
   header.innerHTML = `
-    <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;opacity:0.8;text-transform:uppercase;margin-bottom:4px;">TRAVLR Property Report</div>
+    <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;opacity:0.8;text-transform:uppercase;margin-bottom:4px;">NAVEO Stays Property Report</div>
     <div style="font-size:20px;font-weight:700;">${reportAddress}</div>
     <div style="font-size:12px;opacity:0.8;margin-top:4px;">Generated ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
   `;
@@ -152,7 +152,7 @@ function triggerPDFExport(reportAddress: string): void {
 
   // Clone report content
   const clone = reportEl.cloneNode(true) as HTMLElement;
-  // Remove the TRAVLR header block (already re-rendered above) and action buttons
+  // Remove the NAVEO Stays header block (already re-rendered above) and action buttons
   const firstChild = clone.firstElementChild;
   if (firstChild) clone.removeChild(firstChild);
   clone.style.cssText = 'font-size:12px;';
@@ -277,7 +277,7 @@ export default function PropertyReportPage() {
     setGenerating(true);
 
     // Generate AI narrative
-    const systemPrompt = `You are a professional real estate analyst generating a property report for TRAVLR, a short-term rental management company. 
+    const systemPrompt = `You are a professional real estate analyst generating a property report for NAVEO Stays, a short-term rental management company. 
 Generate a concise, professional narrative for a homeowner-facing property report. 
 IMPORTANT: Clearly label all financial figures as estimates/projections. Do not fabricate regulatory facts.
 Keep the tone professional and suitable for sharing with a homeowner.`;
@@ -522,11 +522,11 @@ Keep each section clearly labeled. Total length: ~250 words.`;
             {/* Report Output */}
             {report && (
               <div id="property-report" className="space-y-5 print:space-y-4">
-                {/* TRAVLR Header */}
+                {/* NAVEO Stays Header */}
                 <div className="bg-primary text-white rounded-xl p-6 print:rounded-none">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-widest opacity-80">TRAVLR Property Report</p>
+                      <p className="text-xs font-semibold uppercase tracking-widest opacity-80">NAVEO Stays Property Report</p>
                       <h2 className="text-xl font-bold mt-1">{report.property_address}</h2>
                       <p className="text-sm opacity-80 mt-0.5">{report.city}, {report.state} · {report.property_type}</p>
                     </div>
@@ -639,7 +639,7 @@ Keep each section clearly labeled. Total length: ~250 words.`;
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     <strong>Disclaimer:</strong> All financial projections in this report are estimates based on market assumptions and are not guarantees of future performance.
                     Actual results may vary based on property condition, market conditions, seasonality, and other factors.
-                    Regulatory information is sourced from TRAVLR&apos;s system configuration and should be independently verified with local authorities before making any decisions.
+                    Regulatory information is sourced from NAVEO Stays&apos;s system configuration and should be independently verified with local authorities before making any decisions.
                     This report is intended for informational purposes only.
                   </p>
                 </div>

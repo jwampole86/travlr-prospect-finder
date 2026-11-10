@@ -48,9 +48,9 @@ export default function SocialProof({ id }: { id?: string }) {
 
       <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 flex items-center gap-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/travlr-badge.png" alt="TRAVLR Vacation Homes" width={52} height={52} className="rounded-xl shrink-0" />
+        <img src="/brand/travlr-badge.png" alt="NAVEO Stays" width={52} height={52} className="rounded-xl shrink-0" />
         <div className="min-w-0">
-          <p className="text-base font-bold text-foreground">TRAVLR Vacation Homes</p>
+          <p className="text-base font-bold text-foreground">NAVEO Stays</p>
           <p className="mt-0.5 text-sm text-muted-foreground leading-snug">Runs its homeowner outreach, Co-Host offers and sales pipeline on AVYRO AI. Every feature has to hold up in a real operation, not a demo.</p>
         </div>
       </div>

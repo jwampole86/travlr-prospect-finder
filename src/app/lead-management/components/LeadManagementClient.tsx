@@ -1694,6 +1694,7 @@ export default function LeadManagementClient({
               verifiedOwner: (l as { verifiedOwner?: boolean }).verifiedOwner,
               verifiedNumber: (l as { verifiedNumber?: boolean }).verifiedNumber,
               verifiedAddress: (l as { verifiedAddress?: string }).verifiedAddress,
+              priceType: (l as { priceType?: string }).priceType,
             }))}
           onClose={() => setBulkSMSModalOpen(false)}
           onSent={(count) => {
@@ -1708,6 +1709,7 @@ export default function LeadManagementClient({
         <SMSSendModal
           leadId={smsLead.id}
           leadName={smsLead.contactName || smsLead.address}
+          priceType={smsLead.priceType}
           recipientPhone={smsLead.contactPhone || ''}
           leadAddress={smsLead.address}
           onClose={() => setSmsLead(null)}

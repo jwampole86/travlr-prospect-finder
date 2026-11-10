@@ -152,7 +152,7 @@ export default function ROICalculatorPage() {
           <div className="flex items-center gap-2.5">
             <AppLogo size={26} />
             <div>
-              <span className="text-sm font-bold text-foreground">TRAVLR</span>
+              <span className="text-sm font-bold text-foreground">NAVEO Stays</span>
               <span className="text-xs text-muted-foreground ml-2">Free Revenue Estimator</span>
             </div>
           </div>
@@ -306,13 +306,13 @@ export default function ROICalculatorPage() {
                 <p className="text-xs font-semibold text-primary-foreground/70 uppercase tracking-wider mb-1">Estimated Net Revenue</p>
                 <p className="text-4xl font-bold text-primary-foreground">{formatCurrency(result.netMonthly)}</p>
                 <p className="text-sm text-primary-foreground/70 mt-1">per month · {formatCurrency(result.annualNet)}/year</p>
-                <p className="text-xs text-primary-foreground/50 mt-1">After TRAVLR management fee & operating costs</p>
+                <p className="text-xs text-primary-foreground/50 mt-1">After NAVEO Stays management fee & operating costs</p>
               </div>
             </div>
 
             {/* What's included */}
             <div className="bg-card border border-border rounded-xl p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">What TRAVLR handles for you</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">What NAVEO Stays handles for you</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   'Dynamic pricing optimization',
@@ -426,7 +426,7 @@ export default function ROICalculatorPage() {
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-2">You're all set!</h2>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Your personalized revenue report is on its way. A TRAVLR partner specialist will reach out within 1 business day.
+                Your personalized revenue report is on its way. A NAVEO Stays partner specialist will reach out within 1 business day.
               </p>
             </div>
 

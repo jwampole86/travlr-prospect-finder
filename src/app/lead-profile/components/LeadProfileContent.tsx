@@ -18,6 +18,7 @@ import SMSSendModal from './SMSSendModal';
 import BreadcrumbNav from '@/components/ui/BreadcrumbNav';
 import LeadTaskBoard from './LeadTaskBoard';
 import PhotoRightsPanel from './PhotoRightsPanel';
+import { outreachBrandFor } from '@/lib/brands';
 import PropertyRecordPanel from './PropertyRecordPanel';
 import LeadPicker from './LeadPicker';
 
@@ -1019,7 +1020,11 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   ];
   const variantIdx = lead.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % msgVariants.length;
   const variant = msgVariants[variantIdx];
-  const outreachMessage = `${variant.opening} I'm with TRAVLR Vacation Homes, a property management company. ${variant.cta}\navyropro.ai/estimate\nYou can also learn more about us at avyropro.ai. Happy to answer any questions!\n— ${agentFirstName}, TRAVLR Vacation Homes`;
+  // The message is from the NAVEO that matches the property: Stays for a home for rent, Homes for one for sale (not pitched rental income).
+  const outreachBrand = outreachBrandFor(lead.priceType);
+  const outreachMessage = outreachBrand.key === 'homes'
+    ? `${variant.opening} I'm with ${outreachBrand.name}. Are you mainly looking to sell, rent long-term, rent short-term, or still deciding? Happy to point you to the right next step.\n— ${agentFirstName}, ${outreachBrand.name}`
+    : `${variant.opening} I'm with ${outreachBrand.name}, a property management company. ${variant.cta}\navyropro.ai/estimate\nYou can also learn more about us at avyropro.ai. Happy to answer any questions!\n— ${agentFirstName}, ${outreachBrand.name}`;
 
   async function handleCopyMessage() {
     const text = outreachMessage;
@@ -1108,7 +1113,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: lead.contactEmail,
-          subject: `TRAVLR Vacation Homes — ${lead.address}`,
+          subject: `${outreachBrand.name} — ${lead.address}`,
           message: outreachMessage,
           leadId: lead.id,
           agentId: user?.id,
@@ -2357,6 +2362,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
         <SMSSendModal
           leadId={lead.id}
           leadName={lead.contactName || lead.address}
+          priceType={lead.priceType}
           recipientPhone={lead.contactPhone || ''}
           onClose={() => setShowSMSModal(false)}
           onSent={() => { reloadSecondaryData(); toast.success('SMS logged to Activity Timeline'); }}

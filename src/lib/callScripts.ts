@@ -1,5 +1,5 @@
 /**
- * TRAVLR Base Call Scripts — all 5 stages
+ * NAVEO Stays Base Call Scripts — all 5 stages
  * Variables use {contactName}, {address}, {senderName}, {localBlurb} tokens.
  * These are resolved by variableResolutionService.applyVariables() before display.
  * Deal-specific fields (proposed rent, term, start date) use [enter X] bracket placeholders
@@ -31,23 +31,23 @@ export interface ScriptLine {
   hasAgentFill?: boolean;
 }
 
-/** The approved "why TRAVLR" proof points. The scripts and the teleprompter's knowledge base both read this one list so they never drift apart. */
+/** The approved "why NAVEO Stays" proof points. The scripts and the teleprompter's knowledge base both read this one list so they never drift apart. */
 export const TRAVLR_PROOF_POINTS: readonly string[] = [
-  'For the past 10 years, TRAVLR Vacation Homes has partnered with homeowners of ultra-luxury properties in California, managing multi-million-dollar vacation homes with a very high-touch standard of care.',
+  'For the past 10 years, NAVEO Stays has partnered with homeowners of ultra-luxury properties in California, managing multi-million-dollar vacation homes with a very high-touch standard of care.',
   'Our California desert portfolio proved that the right management partner can help protect the property, elevate its value, and create meaningful passive income without putting the day-to-day burden on the homeowner.',
   'That same approach is now expanding into select markets like Aspen, Vail, Las Vegas, Miami, and Seattle — places where discerning travelers are looking for exceptional one-of-a-kind homes.',
-  'What makes TRAVLR different is the combination of full-service property management, 5-star guest hospitality, dynamic revenue optimization, smart-home technology, compliance support, strong marketing, and transparent owner reporting.',
+  'What makes NAVEO Stays different is the combination of full-service property management, 5-star guest hospitality, dynamic revenue optimization, smart-home technology, compliance support, strong marketing, and transparent owner reporting.',
   'We handle the details — platform marketing, concierge-style guest support, cleaning, maintenance, inspections, pricing, permits, taxes, and owner-portal reporting — so the homeowner can enjoy the upside with confidence.',
 ];
 
 const buildTravlrDifferenceSection = (prefix: string): ScriptSection => ({
   id: `${prefix}_travlr_difference`,
-  title: 'TRAVLR Difference — If They Ask Why Us',
+  title: 'NAVEO Stays Difference — If They Ask Why Us',
   lines: [
     {
       id: `${prefix}-td-0`,
       type: 'instruction',
-      text: 'Use this as proof-point language when the homeowner asks about TRAVLR, why now, or why their market. Do not read every line unless the conversation calls for it.',
+      text: 'Use this as proof-point language when the homeowner asks about NAVEO Stays, why now, or why their market. Do not read every line unless the conversation calls for it.',
     },
     {
       id: `${prefix}-td-1`,
@@ -82,7 +82,7 @@ const buildTravlrDifferenceSection = (prefix: string): ScriptSection => ({
 const initialOutreach: CallScript = {
   id: 'initial_outreach',
   label: 'Initial Outreach',
-  goal: 'Introduce TRAVLR, build trust, gather basic info, move toward questionnaire or scheduled follow-up.',
+  goal: 'Introduce NAVEO Stays, build trust, gather basic info, move toward questionnaire or scheduled follow-up.',
   sections: [
     {
       id: 'opening',
@@ -91,7 +91,7 @@ const initialOutreach: CallScript = {
         {
           id: 'io-open-1',
           type: 'spoken',
-          text: 'Hi, is this {contactName}? Hi {contactName}, this is {senderName} calling from TRAVLR Vacation Homes — I\'m reaching out about your property at {address}. Do you have a quick minute?',
+          text: 'Hi, is this {contactName}? Hi {contactName}, this is {senderName} calling from NAVEO Stays — I\'m reaching out about your property at {address}. Do you have a quick minute?',
         },
       ],
     },
@@ -102,7 +102,7 @@ const initialOutreach: CallScript = {
         {
           id: 'io-yes-1',
           type: 'spoken',
-          text: 'Great — so TRAVLR is a vacation rental and property management company, and {localBlurb}. I wanted to see if you\'d be open to hearing a bit about how it works and whether it might be a fit for your property.',
+          text: 'Great — so NAVEO Stays is a vacation rental and property management company, and {localBlurb}. I wanted to see if you\'d be open to hearing a bit about how it works and whether it might be a fit for your property.',
         },
       ],
     },
@@ -167,7 +167,7 @@ const followUp: CallScript = {
         {
           id: 'fu-open-1',
           type: 'spoken',
-          text: 'Hi {contactName}, this is {senderName} again from TRAVLR Vacation Homes — I\'d reached out about {address} a little while back. Do you have a couple minutes?',
+          text: 'Hi {contactName}, this is {senderName} again from NAVEO Stays — I\'d reached out about {address} a little while back. Do you have a couple minutes?',
         },
       ],
     },
@@ -293,7 +293,7 @@ const proposal: CallScript = {
         {
           id: 'pr-open-1',
           type: 'spoken',
-          text: 'Hi {contactName}, thanks for hopping on — I\'ve got the details for {address} pulled up, and I wanted to walk you through what a partnership with TRAVLR would look like.',
+          text: 'Hi {contactName}, thanks for hopping on — I\'ve got the details for {address} pulled up, and I wanted to walk you through what a partnership with NAVEO Stays would look like.',
         },
       ],
     },
@@ -543,7 +543,7 @@ const landingPageInbound: CallScript = {
         {
           id: 'lpi-open-1',
           type: 'spoken',
-          text: 'Hi, is this {contactName}? Hi {contactName} — this is {senderName} from TRAVLR Vacation Homes. I\'m calling because you recently submitted your property at {address} through our website — I wanted to personally follow up and make sure we get you taken care of.',
+          text: 'Hi, is this {contactName}? Hi {contactName} — this is {senderName} from NAVEO Stays. I\'m calling because you recently submitted your property at {address} through our website — I wanted to personally follow up and make sure we get you taken care of.',
         },
         {
           id: 'lpi-open-2',
@@ -660,7 +660,7 @@ const candidateNextSteps: CallScript = {
         {
           id: 'cns-open-1',
           type: 'spoken',
-          text: 'Hi, is this {contactName}? Hi {contactName}, this is {senderName} calling from TRAVLR Vacation Homes — following up after your interview. Do you have a few minutes?',
+          text: 'Hi, is this {contactName}? Hi {contactName}, this is {senderName} calling from NAVEO Stays — following up after your interview. Do you have a few minutes?',
         },
       ],
     },
@@ -701,7 +701,7 @@ const candidateNextSteps: CallScript = {
         {
           id: 'cns-q-1',
           type: 'spoken',
-          text: 'What questions do you have for me about the role, the compensation, or what it\'s like working with TRAVLR day to day?',
+          text: 'What questions do you have for me about the role, the compensation, or what it\'s like working with NAVEO Stays day to day?',
         },
       ],
     },

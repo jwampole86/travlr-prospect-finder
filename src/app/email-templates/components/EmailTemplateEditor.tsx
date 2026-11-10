@@ -221,12 +221,12 @@ function SendTestModal({ subject, blocks, resolvedVars, manualVars, onClose }: S
         return r;
       };
 
-      const filledSubject = fill(subject) || 'Test Email from TRAVLR';
+      const filledSubject = fill(subject) || 'Test Email from NAVEO Stays';
       const htmlBody = `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px;">
           ${blocksToHtml(blocks, mergedVars)}
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
-          <p style="font-size:11px;color:#9ca3af;">This is a test email sent from TRAVLR Email Templates.</p>
+          <p style="font-size:11px;color:#9ca3af;">This is a test email sent from NAVEO Stays Email Templates.</p>
         </div>
       `;
 
@@ -387,7 +387,7 @@ export default function EmailTemplateEditor({ template, onSave, onCancel }: Prop
     }
     return [
       { id: generateId(), type: 'heading', content: 'Hi {{contactName}},' },
-      { id: generateId(), type: 'text', content: "I came across your property at {{address}} and wanted to reach out about a short-term rental opportunity.\n\nAt TRAVLR, {{localBlurb}}, and your property looks like a great fit for our portfolio." },
+      { id: generateId(), type: 'text', content: "I came across your property at {{address}} and wanted to reach out about a short-term rental opportunity.\n\nAt NAVEO Stays, {{localBlurb}}, and your property looks like a great fit for our portfolio." },
       { id: generateId(), type: 'divider', content: '' },
       { id: generateId(), type: 'text', content: 'Best regards,\n{{senderName}}' },
     ];

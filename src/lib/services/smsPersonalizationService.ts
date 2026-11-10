@@ -1,5 +1,7 @@
+import { OUTREACH_BRANDS, applyOutreachBrand, outreachBrandFor } from '@/lib/brands';
+
 /**
- * TRAVLR SMS Personalization Service
+ * NAVEO SMS Personalization Service
  * Server-side template variable resolver for bulk SMS campaigns.
  *
  * Resolves verified first name + verified property address for each recipient.
@@ -28,6 +30,8 @@ export interface SmsRecipient {
   verifiedAddress?: string | null;
   hasPhone?: boolean;
   doNotContact?: boolean;
+  /** 'sale' or 'rent': decides whether the text comes from NAVEO Homes or NAVEO Stays. */
+  priceType?: string | null;
 }
 
 export interface ResolvedPersonalization {
@@ -325,8 +329,11 @@ export function resolveRecipientPersonalization(
     };
   }
 
-  // Render template using outreach-friendly address
-  const rendered = renderSmsTemplate(template, base.firstName, base.outreachAddress);
+  // The sender is named for the property: NAVEO Homes for a home that is for sale, NAVEO Stays for one that is for rent. The standard
+  // outreach template has a version for each, so a for-sale owner is never pitched vacation-rental income.
+  const brand = outreachBrandFor(recipient.priceType);
+  const useTemplate = template === OUTREACH_TEMPLATE && brand.key === 'homes' ? HOMES_OUTREACH_TEMPLATE : template;
+  const rendered = applyOutreachBrand(renderSmsTemplate(useTemplate, base.firstName, base.outreachAddress), brand);
 
   // Validate rendered message
   const validation = validateRenderedMessage(rendered);
@@ -427,9 +434,9 @@ export function runPersonalizationReconciliation(
 }
 
 /**
- * The canonical TRAVLR outreach template.
+ * The standard outreach text for a home that is for rent: NAVEO Stays. {brand} is filled in per recipient.
  */
-export const TRAVLR_OUTREACH_TEMPLATE = `Hi {first_name}! I came across {address} and wanted to reach out. I'm Jennifer with TRAVLR Vacation Homes — a property management company.
+export const OUTREACH_TEMPLATE = `Hi {first_name}! I came across {address} and wanted to reach out. I'm Jennifer with {brand} — a property management company.
 
 Curious what your property could earn as a professionally managed STR?
 
@@ -440,3 +447,17 @@ More about us: avyropro.ai
 Happy to answer any questions!
 
 Reply STOP to opt out`;
+
+/** The same slot for a home that is for sale: NAVEO Homes asks the owner what they want, and a 1 to 4 reply is recorded (see seller-pipeline). */
+export const HOMES_OUTREACH_TEMPLATE = `Hi {first_name}! I'm Jennifer with {brand}. I came across {address} and wanted to reach out.
+
+Quick question so we send the right info: are you mainly looking to sell, rent long-term, rent short-term, or still deciding?
+
+Reply with 1, 2, 3 or 4.
+
+Reply STOP to opt out`;
+
+/** The old name, kept so existing imports keep working. */
+export const TRAVLR_OUTREACH_TEMPLATE = OUTREACH_TEMPLATE;
+/** Used only to make sure the brand registry is loaded with this module. */
+export const OUTREACH_BRAND_KEYS = Object.keys(OUTREACH_BRANDS);

@@ -12,9 +12,10 @@ export function getResendClient(): Resend {
   return new Resend(apiKey);
 }
 
-export function getResendFrom(): string {
+/** `brandName` (NAVEO Stays or NAVEO Homes) is the sender name an owner sees; without it the configured name, then NAVEO, is used. */
+export function getResendFrom(brandName?: string): string {
   const email = process.env.RESEND_FROM_EMAIL;
-  const name = process.env.RESEND_FROM_NAME || 'TRAVLR Pro';
+  const name = brandName || process.env.RESEND_FROM_NAME || 'NAVEO';
   if (!isConfigured(email)) {
     throw new Error('RESEND_FROM_EMAIL is not configured with a verified sender address');
   }

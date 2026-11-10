@@ -21,11 +21,11 @@ interface HomeownerStep {
 const HOMEOWNER_STEPS: HomeownerStep[] = [
   {
     id: 'welcome',
-    title: 'Welcome to Your TRAVLR Dashboard',
+    title: 'Welcome to Your NAVEO Stays Dashboard',
     description: "You've signed your management agreement — congratulations! This is your homeowner portal where you can track revenue, bookings, payouts, and submit requests to your property manager.",
     tip: 'Your dashboard updates automatically as bookings and payouts are processed. No action needed to get started.',
     icon: '🏡',
-    highlight: 'Your property is now in TRAVLR\'s active management pipeline.',
+    highlight: 'Your property is now in NAVEO Stays\'s active management pipeline.',
   },
   {
     id: 'property-setup',
@@ -41,7 +41,7 @@ const HOMEOWNER_STEPS: HomeownerStep[] = [
     id: 'listing-activation',
     title: 'When Your Listing Goes Live',
     description: "Once your listing is activated, you'll see your first bookings appear in the Bookings tab. Your occupancy rate, gross revenue, and net payout will populate automatically from real booking data.",
-    tip: 'You can view but not modify live guest reservations. Contact your TRAVLR property manager for any booking changes.',
+    tip: 'You can view but not modify live guest reservations. Contact your NAVEO Stays property manager for any booking changes.',
     faqLink: '/homeowner/bookings',
     faqLabel: 'Go to Bookings',
     icon: '🚀',
@@ -51,7 +51,7 @@ const HOMEOWNER_STEPS: HomeownerStep[] = [
     id: 'revenue-payouts',
     title: 'Revenue & Payout Statements',
     description: "The Revenue tab shows your monthly gross and net earnings, occupancy rate, and itemized deductions. Payout statements are generated automatically each month and available for download.",
-    tip: 'Net payout = Gross revenue minus TRAVLR management fee, platform fees, and any maintenance costs incurred that month.',
+    tip: 'Net payout = Gross revenue minus NAVEO Stays management fee, platform fees, and any maintenance costs incurred that month.',
     faqLink: '/homeowner/revenue',
     faqLabel: 'View Revenue Tab',
     icon: '💰',

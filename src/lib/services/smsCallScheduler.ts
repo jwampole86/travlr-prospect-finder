@@ -84,7 +84,7 @@ async function history(db: Db, leadId: string) {
     .gte('sent_at', new Date(Date.now() - 7 * 86_400_000).toISOString()).lte('sent_at', new Date().toISOString()).order('sent_at', { ascending: false }).limit(12);
   return (data ?? []).reverse().map(r => {
     const m = (r.metadata ?? {}) as Row; const inbound = m.direction === 'inbound';
-    return { who: inbound ? 'Homeowner' : 'TRAVLR', text: String(inbound ? m.body ?? '' : m.message ?? '').replace(/\s+/g, ' ').slice(0, 400) };
+    return { who: inbound ? 'Homeowner' : 'NAVEO Stays', text: String(inbound ? m.body ?? '' : m.message ?? '').replace(/\s+/g, ' ').slice(0, 400) };
   }).filter(x => x.text);
 }
 
@@ -100,7 +100,7 @@ async function decide(ctx: { name: string | null; address: string; tz: string; n
     const w = new Intl.DateTimeFormat('en-US', { timeZone: ctx.tz, weekday: 'long' }).format(d);
     return `${iso(d)} ${w}${i === 0 ? ' (today)' : i === 1 ? ' (tomorrow)' : ''}`;
   }).join('; ');
-  const system = `You schedule a quick phone call between a homeowner and a TRAVLR Vacation Homes specialist, over text message. TRAVLR manages vacation rentals; the call is about the homeowner's free rental estimate.
+  const system = `You schedule a quick phone call between a homeowner and a NAVEO Stays specialist, over text message. NAVEO Stays manages vacation rentals; the call is about the homeowner's free rental estimate.
 Facts:
 - Today is ${iso(ctx.now)} and it is now ${fmt(ctx.now)} (homeowner's time zone: ${ctx.tz}). Calendar in their time zone: ${days}. Use exactly these dates for "tomorrow", weekday names and "next week". The earliest a call can be booked is ${fmt(ctx.earliest)}; the team is booked until then, so never offer or accept anything earlier, even if they say "now" or "today".
 - Specialists take calls 9am to 5pm Mountain Time, Monday to Saturday. Convert to the homeowner's time zone when you suggest times. A call is about 15 minutes.
@@ -152,7 +152,7 @@ export async function schedulingReply(db: Db, leadId: string, from: string, mess
     const problem = at ? slotProblem(at, tz, now) : 'no_time';
     if (at && !problem) {
       bookedAt = at;
-      reply = `You're all set${/^[A-Za-z'-]{2,}$/.test(first) ? `, ${first}` : ''}! A TRAVLR specialist will call you ${describeTime(at, tz)} at this number. Just reply here if you need to change it.`;
+      reply = `You're all set${/^[A-Za-z'-]{2,}$/.test(first) ? `, ${first}` : ''}! A NAVEO Stays specialist will call you ${describeTime(at, tz)} at this number. Just reply here if you need to change it.`;
     } else {
       outcome = `ask:${problem}`;
       const earliestLabel = describeTime(earliest, tz).replace(/ at .*/, '');

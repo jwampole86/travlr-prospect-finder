@@ -55,7 +55,7 @@ const STEPS = [
       { value: 'inspection_report', label: 'Inspection Report' },
       { value: 'other', label: 'Other Document' },
     ],
-    guidance: 'Your TRAVLR coordinator will schedule a walkthrough within the first week. You can upload any existing inspection reports or documentation here.',
+    guidance: 'Your NAVEO Stays coordinator will schedule a walkthrough within the first week. You can upload any existing inspection reports or documentation here.',
   },
   {
     step_number: 2,
@@ -483,7 +483,7 @@ export default function STRChecklistPage() {
         </div>
         <h2 className="text-lg font-semibold text-foreground">No Property Linked</h2>
         <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-          Your account isn't linked to a property yet. Contact your TRAVLR coordinator to get set up.
+          Your account isn't linked to a property yet. Contact your NAVEO Stays coordinator to get set up.
         </p>
       </div>
     );
@@ -518,7 +518,7 @@ export default function STRChecklistPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">Overall Progress</p>
-              <p className="text-xs text-muted-foreground">Managed by TRAVLR Onboarding Coordinator</p>
+              <p className="text-xs text-muted-foreground">Managed by NAVEO Stays Onboarding Coordinator</p>
             </div>
           </div>
           <span className="text-2xl font-bold text-foreground">{progressPct}%</span>
@@ -550,7 +550,7 @@ export default function STRChecklistPage() {
         <div className="flex items-start gap-2 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3">
           <Info size={13} className="text-indigo-600 mt-0.5 shrink-0" />
           <p className="text-xs text-indigo-700 dark:text-indigo-300">
-            Your <span className="font-semibold">TRAVLR Onboarding / Operations Coordinator</span> manages this entire process. Upload required documents below and mark steps complete as they're finished.
+            Your <span className="font-semibold">NAVEO Stays Onboarding / Operations Coordinator</span> manages this entire process. Upload required documents below and mark steps complete as they're finished.
           </p>
         </div>
       </div>
@@ -809,7 +809,7 @@ export default function STRChecklistPage() {
           <div>
             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">All Steps Complete — You're STR-Ready!</p>
             <p className="text-xs text-emerald-600/80 dark:text-emerald-400 mt-1">
-              Your property has completed all onboarding steps. Your TRAVLR coordinator will finalize the listing launch shortly.
+              Your property has completed all onboarding steps. Your NAVEO Stays coordinator will finalize the listing launch shortly.
             </p>
           </div>
         </div>

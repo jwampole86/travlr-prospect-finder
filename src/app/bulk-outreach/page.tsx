@@ -98,7 +98,7 @@ const SCORE_RANGES = [
 ];
 
 const DEFAULT_TEMPLATES: OutreachTemplate[] = [
-  { id: 'tpl-1', name: 'Qualified Lead Intro', type: 'sms', content: 'Hi {{contact_name}}, this is {{agent_name}} from TRAVLR. I noticed your property at {{address}} and wanted to discuss a potential opportunity. Would you have 10 minutes this week?', variables: ['contact_name', 'agent_name', 'address'] },
+  { id: 'tpl-1', name: 'Qualified Lead Intro', type: 'sms', content: 'Hi {{contact_name}}, this is {{agent_name}} from NAVEO Stays. I noticed your property at {{address}} and wanted to discuss a potential opportunity. Would you have 10 minutes this week?', variables: ['contact_name', 'agent_name', 'address'] },
   { id: 'tpl-2', name: 'Follow-Up Check-In', type: 'sms', content: 'Hi {{contact_name}}, just following up on our previous conversation about {{address}}. Have you had a chance to consider our proposal?', variables: ['contact_name', 'address'] },
   { id: 'tpl-3', name: 'Call Script — Intro', type: 'call', content: 'Hello, may I speak with {{contact_name}}? This is {{agent_name}} calling about your property at {{address}}.', variables: ['contact_name', 'agent_name', 'address'] },
 ];
@@ -127,7 +127,7 @@ const DEFAULT_SEQUENCE: SmsSequence = {
   steps: [
     {
       id: 'step-1', type: 'sms', label: 'Initial SMS',
-      message: 'Hi {{contact_name}}, this is {{agent_name}} from TRAVLR. Your property at {{address}} caught our attention — would you be open to a quick chat?',
+      message: 'Hi {{contact_name}}, this is {{agent_name}} from NAVEO Stays. Your property at {{address}} caught our attention — would you be open to a quick chat?',
       tcpaChecks: ['opt_in_confirmed', 'dnc_scrubbed', 'quiet_hours'],
     },
     { id: 'step-2', type: 'delay', label: 'Wait 48 hours', delayHours: 48 },
@@ -463,17 +463,17 @@ const PRESET_TEMPLATES: PresetTemplate[] = [
   // ── Initial Outreach ──
   {
     id: 'pre-io-1', category: 'initial_outreach', type: 'sms', name: 'Friendly Intro — SMS',
-    content: 'Hi {{contact_name}}, this is {{agent_name}} from TRAVLR. I came across your property at {{address}} and would love to chat about a potential opportunity. Would you have 10 minutes this week?',
+    content: 'Hi {{contact_name}}, this is {{agent_name}} from NAVEO Stays. I came across your property at {{address}} and would love to chat about a potential opportunity. Would you have 10 minutes this week?',
     variables: ['contact_name', 'agent_name', 'address'],
   },
   {
     id: 'pre-io-2', category: 'initial_outreach', type: 'call', name: 'Cold Call Opener',
-    content: 'Hello, may I speak with {{contact_name}}? Hi, this is {{agent_name}} from TRAVLR. I\'m reaching out about your property at {{address}} — we work with property owners in your area to maximize rental income. Is now a good time?',
+    content: 'Hello, may I speak with {{contact_name}}? Hi, this is {{agent_name}} from NAVEO Stays. I\'m reaching out about your property at {{address}} — we work with property owners in your area to maximize rental income. Is now a good time?',
     variables: ['contact_name', 'agent_name', 'address'],
   },
   {
     id: 'pre-io-3', category: 'initial_outreach', type: 'sms', name: 'High-Score Lead Intro',
-    content: 'Hi {{contact_name}}, {{agent_name}} here from TRAVLR. Your property at {{address}} scored highly in our market analysis — we\'d love to share what we found. Reply YES to learn more or STOP to opt out.',
+    content: 'Hi {{contact_name}}, {{agent_name}} here from NAVEO Stays. Your property at {{address}} scored highly in our market analysis — we\'d love to share what we found. Reply YES to learn more or STOP to opt out.',
     variables: ['contact_name', 'agent_name', 'address'],
   },
   // ── Follow-Up ──
@@ -489,7 +489,7 @@ const PRESET_TEMPLATES: PresetTemplate[] = [
   },
   {
     id: 'pre-fu-3', category: 'follow_up', type: 'call', name: 'Post-Proposal Follow-Up Call',
-    content: 'Hi {{contact_name}}, this is {{agent_name}} from TRAVLR. I\'m following up on the proposal we sent for {{address}}. Do you have any questions, or would you like to move forward?',
+    content: 'Hi {{contact_name}}, this is {{agent_name}} from NAVEO Stays. I\'m following up on the proposal we sent for {{address}}. Do you have any questions, or would you like to move forward?',
     variables: ['contact_name', 'agent_name', 'address'],
   },
   // ── Objection Handling ──

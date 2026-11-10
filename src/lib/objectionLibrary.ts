@@ -1,5 +1,5 @@
 /**
- * TRAVLR Pre-Built Objection Library
+ * NAVEO Stays Pre-Built Objection Library
  * Curated responses to the most common homeowner objections.
  * Pattern matching is done before falling back to live LLM generation.
  */
@@ -40,7 +40,7 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
       /listed on airbnb/i,
     ],
     response: `Suggested next line: "That's great — it means you already know the upside. What we take off your plate is the day-to-day: guest communication, pricing adjustments, maintenance calls. We'd love to show you a comparison of what we'd project for your property versus what you're currently netting."`,
-    note: 'Validate their experience, then position TRAVLR as an upgrade, not a replacement.',
+    note: 'Validate their experience, then position NAVEO Stays as an upgrade, not a replacement.',
   },
   {
     id: 'hoa-restrictions',
@@ -55,7 +55,7 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
       /short.?term.*(not allowed|prohibited|ban)/i,
     ],
     response: `Suggested next line: "That's something we run into fairly often — our team reviews HOA rules as part of the qualification process, so we'd want to confirm what's permitted before moving forward. If there are restrictions, we can talk through what options might still work within those rules. Can you tell me a bit more about what the HOA allows?"`,
-    note: 'Don\'t dismiss — gather more info and position TRAVLR as experienced with HOA situations.',
+    note: 'Don\'t dismiss — gather more info and position NAVEO Stays as experienced with HOA situations.',
   },
   {
     id: 'trust-skepticism',
@@ -216,7 +216,7 @@ export const OBJECTION_LIBRARY: ObjectionEntry[] = [
       /local.*(rules|laws|market)/i,
     ],
     response: `Suggested next line: "Regulatory environment is something we track closely — it varies a lot by city and even by neighborhood. We review the current rules for every property before we take it on, so we'd confirm what's permitted for your specific address before moving forward. Can I ask which city the property is in?"`,
-    note: 'Position TRAVLR as the expert on local regulations — gather the city to give a specific answer.',
+    note: 'Position NAVEO Stays as the expert on local regulations — gather the city to give a specific answer.',
   },
   {
     id: 'not-interested-general',
@@ -293,9 +293,9 @@ export const SCRIPT_BEATS: ScriptBeat[] = [
     label: 'Introduction',
     shortLabel: 'Intro',
     patterns: [
-      /this is .* (from|with) travlr/i,
-      /calling from travlr/i,
-      /travlr vacation/i,
+      /this is .* (from|with) (travlr|naveo)/i,
+      /calling from (travlr|naveo)/i,
+      /(travlr|naveo) (vacation|stays|homes)/i,
       /my name is/i,
     ],
     scriptIds: ['initial_outreach', 'follow_up', 'questionnaire_handoff', 'proposal', 'closing_contract'],

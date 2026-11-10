@@ -44,3 +44,4 @@ turbo/.env
 # Supabase CLI local cache
 supabase/.temp/
 .next-prod/
+scripts/.template-backup-*.json

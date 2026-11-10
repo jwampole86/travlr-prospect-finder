@@ -13,7 +13,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FALLBACK = { subject: 'Following up on {{address}}', body: 'Hi {{contactName}},\n\nI wanted to follow up about {{address}}. Would you be open to a quick conversation about what it could earn as a managed vacation rental?\n\nBest regards,\n{{senderName}}' };
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const html = (text: string, unsub: string) => `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a;line-height:1.6;font-size:15px;">${text.split(/\n{2,}/).map(p => `<p style="margin:0 0 12px;">${esc(p).replace(/\n/g, '<br>')}</p>`).join('')}<hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0;"><p style="font-size:11px;color:#6b7280;">TRAVLR Vacation Homes, ${esc(POSTAL)}.<br>If you would rather not hear from us, <a href="${unsub}" style="color:#6b7280;">unsubscribe here</a>.</p></body></html>`;
+const html = (text: string, unsub: string) => `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a;line-height:1.6;font-size:15px;">${text.split(/\n{2,}/).map(p => `<p style="margin:0 0 12px;">${esc(p).replace(/\n/g, '<br>')}</p>`).join('')}<hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0;"><p style="font-size:11px;color:#6b7280;">NAVEO Stays, ${esc(POSTAL)}.<br>If you would rather not hear from us, <a href="${unsub}" style="color:#6b7280;">unsubscribe here</a>.</p></body></html>`;
 
 /**
  * POST /api/follow-up/cadence  { stepId, action: 'preview' | 'send' | 'done' | 'skip', templateId? }
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   const templateId = body.templateId || step.template_id || null;
   const { data: tpl } = templateId ? await db.from('email_templates').select('id,subject,body').eq('id', templateId).maybeSingle() : { data: null };
   const { data: profile } = await db.from('user_profiles').select('full_name').eq('id', access.actor.user.id).maybeSingle();
-  const senderName = String(profile?.full_name ?? '').trim() || process.env.RESEND_FROM_NAME || 'The TRAVLR team';
+  const senderName = String(profile?.full_name ?? '').trim() || process.env.RESEND_FROM_NAME || 'The NAVEO Stays team';
   const mail = renderTemplate(tpl?.subject ?? FALLBACK.subject, tpl?.body ?? FALLBACK.body, lead, senderName);
   if (mail.missing.length) return NextResponse.json({ error: `This template needs fields we cannot fill automatically: ${mail.missing.map(m => `{{${m}}}`).join(', ')}. Pick another template or edit it first.`, code: 'missing_fields' }, { status: 422 });
 
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
 
   const { data: tok } = await db.from('email_unsubscribe_tokens').insert({ lead_id: lead.id }).select('token').single();
   const unsub = tok?.token ? `${SITE}/api/cadence/unsubscribe?token=${tok.token}` : `${SITE}/unsubscribe`;
-  const text = `${mail.text}\n\n--\nTRAVLR Vacation Homes, ${POSTAL}\nTo stop hearing from us: ${unsub}`;
+  const text = `${mail.text}\n\n--\nNAVEO Stays, ${POSTAL}\nTo stop hearing from us: ${unsub}`;
   const sent = await sendTrackedEmail(db, { to, subject: mail.subject, html: html(mail.text, unsub), text, replyTo: REPLY_TO, leadId: lead.id, kind: 'cadence_followup', metadata: { cadence_step_id: stepId, step_number: step.step_number, template_id: tpl?.id ?? null, sent_by: access.actor.user.id } });
   if (!sent.ok) return NextResponse.json({ error: `The email could not be sent: ${sent.error ?? 'unknown error'}` }, { status: 502 });
   await db.from('outreach_cadences').update({ status: 'sent', ...(tpl?.id ? { template_id: tpl.id } : {}) }).eq('id', stepId);

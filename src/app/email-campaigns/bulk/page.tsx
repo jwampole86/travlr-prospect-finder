@@ -279,7 +279,7 @@ export default function EmailCampaignsPage() {
         body: JSON.stringify({
           templateId: selectedTemplateId,
           leadIds: Array.from(selectedLeadIds),
-          senderName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'TRAVLR Team',
+          senderName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'NAVEO Stays Team',
           dryRun: true,
         }),
       });
@@ -340,7 +340,7 @@ export default function EmailCampaignsPage() {
         body: JSON.stringify({
           templateId: selectedTemplateId,
           leadIds: Array.from(selectedLeadIds),
-          senderName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'TRAVLR Team',
+          senderName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'NAVEO Stays Team',
           dryRun: false,
           campaignId,
         }),

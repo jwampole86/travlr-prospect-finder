@@ -8,6 +8,7 @@ import {
 } from '@/lib/seller/types';
 import type { Partner } from './PartnersTab';
 import { MessageCard } from './CampaignMessages';
+import { outreachBrandFor } from '@/lib/brands';
 import type { DualAssessment } from '@/lib/seller/dualOpportunity';
 import { CHOICES, messagesForChoice, type Choice } from '@/lib/seller/outreachCampaign';
 import { AuthBadge, Bar, Field, api, btnCls, inputCls, money, primaryBtnCls } from './ui';
@@ -116,7 +117,7 @@ export default function OpportunityPanel({ id, onClose, onChanged }: { id: strin
             </p>
             <div className="mt-2 grid gap-2 lg:grid-cols-2">
               {messagesForChoice(opp.reply_choice).map((m) => (
-                <MessageCard key={m.id} message={m} vars={{ first_name: (d.lead?.contact_name ?? '').split(' ')[0], address: [d.lead?.address, d.lead?.city].filter(Boolean).join(', ') }} />
+                <MessageCard key={m.id} message={m} vars={{ first_name: (d.lead?.contact_name ?? '').split(' ')[0], address: [d.lead?.address, d.lead?.city].filter(Boolean).join(', '), brand: outreachBrandFor(d.lead?.price_type).name }} />
               ))}
             </div>
           </div>

@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-09-6fca1347",
+  "version": "2026-11-10-386c3ff4",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -716,7 +716,7 @@
         "stays",
         "owner"
       ],
-      "answer": "The campaign helps your team find out what an owner actually wants for a property, then send them one clear next step: sale, long-term rental (NAVEO Homes), short-term rental (NAVEO Stays), or both and still deciding. It starts with one short text and email asking which they want, then follows with a message matched to their answer. The goals are to separate real seller intent from curiosity or rental interest, route to the right service, confirm permission and purpose instead of assuming it, give each owner one authorized next step, and never promise a sale, a valuation or any regulated activity in a message. A STOP reply withdraws every permission at once.",
+      "answer": "The campaign helps your team find out what an owner actually wants for a property, then send them one clear next step: sale, long-term rental (NAVEO Homes), short-term rental (NAVEO Stays), or both and still deciding. It starts with one short text and email asking which they want, then follows with a message matched to their answer. The goals are to separate real seller intent from curiosity or rental interest, route to the right service, confirm permission and purpose instead of assuming it, give each owner one authorized next step, and never promise a sale, a valuation or any regulated activity in a message. A STOP reply withdraws every permission at once. Every text and email names the NAVEO that matches the property: NAVEO Stays for a home for rent and NAVEO Homes for a home for sale. TRAVLR is no longer used in messages to owners.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
       "kind": "guide"
@@ -908,7 +908,7 @@
         "message library",
         "where"
       ],
-      "answer": "Open Seller & owner services and choose the Campaign tab. It lists the first text and email, the text and email for each of the four answers, and the day 3 and day 7 follow-ups. Type the owner's first name, your name and the property address at the top and every message fills itself in; use Copy to copy a message or its subject line, then send it yourself from your own text or email. Copying sends nothing. When an owner has answered, their opportunity also shows the matching messages.",
+      "answer": "Open Seller & owner services and choose the Campaign tab. It lists the first text and email, the text and email for each of the four answers, and the day 3 and day 7 follow-ups. Choose whether the property is for rent or for sale, then type the owner's first name, your name and the address, and every message fills itself in. Messages for a home for rent come from NAVEO Stays and messages for a home for sale come from NAVEO Homes; use Copy to copy a message or its subject line, then send it yourself from your own text or email. Copying sends nothing. When an owner has answered, their opportunity also shows the matching messages.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
       "kind": "guide"

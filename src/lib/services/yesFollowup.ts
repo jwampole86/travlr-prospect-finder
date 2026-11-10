@@ -11,7 +11,7 @@ const MESSAGING_SERVICE = process.env.TWILIO_MESSAGING_SERVICE_SID || 'MG9c28a48
 
 /** The follow-up to a YES reply. Open-ended on purpose: the homeowner names the day and time, not a "today or tomorrow" slot. */
 export const yesFollowupText = (firstName: string | null, address: string) =>
-  `Hi${firstName ? ` ${firstName}` : ''}, this is TRAVLR Vacation Homes following up on your YES about ${address}. When would be the best day and time for a quick call about your free rental estimate? Just reply to this text with whatever works for you. Reply STOP to opt out.`;
+  `Hi${firstName ? ` ${firstName}` : ''}, this is NAVEO Stays following up on your YES about ${address}. When would be the best day and time for a quick call about your free rental estimate? Just reply to this text with whatever works for you. Reply STOP to opt out.`;
 
 /** Schedules the follow-up for the first moment in the owner's texting window, once per lead. */
 export async function scheduleYesFollowup(db: Db, leadId: string, firstName: string | null): Promise<{ ok: boolean; reason?: string; sendAt?: string }> {

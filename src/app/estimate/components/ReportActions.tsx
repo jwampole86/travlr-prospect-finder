@@ -57,7 +57,7 @@ export default function ReportActions({ address, equipment, onSchedule, align = 
       if (blob.type !== 'application/pdf') throw new Error('not a pdf');
       const disposition = res.headers.get('content-disposition') ?? '';
       const star = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
-      const name = (star ? decodeURIComponent(star) : /filename="([^"]+)"/i.exec(disposition)?.[1]) ?? 'TRAVLR - Property Revenue Report.pdf';
+      const name = (star ? decodeURIComponent(star) : /filename="([^"]+)"/i.exec(disposition)?.[1]) ?? 'NAVEO Stays - Property Revenue Report.pdf';
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = name; a.rel = 'noopener';
@@ -75,7 +75,7 @@ export default function ReportActions({ address, equipment, onSchedule, align = 
     trackEstimateEvent('link_copied');
     const url = buildShareUrl(address, equipment);
     if (canShare) {
-      try { await navigator.share({ title: 'My TRAVLR revenue report', url }); return; } catch (e) { if ((e as Error)?.name === 'AbortError') return; }
+      try { await navigator.share({ title: 'My NAVEO Stays revenue report', url }); return; } catch (e) { if ((e as Error)?.name === 'AbortError') return; }
     }
     if (await copyText(url)) {
       setCopied(true); setTimeout(() => setCopied(false), 2500);
