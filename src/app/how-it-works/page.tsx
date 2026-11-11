@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Search, FileSignature, Settings2, TrendingUp } from 'lucide-react';
+import { Search, FileSignature, Settings2, TrendingUp, Sparkles } from 'lucide-react';
 import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 
 export const metadata: Metadata = {
   title: 'How it works | AVYRO AI',
-  description: 'Find, onboard, operate, grow: how AVYRO AI takes a vacation rental operator from a list of homes to signed owners and running properties.',
+  description: 'Find, onboard, operate, grow, with AVA by your side: how AVYRO AI takes a vacation rental operator from a list of homes to signed owners and running properties.',
 };
 
 const STEPS = [
@@ -18,6 +18,8 @@ const STEPS = [
     points: ['Follow-up tasks and personal alerts', 'Cleaner and job coordination', 'Owner portal for progress and documents'] },
   { icon: TrendingUp, step: '4', name: 'Grow', body: 'See what is actually converting: the acquisition funnel, agent performance and market data, with every number tied back to the people behind it.',
     points: ['Acquisition funnel and campaign results', 'Agent performance and coaching', 'Market and regulation intelligence'] },
+  { icon: Sparkles, step: '+', name: 'Ask AVA', body: 'At every step, AVA is there. She is the assistant built into each screen: she answers how-to questions, opens the page you need, walks you through the menu, finds leads and follow-ups, and can speak and listen. When something should change she asks you first, and only reports it done once it really is.',
+    points: ['Answers from your help center and your team\'s own notes', 'Opens pages, points at them and runs guided tours', 'Available to admins, owners and agents, within their role'] },
 ];
 
 export default function HowItWorksPage() {
@@ -28,7 +30,7 @@ export default function HowItWorksPage() {
         <div className="max-w-4xl mx-auto px-5 sm:px-6 py-14 sm:py-20 text-center">
           <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">How it works</p>
           <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">Find. Onboard. Operate. Grow.</h1>
-          <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">One system from the first list of homes to a running portfolio.</p>
+          <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">One system from the first list of homes to a running portfolio, with AVA, your built-in assistant, to show you the way.</p>
         </div>
       </section>
       <section className="max-w-4xl mx-auto px-5 sm:px-6 py-12 space-y-6">
@@ -36,7 +38,7 @@ export default function HowItWorksPage() {
           <div key={s.name} className="bg-card border border-border rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row gap-5">
             <div className="flex items-center sm:items-start gap-3 sm:w-44 shrink-0">
               <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><s.icon className="w-5 h-5" /></div>
-              <div><p className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase">Step {s.step}</p><h2 className="text-xl font-bold text-foreground">{s.name}</h2></div>
+              <div><p className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase">{s.step === '+' ? 'Anywhere' : `Step ${s.step}`}</p><h2 className="text-xl font-bold text-foreground">{s.name}</h2></div>
             </div>
             <div>
               <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{s.body}</p>

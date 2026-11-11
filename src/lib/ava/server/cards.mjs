@@ -48,6 +48,16 @@ export const CARDS = {
     ...(Array.isArray(r.priority) ? r.priority.filter(withId).slice(0, 2).map((l) => leadCard(l)) : []),
     ...(Array.isArray(r.followups) ? CARDS.list_followups({ items: r.followups }).slice(0, 2) : [])
   ],
+  get_stats: (r, ctx) => {
+    const entries = Object.entries(r.counts ?? {}).filter(([, n]) => Number.isFinite(n) && n > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    if (!entries.length) return [];
+    const page = ctx.pages.find((p) => p.id === 'lead-management');
+    return [{
+      id: 'stats_' + String(r.by).slice(0, 20), title: 'Lead counts', meta: `${Number.isFinite(r.total) ? r.total : ''} total`.trim(),
+      why: entries.map(([k, n]) => `${n} ${cap(k, 40)}`),
+      actions: page ? [{ kind: 'open_page', label: 'Open leads', page: page.id }] : []
+    }];
+  },
   seller_pipeline: (r, ctx) => {
     const page = ctx.pages.find((p) => p.id === 'seller-pipeline');
     return [{

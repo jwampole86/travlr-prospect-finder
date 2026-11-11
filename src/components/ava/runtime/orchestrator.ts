@@ -23,6 +23,8 @@ export interface OrchestratorHooks {
   voiceReplies: () => boolean;
   /** Sentence being spoken right now (for captions), or null. */
   onCaption?: (sentence: string | null) => void;
+  /** Called once AVA has finished speaking an answer aloud (not a tour step), so a spoken conversation can pass the turn back to the person. */
+  afterSpokenReply?: () => void;
 }
 
 interface PipeState { received: boolean; reasoningOpen: boolean; executed?: boolean; /** The prepared change whose outcome this stream reports. */ actionId?: string }
@@ -125,9 +127,11 @@ export function createOrchestrator(bus: AvaBus, host: AvaHost, hooks: Orchestrat
     bus.emit('ava.answer.started', run.requestId);
     hooks.addMessage('ava', text, sources, { rateable, cards: cards?.length ? cards : undefined });
     history.push({ role: 'assistant', content: text });
-    if (hooks.voiceReplies()) await speak(bus, text, hooks.onCaption);
+    const spoken = hooks.voiceReplies();
+    if (spoken) await speak(bus, text, hooks.onCaption);
     else await sleep(Math.min(1200 + text.length * 22, 5000));
     if (!run.cancelled) bus.emit('ava.answer.ended', run.requestId);
+    if (spoken && !run.cancelled) hooks.afterSpokenReply?.();
   }
 
   /** Narrates a tour step without adding it to the model's conversation history. */

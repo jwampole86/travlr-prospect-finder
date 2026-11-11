@@ -220,3 +220,5 @@
 .ava-root .you-actions + .you-actions { margin-top: 8px; }
 
 .ava-root .you-perf { margin: 0 0 8px; font-size: 12px; color: var(--ava-muted); }
+.ava-root .voice-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ava-muted); }
+.ava-root .voice-pick select { font-size: 12px; max-width: 150px; border-radius: 8px; border: 1px solid #B7C3E3; padding: 2px 4px; background: #fff; color: inherit; }

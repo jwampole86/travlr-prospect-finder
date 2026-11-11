@@ -161,7 +161,7 @@ export default function LoginPage() {
               {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {mode === 'login' ? 'Sign in to AVYRO AI to access your workspace.' : 'Create your AVYRO AI account to get started.'}
+              {mode === 'login' ? 'Sign in to AVYRO AI to access your workspace. AVA, your assistant, will be there to help.' : 'Create your AVYRO AI account to get started.'}
             </p>
             {intendedPlan && (
               <p className="mt-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 capitalize">

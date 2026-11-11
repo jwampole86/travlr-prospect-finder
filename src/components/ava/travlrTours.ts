@@ -1,4 +1,5 @@
 import type { TourDefinition } from './host/types';
+import menuTours from './menuTours.generated.json';
 
 const STAFF = ['admin', 'owner', 'agent'] as const;
 const ADMINS = ['admin', 'owner'] as const;
@@ -8,7 +9,18 @@ const ADMINS = ['admin', 'owner'] as const;
  * source (a test checks every anchor still exists). Routes in /pipeline and the dashboard are admin-only in the app, so
  * those tours are only offered to admins and owners.
  */
+/** Authored tours of the working screens, followed by a generated walk through every menu category (scripts/build-ava-kb.mjs). */
 export const TRAVLR_TOURS: TourDefinition[] = [
+  {
+    id: 'menu-search',
+    title: 'Search the menu',
+    summary: 'Find any page quickly',
+    roles: [...STAFF],
+    keywords: ['search', 'find', 'menu', 'navigation', 'quickly', 'page'],
+    steps: [
+      { id: 'search', anchor: 'nav-search-box', say: 'Type here to find any page in the menu. Words match the page name, what it does and its category, so "phones" finds Contact Enrichment. Press Enter to open the top result, or use the arrow keys to pick another.' }
+    ]
+  },
   {
     id: 'lead-filters',
     title: 'Lead filters',
@@ -135,5 +147,6 @@ export const TRAVLR_TOURS: TourDefinition[] = [
       { id: 'search', anchor: 'help-search', route: '/help-center', say: 'The Help Center is your first stop for questions. Search articles, watch tutorials and find answers to common questions here.' },
       { id: 'topics', anchor: 'help-topics', route: '/help-center', say: 'Pick a topic on the left to browse its guides.' }
     ]
-  }
+  },
+  ...(menuTours as TourDefinition[])
 ];

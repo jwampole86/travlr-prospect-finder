@@ -69,9 +69,9 @@ describe('the messages', () => {
       expect(isEntryQuestion(text)).toBe(false);
     }
     const first = renderMessage(messagesForListing('sale', 'entry').find((m) => m.channel === 'sms')!.body, { brand: 'NAVEO Homes' });
-    expect(first).toContain('sell their home through NAVEO Homes');
-    expect(first).toContain('earn while it');
-    expect(first).toContain('NAVEO Stays could be another option');
+    expect(first).toContain('we support owners through the process');
+    expect(first).toContain('NAVEO Stays may be able to run it as a short-term rental');
+    expect(first).toContain('Worth a short conversation?');
     expect(first).toContain('STOP to opt out');
   });
 

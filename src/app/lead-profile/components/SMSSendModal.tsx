@@ -28,24 +28,24 @@ const SMS_TEMPLATES = [
     id: 'intro',
     label: 'Initial Introduction',
     body: `Hi {name}, this is {agent} from {brand}. We help homeowners like you earn more from your property through short-term rentals. Would you be open to a quick 10-minute call this week?\n\nReply STOP to opt out.`,
-    homesBody: `Hi {name}, this is {agent} from {brand}. We help owners sell their home, and it may be able to earn while it's on the market. Would you be open to a quick 10-minute call this week?\n\nReply STOP to opt out.`,
+    homesBody: `Hi {name}, this is {agent} from {brand}. Reaching out about your home. If a sale is on the table, we support owners through the process, and if it will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental meanwhile. Worth a short call this week?\n\nReply STOP to opt out.`,
   },
   {
     id: 'followup',
     label: 'Follow-Up Nudge',
     body: `Hi {name}, just following up on my earlier message. We've helped similar properties in your area earn 30–50% more than traditional rentals. Happy to share a free revenue estimate — no commitment needed.\n\nReply STOP to opt out.`,
-    homesBody: `Hi {name}, just following up on my earlier message. Not in a rush to sell? NAVEO Stays could be another option while we find the right fit. Happy to talk it through, with no commitment.\n\nReply STOP to opt out.`,
+    homesBody: `Hi {name}, just following up on my earlier message. If the home will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental in the meantime. Worth a short call? No commitment.\n\nReply STOP to opt out.`,
   },
   {
     id: 'revenue',label: 'Revenue Estimate Offer',
     body: `Hi {name}, I ran a quick analysis on your property and the numbers look strong. I'd love to share a personalized revenue projection. Can I send it over?\n\nReply STOP to opt out.`,
-    homesBody: `Hi {name}, I took a quick look at your home. I'd love to share what selling through NAVEO Homes looks like, and how it may be able to earn while it's on the market. Can I send it over?\n\nReply STOP to opt out.`,
+    homesBody: `Hi {name}, I took a quick look at your home. I'd love to share how a sale with NAVEO Homes could work, and how a short-term rental in the meantime may help. Can I send it over?\n\nReply STOP to opt out.`,
   },
   {
     id: 'proposal',
     label: 'Proposal Ready',
     body: `Hi {name}, your custom partnership proposal is ready. It outlines projected earnings, our management fee, and next steps. Would you like me to walk you through it on a call?\n\nReply STOP to opt out.`,
-    homesBody: `Hi {name}, your custom plan for selling through NAVEO Homes is ready. It outlines the steps, timing and next options. Would you like me to walk you through it on a call?\n\nReply STOP to opt out.`,
+    homesBody: `Hi {name}, your custom plan for a sale with NAVEO Homes is ready. It outlines the steps, timing and next options. Would you like me to walk you through it on a call?\n\nReply STOP to opt out.`,
   },
   {
     id: 'checkin',

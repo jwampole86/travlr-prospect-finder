@@ -46,13 +46,40 @@ const W_ANSWER = 0.35;
 export const MIN_COVERAGE = 0.35;
 export const UNKNOWN_COST = 1.0;
 
+// Menu and page entries answer "where is X" questions. For a "how does X work" question the real help comes first, so they count for less
+// unless the question is about finding or opening something.
+const NAV_PENALTY = 0.75;
+const WHERE_PENALTY = 1;
+const NAV_ONLY_MIN = 0.5;
+// Menu words are rare among themselves, so a stray match must not carry a question made mostly of words the menu never uses.
+const NAV_UNKNOWN_COST = 3;
+const NAV_WORDS = new Set(['where', 'find', 'menu', 'sidebar', 'navigate', 'navigation', 'open', 'go', 'take', 'page', 'screen', 'located', 'location', 'section', 'category', 'categories', 'pages', 'screens', 'walk', 'tour', 'guide']);
+const isNavEntry = (e) => e.kind === 'page' || e.kind === 'menu';
+
 /** entries: [{ id?, title?, keywords?: string[], answer, source }]. Returns best matches, or [] when nothing is relevant. */
 export function searchEntries(entries, query, limit = 3, options) {
   return searchEntriesScored(entries, query, limit, options).map((r) => r.entry);
 }
 
 /** Same search, with each match's coverage (0 to 1: how much of the question the entry explains), so callers can tell a strong match from a weak one. */
-export function searchEntriesScored(entries, query, limit = 3, { minCoverage = MIN_COVERAGE, unknownCost = UNKNOWN_COST } = {}) {
+export function searchEntriesScored(entries, query, limit = 3, options = {}) {
+  // Menu and page entries are scored on their own, so their many repeated words do not change how the real help is weighed.
+  const nav = entries.filter(isNavEntry);
+  if (nav.length && nav.length < entries.length) {
+    const asksWhere = String(query).toLowerCase().split(/[^a-z]+/).some((w) => NAV_WORDS.has(w));
+    const help = scoreEntries(entries.filter((e) => !isNavEntry(e)), query, options);
+    // Without a "where" word the real help always wins; a menu page is only offered when no help explained the question, and then only on a strong match.
+    if (!asksWhere && help.length) return help.slice(0, limit);
+    const where = scoreEntries(nav, query, asksWhere ? options : { ...options, unknownCost: NAV_UNKNOWN_COST })
+      .map((r) => ({ ...r, coverage: r.coverage * (asksWhere ? WHERE_PENALTY : NAV_PENALTY) }))
+      .filter((r) => r.coverage >= (asksWhere ? (options.minCoverage ?? MIN_COVERAGE) : NAV_ONLY_MIN));
+    // Written help comes first, and the menu entry follows it, so the page's location never crowds out what the help says about it.
+    return [...help.slice(0, Math.max(1, limit - 1)), ...where].slice(0, limit);
+  }
+  return scoreEntries(entries, query, options);
+}
+
+function scoreEntries(entries, query, { minCoverage = MIN_COVERAGE, unknownCost = UNKNOWN_COST } = {}) {
   const q = [...new Set(tokens(query))];
   if (!q.length || !entries.length) return [];
 
@@ -83,5 +110,5 @@ export function searchEntriesScored(entries, query, limit = 3, { minCoverage = M
     const coverage = got / mass;
     if (coverage >= minCoverage) scored.push({ entry, coverage });
   });
-  return scored.sort((a, b) => b.coverage - a.coverage).slice(0, limit);
+  return scored.sort((a, b) => b.coverage - a.coverage);
 }

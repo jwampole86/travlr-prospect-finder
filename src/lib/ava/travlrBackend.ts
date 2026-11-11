@@ -3,6 +3,7 @@ import { searchEntriesScored } from './server/knowledge.mjs';
 import { ToolDenied, ToolError, ToolTimeout } from './server/errors.mjs';
 import { KNOWLEDGE } from './knowledge';
 import { toKnowledgeEntry } from './teamKnowledge';
+import { PORTFOLIO_STATES } from '@/lib/localBlurbs';
 
 export interface AvaActor { id: string; role: string; organizationId?: string | null }
 interface Ctx { actor: AvaActor; signal?: AbortSignal }
@@ -199,6 +200,30 @@ export function createTravlrBackend(deps: BackendDeps) {
         priorityCount, priority, unverifiedCount,
         dueCount: due.length, overdueCount: due.filter((f) => f.overdueDays > 0).length, followups: due.slice(0, 2)
       };
+    },
+
+    /** Head counts of the caller's own leads, grouped one way. Admins and owners count the whole organization; agents only their assigned leads. */
+    async getStats({ by }: { by: string }, ctx: Ctx) {
+      const base = () => scope(ctx, deps.db.from('leads').select('id', { count: 'exact', head: true }).or('is_synthetic.is.null,is_synthetic.eq.false'));
+      const total = await countOf(base());
+      const groups: Record<string, Array<[string, (q: any) => any]>> = {
+        stage: ['New Lead', 'Contacted', 'Interested', 'Proposal Sent', 'Under Contract', 'Live', 'Not a Fit'].map((v) => [v, (q) => q.eq('stage', v)]),
+        source: ['Trulia', 'Zillow', 'PadMapper', 'HotPads', 'Craigslist'].map((v) => [v, (q) => q.eq('source', v)]),
+        state: PORTFOLIO_STATES.map(({ value }) => [value, (q: any) => q.eq('state', value)] as [string, (q: any) => any]),
+        contact: [['Fully verified', (q) => q.eq('fully_verified', true)], ['With a phone number', (q) => q.not('contact_phone', 'is', null)], ['With an owner name', (q) => q.not('contact_name', 'is', null)], ['Luxury', (q) => q.eq('luxury', true)]],
+        skip_trace: ['PENDING', 'RUNNING', 'FOUND', 'POSSIBLE_MATCH', 'NO_MATCH', 'ERROR'].map((v) => [v, (q) => q.eq('skip_trace_status', v)]),
+        listing_type: [['For sale', (q) => q.eq('price_type', 'sale')], ['For rent', (q) => q.eq('price_type', 'rent')]]
+      };
+      const rows = groups[by];
+      if (!rows) throw new ToolError('unknown grouping');
+      const counts: Record<string, number> = {};
+      await Promise.all(rows.map(async ([label, f]) => { counts[label] = await countOf(f(base())); }));
+      // Groups that partition the leads also report the remainder, so the numbers add up.
+      if (['stage', 'source', 'state', 'listing_type', 'skip_trace'].includes(by)) {
+        const rest = total - Object.values(counts).reduce((a, b) => a + b, 0);
+        if (rest > 0) counts[by === 'skip_trace' ? 'Not traced' : 'Other'] = rest;
+      }
+      return { source: 'backend', label: 'AVYRO leads', asOf: now().toISOString(), by, total, counts };
     },
 
     /** Open seller opportunities by stage, in the caller's organization. Admin and owner only (the gateway enforces the role). */

@@ -178,6 +178,82 @@
       "source": "AVA Knowledge",
       "route": "/ava-knowledge",
       "kind": "guide"
+    },
+    {
+      "id": "ava-what-can-do",
+      "title": "What can AVA do?",
+      "keywords": [
+        "ava",
+        "assistant",
+        "what can you do",
+        "help",
+        "capabilities",
+        "features",
+        "abilities"
+      ],
+      "answer": "I'm AVA, the assistant built into AVYRO. I can explain how any screen works, tell you where a page is in the menu and open it for you, walk you through a whole menu category one item at a time, or run a guided tour of a screen. I can search your leads, show details and why a lead scores the way it does, list follow-ups and leads still to verify, give you a daily briefing, and count leads by stage, source, state, contact status, skip-trace result or sale versus rent. With your confirmation I can create a follow-up, move a lead to another stage or mark a follow-up done, and offer an export of what is on screen. I point and open, but I never click or type for you, and I only change something after you approve it. Admins and owners see everything in their organization; agents see their own leads.",
+      "source": "AVA assistant",
+      "kind": "guide"
+    },
+    {
+      "id": "ava-voice",
+      "title": "How do I hear AVA and talk to her out loud?",
+      "keywords": [
+        "voice",
+        "speak",
+        "spoken",
+        "talk",
+        "hear",
+        "audio",
+        "microphone",
+        "mic",
+        "conversation",
+        "say",
+        "listen",
+        "hey ava",
+        "wake word",
+        "speech"
+      ],
+      "answer": "Open AVA and turn on Spoken replies at the bottom of her panel; she then reads her answers aloud in a natural voice, and you can pick a different voice from the Voice list. Turn on Talk with me and, after she speaks, she listens for your reply, so you can have a back-and-forth without typing. Tap the microphone to speak a question at any time, or say \"Hey AVA\" once the microphone is allowed. If you say nothing she stops listening. Speaking to her needs Chrome, Edge or Safari and microphone permission; if her natural voice is ever unavailable she uses your browser's voice instead. Captions can stay on while she talks.",
+      "source": "AVA assistant",
+      "kind": "guide"
+    },
+    {
+      "id": "ava-menu-tours",
+      "title": "Can AVA show me around the menu and explain every page?",
+      "keywords": [
+        "menu",
+        "tour",
+        "walkthrough",
+        "walk me through",
+        "navigation",
+        "navigate",
+        "sidebar",
+        "show me around",
+        "every page",
+        "explain"
+      ],
+      "answer": "Yes. Ask me to walk you through any menu category, for example \"walk me through the Outreach menu\", and I'll move from item to item in the sidebar, pointing at each one and explaining what it is for. Ask \"where is Cron Job Monitor?\" and I'll tell you which menu it is in and open it for you. Long menus are split into short tours of ten items, so you can stop whenever you like.",
+      "source": "AVA assistant",
+      "kind": "guide"
+    },
+    {
+      "id": "ava-counts",
+      "title": "Can AVA tell me how many leads I have?",
+      "keywords": [
+        "how many",
+        "count",
+        "counts",
+        "total",
+        "numbers",
+        "stats",
+        "statistics",
+        "leads by",
+        "breakdown"
+      ],
+      "answer": "Yes. Ask for counts by pipeline stage, listing source, state, contact status (verified, with a phone number), skip-trace result, or for sale versus for rent. Admins and owners get totals for the whole organization; agents get counts for their own leads. The numbers come straight from the lead database when you ask, and I'll say when they were taken.",
+      "source": "AVA assistant",
+      "kind": "guide"
     }
   ]
 }

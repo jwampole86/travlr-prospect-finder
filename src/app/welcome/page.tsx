@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, Home, ArrowRight, CheckCircle2, ShieldCheck, PlayCircle } from 'lucide-react';
+import { Search, Database, TrendingUp, Users, Zap, Brain, BarChart2, Home, ArrowRight, CheckCircle2, ShieldCheck, PlayCircle, Sparkles, MessageCircle, Compass, Mic } from 'lucide-react';
 import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 import PricingFaq from '@/app/prospect-finder/components/PricingFaq';
@@ -8,21 +8,23 @@ import ProductShowcase from '@/app/welcome/components/ProductShowcase';
 
 export const metadata: Metadata = {
   title: 'AVYRO AI | AI-Powered Growth for Property Managers',
-  description: 'AVYRO AI is the AI-powered growth and operations platform for vacation rental and property management companies. Find more high-value homeowners and turn them into management contracts.',
+  description: 'AVYRO AI is the AI-powered growth and operations platform for vacation rental and property management companies. Find more high-value homeowners, turn them into management contracts, and let AVA, your built-in assistant, guide your team through every screen.',
 };
 
 const MODULES = [
-  { icon: Search, name: 'Prospect', outcome: 'Know who to call first.', body: 'Discover homeowner opportunities, verify owner and contact data, and score every lead.', points: ['Property discovery & lead generation', 'Owner/contact intelligence & data enrichment', 'Verification workflows & lead scoring'] },
+  { icon: Sparkles, name: 'AVA', outcome: 'Ask, and she shows you.', body: 'AVA is the assistant built into every screen. She answers how-to questions, opens the page you need, walks you through the menu and handles routine steps once you approve them.', points: ['Answers from your own help center and your team\'s notes', 'Searches your leads, follow-ups and counts', 'Speaks, listens and says "Hey AVA"'] },
+  { icon: Search, name: 'Prospect', outcome: 'Know who to call first.', body: 'Discover homeowner opportunities, verify owner and contact data, and score every lead.', points: ['Property discovery & lead generation', 'Owner/contact intelligence, skip tracing & enrichment', 'Verification, duplicate matching & lead scoring'] },
   { icon: Database, name: 'Intelligence', outcome: 'Walk into every call prepared.', body: 'Revenue estimates, market intelligence, and STR regulations at your fingertips.', points: ['Property & revenue intelligence', 'Market intelligence & opportunity scoring', 'STR regulation lookups by city/state'] },
   { icon: Users, name: 'Pipeline', outcome: 'See every lead move.', body: 'A live board and map built on your real campaign stages, with assignments, notes, and follow-up in one place.', points: ['Drag-and-drop pipeline board & map view', 'Quick views and overview tiles in Lead Management', 'Notes, assignments & activity history'] },
-  { icon: Zap, name: 'Engage', outcome: 'Turn research into conversations.', body: 'Text campaigns, email, and calling with AI-assisted guidance.', points: ['Text campaigns with carrier checks, quiet hours & opt-outs', 'Voice, email & a live call teleprompter', 'Campaigns & appointment scheduling'] },
+  { icon: Zap, name: 'Engage', outcome: 'Turn research into conversations.', body: 'Text campaigns, email, and calling with AI-assisted guidance.', points: ['Text campaigns with carrier checks, quiet hours & opt-outs', 'Voice, email & a live call teleprompter', 'Seller & owner services for homeowners who may sell'] },
   { icon: Home, name: 'Co-Host', outcome: 'Turn listings into owners.', body: 'Match Airbnb and Vrbo listings to verified owners through public license records.', points: ['Owner matching & verification', 'Audit offers by email and text', 'Numbered pages and market filters'] },
   { icon: TrendingUp, name: 'Automate', outcome: 'Reduce manual busywork.', body: 'Workflow automation, lead routing, and alerts that handle the busywork.', points: ['Personal alerts & working hours', 'AI agents & lead routing', 'Automated follow-up & notifications'] },
   { icon: Brain, name: 'Talent', outcome: 'Hire the team that can grow.', body: 'AI voice interviews, scorecards, and a full hiring pipeline for your team.', points: ['AI voice interviews & scheduling', 'Candidate scorecards & role plays', 'Interview calendar & Zoom integration'] },
-  { icon: BarChart2, name: 'Analytics', outcome: 'See what is actually converting.', body: 'Acquisition funnel, agent performance, and an Executive Overview where every number drills into the people behind it.', points: ['Executive Overview with drill-down', 'Agent & team performance', 'Live System Status & Team Chat'] },
+  { icon: BarChart2, name: 'Analytics', outcome: 'See what is actually converting.', body: 'Acquisition funnel, agent performance, and an Executive Overview where every number drills into the people behind it.', points: ['Executive Overview with drill-down', 'Agent & team performance', 'Live System Status, Team Chat & menu search'] },
 ];
 
 const PROOF_POINTS = [
+  'AVA, your built-in guide on every screen',
   'Live text, voice, email, AI, and data stack',
   'Pipeline board, map, and Co-Host program',
   'Operator-shaped call and hiring tools',
@@ -122,6 +124,36 @@ export default function WelcomePage() {
         <ProductShowcase />
       </section>
 
+      {/* Meet AVA */}
+      <section id="ava" className="max-w-6xl mx-auto px-5 sm:px-6 pb-16">
+        <div className="bg-card border border-border rounded-3xl p-6 sm:p-10">
+          <div className="max-w-2xl">
+            <p className="text-xs font-bold tracking-[0.18em] text-primary uppercase mb-3">Meet AVA</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">The assistant that knows AVYRO AI inside out.</h2>
+            <p className="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
+              AVA lives in the corner of every screen your team uses. Ask her anything about the platform, or just tell her where you want to go, and she will show you.
+            </p>
+          </div>
+          <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { icon: MessageCircle, title: 'Ask', body: 'Plain-language answers about every screen, drawn from your approved help center and your own team\'s notes. If she does not know, she says so.' },
+              { icon: Compass, title: 'Show me', body: 'AVA opens any page for you, points at it in the menu and walks you through a whole menu category, one item at a time.' },
+              { icon: CheckCircle2, title: 'Get it done', body: 'Search leads, see counts, check follow-ups and get a daily briefing. When something should change, she asks first and tells you only when it really happened.' },
+              { icon: Mic, title: 'Talk', body: 'Turn on spoken replies and talk with her out loud, or say "Hey AVA". Captions are always available.' },
+            ].map(({ icon: Icon, title, body }) => (
+              <div key={title} className="rounded-2xl border border-border bg-background p-5">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center mb-3"><Icon className="w-4 h-4 text-primary" /></div>
+                <h3 className="text-sm font-bold text-foreground">{title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{body}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-xs text-muted-foreground">
+            AVA is available to admins, owners and agents. She only sees what your role allows, never clicks or types for you, and never changes a record without your approval.
+          </p>
+        </div>
+      </section>
+
       {/* Platform Workflow */}
       <section className="max-w-5xl mx-auto px-5 sm:px-6 pb-16">
         <div className="text-center mb-8">
@@ -176,7 +208,7 @@ export default function WelcomePage() {
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">What's Inside AVYRO AI</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">AVYRO AI organizes everything your team needs into one coherent platform.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {MODULES.map(({ icon: Icon, name, outcome, body, points }) => (
             <div key={name} className="bg-card border border-border rounded-2xl p-6 hover:border-primary/40 hover:shadow-md transition-all">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
@@ -221,6 +253,7 @@ export default function WelcomePage() {
               'Discover and prioritize high-value homeowner opportunities, with luxury lead access on Business and Enterprise plans',
               'Access available property and contact intelligence',
               'Watch every lead move on a live pipeline board and map, from first text to signed contract',
+              'Ask AVA for help on any screen: she answers, opens the page and walks your team through it',
               'Partner with hosts through the Co-Host program, matched to verified owners',
               'Automate outreach and follow-up without losing the personal touch',
               'AI-assisted hiring tools to help you build your team',

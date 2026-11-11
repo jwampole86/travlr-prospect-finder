@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Search, ShieldCheck, MessageSquare, Home, FileSignature, Map, Brain, ClipboardList, Bell, BarChart2, Users, Sparkles } from 'lucide-react';
+import { Search, ShieldCheck, MessageSquare, Home, FileSignature, Map, Brain, ClipboardList, Bell, BarChart2, Users, Sparkles, Compass, Mic, MessageCircle } from 'lucide-react';
 import MarketingHeader from '@/app/prospect-finder/components/MarketingHeader';
 import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 
@@ -34,6 +34,16 @@ const PILLARS = [
       { icon: FileSignature, title: 'Onboarding and agreements', body: 'Onboarding checklists, contract templates and DocuSign workflows take an owner from yes to signed.' },
       { icon: Home, title: 'Owner portal', body: 'Owners see onboarding progress, documents and statements in one place.' },
       { icon: Bell, title: 'Tasks, alerts and coordination', body: 'Follow-up tasks, personal alerts, and cleaner job coordination keep nothing waiting on a person to remember.' },
+    ],
+  },
+  {
+    icon: Sparkles, name: 'AVA, your assistant', tagline: 'Nobody on your team gets stuck.',
+    items: [
+      { icon: MessageCircle, title: 'Answers about every screen', body: 'AVA answers from your approved help center and the notes your own team adds, and tells you plainly when she does not know.' },
+      { icon: Compass, title: 'Shows you the way', body: 'Ask where something is and she opens the page, points at it in the menu, or walks you through a whole menu category item by item.' },
+      { icon: Search, title: 'Finds and counts your leads', body: 'Search leads, check follow-ups, get a daily briefing and see counts by stage, source, state or skip-trace result, within your role.' },
+      { icon: ShieldCheck, title: 'Acts only with your approval', body: 'She can prepare a follow-up or a stage change, but nothing changes until you approve it, and she reports it done only once it is saved.' },
+      { icon: Mic, title: 'Talks and listens', body: 'Turn on spoken replies and have a conversation, or say "Hey AVA". Captions and typing always work.' },
     ],
   },
 ];

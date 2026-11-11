@@ -7,6 +7,7 @@ export function createTravlrHost(opts: { role: AvaRole | null; navigate: (route:
   return {
     assetBase: '/ava',
     apiBase: '',
+    voiceUrl: '/api/ava/speak',
     // Never show built-in sample data inside the real app.
     offlineDemo: false,
     role: opts.role,

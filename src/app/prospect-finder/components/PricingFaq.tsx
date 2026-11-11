@@ -5,6 +5,10 @@ import { ChevronDown } from 'lucide-react';
 
 const FAQS: Array<{ q: string; a: string }> = [
   {
+    q: 'What is AVA?',
+    a: 'AVA is the assistant built into AVYRO AI. She lives in the corner of every screen for your admins, owners and agents: ask her how something works, ask where a page is and she opens it, or have her walk you through the menu. She can search your leads, check follow-ups and give a daily briefing, and she asks for your approval before she changes anything. You can type to her, or turn on spoken replies and talk with her.',
+  },
+  {
     q: 'What is AVYRO AI?',
     a: 'AVYRO AI is the AI-powered growth and operations platform for vacation rental operators and property management teams — covering lead discovery, enrichment, a live pipeline board and map, text campaigns, the Co-Host program, team tools, and (on higher plans) AI-assisted interview tools for hiring.',
   },

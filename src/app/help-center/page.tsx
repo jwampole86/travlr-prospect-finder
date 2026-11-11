@@ -54,11 +54,13 @@ const FEATURE_GROUPS: FeatureGroup[] = [
       { id: 'gs-3', title: 'Inviting Team Members & Setting Roles', summary: 'Add agents, managers, and viewers. Understand role-based permissions and how they affect data visibility.', readTime: '4 min', href: '#', tags: ['team', 'roles', 'permissions'] },
       { id: 'gs-4', title: 'Running the Team Onboarding Wizard', summary: 'Use the 4-step onboarding wizard to configure data sources, seed cadence templates, define assignment rules, and connect SMS/email services.', readTime: '6 min', href: '/team-onboarding', tags: ['onboarding', 'wizard', 'setup'] },
       { id: 'gs-5', title: 'Clocking In, Out, and Tracking Breaks', summary: 'Use the Time Clock widget in the top bar to clock in/out and manage breaks with a live running timer. Admins can see everyone\'s live status from the Team Status tab.', readTime: '3 min', href: '/time-clock', tags: ['time clock', 'shifts', 'breaks'] },
+      { id: 'gs-6', title: 'Meet AVA: Your Assistant on Every Screen', summary: 'AVA is the assistant in the corner of every screen. Ask how anything works, ask where a page is and she opens it, say walk me through the Outreach menu for a guided tour, or ask for your leads, follow-ups and counts. She asks for your approval before changing anything, and you can type, tap the microphone, say Hey AVA, or turn on spoken replies to talk with her.', readTime: '2 min', href: '/help-center', tags: ['ava', 'assistant', 'voice', 'navigation', 'menu'] },
     ],
     videos: [
       { id: 'gs-v1', title: 'Platform Walkthrough (5 min)', description: 'A quick tour of every major section — from the Dashboard to Lead Management to Cadence Performance.', youtubeId: 'dQw4w9WgXcQ', duration: '5:12' },
     ],
     faqs: [
+      { q: 'How do I search the menu to find a page quickly?', a: 'Use the Search the menu box at the top of the left sidebar. Type part of a page name, what it does or its category, for example templates, phones or audit. Press Enter to open the top result, use the arrow keys to pick another, or press Escape to clear it. You can also ask AVA where something is and she will open it for you.' },
       { q: 'How long does initial data sync take?', a: 'First-time syncs typically complete within 5–15 minutes depending on lead volume. You can monitor progress in the Sync Health dashboard.' },
       { q: 'Can I import leads from a CSV file?', a: 'Yes. Go to Lead Management → Bulk Actions → CSV Upload. The system maps columns automatically and flags duplicates before import.' },
       { q: 'What is the difference between an Agent and a Manager role?', a: 'Agents see only their assigned leads. Managers see all leads across their portfolio and can reassign, bulk-act, and view team analytics.' },

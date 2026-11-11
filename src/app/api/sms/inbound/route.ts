@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
   } else if (mode === 'help') {
     await log('sms_help_request', 'Lead requested HELP via SMS');
     reply = brand.key === 'homes'
-      ? `${brand.name}: we help owners sell their home. Reply YES for a call with a specialist, STOP to opt out.`
+      ? `${brand.name}: we support owners through a home sale. Reply YES for a call with a specialist, STOP to opt out.`
       : `${brand.name}: avyropro.ai. Reply YES for a call about your free estimate, STOP to opt out.`;
   } else if (mode !== 'scheduled' && lead && toE164(from)) {
     await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['New Lead', 'Contacted']);

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, ChevronRight, ChevronLeft, HelpCircle, BookOpen, Lightbulb, ArrowRight, CheckCircle2, LayoutDashboard, List, Phone, MessageSquare, Calendar, FileText, BarChart2, HelpCircle as HelpIcon, Clock } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, HelpCircle, BookOpen, Lightbulb, ArrowRight, CheckCircle2, Sparkles, LayoutDashboard, List, Phone, MessageSquare, Calendar, FileText, BarChart2, HelpCircle as HelpIcon, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -248,9 +248,28 @@ const TOUR_STEPS: TourStep[] = [
       'Admins/owners get a "Team Status" tab showing everyone currently clocked in or on break in real time',
       'Only one open shift per person is allowed at a time — clock out before starting a new one',
     ],
-    nextAction: 'Next: Q&A / Help Center',
+    nextAction: 'Next: Meet AVA',
     nextActionHref: '/help-center',
     tip: 'Use the Team Status tab to spot agents who forgot to clock out — a stuck shift keeps accumulating hours until it is closed.',
+  },
+  {
+    id: 'ava',
+    screen: 'AVA Assistant',
+    screenHref: '/help-center',
+    icon: Sparkles,
+    iconColor: 'text-primary',
+    title: 'AVA — Your Assistant on Every Screen',
+    overview: 'AVA is the assistant in the corner of every screen. Ask her how anything works, where a page is in the menu, or for your leads, follow-ups and counts, and she answers from the approved help and your live data. She can open pages, point at things and walk you through any menu category. You can type, tap the microphone, say "Hey AVA", or turn on spoken replies and talk with her.',
+    keyFeatures: [
+      'Ask how any screen works, or "where is…?", and AVA opens the page for you',
+      'Say "walk me through the Outreach menu" for a guided tour, item by item',
+      'Search leads, check follow-ups, get a daily briefing and see lead counts by stage, source or state',
+      'AVA asks for your approval before she creates a follow-up or changes a lead, and only reports it done once it is saved',
+      'Search the menu with the box at the top of the left sidebar to find any page quickly',
+    ],
+    nextAction: 'Next: Q&A / Help Center',
+    nextActionHref: '/help-center',
+    tip: 'Start with "What can you do?" or "Walk me through the menu". AVA only sees what your role allows, and she never clicks or types for you.',
   },
   {
     id: 'help-center',

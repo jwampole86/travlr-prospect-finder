@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
@@ -10,6 +10,8 @@ import { useChatUnreadCount } from '@/lib/hooks/useChatUnreadCount';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import HelpChatPanel from '@/components/HelpChatPanel';
 import ThemeToggle from '@/components/ThemeToggle';
+import navExtraDescriptions from '@/lib/navDescriptions.json';
+import { searchNav } from '@/lib/navSearch';
 
 import { LayoutDashboard, List, Map, ChevronLeft, ChevronRight, Settings, Download, RefreshCw, Bell, HelpCircle, Building2, ChevronDown, Calculator, FileText, Zap, TrendingUp, Star, SlidersHorizontal, LogOut, Radio, LineChart, Mail, UserCircle, Users, GitBranch, Inbox, History, CalendarClock, Wrench, DollarSign, CheckCircle, Kanban, Copy, Activity, BarChart2, Brain, CalendarCheck, Globe2, X, Shield, ClipboardList, Search, Radar, HeartPulse, Play, MessageSquare, Megaphone, UserPlus, Send, RotateCcw, AlertOctagon, TrendingDown, PieChart, ShieldCheck, Phone, Flame, UserCog, Edit2, CheckSquare, Webhook, Server, MonitorDot, Trophy, Sparkles, DatabaseZap, Home, Rocket, Signal, UserCheck, CreditCard, Plug, BookOpen, Lock, Globe, Database, Headphones, Award, Link2, MessageCircle, Target, Navigation, Briefcase, Mic, Calendar, AlertCircle, Clock, Handshake } from 'lucide-react';
 
@@ -315,7 +317,7 @@ interface SidebarProps {
 
 // ─── Item descriptions (shown as a subtitle and tooltip) ─────────────────────
 
-const NAV_DESCRIPTIONS: Record<string, string> = {
+const NAV_DESCRIPTIONS_CORE: Record<string, string> = {
   'nav-leads': 'Search, filter and work every lead',
   'nav-lead-record': 'Full record, notes and activity',
   'nav-lead-profile': 'Owner, property and contact details',
@@ -366,6 +368,12 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
   'nav-alert-hub': 'System and outreach alerts',
   'nav-alerts-inbox': 'Your unread alerts',
   'nav-info-request-dashboard': 'Homeowner info-request links',
+};
+
+// Every page has a description (the ones above, then the rest from navDescriptions.json), for the subtitle, the tooltip, search and AVA.
+const NAV_DESCRIPTIONS: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(navExtraDescriptions as Record<string, string>).map(([k, v]) => ['nav-' + k, v])),
+  ...NAV_DESCRIPTIONS_CORE,
 };
 
 /** The pages in the menu for a role, for AVA: id is the menu item key without "nav-", route has no query string. */
@@ -534,6 +542,26 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
   const navGroups = role === 'agent' ? agentNavGroups : adminNavGroups;
 
+  // Searching the menu: a flat list of matching pages replaces the categories while there is something typed.
+  const [navQuery, setNavQuery] = useState('');
+  const [navActive, setNavActive] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const hits = useMemo(() => searchNav(navGroups, navQuery, (k) => NAV_DESCRIPTIONS[k]), [navGroups, navQuery]);
+  useEffect(() => setNavActive(0), [navQuery]);
+  const router = useRouter();
+  function openHit(href: string) {
+    setNavQuery('');
+    router.push(href);
+    if (onClose) onClose();
+  }
+  function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Escape') { setNavQuery(''); return; }
+    if (!hits.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setNavActive((i) => (i + 1) % hits.length); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setNavActive((i) => (i - 1 + hits.length) % hits.length); }
+    else if (e.key === 'Enter') { e.preventDefault(); openHit(hits[navActive].item.href); }
+  }
+
   const userInitials = user?.user_metadata?.full_name
     ? user.user_metadata.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.email?.slice(0, 2).toUpperCase() || 'OP';
@@ -629,9 +657,67 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </div>
       )}
 
+      {/* Menu search */}
+      {!collapsed ? (
+        <div className="mx-3 mt-2 relative" role="search">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" aria-hidden="true" />
+          <input
+            ref={searchRef}
+            data-ava-anchor="nav-search-box"
+            value={navQuery}
+            onChange={(e) => setNavQuery(e.target.value)}
+            onKeyDown={onSearchKey}
+            placeholder="Search the menu…"
+            aria-label="Search the menu"
+            role="combobox"
+            aria-expanded={navQuery.trim() !== ''}
+            aria-controls="nav-search-results"
+            autoComplete="off"
+            className="w-full pl-8 pr-7 py-1.5 text-xs rounded-md bg-muted/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-card"
+          />
+          {navQuery && (
+            <button onClick={() => { setNavQuery(''); searchRef.current?.focus(); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-foreground" aria-label="Clear search">
+              <X size={12} />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="mx-2 mt-2">
+          <button onClick={() => { setCollapsed(false); setTimeout(() => searchRef.current?.focus(), 320); }} title="Search the menu" aria-label="Search the menu" className="w-full flex items-center justify-center p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Search size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Main nav */}
       <nav className="flex-1 px-2 py-3 overflow-y-auto scrollbar-thin">
-        {navGroups.map((group) => (
+        {!collapsed && navQuery.trim() !== '' ? (
+          <ul id="nav-search-results" role="listbox" aria-label="Menu search results" className="space-y-0.5">
+            {hits.length === 0 && (
+              <li className="px-2 py-3 text-xs text-muted-foreground">No menu page matches &ldquo;{navQuery.trim()}&rdquo;. Try another word, or ask AVA where to find it.</li>
+            )}
+            {hits.map((h, i) => {
+              const ItemIcon = (h.item as NavItem).icon;
+              const desc = NAV_DESCRIPTIONS[h.item.key];
+              return (
+                <li key={h.item.key + h.item.href} role="option" aria-selected={i === navActive}>
+                  <Link
+                    href={h.item.href}
+                    onClick={() => { setNavQuery(''); handleNavClick(); }}
+                    onMouseEnter={() => setNavActive(i)}
+                    className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${i === navActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted/70'}`}
+                  >
+                    <span className="flex items-center justify-center w-7 h-7 rounded-md shrink-0 bg-muted/70"><ItemIcon size={14} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12.5px] font-medium leading-tight text-foreground">{h.item.label}</span>
+                      <span className="block truncate text-[10px] leading-tight mt-0.5 text-muted-foreground/80">{h.group}{desc ? ` · ${desc}` : ''}</span>
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        ) : navGroups.map((group) => (
           <NavGroupSection
             key={group.key}
             group={group}

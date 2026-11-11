@@ -37,7 +37,7 @@ export default function CampaignTab() {
           <Field label="Property address"><input className={inputCls} value={vars.address} onChange={(e) => setVars({ ...vars, address: e.target.value })} placeholder="your property" /></Field>
         </div>
         {listing === 'rent' && <p className="mt-2 text-[11px] text-muted-foreground">The first text must keep the line &ldquo;Reply with 1, 2, 3 or 4&rdquo;: that is how AVYRO knows a 1 to 4 reply is an answer to it.</p>}
-        {listing === 'sale' && <p className="mt-2 text-[11px] text-muted-foreground">For a home that is for sale, the first approach is helping them sell through NAVEO Homes. It never mentions property management.</p>}
+        {listing === 'sale' && <p className="mt-2 text-[11px] text-muted-foreground">For a home that is for sale, the first message offers NAVEO Homes support through a sale, then NAVEO Stays as a short-term rental while it is listed. One ask, no promises, and it never mentions property management.</p>}
       </Card>
 
       <section aria-labelledby="camp-entry" className="space-y-2">

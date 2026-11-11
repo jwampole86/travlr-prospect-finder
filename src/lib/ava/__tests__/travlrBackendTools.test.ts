@@ -168,3 +168,20 @@ describe('changes', () => {
     expect(db.updates).toEqual([]);
   });
 });
+
+describe('lead counts', () => {
+  it('counts the whole organization for an admin, ignoring sample leads, with the remainder as Other', async () => {
+    const { backend } = make();
+    const r = await backend.getStats({ by: 'stage' }, { actor: admin });
+    expect(r).toMatchObject({ by: 'stage', total: 4, counts: { 'New Lead': 2, Contacted: 1, Live: 1 } });
+    expect(Object.values(r.counts).reduce((a, b) => a + b, 0)).toBe(4);
+    const src = await backend.getStats({ by: 'source' }, { actor: admin });
+    expect(src.counts.Other).toBe(4);
+  });
+
+  it('counts only the agent\'s own leads for an agent, and refuses an unknown grouping', async () => {
+    const { backend } = make();
+    expect((await backend.getStats({ by: 'stage' }, { actor: agent })).total).toBe(3);
+    await expect(backend.getStats({ by: 'nonsense' }, { actor: admin })).rejects.toBeInstanceOf(ToolError);
+  });
+});

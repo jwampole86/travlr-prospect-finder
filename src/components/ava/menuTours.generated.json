@@ -1,0 +1,1681 @@
+[
+ {
+  "id": "menu-admin-core",
+  "title": "Core menu",
+  "summary": "A walk through the Core menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "core",
+   "dashboard",
+   "executive",
+   "overview",
+   "pipeline",
+   "board",
+   "map",
+   "view",
+   "field",
+   "view",
+   "mobile",
+   "time",
+   "clock",
+   "team",
+   "chat",
+   "profile",
+   "prefs",
+   "system",
+   "health",
+   "ava",
+   "knowledge"
+  ],
+  "steps": [
+   {
+    "id": "dashboard",
+    "anchor": "nav-dashboard",
+    "say": "Dashboard. Your command center: KPI cards for the lead pipeline, the stage funnel, top-scored leads and the recent activity feed."
+   },
+   {
+    "id": "executive-overview",
+    "anchor": "nav-executive-overview",
+    "say": "Executive Overview. How outreach is converting across the company, with cards, bars and rows you can click to dig into the detail."
+   },
+   {
+    "id": "pipeline",
+    "anchor": "nav-pipeline",
+    "say": "Pipeline Board. The campaign board: one column per stage, one card per lead with its score and latest activity, plus filters by state, program, minimum score and sort order."
+   },
+   {
+    "id": "map",
+    "anchor": "nav-map",
+    "say": "Map View. Leads plotted on a map so you can see where properties are and open one from its pin."
+   },
+   {
+    "id": "agent-field-view",
+    "anchor": "nav-agent-field-view",
+    "say": "Field View (Mobile). A phone-friendly view for working leads in the field: touch a pin to see the lead, with call-quality feedback and assignment override."
+   },
+   {
+    "id": "time-clock",
+    "anchor": "nav-time-clock",
+    "say": "Time Clock. Clock in and out and track your breaks."
+   },
+   {
+    "id": "team-chat",
+    "anchor": "nav-team-chat",
+    "say": "Team Chat. Message your team inside AVYRO."
+   },
+   {
+    "id": "agent-profile",
+    "anchor": "nav-agent-profile",
+    "say": "My Profile & Prefs. Your own profile and preferences."
+   },
+   {
+    "id": "system-health",
+    "anchor": "nav-system-health",
+    "say": "System Health. Live status checks of every AVYRO service, with a 90-day history you can click into by day."
+   },
+   {
+    "id": "ava-knowledge",
+    "anchor": "nav-ava-knowledge",
+    "say": "AVA Knowledge. Teach AVA answers for your team and see what she could not answer"
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-leads-pipeline-1",
+  "title": "Leads & Pipeline menu (1 of 2)",
+  "summary": "A walk through the Leads & Pipeline menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "leads & pipeline",
+   "lead",
+   "management",
+   "lead",
+   "record",
+   "lead",
+   "profile",
+   "lead",
+   "sources",
+   "lead",
+   "sources",
+   "manager",
+   "prospect",
+   "scoring",
+   "property",
+   "screening",
+   "property",
+   "report",
+   "questionnaires",
+   "duplicate",
+   "detection"
+  ],
+  "steps": [
+   {
+    "id": "leads",
+    "anchor": "nav-leads",
+    "say": "Lead Management. Search, filter and work every lead"
+   },
+   {
+    "id": "lead-record",
+    "anchor": "nav-lead-record",
+    "say": "Lead Record. Full record, notes and activity"
+   },
+   {
+    "id": "lead-profile",
+    "anchor": "nav-lead-profile",
+    "say": "Lead Profile. Owner, property and contact details"
+   },
+   {
+    "id": "lead-sources",
+    "anchor": "nav-lead-sources",
+    "say": "Lead Sources. Where leads come from and how they convert"
+   },
+   {
+    "id": "lead-sources-manager",
+    "anchor": "nav-lead-sources-manager",
+    "say": "Lead Sources Manager. Add, pause and tune lead sources"
+   },
+   {
+    "id": "ml-prospect-scoring",
+    "anchor": "nav-ml-prospect-scoring",
+    "say": "ML Prospect Scoring. Model-driven prospect scores"
+   },
+   {
+    "id": "screening",
+    "anchor": "nav-screening",
+    "say": "Property Screening. Qualify properties before outreach"
+   },
+   {
+    "id": "property-report",
+    "anchor": "nav-property-report",
+    "say": "Property Report. Revenue estimate and market report"
+   },
+   {
+    "id": "questionnaires",
+    "anchor": "nav-questionnaires",
+    "say": "Questionnaires. Owner intake and qualification forms"
+   },
+   {
+    "id": "dedup",
+    "anchor": "nav-dedup",
+    "say": "Duplicate Detection. Find and merge duplicate leads"
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-leads-pipeline-2",
+  "title": "Leads & Pipeline menu (2 of 2)",
+  "summary": "A walk through the Leads & Pipeline menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "leads & pipeline",
+   "duplicate",
+   "audit",
+   "dedup",
+   "monitor",
+   "renewal",
+   "alerts",
+   "agreement",
+   "signing"
+  ],
+  "steps": [
+   {
+    "id": "duplicate-audit",
+    "anchor": "nav-duplicate-audit",
+    "say": "Duplicate Audit. Review past merges and matches"
+   },
+   {
+    "id": "dedup-monitor",
+    "anchor": "nav-dedup-monitor",
+    "say": "Dedup Monitor. Live duplicate detection health"
+   },
+   {
+    "id": "renewal-alerts",
+    "anchor": "nav-renewal-alerts",
+    "say": "Renewal Alerts. Upcoming agreement renewals"
+   },
+   {
+    "id": "signing",
+    "anchor": "nav-signing",
+    "say": "Agreement Signing. Send and track agreements"
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-property-operations",
+  "title": "Property Operations menu",
+  "summary": "A walk through the Property Operations menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "property operations",
+   "managed",
+   "properties",
+   "turnovers",
+   "cleaning"
+  ],
+  "steps": [
+   {
+    "id": "managed-properties",
+    "anchor": "nav-managed-properties",
+    "say": "Managed Properties. Homes under management"
+   },
+   {
+    "id": "turnovers",
+    "anchor": "nav-turnovers",
+    "say": "Turnovers & Cleaning. Cleaning jobs and guest turnovers"
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-data-sync-1",
+  "title": "Data & Sync menu (1 of 2)",
+  "summary": "A walk through the Data & Sync menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "data & sync",
+   "data",
+   "sync",
+   "sync",
+   "health",
+   "trulia",
+   "source",
+   "integrity",
+   "data",
+   "freshness",
+   "monitor",
+   "sync",
+   "ops",
+   "dashboard",
+   "sync",
+   "regression",
+   "monitor",
+   "sync",
+   "diagnostics",
+   "enrichment",
+   "rules",
+   "engine",
+   "validation",
+   "analytics",
+   "contact",
+   "enrichment"
+  ],
+  "steps": [
+   {
+    "id": "data-sync",
+    "anchor": "nav-data-sync",
+    "say": "Data Sync. Run and monitor data imports"
+   },
+   {
+    "id": "sync-health",
+    "anchor": "nav-sync-health",
+    "say": "Sync Health. Sync status and failures"
+   },
+   {
+    "id": "trulia-source-health",
+    "anchor": "nav-trulia-source-health",
+    "say": "Trulia Source Integrity. Checks that the Trulia lead source is still delivering clean data, with a button to run a sync for that source."
+   },
+   {
+    "id": "data-freshness",
+    "anchor": "nav-data-freshness",
+    "say": "Data Freshness Monitor. How current each data source is"
+   },
+   {
+    "id": "sync-ops",
+    "anchor": "nav-sync-ops",
+    "say": "Sync Ops Dashboard. Live source pulls, per-portfolio health, validation and alerts for the data sync."
+   },
+   {
+    "id": "sync-regression-monitor",
+    "anchor": "nav-sync-regression-monitor",
+    "say": "Sync Regression Monitor. Flags synced leads that fail quality checks, so a source that starts returning bad data is noticed within days."
+   },
+   {
+    "id": "sync-diagnostics",
+    "anchor": "nav-sync-diagnostics",
+    "say": "Sync Diagnostics. Row-by-row detail of sync runs: click any row to expand what happened and why."
+   },
+   {
+    "id": "enrichment-rules-engine",
+    "anchor": "nav-enrichment-rules-engine",
+    "say": "Enrichment Rules Engine. The saved confidence rules for enrichment, and any real violations caught during validation."
+   },
+   {
+    "id": "enrichment-validation-analytics",
+    "anchor": "nav-enrichment-validation-analytics",
+    "say": "Validation Analytics. How enrichment results hold up under validation: pass and fail rates over time."
+   },
+   {
+    "id": "contact-enrichment",
+    "anchor": "nav-contact-enrichment",
+    "say": "Contact Enrichment. Find phones and emails for owners"
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-data-sync-2",
+  "title": "Data & Sync menu (2 of 2)",
+  "summary": "A walk through the Data & Sync menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "data & sync",
+   "enrichment",
+   "review",
+   "queue",
+   "source",
+   "intelligence",
+   "enrichment",
+   "costs",
+   "integration",
+   "health",
+   "csv",
+   "pre",
+   "flight",
+   "score",
+   "events",
+   "lead",
+   "data",
+   "quality",
+   "data",
+   "quality",
+   "monitor",
+   "verification",
+   "debug"
+  ],
+  "steps": [
+   {
+    "id": "enrichment-review-queue",
+    "anchor": "nav-enrichment-review-queue",
+    "say": "Enrichment Review Queue. Enrichment results that need a person to approve or reject them before they are trusted."
+   },
+   {
+    "id": "source-intelligence",
+    "anchor": "nav-source-intelligence",
+    "say": "Source Intelligence. Share, quality, verification and conversion per lead source, computed from real counts of the leads."
+   },
+   {
+    "id": "enrichment-costs",
+    "anchor": "nav-enrichment-costs",
+    "say": "Enrichment Costs. What enrichment and skip-trace lookups cost, so you can keep spending in check."
+   },
+   {
+    "id": "integration-health",
+    "anchor": "nav-integration-health",
+    "say": "Integration Health. Whether each connected service (sync sources, messaging, email) is up and responding."
+   },
+   {
+    "id": "csv-preflight",
+    "anchor": "nav-csv-preflight",
+    "say": "CSV Pre-Flight. Validate a CSV before import"
+   },
+   {
+    "id": "rescore-events",
+    "anchor": "nav-rescore-events",
+    "say": "Re-Score Events. An audit log of every lead score change: who triggered it, when, old versus new score and the reason."
+   },
+   {
+    "id": "lead-data-quality",
+    "anchor": "nav-lead-data-quality",
+    "say": "Lead Data Quality. Where lead records are missing or inconsistent, so they can be fixed before outreach."
+   },
+   {
+    "id": "data-quality-monitor",
+    "anchor": "nav-data-quality-monitor",
+    "say": "Data Quality Monitor. Ongoing data-quality checks across the lead database and how they trend."
+   },
+   {
+    "id": "property-verification-debug",
+    "anchor": "nav-property-verification-debug",
+    "say": "Verification Debug. Trace any property through the verification pipeline to see why it did or did not pass."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-outreach-1",
+  "title": "Outreach menu (1 of 3)",
+  "summary": "A walk through the Outreach menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "outreach",
+   "email",
+   "templates",
+   "auth",
+   "email",
+   "templates",
+   "message",
+   "templates",
+   "template",
+   "editor",
+   "template",
+   "ratings",
+   "template",
+   "suggestions",
+   "cadence",
+   "engine",
+   "cadence",
+   "performance",
+   "cadence",
+   "insights",
+   "escalated",
+   "leads"
+  ],
+  "steps": [
+   {
+    "id": "email-templates",
+    "anchor": "nav-email-templates",
+    "say": "Email Templates. Branded outreach emails"
+   },
+   {
+    "id": "supabase-email-templates",
+    "anchor": "nav-supabase-email-templates",
+    "say": "Auth Email Templates. Sign-in and invite emails"
+   },
+   {
+    "id": "templates",
+    "anchor": "nav-templates",
+    "say": "Message Templates. Reusable SMS and email messages"
+   },
+   {
+    "id": "template-editor",
+    "anchor": "nav-template-editor",
+    "say": "Template Editor. Create and edit templates"
+   },
+   {
+    "id": "template-ratings",
+    "anchor": "nav-template-ratings",
+    "say": "Template Ratings. Which templates agents rate best"
+   },
+   {
+    "id": "template-ai-suggestions",
+    "anchor": "nav-template-ai-suggestions",
+    "say": "Template AI Suggestions. AI rewrites to lift replies"
+   },
+   {
+    "id": "cadence",
+    "anchor": "nav-cadence",
+    "say": "Cadence Engine. Build multi-step outreach cadences"
+   },
+   {
+    "id": "cadence-performance",
+    "anchor": "nav-cadence-performance",
+    "say": "Cadence Performance. Reply and conversion by cadence"
+   },
+   {
+    "id": "cadence-ai-insights",
+    "anchor": "nav-cadence-ai-insights",
+    "say": "Cadence AI Insights. AI tips to improve cadences"
+   },
+   {
+    "id": "escalated-leads",
+    "anchor": "nav-escalated-leads",
+    "say": "Escalated Leads. Leads needing a human follow-up"
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-outreach-2",
+  "title": "Outreach menu (2 of 3)",
+  "summary": "A walk through the Outreach menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "outreach",
+   "follow",
+   "sequences",
+   "sms",
+   "delivery",
+   "campaigns",
+   "host",
+   "pipeline",
+   "seller",
+   "owner",
+   "services",
+   "sms",
+   "campaign",
+   "analytics",
+   "inbound",
+   "threads",
+   "bulk",
+   "outreach",
+   "composer",
+   "bulk",
+   "email",
+   "outreach",
+   "email",
+   "campaigns"
+  ],
+  "steps": [
+   {
+    "id": "followup-sequences",
+    "anchor": "nav-followup-sequences",
+    "say": "Follow-Up Sequences. Automated follow-up steps"
+   },
+   {
+    "id": "sms-delivery",
+    "anchor": "nav-sms-delivery",
+    "say": "SMS Delivery. Delivery status for every text"
+   },
+   {
+    "id": "campaigns",
+    "anchor": "nav-campaigns",
+    "say": "Campaigns. Plan and launch campaigns"
+   },
+   {
+    "id": "cohost",
+    "anchor": "nav-cohost",
+    "say": "Co-Host Pipeline. Co-host prospects and offers"
+   },
+   {
+    "id": "seller-pipeline",
+    "anchor": "nav-seller-pipeline",
+    "say": "Seller & Owner Services. Seller replies, permissions and partners"
+   },
+   {
+    "id": "sms-campaign-analytics",
+    "anchor": "nav-sms-campaign-analytics",
+    "say": "SMS Campaign Analytics. Texting results by campaign"
+   },
+   {
+    "id": "sms-inbound-threads",
+    "anchor": "nav-sms-inbound-threads",
+    "say": "Inbound Threads. Replies from homeowners"
+   },
+   {
+    "id": "bulk-outreach",
+    "anchor": "nav-bulk-outreach",
+    "say": "Bulk Outreach Composer. Send to many leads at once"
+   },
+   {
+    "id": "bulk-email-outreach",
+    "anchor": "nav-bulk-email-outreach",
+    "say": "Bulk Email Outreach. Bulk email with tracking"
+   },
+   {
+    "id": "email-campaigns",
+    "anchor": "nav-email-campaigns",
+    "say": "Email Campaigns. Email campaign builder"
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-outreach-3",
+  "title": "Outreach menu (3 of 3)",
+  "summary": "A walk through the Outreach menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "outreach",
+   "sms",
+   "cadence",
+   "templates",
+   "delivery",
+   "kpis",
+   "outreach",
+   "history",
+   "outreach",
+   "tracking",
+   "retry",
+   "queue",
+   "alert",
+   "hub",
+   "alerts",
+   "inbox",
+   "info",
+   "request",
+   "links"
+  ],
+  "steps": [
+   {
+    "id": "sms-cadence-templates",
+    "anchor": "nav-sms-cadence-templates",
+    "say": "SMS Cadence Templates. Text templates for cadences"
+   },
+   {
+    "id": "delivery-kpis",
+    "anchor": "nav-delivery-kpis",
+    "say": "Delivery KPIs. Delivery, bounce and opt-out rates"
+   },
+   {
+    "id": "outreach-history",
+    "anchor": "nav-outreach-history",
+    "say": "Outreach History. Every message sent to a lead"
+   },
+   {
+    "id": "outreach-tracking",
+    "anchor": "nav-outreach-tracking",
+    "say": "Outreach Tracking. Opens, clicks and replies"
+   },
+   {
+    "id": "retry-queue",
+    "anchor": "nav-retry-queue",
+    "say": "Retry Queue. Failed sends waiting to retry"
+   },
+   {
+    "id": "alert-hub",
+    "anchor": "nav-alert-hub",
+    "say": "Alert Hub. System and outreach alerts"
+   },
+   {
+    "id": "alerts-inbox",
+    "anchor": "nav-alerts-inbox",
+    "say": "Alerts Inbox. Your unread alerts"
+   },
+   {
+    "id": "info-request-dashboard",
+    "anchor": "nav-info-request-dashboard",
+    "say": "Info-Request Links. Homeowner info-request links"
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-calls-1",
+  "title": "Calls menu (1 of 3)",
+  "summary": "A walk through the Calls menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "calls",
+   "live",
+   "teleprompter",
+   "interview",
+   "mode",
+   "live",
+   "lead",
+   "queue",
+   "interview",
+   "calendar",
+   "interview",
+   "recordings",
+   "candidate",
+   "profiles",
+   "candidate",
+   "kanban",
+   "candidate",
+   "pipeline",
+   "resume",
+   "interview",
+   "interview"
+  ],
+  "steps": [
+   {
+    "id": "teleprompter",
+    "anchor": "nav-teleprompter",
+    "say": "Live Teleprompter. The call workspace: a live script and lead details for making calls."
+   },
+   {
+    "id": "interview-teleprompter",
+    "anchor": "nav-interview-teleprompter",
+    "say": "Interview Mode. The live teleprompter in interview mode, used when interviewing candidates."
+   },
+   {
+    "id": "admin-lead-queue",
+    "anchor": "nav-admin-lead-queue",
+    "say": "Live Lead Queue. The live queue of leads waiting for an agent."
+   },
+   {
+    "id": "interview-calendar",
+    "anchor": "nav-interview-calendar",
+    "say": "Interview Calendar. Scheduled candidate interviews on a calendar."
+   },
+   {
+    "id": "interview-recordings",
+    "anchor": "nav-interview-recordings",
+    "say": "Interview Recordings. Recordings of past interviews to review."
+   },
+   {
+    "id": "candidate-profiles",
+    "anchor": "nav-candidate-profiles",
+    "say": "Candidate Profiles. Hiring candidates and their profiles in one place."
+   },
+   {
+    "id": "candidate-kanban",
+    "anchor": "nav-candidate-kanban",
+    "say": "Candidate Kanban. Hiring candidates on a board, moved between stages."
+   },
+   {
+    "id": "candidate-pipeline",
+    "anchor": "nav-candidate-pipeline",
+    "say": "Candidate Pipeline. The hiring funnel: how many candidates sit at each stage of recruiting."
+   },
+   {
+    "id": "consistency-report",
+    "anchor": "nav-consistency-report",
+    "say": "Resume vs. Interview. Compares what a candidate said in their resume with what they said in the interview."
+   },
+   {
+    "id": "interview-mode-qa",
+    "anchor": "nav-interview-mode-qa",
+    "say": "Interview QA. Question-and-answer review for interview mode."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-calls-2",
+  "title": "Calls menu (2 of 3)",
+  "summary": "A walk through the Calls menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "calls",
+   "candidate",
+   "tracker",
+   "offer",
+   "letters",
+   "candidate",
+   "sequences",
+   "hiring",
+   "analytics",
+   "headset",
+   "setup",
+   "call",
+   "analytics",
+   "cron",
+   "job",
+   "monitor",
+   "agent",
+   "coaching",
+   "call",
+   "quality",
+   "review",
+   "lead",
+   "auto",
+   "assign"
+  ],
+  "steps": [
+   {
+    "id": "candidate-tracker",
+    "anchor": "nav-candidate-tracker",
+    "say": "Candidate Tracker. A tracker for every candidate and where they stand."
+   },
+   {
+    "id": "offer-letters",
+    "anchor": "nav-offer-letters",
+    "say": "Offer Letters. Create and track offer letters for candidates."
+   },
+   {
+    "id": "candidate-sequences",
+    "anchor": "nav-candidate-sequences",
+    "say": "Candidate Sequences. Automated messages sent to candidates as they move through hiring."
+   },
+   {
+    "id": "hiring-analytics",
+    "anchor": "nav-hiring-analytics",
+    "say": "Hiring Analytics. Recruiting metrics: how candidates move through hiring and where they drop off."
+   },
+   {
+    "id": "headset-setup",
+    "anchor": "nav-headset-setup",
+    "say": "Headset Setup. Set up and test your headset and microphone for calls."
+   },
+   {
+    "id": "call-analytics",
+    "anchor": "nav-call-analytics",
+    "say": "Call Analytics. Call volume, outcomes and talk time across the team."
+   },
+   {
+    "id": "cron-monitor",
+    "anchor": "nav-cron-monitor",
+    "say": "Cron Job Monitor. Whether the scheduled background jobs (syncs, enrichment, sends) are running on time and what they did."
+   },
+   {
+    "id": "agent-coaching",
+    "anchor": "nav-agent-coaching",
+    "say": "Agent Coaching. Coaching for agents."
+   },
+   {
+    "id": "call-quality-review",
+    "anchor": "nav-call-quality-review",
+    "say": "Call Quality Review. Review the quality of calls."
+   },
+   {
+    "id": "lead-auto-assign",
+    "anchor": "nav-lead-auto-assign",
+    "say": "Lead Auto-Assign. AI lead auto-assignment: how new leads are given to agents."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-calls-3",
+  "title": "Calls menu (3 of 3)",
+  "summary": "A walk through the Calls menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "calls",
+   "score",
+   "retraining"
+  ],
+  "steps": [
+   {
+    "id": "score-retraining",
+    "anchor": "nav-score-retraining",
+    "say": "AI Score Retraining. Record closed-deal outcomes so the prospect scoring model can be retrained, and see past retraining runs."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-analytics-reports-1",
+  "title": "Analytics & Reports menu (1 of 3)",
+  "summary": "A walk through the Analytics & Reports menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "analytics & reports",
+   "analytics",
+   "advanced",
+   "reports",
+   "campaign",
+   "analytics",
+   "template",
+   "performance",
+   "outreach",
+   "performance",
+   "activity",
+   "timeline",
+   "audit",
+   "trail",
+   "admin",
+   "audit",
+   "log",
+   "compliance",
+   "audit",
+   "compliance",
+   "change",
+   "log"
+  ],
+  "steps": [
+   {
+    "id": "analytics",
+    "anchor": "nav-analytics",
+    "say": "Analytics. Overall lead and outreach analytics."
+   },
+   {
+    "id": "advanced-reports",
+    "anchor": "nav-advanced-reports",
+    "say": "Advanced Reports. Deeper reports you can slice by market, source, agent and period."
+   },
+   {
+    "id": "campaign-analytics",
+    "anchor": "nav-campaign-analytics",
+    "say": "Campaign Analytics. Results per campaign: sends, replies and conversions."
+   },
+   {
+    "id": "template-perf",
+    "anchor": "nav-template-perf",
+    "say": "Template Performance. Which message templates get replies and which do not."
+   },
+   {
+    "id": "outreach-performance",
+    "anchor": "nav-outreach-performance",
+    "say": "Outreach Performance. How outreach performs by channel, agent and message."
+   },
+   {
+    "id": "activity",
+    "anchor": "nav-activity",
+    "say": "Activity Timeline. A timeline of recent activity."
+   },
+   {
+    "id": "audit-trail",
+    "anchor": "nav-audit-trail",
+    "say": "Audit Trail. A record of who changed what in the system."
+   },
+   {
+    "id": "admin-audit-log",
+    "anchor": "nav-admin-audit-log",
+    "say": "Admin Audit Log. The administrator-level log of sensitive actions."
+   },
+   {
+    "id": "compliance-audit",
+    "anchor": "nav-compliance-audit",
+    "say": "Compliance Audit. Checks outreach against compliance rules such as opt-outs and quiet hours."
+   },
+   {
+    "id": "compliance-change-log",
+    "anchor": "nav-compliance-change-log",
+    "say": "Compliance Change Log. A history of changes to compliance settings and rules."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-analytics-reports-2",
+  "title": "Analytics & Reports menu (2 of 3)",
+  "summary": "A walk through the Analytics & Reports menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "analytics & reports",
+   "city",
+   "regulations",
+   "str",
+   "trace",
+   "regulation",
+   "pre",
+   "launch",
+   "checklist",
+   "onboarding",
+   "doc",
+   "review",
+   "checklist",
+   "automation",
+   "crm",
+   "export",
+   "hubspot",
+   "scheduled",
+   "exports",
+   "csv",
+   "export",
+   "score",
+   "breakdown",
+   "roi",
+   "calculator"
+  ],
+  "steps": [
+   {
+    "id": "city-regulations",
+    "anchor": "nav-city-regulations",
+    "say": "City Regulations / STR. Short-term-rental regulations by city, so you know the rules before you pitch an owner."
+   },
+   {
+    "id": "regulation-trace",
+    "anchor": "nav-regulation-trace",
+    "say": "Trace Regulation. Trace a city regulation record."
+   },
+   {
+    "id": "pre-launch-checklist",
+    "anchor": "nav-pre-launch-checklist",
+    "say": "Pre-Launch Checklist. The pre-launch compliance checklist for a property: click an item to cycle its status and open its reference."
+   },
+   {
+    "id": "onboarding-doc-review",
+    "anchor": "nav-onboarding-doc-review",
+    "say": "Onboarding Doc Review. Review and approve the documents homeowners upload during short-term-rental onboarding."
+   },
+   {
+    "id": "checklist-auto-advance",
+    "anchor": "nav-checklist-auto-advance",
+    "say": "Checklist Automation. Settings that automatically advance stale onboarding checklist steps and remind homeowners about pending items."
+   },
+   {
+    "id": "crm-export",
+    "anchor": "nav-crm-export",
+    "say": "CRM Export (HubSpot). Send leads to HubSpot."
+   },
+   {
+    "id": "exports",
+    "anchor": "nav-exports",
+    "say": "Scheduled Exports. Exports that run on a schedule and are delivered to you."
+   },
+   {
+    "id": "csv-export",
+    "anchor": "nav-csv-export",
+    "say": "CSV Export. Download leads as a CSV file with the columns you choose."
+   },
+   {
+    "id": "score-breakdown",
+    "anchor": "nav-score-breakdown",
+    "say": "AI Score Breakdown. Why a lead has its score: how much each factor contributed."
+   },
+   {
+    "id": "roi-calculator",
+    "anchor": "nav-roi-calculator",
+    "say": "ROI Calculator. Work out revenue against cost and the return on outreach and enrichment."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-analytics-reports-3",
+  "title": "Analytics & Reports menu (3 of 3)",
+  "summary": "A walk through the Analytics & Reports menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "analytics & reports",
+   "lead",
+   "lifecycle",
+   "funnel"
+  ],
+  "steps": [
+   {
+    "id": "lead-lifecycle",
+    "anchor": "nav-lead-lifecycle",
+    "say": "Lead Lifecycle Funnel. The funnel from new lead to live property, with the drop-off at each step."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-agents-team-1",
+  "title": "Agents & Team menu (1 of 2)",
+  "summary": "A walk through the Agents & Team menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "agents & team",
+   "agent",
+   "management",
+   "workspace",
+   "management",
+   "user",
+   "management",
+   "agents",
+   "legacy",
+   "agent",
+   "leaderboard",
+   "agent",
+   "performance",
+   "conversion",
+   "analytics",
+   "close",
+   "rate",
+   "analytics",
+   "agent",
+   "routing",
+   "band",
+   "agent",
+   "productivity"
+  ],
+  "steps": [
+   {
+    "id": "agent-management",
+    "anchor": "nav-agent-management",
+    "say": "Agent Management. Add, edit and set up agents, including territories and lead permissions."
+   },
+   {
+    "id": "workspace-management",
+    "anchor": "nav-workspace-management",
+    "say": "Workspace Management. Manage workspaces."
+   },
+   {
+    "id": "user-management",
+    "anchor": "nav-user-management",
+    "say": "User Management. Manage user accounts, roles and whether each person is active."
+   },
+   {
+    "id": "agents",
+    "anchor": "nav-agents",
+    "say": "Agents (Legacy). The earlier agents screen, where you change an agent's role, territories and default lead permissions."
+   },
+   {
+    "id": "agent-leaderboard",
+    "anchor": "nav-agent-leaderboard",
+    "say": "Agent Leaderboard. Agents ranked by activity and results."
+   },
+   {
+    "id": "agent-performance",
+    "anchor": "nav-agent-performance",
+    "say": "Agent Performance. Per-agent performance: calls, conversions and trends."
+   },
+   {
+    "id": "agent-conversion-analytics",
+    "anchor": "nav-agent-conversion-analytics",
+    "say": "Conversion Analytics. How each agent's leads convert, stage to stage."
+   },
+   {
+    "id": "conversion-analytics",
+    "anchor": "nav-conversion-analytics",
+    "say": "Close Rate Analytics. Close rates across the team, by stage and source."
+   },
+   {
+    "id": "agent-routing",
+    "anchor": "nav-agent-routing",
+    "say": "Agent Routing (Band). Agent routing: a lead batch report and weekly actual versus predicted conversion."
+   },
+   {
+    "id": "agent-productivity",
+    "anchor": "nav-agent-productivity",
+    "say": "Agent Productivity. How much each agent gets done: calls, texts and follow-ups."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-agents-team-2",
+  "title": "Agents & Team menu (2 of 2)",
+  "summary": "A walk through the Agents & Team menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "agents & team",
+   "team",
+   "performance",
+   "team",
+   "agent",
+   "performance",
+   "team",
+   "lead",
+   "board",
+   "agent",
+   "workload",
+   "board",
+   "manager",
+   "team",
+   "metrics",
+   "agent",
+   "onboarding",
+   "bulk",
+   "agent",
+   "invite",
+   "commission",
+   "rules"
+  ],
+  "steps": [
+   {
+    "id": "team-performance",
+    "anchor": "nav-team-performance",
+    "say": "Team Performance. Team-wide performance at a glance."
+   },
+   {
+    "id": "team-agents",
+    "anchor": "nav-team-agents",
+    "say": "Team Agent Performance. Per-agent call volume, conversion rates, talk time and coaching flags, with a 7-day view."
+   },
+   {
+    "id": "team-lead-board",
+    "anchor": "nav-team-lead-board",
+    "say": "Team Lead Board. Every lead on the team's board, with the option to reassign a lead."
+   },
+   {
+    "id": "agent-workload-board",
+    "anchor": "nav-agent-workload-board",
+    "say": "Agent Workload Board. How many leads each agent is carrying, so work can be balanced."
+   },
+   {
+    "id": "manager-team-metrics",
+    "anchor": "nav-manager-team-metrics",
+    "say": "Manager Team Metrics. Manager view of the team: stage breakdown by agent and revenue against cost with ROI."
+   },
+   {
+    "id": "agent-onboarding",
+    "anchor": "nav-agent-onboarding",
+    "say": "Agent Onboarding. Onboarding for a new agent."
+   },
+   {
+    "id": "bulk-invite",
+    "anchor": "nav-bulk-invite",
+    "say": "Bulk Agent Invite. Invite many agents at once."
+   },
+   {
+    "id": "commission-rules",
+    "anchor": "nav-commission-rules",
+    "say": "Commission Rules. Set how agent commissions are calculated."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-tools-admin-1",
+  "title": "Tools & Admin menu (1 of 3)",
+  "summary": "A walk through the Tools & Admin menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "tools & admin",
+   "features",
+   "workflows",
+   "operations",
+   "integration",
+   "hub",
+   "subscription",
+   "billing",
+   "admin",
+   "management",
+   "admin",
+   "config",
+   "webhook",
+   "inspector",
+   "base44",
+   "submissions",
+   "ops",
+   "monitoring"
+  ],
+  "steps": [
+   {
+    "id": "ai-features",
+    "anchor": "nav-ai-features",
+    "say": "AI Features. The AI features of the app (Claude), shown with whether the API key is configured to switch them on."
+   },
+   {
+    "id": "workflows",
+    "anchor": "nav-workflows",
+    "say": "Workflows. Build email and SMS sequences that automate outreach."
+   },
+   {
+    "id": "operations",
+    "anchor": "nav-operations",
+    "say": "Operations. Property operations: cleanings, maintenance and inventory across all properties."
+   },
+   {
+    "id": "integration-hub",
+    "anchor": "nav-integration-hub",
+    "say": "Integration Hub. Connect services, manage API keys and watch usage quotas."
+   },
+   {
+    "id": "billing",
+    "anchor": "nav-billing",
+    "say": "Subscription & Billing. Your subscription and billing."
+   },
+   {
+    "id": "admin-management",
+    "anchor": "nav-admin-management",
+    "say": "Admin Management. Admin tools for SMS templates (variables fill in at send time) and pre-built replies to common homeowner objections."
+   },
+   {
+    "id": "admin-config",
+    "anchor": "nav-admin-config",
+    "say": "Admin Config. API keys, verification status, rate limits, sync intervals and environment settings."
+   },
+   {
+    "id": "webhook-inspector",
+    "anchor": "nav-webhook-inspector",
+    "say": "Webhook Inspector. See the webhooks AVYRO has received and what they contained, to debug an integration."
+   },
+   {
+    "id": "base44-submissions",
+    "anchor": "nav-base44-submissions",
+    "say": "Base44 Submissions. Submissions received from the Base44 forms."
+   },
+   {
+    "id": "ops-monitoring",
+    "anchor": "nav-ops-monitoring",
+    "say": "Ops Monitoring. A real-time operations dashboard: API health, delivery rates, enrichment syncs, webhook health and an incident timeline."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-tools-admin-2",
+  "title": "Tools & Admin menu (2 of 3)",
+  "summary": "A walk through the Tools & Admin menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "tools & admin",
+   "performance",
+   "dashboard",
+   "performance",
+   "diagnostics",
+   "score",
+   "simulator",
+   "scoring",
+   "rules",
+   "score",
+   "weight",
+   "editor",
+   "bulk",
+   "actions",
+   "roles",
+   "permissions",
+   "event",
+   "dashboard",
+   "nurture",
+   "cadence",
+   "notification",
+   "prefs"
+  ],
+  "steps": [
+   {
+    "id": "performance-dashboard",
+    "anchor": "nav-performance-dashboard",
+    "say": "Performance Dashboard. Real-time latency, render, API and session health."
+   },
+   {
+    "id": "performance-diagnostics",
+    "anchor": "nav-performance-diagnostics",
+    "say": "Performance Diagnostics. Performance diagnostics for the app."
+   },
+   {
+    "id": "score-simulator",
+    "anchor": "nav-score-simulator",
+    "say": "Score Simulator. Try changes to the scoring and see how leads would score before you apply them."
+   },
+   {
+    "id": "scoring-rules",
+    "anchor": "nav-scoring-rules",
+    "say": "Scoring Rules. The rules behind the prospect score."
+   },
+   {
+    "id": "score-weight-editor",
+    "anchor": "nav-score-weight-editor",
+    "say": "Score Weight Editor. Adjust how much each factor counts toward the prospect score."
+   },
+   {
+    "id": "bulk-actions",
+    "anchor": "nav-bulk-actions",
+    "say": "Bulk Actions. Apply one action, such as an assignment or stage change, to many leads at once."
+   },
+   {
+    "id": "admin-roles",
+    "anchor": "nav-admin-roles",
+    "say": "Roles & Permissions. Roles and permissions: who can see and do what."
+   },
+   {
+    "id": "admin-events",
+    "anchor": "nav-admin-events",
+    "say": "Event Dashboard. A dashboard of system events as they happen."
+   },
+   {
+    "id": "nurture-cadence",
+    "anchor": "nav-nurture-cadence",
+    "say": "Nurture Cadence. The nurture cadence engine: choose a sequence and manage the long, gentle follow-up for leads who have not replied."
+   },
+   {
+    "id": "notifications",
+    "anchor": "nav-notifications",
+    "say": "Notification Prefs. Choose which notifications you receive and how."
+   }
+  ]
+ },
+ {
+  "id": "menu-admin-tools-admin-3",
+  "title": "Tools & Admin menu (3 of 3)",
+  "summary": "A walk through the Tools & Admin menu",
+  "roles": [
+   "admin",
+   "owner"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "tools & admin",
+   "homeowner",
+   "notifications",
+   "session",
+   "management",
+   "team",
+   "onboarding",
+   "agent",
+   "profile",
+   "help",
+   "center"
+  ],
+  "steps": [
+   {
+    "id": "homeowner-notifications",
+    "anchor": "nav-homeowner-notifications",
+    "say": "Homeowner Notifications. Notifications sent to homeowners."
+   },
+   {
+    "id": "session-management",
+    "anchor": "nav-session-management",
+    "say": "Session Management. Signed-in sessions."
+   },
+   {
+    "id": "team-onboarding",
+    "anchor": "nav-team-onboarding",
+    "say": "Team Onboarding. Onboarding for the team."
+   },
+   {
+    "id": "agent-profile-tools",
+    "anchor": "nav-agent-profile-tools",
+    "say": "Agent Profile. Your agent profile."
+   },
+   {
+    "id": "help-center",
+    "anchor": "nav-help-center",
+    "say": "Help Center. Answers, articles and guides for every part of the app."
+   }
+  ]
+ },
+ {
+  "id": "menu-agent-core",
+  "title": "Core menu",
+  "summary": "A walk through the Core menu",
+  "roles": [
+   "agent"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "core",
+   "dashboard",
+   "leads",
+   "time",
+   "clock",
+   "team",
+   "chat",
+   "follow",
+   "ups"
+  ],
+  "steps": [
+   {
+    "id": "agent-workspace",
+    "anchor": "nav-agent-workspace",
+    "say": "My Dashboard. Your own dashboard: today's work, your leads and what needs doing next."
+   },
+   {
+    "id": "agent-my-leads",
+    "anchor": "nav-agent-my-leads",
+    "say": "My Leads. The leads assigned to you, to search, filter and work."
+   },
+   {
+    "id": "time-clock",
+    "anchor": "nav-time-clock",
+    "say": "Time Clock. Clock in and out and track your breaks."
+   },
+   {
+    "id": "team-chat",
+    "anchor": "nav-team-chat",
+    "say": "Team Chat. Message your team inside AVYRO."
+   },
+   {
+    "id": "agent-followups",
+    "anchor": "nav-agent-followups",
+    "say": "Follow-Ups. Your leads that have a follow-up due."
+   }
+  ]
+ },
+ {
+  "id": "menu-agent-calls",
+  "title": "Calls menu",
+  "summary": "A walk through the Calls menu",
+  "roles": [
+   "agent"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "calls",
+   "call",
+   "workspace",
+   "headset",
+   "setup",
+   "call",
+   "history"
+  ],
+  "steps": [
+   {
+    "id": "teleprompter",
+    "anchor": "nav-teleprompter",
+    "say": "Call Workspace. The call workspace: a live script and lead details for making calls."
+   },
+   {
+    "id": "headset-setup",
+    "anchor": "nav-headset-setup",
+    "say": "Headset Setup. Set up and test your headset and microphone for calls."
+   },
+   {
+    "id": "outreach-history",
+    "anchor": "nav-outreach-history",
+    "say": "Call History. Every message sent to a lead"
+   }
+  ]
+ },
+ {
+  "id": "menu-agent-my-performance",
+  "title": "My Performance menu",
+  "summary": "A walk through the My Performance menu",
+  "roles": [
+   "agent"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "my performance",
+   "performance",
+   "activity",
+   "commissions"
+  ],
+  "steps": [
+   {
+    "id": "agent-self-performance",
+    "anchor": "nav-agent-self-performance",
+    "say": "My Performance. Your own results: calls, conversions and goals."
+   },
+   {
+    "id": "activity",
+    "anchor": "nav-activity",
+    "say": "My Activity. A timeline of recent activity."
+   },
+   {
+    "id": "commissions",
+    "anchor": "nav-commissions",
+    "say": "My Commissions. Your own commissions and what they are based on."
+   }
+  ]
+ },
+ {
+  "id": "menu-agent-help",
+  "title": "Help menu",
+  "summary": "A walk through the Help menu",
+  "roles": [
+   "agent"
+  ],
+  "keywords": [
+   "menu",
+   "navigation",
+   "navigate",
+   "sidebar",
+   "where",
+   "help",
+   "help",
+   "center",
+   "profile",
+   "account",
+   "settings"
+  ],
+  "steps": [
+   {
+    "id": "help-center",
+    "anchor": "nav-help-center",
+    "say": "Help Center. Answers, articles and guides for every part of the app."
+   },
+   {
+    "id": "agent-profile",
+    "anchor": "nav-agent-profile",
+    "say": "My Profile. Your own profile and preferences."
+   },
+   {
+    "id": "settings",
+    "anchor": "nav-settings",
+    "say": "Account Settings. Your account settings and preferences."
+   }
+  ]
+ }
+]

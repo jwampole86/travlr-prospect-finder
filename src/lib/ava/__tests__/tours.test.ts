@@ -31,7 +31,9 @@ describe('TRAVLR guided tours', () => {
 
   it('points only at elements that are marked in the real page source', () => {
     for (const tour of TRAVLR_TOURS) for (const step of tour.steps) {
-      expect(allSource, `${tour.id}/${step.id}: data-ava-anchor="${step.anchor}" is missing from the pages`).toContain(`data-ava-anchor="${step.anchor}"`);
+      // Menu items get their anchor from their key in the sidebar, so a menu step is checked against that key.
+      const present = allSource.includes(`data-ava-anchor="${step.anchor}"`) || (step.anchor.startsWith('nav-') && allSource.includes(`key: '${step.anchor}'`));
+      expect(present, `${tour.id}/${step.id}: data-ava-anchor="${step.anchor}" is missing from the pages`).toBe(true);
     }
   });
 

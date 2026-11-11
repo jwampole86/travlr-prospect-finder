@@ -5,7 +5,7 @@ import MarketingFooter from '@/app/prospect-finder/components/MarketingFooter';
 
 export const metadata: Metadata = {
   title: 'About | AVYRO AI',
-  description: 'AVYRO AI develops the technology that modern vacation rental operations run on. NAVEO Stays is the first business built on it.',
+  description: 'AVYRO AI develops the technology that modern vacation rental operations run on. NAVEO Stays and NAVEO Homes are the first businesses built on it, with AVA, our built-in assistant, helping the team.',
 };
 
 export default function AboutPage() {
@@ -16,20 +16,20 @@ export default function AboutPage() {
         <div className="max-w-3xl mx-auto px-5 sm:px-6 py-14 sm:py-20 text-center">
           <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">About</p>
           <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">Technology built by operators, for operators.</h1>
-          <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed">AVYRO powers modern vacation rental operations, starting with NAVEO Stays and built for operators who want to grow.</p>
+          <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed">AVYRO powers modern vacation rental operations, starting with NAVEO Stays and NAVEO Homes and built for operators who want to grow.</p>
         </div>
       </section>
       <section className="max-w-3xl mx-auto px-5 sm:px-6 py-12 space-y-10">
         <div>
           <h2 className="text-xl font-bold text-foreground">What we do</h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
-            AVYRO AI is the technology and operations platform behind a vacation rental business: the systems that find homeowners, qualify them, onboard them, and run their properties. We build the tools so a team can do that with less busywork and better information.
+            AVYRO AI is the technology and operations platform behind a vacation rental business: the systems that find homeowners, qualify them, onboard them, and run their properties. We build the tools so a team can do that with less busywork and better information. AVA, the assistant built into the platform, answers questions, opens the right page and walks new teammates through the menu.
           </p>
         </div>
         <div>
           <h2 className="text-xl font-bold text-foreground">Our relationship with NAVEO Stays</h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
-            NAVEO Stays is the consumer marketplace where guests book high-quality homes and owners raise their hand to list. It runs on AVYRO, which makes it our first major customer and our proving ground. Every feature is shaped by running a real operation.
+            NAVEO Stays is the consumer marketplace where guests book high-quality homes and owners raise their hand to list. It runs on AVYRO, which makes it our first major customer and our proving ground. Every feature is shaped by running a real operation. NAVEO Homes, which supports owners through a home sale, runs on AVYRO as well.
           </p>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
             The two are distinct on purpose. NAVEO Stays is the storefront for travelers and homeowners. AVYRO AI is the platform for the operators and managers behind it, and it is built to serve other operators too.

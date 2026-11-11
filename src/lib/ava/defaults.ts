@@ -16,6 +16,7 @@ import type { LearningDeps } from './learningHandler';
 import { anonymousTopic, buildVocabulary, personalizationNote } from '@/components/ava/core/learning';
 import { KNOWLEDGE } from './knowledge';
 import type { AvaHandlerActor, AvaHandlerDeps } from './handler';
+import type { SpeakDeps } from './speakHandler';
 
 /** AVA is on unless AVA_ENABLED=false is set on the server (the kill switch). */
 export const avaEnabled = () => process.env.AVA_ENABLED !== 'false';
@@ -93,6 +94,32 @@ export function avaDeps(): AvaHandlerDeps {
           const org = (actor as { organizationId?: string | null }).organizationId;
           if (topic && org) await db.rpc('ava_count_unanswered', { p_org: org, p_key: topic });
         }
+      });
+    }
+  };
+}
+
+// AVA's spoken voice makes one request per short piece of an answer, so it has its own, roomier limit.
+const allowSpeech = createSharedRateLimiter(async (key, limit, windowSeconds) => {
+  const { data, error } = await getSupabaseAdmin().rpc('ava_rate_hit', { p_key: key, p_limit: limit, p_window_seconds: windowSeconds });
+  return error ? null : (data as boolean | null);
+}, { max: 60 });
+
+/** The model that speaks, and the key it uses (the same provider key as the language model unless a dedicated one is set). */
+export function speakDeps(): SpeakDeps {
+  return {
+    enabled: () => avaEnabled() && process.env.AVA_VOICE_ENABLED !== 'false',
+    getActor,
+    allow: allowSpeech,
+    async synthesize({ text, voice, instructions, signal }) {
+      const key = process.env.AVA_TTS_API_KEY || process.env.OPENAI_API_KEY;
+      if (!key) return null;
+      const base = (process.env.AVA_TTS_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
+      return fetch(`${base}/audio/speech`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ model: process.env.AVA_TTS_MODEL || 'gpt-4o-mini-tts', voice, input: text, instructions, response_format: 'mp3' }),
+        signal
       });
     }
   };

@@ -69,6 +69,8 @@ export interface AvaHost {
   assetBase: string;
   /** Prefix for `/api/ava/*`. */
   apiBase: string;
+  /** Where AVA's natural spoken voice comes from (POST { text, voice } -> audio). Without it she uses the browser's own voice. */
+  voiceUrl?: string;
   /**
    * When the assistant service is unreachable, play the built-in labelled demo script (sandbox only).
    * A real app sets this to false so AVA never shows sample data as if it were real.

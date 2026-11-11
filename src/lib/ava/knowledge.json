@@ -1,11 +1,19 @@
 {
-  "version": "2026-11-11-c97fe8f1",
+  "version": "2026-11-11-d6a7af09",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
     "src/app/how-it-works/page.tsx"
   ],
   "entries": [
+    {
+      "id": "faq-how-do-i-search-the-menu-to-find-a-page-quickly",
+      "title": "How do I search the menu to find a page quickly?",
+      "keywords": [],
+      "answer": "Use the Search the menu box at the top of the left sidebar. Type part of a page name, what it does or its category, for example templates, phones or audit. Press Enter to open the top result, use the arrow keys to pick another, or press Escape to clear it. You can also ask AVA where something is and she will open it for you.",
+      "source": "Help Center",
+      "kind": "faq"
+    },
     {
       "id": "faq-how-long-does-initial-data-sync-take",
       "title": "How long does initial data sync take?",
@@ -188,6 +196,14 @@
       "keywords": [],
       "answer": "Use the Time Clock widget in the top bar to clock in/out and manage breaks with a live running timer. Admins can see everyone's live status from the Team Status tab.",
       "source": "Help Center article: Clocking In, Out, and Tracking Breaks",
+      "kind": "article"
+    },
+    {
+      "id": "article-gs-6",
+      "title": "Meet AVA: Your Assistant on Every Screen",
+      "keywords": [],
+      "answer": "AVA is the assistant in the corner of every screen. Ask how anything works, ask where a page is and she opens it, say walk me through the Outreach menu for a guided tour, or ask for your leads, follow-ups and counts. She asks for your approval before changing anything, and you can type, tap the microphone, say Hey AVA, or turn on spoken replies to talk with her.",
+      "source": "Help Center article: Meet AVA: Your Assistant on Every Screen",
       "kind": "article"
     },
     {
@@ -470,6 +486,18 @@
       "kind": "guide"
     },
     {
+      "id": "guide-ava",
+      "title": "AVA — Your Assistant on Every Screen",
+      "keywords": [
+        "AVA Assistant",
+        "help-center"
+      ],
+      "answer": "AVA is the assistant in the corner of every screen. Ask her how anything works, where a page is in the menu, or for your leads, follow-ups and counts, and she answers from the approved help and your live data. She can open pages, point at things and walk you through any menu category. You can type, tap the microphone, say \"Hey AVA\", or turn on spoken replies and talk with her. Key features: Ask how any screen works, or \"where is…?\", and AVA opens the page for you; Say \"walk me through the Outreach menu\" for a guided tour, item by item; Search leads, check follow-ups, get a daily briefing and see lead counts by stage, source or state; AVA asks for your approval before she creates a follow-up or changes a lead, and only reports it done once it is saved; Search the menu with the box at the top of the left sidebar to find any page quickly. Tip: Start with \"What can you do?\" or \"Walk me through the menu\". AVA only sees what your role allows, and she never clicks or types for you.",
+      "source": "In-app guide: AVA Assistant",
+      "route": "/help-center",
+      "kind": "guide"
+    },
+    {
       "id": "guide-help-center",
       "title": "Q&A / Help Center — Your Ongoing Support Resource",
       "keywords": [
@@ -519,6 +547,16 @@
       ],
       "answer": "See what is actually converting: the acquisition funnel, agent performance and market data, with every number tied back to the people behind it. Includes: Acquisition funnel and campaign results; Agent performance and coaching; Market and regulation intelligence.",
       "source": "How it works: Grow",
+      "kind": "overview"
+    },
+    {
+      "id": "how-ask-ava",
+      "title": "Ask AVA: how AVYRO works",
+      "keywords": [
+        "Ask AVA"
+      ],
+      "answer": "At every step, AVA is there. She is the assistant built into each screen: she answers how-to questions, opens the page you need, walks you through the menu, finds leads and follow-ups, and can speak and listen. When something should change she asks you first, and only reports it done once it really is. Includes: Answers from your help center and your team's own notes; Opens pages, points at them and runs guided tours; Available to admins, owners and agents, within their role.",
+      "source": "How it works: Ask AVA",
       "kind": "overview"
     },
     {
@@ -700,6 +738,82 @@
       "kind": "guide"
     },
     {
+      "id": "ava-what-can-do",
+      "title": "What can AVA do?",
+      "keywords": [
+        "ava",
+        "assistant",
+        "what can you do",
+        "help",
+        "capabilities",
+        "features",
+        "abilities"
+      ],
+      "answer": "I'm AVA, the assistant built into AVYRO. I can explain how any screen works, tell you where a page is in the menu and open it for you, walk you through a whole menu category one item at a time, or run a guided tour of a screen. I can search your leads, show details and why a lead scores the way it does, list follow-ups and leads still to verify, give you a daily briefing, and count leads by stage, source, state, contact status, skip-trace result or sale versus rent. With your confirmation I can create a follow-up, move a lead to another stage or mark a follow-up done, and offer an export of what is on screen. I point and open, but I never click or type for you, and I only change something after you approve it. Admins and owners see everything in their organization; agents see their own leads.",
+      "source": "AVA assistant",
+      "kind": "guide"
+    },
+    {
+      "id": "ava-voice",
+      "title": "How do I hear AVA and talk to her out loud?",
+      "keywords": [
+        "voice",
+        "speak",
+        "spoken",
+        "talk",
+        "hear",
+        "audio",
+        "microphone",
+        "mic",
+        "conversation",
+        "say",
+        "listen",
+        "hey ava",
+        "wake word",
+        "speech"
+      ],
+      "answer": "Open AVA and turn on Spoken replies at the bottom of her panel; she then reads her answers aloud in a natural voice, and you can pick a different voice from the Voice list. Turn on Talk with me and, after she speaks, she listens for your reply, so you can have a back-and-forth without typing. Tap the microphone to speak a question at any time, or say \"Hey AVA\" once the microphone is allowed. If you say nothing she stops listening. Speaking to her needs Chrome, Edge or Safari and microphone permission; if her natural voice is ever unavailable she uses your browser's voice instead. Captions can stay on while she talks.",
+      "source": "AVA assistant",
+      "kind": "guide"
+    },
+    {
+      "id": "ava-menu-tours",
+      "title": "Can AVA show me around the menu and explain every page?",
+      "keywords": [
+        "menu",
+        "tour",
+        "walkthrough",
+        "walk me through",
+        "navigation",
+        "navigate",
+        "sidebar",
+        "show me around",
+        "every page",
+        "explain"
+      ],
+      "answer": "Yes. Ask me to walk you through any menu category, for example \"walk me through the Outreach menu\", and I'll move from item to item in the sidebar, pointing at each one and explaining what it is for. Ask \"where is Cron Job Monitor?\" and I'll tell you which menu it is in and open it for you. Long menus are split into short tours of ten items, so you can stop whenever you like.",
+      "source": "AVA assistant",
+      "kind": "guide"
+    },
+    {
+      "id": "ava-counts",
+      "title": "Can AVA tell me how many leads I have?",
+      "keywords": [
+        "how many",
+        "count",
+        "counts",
+        "total",
+        "numbers",
+        "stats",
+        "statistics",
+        "leads by",
+        "breakdown"
+      ],
+      "answer": "Yes. Ask for counts by pipeline stage, listing source, state, contact status (verified, with a phone number), skip-trace result, or for sale versus for rent. Admins and owners get totals for the whole organization; agents get counts for their own leads. The numbers come straight from the lead database when you ask, and I'll say when they were taken.",
+      "source": "AVA assistant",
+      "kind": "guide"
+    },
+    {
       "id": "playbook-overview",
       "title": "What is the seller and owner outreach campaign?",
       "keywords": [
@@ -736,7 +850,7 @@
         "listed for sale",
         "selling through naveo homes"
       ],
-      "answer": "The entry text says who you are, mentions the property address, and asks one question: are you mainly looking to sell, rent long-term, rent short-term, or still deciding? The owner replies 1, 2, 3 or 4. The email asks the same question with the same four options, as a reply or a button. Suggested email subject lines to test: Quick question about the address; Sell, rent, or both? We need 10 seconds; So we don't send the wrong options. Only the path they choose is followed up. If the property is for sale, don't ask the four-option question. The Campaign tab has a 'for sale' choice: the first message offers help selling the home through NAVEO Homes, says it may be able to earn while it's on the market, and mentions NAVEO Stays as another option if the owner is in no rush. It never mentions property management.",
+      "answer": "The entry text says who you are, mentions the property address, and asks one question: are you mainly looking to sell, rent long-term, rent short-term, or still deciding? The owner replies 1, 2, 3 or 4. The email asks the same question with the same four options, as a reply or a button. Suggested email subject lines to test: Quick question about the address; Sell, rent, or both? We need 10 seconds; So we don't send the wrong options. Only the path they choose is followed up. If the property is for sale, don't ask the four-option question. The Campaign tab has a 'for sale' choice: the first message is from NAVEO Homes, says NAVEO supports owners through a sale, and, if the home will sit empty while it's listed, that NAVEO Stays may be able to run it as a short-term rental in the meantime. It ends with one simple ask. It never mentions property management and never promises a price, timeline or income.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
       "kind": "guide"
@@ -991,14 +1105,2990 @@
         "fsbo",
         "sale listing",
         "naveo homes message",
-        "sell through naveo homes",
-        "no property management",
-        "earn while on the market"
+        "bridge",
+        "short-term rental while listed",
+        "no property management"
       ],
-      "answer": "Texts, emails and messages to the owner of a home that is for sale are sent as NAVEO Homes and offer help selling the home. They say the home may be able to earn while it's on the market, and that NAVEO Stays is another option if the owner is in no immediate rush. They never mention property management and never promise a sale price, a buyer or income. A home for rent is sent as NAVEO Stays instead.",
+      "answer": "Texts, emails and messages to the owner of a home that is for sale are sent as NAVEO Homes, with one main offer: support through a sale. They then say that, if the home will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental in the meantime, and end with one simple ask such as 'Worth a short conversation?'. They never say NAVEO sells the home itself, never mention property management, and never promise a sale price, a timeline or income. A home for rent is sent as NAVEO Stays instead.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
       "kind": "guide"
+    },
+    {
+      "id": "page-dashboard",
+      "title": "Where is Dashboard and what is it for?",
+      "keywords": [
+        "Dashboard",
+        "Dashboard",
+        "Core"
+      ],
+      "answer": "Dashboard: Your command center: KPI cards for the lead pipeline, the stage funnel, top-scored leads and the recent activity feed. Find it in the Core menu, at the home page. Available to admins and owners.",
+      "source": "Menu: Dashboard",
+      "route": "/",
+      "kind": "page"
+    },
+    {
+      "id": "page-executive-overview-executive-overview",
+      "title": "Where is Executive Overview and what is it for?",
+      "keywords": [
+        "Executive Overview",
+        "Executive",
+        "Overview",
+        "executive-overview",
+        "Core"
+      ],
+      "answer": "Executive Overview: How outreach is converting across the company, with cards, bars and rows you can click to dig into the detail. Find it in the Core menu, at /executive-overview. Available to admins and owners.",
+      "source": "Menu: Executive Overview",
+      "route": "/executive-overview",
+      "kind": "page"
+    },
+    {
+      "id": "page-pipeline-board-pipeline",
+      "title": "Where is Pipeline Board and what is it for?",
+      "keywords": [
+        "Pipeline Board",
+        "Pipeline",
+        "Board",
+        "pipeline",
+        "Core"
+      ],
+      "answer": "Pipeline Board: The campaign board: one column per stage, one card per lead with its score and latest activity, plus filters by state, program, minimum score and sort order. Find it in the Core menu, at /pipeline. Available to admins and owners.",
+      "source": "Menu: Pipeline Board",
+      "route": "/pipeline",
+      "kind": "page"
+    },
+    {
+      "id": "page-map-view-map-view",
+      "title": "Where is Map View and what is it for?",
+      "keywords": [
+        "Map View",
+        "Map",
+        "View",
+        "map-view",
+        "Core"
+      ],
+      "answer": "Map View: Leads plotted on a map so you can see where properties are and open one from its pin. Find it in the Core menu, at /map-view. Available to admins and owners.",
+      "source": "Menu: Map View",
+      "route": "/map-view",
+      "kind": "page"
+    },
+    {
+      "id": "page-field-view-mobile-agent-field-view",
+      "title": "Where is Field View (Mobile) and what is it for?",
+      "keywords": [
+        "Field View (Mobile)",
+        "Field",
+        "View",
+        "Mobile",
+        "agent-field-view",
+        "Core"
+      ],
+      "answer": "Field View (Mobile): A phone-friendly view for working leads in the field: touch a pin to see the lead, with call-quality feedback and assignment override. Find it in the Core menu, at /agent-field-view. Available to admins and owners.",
+      "source": "Menu: Field View (Mobile)",
+      "route": "/agent-field-view",
+      "kind": "page"
+    },
+    {
+      "id": "page-time-clock-time-clock",
+      "title": "Where is Time Clock and what is it for?",
+      "keywords": [
+        "Time Clock",
+        "Time",
+        "Clock",
+        "time-clock",
+        "Core",
+        "Core"
+      ],
+      "answer": "Time Clock: Clock in and out and track your breaks. Find it in the Core menu and Core menu (agents), at /time-clock. Available to admins and owners and agents.",
+      "source": "Menu: Time Clock",
+      "route": "/time-clock",
+      "kind": "page"
+    },
+    {
+      "id": "page-team-chat-team-chat",
+      "title": "Where is Team Chat and what is it for?",
+      "keywords": [
+        "Team Chat",
+        "Team",
+        "Chat",
+        "team-chat",
+        "Core",
+        "Core"
+      ],
+      "answer": "Team Chat: Message your team inside AVYRO. Find it in the Core menu and Core menu (agents), at /team-chat. Available to admins and owners and agents.",
+      "source": "Menu: Team Chat",
+      "route": "/team-chat",
+      "kind": "page"
+    },
+    {
+      "id": "page-my-profile-prefs-agent-profile",
+      "title": "Where is My Profile & Prefs and what is it for?",
+      "keywords": [
+        "My Profile & Prefs",
+        "My",
+        "Profile",
+        "Prefs",
+        "agent-profile",
+        "Core"
+      ],
+      "answer": "My Profile & Prefs: Your own profile and preferences. Find it in the Core menu, at /agent-profile. Available to admins and owners.",
+      "source": "Menu: My Profile & Prefs",
+      "route": "/agent-profile",
+      "kind": "page"
+    },
+    {
+      "id": "page-system-health-system-health",
+      "title": "Where is System Health and what is it for?",
+      "keywords": [
+        "System Health",
+        "System",
+        "Health",
+        "system-health",
+        "Core"
+      ],
+      "answer": "System Health: Live status checks of every AVYRO service, with a 90-day history you can click into by day. Find it in the Core menu, at /system-health. Available to admins and owners.",
+      "source": "Menu: System Health",
+      "route": "/system-health",
+      "kind": "page"
+    },
+    {
+      "id": "page-ava-knowledge-ava-knowledge",
+      "title": "Where is AVA Knowledge and what is it for?",
+      "keywords": [
+        "AVA Knowledge",
+        "AVA",
+        "Knowledge",
+        "ava-knowledge",
+        "Core"
+      ],
+      "answer": "AVA Knowledge: Teach AVA answers for your team and see what she could not answer Find it in the Core menu, at /ava-knowledge. Available to admins and owners.",
+      "source": "Menu: AVA Knowledge",
+      "route": "/ava-knowledge",
+      "kind": "page"
+    },
+    {
+      "id": "page-lead-management-lead-management",
+      "title": "Where is Lead Management and what is it for?",
+      "keywords": [
+        "Lead Management",
+        "Lead",
+        "Management",
+        "lead-management",
+        "Leads & Pipeline"
+      ],
+      "answer": "Lead Management: Search, filter and work every lead Find it in the Leads & Pipeline menu, at /lead-management. Available to admins and owners.",
+      "source": "Menu: Lead Management",
+      "route": "/lead-management",
+      "kind": "page"
+    },
+    {
+      "id": "page-lead-record-lead-record",
+      "title": "Where is Lead Record and what is it for?",
+      "keywords": [
+        "Lead Record",
+        "Lead",
+        "Record",
+        "lead-record",
+        "Leads & Pipeline"
+      ],
+      "answer": "Lead Record: Full record, notes and activity Find it in the Leads & Pipeline menu, at /lead-record. Available to admins and owners.",
+      "source": "Menu: Lead Record",
+      "route": "/lead-record",
+      "kind": "page"
+    },
+    {
+      "id": "page-lead-profile-lead-profile",
+      "title": "Where is Lead Profile and what is it for?",
+      "keywords": [
+        "Lead Profile",
+        "Lead",
+        "Profile",
+        "lead-profile",
+        "Leads & Pipeline"
+      ],
+      "answer": "Lead Profile: Owner, property and contact details Find it in the Leads & Pipeline menu, at /lead-profile. Available to admins and owners.",
+      "source": "Menu: Lead Profile",
+      "route": "/lead-profile",
+      "kind": "page"
+    },
+    {
+      "id": "page-lead-sources-lead-sources",
+      "title": "Where is Lead Sources and what is it for?",
+      "keywords": [
+        "Lead Sources",
+        "Lead",
+        "Sources",
+        "lead-sources",
+        "Leads & Pipeline"
+      ],
+      "answer": "Lead Sources: Where leads come from and how they convert Find it in the Leads & Pipeline menu, at /lead-sources. Available to admins and owners.",
+      "source": "Menu: Lead Sources",
+      "route": "/lead-sources",
+      "kind": "page"
+    },
+    {
+      "id": "page-lead-sources-manager-lead-sources-manager",
+      "title": "Where is Lead Sources Manager and what is it for?",
+      "keywords": [
+        "Lead Sources Manager",
+        "Lead",
+        "Sources",
+        "Manager",
+        "lead-sources-manager",
+        "Leads & Pipeline"
+      ],
+      "answer": "Lead Sources Manager: Add, pause and tune lead sources Find it in the Leads & Pipeline menu, at /lead-sources-manager. Available to admins and owners.",
+      "source": "Menu: Lead Sources Manager",
+      "route": "/lead-sources-manager",
+      "kind": "page"
+    },
+    {
+      "id": "page-ml-prospect-scoring-ml-prospect-scoring",
+      "title": "Where is ML Prospect Scoring and what is it for?",
+      "keywords": [
+        "ML Prospect Scoring",
+        "ML",
+        "Prospect",
+        "Scoring",
+        "ml-prospect-scoring",
+        "Leads & Pipeline"
+      ],
+      "answer": "ML Prospect Scoring: Model-driven prospect scores Find it in the Leads & Pipeline menu, at /ml-prospect-scoring. Available to admins and owners.",
+      "source": "Menu: ML Prospect Scoring",
+      "route": "/ml-prospect-scoring",
+      "kind": "page"
+    },
+    {
+      "id": "page-property-screening-property-screening",
+      "title": "Where is Property Screening and what is it for?",
+      "keywords": [
+        "Property Screening",
+        "Property",
+        "Screening",
+        "property-screening",
+        "Leads & Pipeline"
+      ],
+      "answer": "Property Screening: Qualify properties before outreach Find it in the Leads & Pipeline menu, at /property-screening. Available to admins and owners.",
+      "source": "Menu: Property Screening",
+      "route": "/property-screening",
+      "kind": "page"
+    },
+    {
+      "id": "page-property-report-property-report",
+      "title": "Where is Property Report and what is it for?",
+      "keywords": [
+        "Property Report",
+        "Property",
+        "Report",
+        "property-report",
+        "Leads & Pipeline"
+      ],
+      "answer": "Property Report: Revenue estimate and market report Find it in the Leads & Pipeline menu, at /property-report. Available to admins and owners.",
+      "source": "Menu: Property Report",
+      "route": "/property-report",
+      "kind": "page"
+    },
+    {
+      "id": "page-questionnaires-questionnaires",
+      "title": "Where is Questionnaires and what is it for?",
+      "keywords": [
+        "Questionnaires",
+        "Questionnaires",
+        "questionnaires",
+        "Leads & Pipeline"
+      ],
+      "answer": "Questionnaires: Owner intake and qualification forms Find it in the Leads & Pipeline menu, at /questionnaires. Available to admins and owners.",
+      "source": "Menu: Questionnaires",
+      "route": "/questionnaires",
+      "kind": "page"
+    },
+    {
+      "id": "page-duplicate-detection-duplicate-detection",
+      "title": "Where is Duplicate Detection and what is it for?",
+      "keywords": [
+        "Duplicate Detection",
+        "Duplicate",
+        "Detection",
+        "duplicate-detection",
+        "Leads & Pipeline"
+      ],
+      "answer": "Duplicate Detection: Find and merge duplicate leads Find it in the Leads & Pipeline menu, at /duplicate-detection. Available to admins and owners.",
+      "source": "Menu: Duplicate Detection",
+      "route": "/duplicate-detection",
+      "kind": "page"
+    },
+    {
+      "id": "page-duplicate-audit-duplicate-audit",
+      "title": "Where is Duplicate Audit and what is it for?",
+      "keywords": [
+        "Duplicate Audit",
+        "Duplicate",
+        "Audit",
+        "duplicate-audit",
+        "Leads & Pipeline"
+      ],
+      "answer": "Duplicate Audit: Review past merges and matches Find it in the Leads & Pipeline menu, at /duplicate-audit. Available to admins and owners.",
+      "source": "Menu: Duplicate Audit",
+      "route": "/duplicate-audit",
+      "kind": "page"
+    },
+    {
+      "id": "page-dedup-monitor-dedup-monitor",
+      "title": "Where is Dedup Monitor and what is it for?",
+      "keywords": [
+        "Dedup Monitor",
+        "Dedup",
+        "Monitor",
+        "dedup-monitor",
+        "Leads & Pipeline"
+      ],
+      "answer": "Dedup Monitor: Live duplicate detection health Find it in the Leads & Pipeline menu, at /dedup-monitor. Available to admins and owners.",
+      "source": "Menu: Dedup Monitor",
+      "route": "/dedup-monitor",
+      "kind": "page"
+    },
+    {
+      "id": "page-renewal-alerts-renewal-alerts",
+      "title": "Where is Renewal Alerts and what is it for?",
+      "keywords": [
+        "Renewal Alerts",
+        "Renewal",
+        "Alerts",
+        "renewal-alerts",
+        "Leads & Pipeline"
+      ],
+      "answer": "Renewal Alerts: Upcoming agreement renewals Find it in the Leads & Pipeline menu, at /renewal-alerts. Available to admins and owners.",
+      "source": "Menu: Renewal Alerts",
+      "route": "/renewal-alerts",
+      "kind": "page"
+    },
+    {
+      "id": "page-agreement-signing-lead-management",
+      "title": "Where is Agreement Signing and what is it for?",
+      "keywords": [
+        "Agreement Signing",
+        "Agreement",
+        "Signing",
+        "lead-management",
+        "Leads & Pipeline"
+      ],
+      "answer": "Agreement Signing: Send and track agreements Find it in the Leads & Pipeline menu, at /lead-management. Available to admins and owners.",
+      "source": "Menu: Agreement Signing",
+      "route": "/lead-management",
+      "kind": "page"
+    },
+    {
+      "id": "page-managed-properties-managed-properties",
+      "title": "Where is Managed Properties and what is it for?",
+      "keywords": [
+        "Managed Properties",
+        "Managed",
+        "Properties",
+        "managed-properties",
+        "Property Operations"
+      ],
+      "answer": "Managed Properties: Homes under management Find it in the Property Operations menu, at /managed-properties. Available to admins and owners.",
+      "source": "Menu: Managed Properties",
+      "route": "/managed-properties",
+      "kind": "page"
+    },
+    {
+      "id": "page-turnovers-cleaning-cleaner-jobs",
+      "title": "Where is Turnovers & Cleaning and what is it for?",
+      "keywords": [
+        "Turnovers & Cleaning",
+        "Turnovers",
+        "Cleaning",
+        "cleaner jobs",
+        "Property Operations"
+      ],
+      "answer": "Turnovers & Cleaning: Cleaning jobs and guest turnovers Find it in the Property Operations menu, at /cleaner/jobs. Available to admins and owners.",
+      "source": "Menu: Turnovers & Cleaning",
+      "route": "/cleaner/jobs",
+      "kind": "page"
+    },
+    {
+      "id": "page-data-sync-data-sync",
+      "title": "Where is Data Sync and what is it for?",
+      "keywords": [
+        "Data Sync",
+        "Data",
+        "Sync",
+        "data-sync",
+        "Data & Sync"
+      ],
+      "answer": "Data Sync: Run and monitor data imports Find it in the Data & Sync menu, at /data-sync. Available to admins and owners.",
+      "source": "Menu: Data Sync",
+      "route": "/data-sync",
+      "kind": "page"
+    },
+    {
+      "id": "page-sync-health-sync-health",
+      "title": "Where is Sync Health and what is it for?",
+      "keywords": [
+        "Sync Health",
+        "Sync",
+        "Health",
+        "sync-health",
+        "Data & Sync"
+      ],
+      "answer": "Sync Health: Sync status and failures Find it in the Data & Sync menu, at /sync-health. Available to admins and owners.",
+      "source": "Menu: Sync Health",
+      "route": "/sync-health",
+      "kind": "page"
+    },
+    {
+      "id": "page-trulia-source-integrity-trulia-source-health",
+      "title": "Where is Trulia Source Integrity and what is it for?",
+      "keywords": [
+        "Trulia Source Integrity",
+        "Trulia",
+        "Source",
+        "Integrity",
+        "trulia-source-health",
+        "Data & Sync"
+      ],
+      "answer": "Trulia Source Integrity: Checks that the Trulia lead source is still delivering clean data, with a button to run a sync for that source. Find it in the Data & Sync menu, at /trulia-source-health. Available to admins and owners.",
+      "source": "Menu: Trulia Source Integrity",
+      "route": "/trulia-source-health",
+      "kind": "page"
+    },
+    {
+      "id": "page-data-freshness-monitor-data-freshness",
+      "title": "Where is Data Freshness Monitor and what is it for?",
+      "keywords": [
+        "Data Freshness Monitor",
+        "Data",
+        "Freshness",
+        "Monitor",
+        "data-freshness",
+        "Data & Sync"
+      ],
+      "answer": "Data Freshness Monitor: How current each data source is Find it in the Data & Sync menu, at /data-freshness. Available to admins and owners.",
+      "source": "Menu: Data Freshness Monitor",
+      "route": "/data-freshness",
+      "kind": "page"
+    },
+    {
+      "id": "page-sync-ops-dashboard-sync-ops-dashboard",
+      "title": "Where is Sync Ops Dashboard and what is it for?",
+      "keywords": [
+        "Sync Ops Dashboard",
+        "Sync",
+        "Ops",
+        "Dashboard",
+        "sync-ops-dashboard",
+        "Data & Sync"
+      ],
+      "answer": "Sync Ops Dashboard: Live source pulls, per-portfolio health, validation and alerts for the data sync. Find it in the Data & Sync menu, at /sync-ops-dashboard. Available to admins and owners.",
+      "source": "Menu: Sync Ops Dashboard",
+      "route": "/sync-ops-dashboard",
+      "kind": "page"
+    },
+    {
+      "id": "page-sync-regression-monitor-sync-regression-monitor",
+      "title": "Where is Sync Regression Monitor and what is it for?",
+      "keywords": [
+        "Sync Regression Monitor",
+        "Sync",
+        "Regression",
+        "Monitor",
+        "sync-regression-monitor",
+        "Data & Sync"
+      ],
+      "answer": "Sync Regression Monitor: Flags synced leads that fail quality checks, so a source that starts returning bad data is noticed within days. Find it in the Data & Sync menu, at /sync-regression-monitor. Available to admins and owners.",
+      "source": "Menu: Sync Regression Monitor",
+      "route": "/sync-regression-monitor",
+      "kind": "page"
+    },
+    {
+      "id": "page-sync-diagnostics-sync-diagnostics",
+      "title": "Where is Sync Diagnostics and what is it for?",
+      "keywords": [
+        "Sync Diagnostics",
+        "Sync",
+        "Diagnostics",
+        "sync-diagnostics",
+        "Data & Sync"
+      ],
+      "answer": "Sync Diagnostics: Row-by-row detail of sync runs: click any row to expand what happened and why. Find it in the Data & Sync menu, at /sync-diagnostics. Available to admins and owners.",
+      "source": "Menu: Sync Diagnostics",
+      "route": "/sync-diagnostics",
+      "kind": "page"
+    },
+    {
+      "id": "page-enrichment-rules-engine-enrichment-rules-engine",
+      "title": "Where is Enrichment Rules Engine and what is it for?",
+      "keywords": [
+        "Enrichment Rules Engine",
+        "Enrichment",
+        "Rules",
+        "Engine",
+        "enrichment-rules-engine",
+        "Data & Sync"
+      ],
+      "answer": "Enrichment Rules Engine: The saved confidence rules for enrichment, and any real violations caught during validation. Find it in the Data & Sync menu, at /enrichment-rules-engine. Available to admins and owners.",
+      "source": "Menu: Enrichment Rules Engine",
+      "route": "/enrichment-rules-engine",
+      "kind": "page"
+    },
+    {
+      "id": "page-validation-analytics-enrichment-validation-analy",
+      "title": "Where is Validation Analytics and what is it for?",
+      "keywords": [
+        "Validation Analytics",
+        "Validation",
+        "Analytics",
+        "enrichment-validation-analytics",
+        "Data & Sync"
+      ],
+      "answer": "Validation Analytics: How enrichment results hold up under validation: pass and fail rates over time. Find it in the Data & Sync menu, at /enrichment-validation-analytics. Available to admins and owners.",
+      "source": "Menu: Validation Analytics",
+      "route": "/enrichment-validation-analytics",
+      "kind": "page"
+    },
+    {
+      "id": "page-contact-enrichment-contact-enrichment",
+      "title": "Where is Contact Enrichment and what is it for?",
+      "keywords": [
+        "Contact Enrichment",
+        "Contact",
+        "Enrichment",
+        "contact-enrichment",
+        "Data & Sync"
+      ],
+      "answer": "Contact Enrichment: Find phones and emails for owners Find it in the Data & Sync menu, at /contact-enrichment. Available to admins and owners.",
+      "source": "Menu: Contact Enrichment",
+      "route": "/contact-enrichment",
+      "kind": "page"
+    },
+    {
+      "id": "page-enrichment-review-queue-enrichment-review-queue",
+      "title": "Where is Enrichment Review Queue and what is it for?",
+      "keywords": [
+        "Enrichment Review Queue",
+        "Enrichment",
+        "Review",
+        "Queue",
+        "enrichment-review-queue",
+        "Data & Sync"
+      ],
+      "answer": "Enrichment Review Queue: Enrichment results that need a person to approve or reject them before they are trusted. Find it in the Data & Sync menu, at /enrichment-review-queue. Available to admins and owners.",
+      "source": "Menu: Enrichment Review Queue",
+      "route": "/enrichment-review-queue",
+      "kind": "page"
+    },
+    {
+      "id": "page-source-intelligence-source-intelligence",
+      "title": "Where is Source Intelligence and what is it for?",
+      "keywords": [
+        "Source Intelligence",
+        "Source",
+        "Intelligence",
+        "source-intelligence",
+        "Data & Sync"
+      ],
+      "answer": "Source Intelligence: Share, quality, verification and conversion per lead source, computed from real counts of the leads. Find it in the Data & Sync menu, at /source-intelligence. Available to admins and owners.",
+      "source": "Menu: Source Intelligence",
+      "route": "/source-intelligence",
+      "kind": "page"
+    },
+    {
+      "id": "page-enrichment-costs-enrichment-costs",
+      "title": "Where is Enrichment Costs and what is it for?",
+      "keywords": [
+        "Enrichment Costs",
+        "Enrichment",
+        "Costs",
+        "enrichment-costs",
+        "Data & Sync"
+      ],
+      "answer": "Enrichment Costs: What enrichment and skip-trace lookups cost, so you can keep spending in check. Find it in the Data & Sync menu, at /enrichment-costs. Available to admins and owners.",
+      "source": "Menu: Enrichment Costs",
+      "route": "/enrichment-costs",
+      "kind": "page"
+    },
+    {
+      "id": "page-integration-health-integration-health",
+      "title": "Where is Integration Health and what is it for?",
+      "keywords": [
+        "Integration Health",
+        "Integration",
+        "Health",
+        "integration-health",
+        "Data & Sync"
+      ],
+      "answer": "Integration Health: Whether each connected service (sync sources, messaging, email) is up and responding. Find it in the Data & Sync menu, at /integration-health. Available to admins and owners.",
+      "source": "Menu: Integration Health",
+      "route": "/integration-health",
+      "kind": "page"
+    },
+    {
+      "id": "page-csv-pre-flight-csv-preflight",
+      "title": "Where is CSV Pre-Flight and what is it for?",
+      "keywords": [
+        "CSV Pre-Flight",
+        "CSV",
+        "Pre-Flight",
+        "csv-preflight",
+        "Data & Sync"
+      ],
+      "answer": "CSV Pre-Flight: Validate a CSV before import Find it in the Data & Sync menu, at /csv-preflight. Available to admins and owners.",
+      "source": "Menu: CSV Pre-Flight",
+      "route": "/csv-preflight",
+      "kind": "page"
+    },
+    {
+      "id": "page-re-score-events-rescore-events",
+      "title": "Where is Re-Score Events and what is it for?",
+      "keywords": [
+        "Re-Score Events",
+        "Re-Score",
+        "Events",
+        "rescore-events",
+        "Data & Sync"
+      ],
+      "answer": "Re-Score Events: An audit log of every lead score change: who triggered it, when, old versus new score and the reason. Find it in the Data & Sync menu, at /rescore-events. Available to admins and owners.",
+      "source": "Menu: Re-Score Events",
+      "route": "/rescore-events",
+      "kind": "page"
+    },
+    {
+      "id": "page-lead-data-quality-lead-data-quality",
+      "title": "Where is Lead Data Quality and what is it for?",
+      "keywords": [
+        "Lead Data Quality",
+        "Lead",
+        "Data",
+        "Quality",
+        "lead-data-quality",
+        "Data & Sync"
+      ],
+      "answer": "Lead Data Quality: Where lead records are missing or inconsistent, so they can be fixed before outreach. Find it in the Data & Sync menu, at /lead-data-quality. Available to admins and owners.",
+      "source": "Menu: Lead Data Quality",
+      "route": "/lead-data-quality",
+      "kind": "page"
+    },
+    {
+      "id": "page-data-quality-monitor-data-quality-monitor",
+      "title": "Where is Data Quality Monitor and what is it for?",
+      "keywords": [
+        "Data Quality Monitor",
+        "Data",
+        "Quality",
+        "Monitor",
+        "data-quality-monitor",
+        "Data & Sync"
+      ],
+      "answer": "Data Quality Monitor: Ongoing data-quality checks across the lead database and how they trend. Find it in the Data & Sync menu, at /data-quality-monitor. Available to admins and owners.",
+      "source": "Menu: Data Quality Monitor",
+      "route": "/data-quality-monitor",
+      "kind": "page"
+    },
+    {
+      "id": "page-verification-debug-property-verification-debug",
+      "title": "Where is Verification Debug and what is it for?",
+      "keywords": [
+        "Verification Debug",
+        "Verification",
+        "Debug",
+        "property-verification-debug",
+        "Data & Sync"
+      ],
+      "answer": "Verification Debug: Trace any property through the verification pipeline to see why it did or did not pass. Find it in the Data & Sync menu, at /property-verification-debug. Available to admins and owners.",
+      "source": "Menu: Verification Debug",
+      "route": "/property-verification-debug",
+      "kind": "page"
+    },
+    {
+      "id": "page-email-templates-email-templates",
+      "title": "Where is Email Templates and what is it for?",
+      "keywords": [
+        "Email Templates",
+        "Email",
+        "Templates",
+        "email-templates",
+        "Outreach"
+      ],
+      "answer": "Email Templates: Branded outreach emails Find it in the Outreach menu, at /email-templates. Available to admins and owners.",
+      "source": "Menu: Email Templates",
+      "route": "/email-templates",
+      "kind": "page"
+    },
+    {
+      "id": "page-auth-email-templates-supabase-email-templates",
+      "title": "Where is Auth Email Templates and what is it for?",
+      "keywords": [
+        "Auth Email Templates",
+        "Auth",
+        "Email",
+        "Templates",
+        "supabase-email-templates",
+        "Outreach"
+      ],
+      "answer": "Auth Email Templates: Sign-in and invite emails Find it in the Outreach menu, at /supabase-email-templates. Available to admins and owners.",
+      "source": "Menu: Auth Email Templates",
+      "route": "/supabase-email-templates",
+      "kind": "page"
+    },
+    {
+      "id": "page-message-templates-templates",
+      "title": "Where is Message Templates and what is it for?",
+      "keywords": [
+        "Message Templates",
+        "Message",
+        "Templates",
+        "templates",
+        "Outreach"
+      ],
+      "answer": "Message Templates: Reusable SMS and email messages Find it in the Outreach menu, at /templates. Available to admins and owners.",
+      "source": "Menu: Message Templates",
+      "route": "/templates",
+      "kind": "page"
+    },
+    {
+      "id": "page-template-editor-template-editor",
+      "title": "Where is Template Editor and what is it for?",
+      "keywords": [
+        "Template Editor",
+        "Template",
+        "Editor",
+        "template-editor",
+        "Outreach"
+      ],
+      "answer": "Template Editor: Create and edit templates Find it in the Outreach menu, at /template-editor. Available to admins and owners.",
+      "source": "Menu: Template Editor",
+      "route": "/template-editor",
+      "kind": "page"
+    },
+    {
+      "id": "page-template-ratings-template-ratings",
+      "title": "Where is Template Ratings and what is it for?",
+      "keywords": [
+        "Template Ratings",
+        "Template",
+        "Ratings",
+        "template-ratings",
+        "Outreach"
+      ],
+      "answer": "Template Ratings: Which templates agents rate best Find it in the Outreach menu, at /template-ratings. Available to admins and owners.",
+      "source": "Menu: Template Ratings",
+      "route": "/template-ratings",
+      "kind": "page"
+    },
+    {
+      "id": "page-template-ai-suggestions-template-ai-suggestions",
+      "title": "Where is Template AI Suggestions and what is it for?",
+      "keywords": [
+        "Template AI Suggestions",
+        "Template",
+        "AI",
+        "Suggestions",
+        "template-ai-suggestions",
+        "Outreach"
+      ],
+      "answer": "Template AI Suggestions: AI rewrites to lift replies Find it in the Outreach menu, at /template-ai-suggestions. Available to admins and owners.",
+      "source": "Menu: Template AI Suggestions",
+      "route": "/template-ai-suggestions",
+      "kind": "page"
+    },
+    {
+      "id": "page-cadence-engine-cadence-engine",
+      "title": "Where is Cadence Engine and what is it for?",
+      "keywords": [
+        "Cadence Engine",
+        "Cadence",
+        "Engine",
+        "cadence-engine",
+        "Outreach"
+      ],
+      "answer": "Cadence Engine: Build multi-step outreach cadences Find it in the Outreach menu, at /cadence-engine. Available to admins and owners.",
+      "source": "Menu: Cadence Engine",
+      "route": "/cadence-engine",
+      "kind": "page"
+    },
+    {
+      "id": "page-cadence-performance-cadence-performance",
+      "title": "Where is Cadence Performance and what is it for?",
+      "keywords": [
+        "Cadence Performance",
+        "Cadence",
+        "Performance",
+        "cadence-performance",
+        "Outreach"
+      ],
+      "answer": "Cadence Performance: Reply and conversion by cadence Find it in the Outreach menu, at /cadence-performance. Available to admins and owners.",
+      "source": "Menu: Cadence Performance",
+      "route": "/cadence-performance",
+      "kind": "page"
+    },
+    {
+      "id": "page-cadence-ai-insights-cadence-ai-insights",
+      "title": "Where is Cadence AI Insights and what is it for?",
+      "keywords": [
+        "Cadence AI Insights",
+        "Cadence",
+        "AI",
+        "Insights",
+        "cadence-ai-insights",
+        "Outreach"
+      ],
+      "answer": "Cadence AI Insights: AI tips to improve cadences Find it in the Outreach menu, at /cadence-ai-insights. Available to admins and owners.",
+      "source": "Menu: Cadence AI Insights",
+      "route": "/cadence-ai-insights",
+      "kind": "page"
+    },
+    {
+      "id": "page-escalated-leads-escalated-leads",
+      "title": "Where is Escalated Leads and what is it for?",
+      "keywords": [
+        "Escalated Leads",
+        "Escalated",
+        "Leads",
+        "escalated-leads",
+        "Outreach"
+      ],
+      "answer": "Escalated Leads: Leads needing a human follow-up Find it in the Outreach menu, at /escalated-leads. Available to admins and owners.",
+      "source": "Menu: Escalated Leads",
+      "route": "/escalated-leads",
+      "kind": "page"
+    },
+    {
+      "id": "page-follow-up-sequences-follow-up-sequences",
+      "title": "Where is Follow-Up Sequences and what is it for?",
+      "keywords": [
+        "Follow-Up Sequences",
+        "Follow-Up",
+        "Sequences",
+        "follow-up-sequences",
+        "Outreach"
+      ],
+      "answer": "Follow-Up Sequences: Automated follow-up steps Find it in the Outreach menu, at /follow-up-sequences. Available to admins and owners.",
+      "source": "Menu: Follow-Up Sequences",
+      "route": "/follow-up-sequences",
+      "kind": "page"
+    },
+    {
+      "id": "page-sms-delivery-sms-delivery",
+      "title": "Where is SMS Delivery and what is it for?",
+      "keywords": [
+        "SMS Delivery",
+        "SMS",
+        "Delivery",
+        "sms-delivery",
+        "Outreach"
+      ],
+      "answer": "SMS Delivery: Delivery status for every text Find it in the Outreach menu, at /sms-delivery. Available to admins and owners.",
+      "source": "Menu: SMS Delivery",
+      "route": "/sms-delivery",
+      "kind": "page"
+    },
+    {
+      "id": "page-campaigns-campaigns",
+      "title": "Where is Campaigns and what is it for?",
+      "keywords": [
+        "Campaigns",
+        "Campaigns",
+        "campaigns",
+        "Outreach"
+      ],
+      "answer": "Campaigns: Plan and launch campaigns Find it in the Outreach menu, at /campaigns. Available to admins and owners.",
+      "source": "Menu: Campaigns",
+      "route": "/campaigns",
+      "kind": "page"
+    },
+    {
+      "id": "page-co-host-pipeline-cohost",
+      "title": "Where is Co-Host Pipeline and what is it for?",
+      "keywords": [
+        "Co-Host Pipeline",
+        "Co-Host",
+        "Pipeline",
+        "cohost",
+        "Outreach"
+      ],
+      "answer": "Co-Host Pipeline: Co-host prospects and offers Find it in the Outreach menu, at /cohost. Available to admins and owners.",
+      "source": "Menu: Co-Host Pipeline",
+      "route": "/cohost",
+      "kind": "page"
+    },
+    {
+      "id": "page-seller-owner-services-seller-pipeline",
+      "title": "Where is Seller & Owner Services and what is it for?",
+      "keywords": [
+        "Seller & Owner Services",
+        "Seller",
+        "Owner",
+        "Services",
+        "seller-pipeline",
+        "Outreach"
+      ],
+      "answer": "Seller & Owner Services: Seller replies, permissions and partners Find it in the Outreach menu, at /seller-pipeline. Available to admins and owners.",
+      "source": "Menu: Seller & Owner Services",
+      "route": "/seller-pipeline",
+      "kind": "page"
+    },
+    {
+      "id": "page-sms-campaign-analytics-sms-campaign-analytics",
+      "title": "Where is SMS Campaign Analytics and what is it for?",
+      "keywords": [
+        "SMS Campaign Analytics",
+        "SMS",
+        "Campaign",
+        "Analytics",
+        "sms-campaign-analytics",
+        "Outreach"
+      ],
+      "answer": "SMS Campaign Analytics: Texting results by campaign Find it in the Outreach menu, at /sms-campaign-analytics. Available to admins and owners.",
+      "source": "Menu: SMS Campaign Analytics",
+      "route": "/sms-campaign-analytics",
+      "kind": "page"
+    },
+    {
+      "id": "page-inbound-threads-sms-inbound-threads",
+      "title": "Where is Inbound Threads and what is it for?",
+      "keywords": [
+        "Inbound Threads",
+        "Inbound",
+        "Threads",
+        "sms-inbound-threads",
+        "Outreach"
+      ],
+      "answer": "Inbound Threads: Replies from homeowners Find it in the Outreach menu, at /sms-inbound-threads. Available to admins and owners.",
+      "source": "Menu: Inbound Threads",
+      "route": "/sms-inbound-threads",
+      "kind": "page"
+    },
+    {
+      "id": "page-bulk-outreach-composer-bulk-outreach",
+      "title": "Where is Bulk Outreach Composer and what is it for?",
+      "keywords": [
+        "Bulk Outreach Composer",
+        "Bulk",
+        "Outreach",
+        "Composer",
+        "bulk-outreach",
+        "Outreach"
+      ],
+      "answer": "Bulk Outreach Composer: Send to many leads at once Find it in the Outreach menu, at /bulk-outreach. Available to admins and owners.",
+      "source": "Menu: Bulk Outreach Composer",
+      "route": "/bulk-outreach",
+      "kind": "page"
+    },
+    {
+      "id": "page-bulk-email-outreach-bulk-email-outreach",
+      "title": "Where is Bulk Email Outreach and what is it for?",
+      "keywords": [
+        "Bulk Email Outreach",
+        "Bulk",
+        "Email",
+        "Outreach",
+        "bulk-email-outreach",
+        "Outreach"
+      ],
+      "answer": "Bulk Email Outreach: Bulk email with tracking Find it in the Outreach menu, at /bulk-email-outreach. Available to admins and owners.",
+      "source": "Menu: Bulk Email Outreach",
+      "route": "/bulk-email-outreach",
+      "kind": "page"
+    },
+    {
+      "id": "page-email-campaigns-email-campaigns",
+      "title": "Where is Email Campaigns and what is it for?",
+      "keywords": [
+        "Email Campaigns",
+        "Email",
+        "Campaigns",
+        "email-campaigns",
+        "Outreach"
+      ],
+      "answer": "Email Campaigns: Email campaign builder Find it in the Outreach menu, at /email-campaigns. Available to admins and owners.",
+      "source": "Menu: Email Campaigns",
+      "route": "/email-campaigns",
+      "kind": "page"
+    },
+    {
+      "id": "page-sms-cadence-templates-sms-cadence-templates",
+      "title": "Where is SMS Cadence Templates and what is it for?",
+      "keywords": [
+        "SMS Cadence Templates",
+        "SMS",
+        "Cadence",
+        "Templates",
+        "sms-cadence-templates",
+        "Outreach"
+      ],
+      "answer": "SMS Cadence Templates: Text templates for cadences Find it in the Outreach menu, at /sms-cadence-templates. Available to admins and owners.",
+      "source": "Menu: SMS Cadence Templates",
+      "route": "/sms-cadence-templates",
+      "kind": "page"
+    },
+    {
+      "id": "page-delivery-kpis-delivery-kpis",
+      "title": "Where is Delivery KPIs and what is it for?",
+      "keywords": [
+        "Delivery KPIs",
+        "Delivery",
+        "KPIs",
+        "delivery-kpis",
+        "Outreach"
+      ],
+      "answer": "Delivery KPIs: Delivery, bounce and opt-out rates Find it in the Outreach menu, at /delivery-kpis. Available to admins and owners.",
+      "source": "Menu: Delivery KPIs",
+      "route": "/delivery-kpis",
+      "kind": "page"
+    },
+    {
+      "id": "page-outreach-history-outreach-history",
+      "title": "Where is Outreach History and what is it for?",
+      "keywords": [
+        "Outreach History",
+        "Outreach",
+        "History",
+        "outreach-history",
+        "Outreach"
+      ],
+      "answer": "Outreach History: Every message sent to a lead Find it in the Outreach menu, at /outreach-history. Available to admins and owners.",
+      "source": "Menu: Outreach History",
+      "route": "/outreach-history",
+      "kind": "page"
+    },
+    {
+      "id": "page-outreach-tracking-outreach-tracking",
+      "title": "Where is Outreach Tracking and what is it for?",
+      "keywords": [
+        "Outreach Tracking",
+        "Outreach",
+        "Tracking",
+        "outreach-tracking",
+        "Outreach"
+      ],
+      "answer": "Outreach Tracking: Opens, clicks and replies Find it in the Outreach menu, at /outreach-tracking. Available to admins and owners.",
+      "source": "Menu: Outreach Tracking",
+      "route": "/outreach-tracking",
+      "kind": "page"
+    },
+    {
+      "id": "page-retry-queue-retry-queue",
+      "title": "Where is Retry Queue and what is it for?",
+      "keywords": [
+        "Retry Queue",
+        "Retry",
+        "Queue",
+        "retry-queue",
+        "Outreach"
+      ],
+      "answer": "Retry Queue: Failed sends waiting to retry Find it in the Outreach menu, at /retry-queue. Available to admins and owners.",
+      "source": "Menu: Retry Queue",
+      "route": "/retry-queue",
+      "kind": "page"
+    },
+    {
+      "id": "page-alert-hub-alert-hub",
+      "title": "Where is Alert Hub and what is it for?",
+      "keywords": [
+        "Alert Hub",
+        "Alert",
+        "Hub",
+        "alert-hub",
+        "Outreach"
+      ],
+      "answer": "Alert Hub: System and outreach alerts Find it in the Outreach menu, at /alert-hub. Available to admins and owners.",
+      "source": "Menu: Alert Hub",
+      "route": "/alert-hub",
+      "kind": "page"
+    },
+    {
+      "id": "page-alerts-inbox-alerts-inbox",
+      "title": "Where is Alerts Inbox and what is it for?",
+      "keywords": [
+        "Alerts Inbox",
+        "Alerts",
+        "Inbox",
+        "alerts-inbox",
+        "Outreach"
+      ],
+      "answer": "Alerts Inbox: Your unread alerts Find it in the Outreach menu, at /alerts-inbox. Available to admins and owners.",
+      "source": "Menu: Alerts Inbox",
+      "route": "/alerts-inbox",
+      "kind": "page"
+    },
+    {
+      "id": "page-info-request-links-info-request-dashboard",
+      "title": "Where is Info-Request Links and what is it for?",
+      "keywords": [
+        "Info-Request Links",
+        "Info-Request",
+        "Links",
+        "info-request-dashboard",
+        "Outreach"
+      ],
+      "answer": "Info-Request Links: Homeowner info-request links Find it in the Outreach menu, at /info-request-dashboard. Available to admins and owners.",
+      "source": "Menu: Info-Request Links",
+      "route": "/info-request-dashboard",
+      "kind": "page"
+    },
+    {
+      "id": "page-live-teleprompter-teleprompter",
+      "title": "Where is Live Teleprompter and what is it for?",
+      "keywords": [
+        "Live Teleprompter",
+        "Live",
+        "Teleprompter",
+        "teleprompter",
+        "Calls"
+      ],
+      "answer": "Live Teleprompter: The call workspace: a live script and lead details for making calls. Find it in the Calls menu, at /teleprompter. Available to admins and owners.",
+      "source": "Menu: Live Teleprompter",
+      "route": "/teleprompter",
+      "kind": "page"
+    },
+    {
+      "id": "page-interview-mode-teleprompter-interview",
+      "title": "Where is Interview Mode and what is it for?",
+      "keywords": [
+        "Interview Mode",
+        "Interview",
+        "Mode",
+        "teleprompter interview",
+        "Calls"
+      ],
+      "answer": "Interview Mode: The live teleprompter in interview mode, used when interviewing candidates. Find it in the Calls menu, at /teleprompter/interview. Available to admins and owners.",
+      "source": "Menu: Interview Mode",
+      "route": "/teleprompter/interview",
+      "kind": "page"
+    },
+    {
+      "id": "page-live-lead-queue-admin-lead-queue",
+      "title": "Where is Live Lead Queue and what is it for?",
+      "keywords": [
+        "Live Lead Queue",
+        "Live",
+        "Lead",
+        "Queue",
+        "admin-lead-queue",
+        "Calls"
+      ],
+      "answer": "Live Lead Queue: The live queue of leads waiting for an agent. Find it in the Calls menu, at /admin-lead-queue. Available to admins and owners.",
+      "source": "Menu: Live Lead Queue",
+      "route": "/admin-lead-queue",
+      "kind": "page"
+    },
+    {
+      "id": "page-interview-calendar-interview-calendar",
+      "title": "Where is Interview Calendar and what is it for?",
+      "keywords": [
+        "Interview Calendar",
+        "Interview",
+        "Calendar",
+        "interview-calendar",
+        "Calls"
+      ],
+      "answer": "Interview Calendar: Scheduled candidate interviews on a calendar. Find it in the Calls menu, at /interview-calendar. Available to admins and owners.",
+      "source": "Menu: Interview Calendar",
+      "route": "/interview-calendar",
+      "kind": "page"
+    },
+    {
+      "id": "page-interview-recordings-interview-recordings",
+      "title": "Where is Interview Recordings and what is it for?",
+      "keywords": [
+        "Interview Recordings",
+        "Interview",
+        "Recordings",
+        "interview-recordings",
+        "Calls"
+      ],
+      "answer": "Interview Recordings: Recordings of past interviews to review. Find it in the Calls menu, at /interview-recordings. Available to admins and owners.",
+      "source": "Menu: Interview Recordings",
+      "route": "/interview-recordings",
+      "kind": "page"
+    },
+    {
+      "id": "page-candidate-profiles-candidate-profiles",
+      "title": "Where is Candidate Profiles and what is it for?",
+      "keywords": [
+        "Candidate Profiles",
+        "Candidate",
+        "Profiles",
+        "candidate-profiles",
+        "Calls"
+      ],
+      "answer": "Candidate Profiles: Hiring candidates and their profiles in one place. Find it in the Calls menu, at /candidate-profiles. Available to admins and owners.",
+      "source": "Menu: Candidate Profiles",
+      "route": "/candidate-profiles",
+      "kind": "page"
+    },
+    {
+      "id": "page-candidate-kanban-candidate-kanban",
+      "title": "Where is Candidate Kanban and what is it for?",
+      "keywords": [
+        "Candidate Kanban",
+        "Candidate",
+        "Kanban",
+        "candidate-kanban",
+        "Calls"
+      ],
+      "answer": "Candidate Kanban: Hiring candidates on a board, moved between stages. Find it in the Calls menu, at /candidate-kanban. Available to admins and owners.",
+      "source": "Menu: Candidate Kanban",
+      "route": "/candidate-kanban",
+      "kind": "page"
+    },
+    {
+      "id": "page-candidate-pipeline-candidate-pipeline",
+      "title": "Where is Candidate Pipeline and what is it for?",
+      "keywords": [
+        "Candidate Pipeline",
+        "Candidate",
+        "Pipeline",
+        "candidate-pipeline",
+        "Calls"
+      ],
+      "answer": "Candidate Pipeline: The hiring funnel: how many candidates sit at each stage of recruiting. Find it in the Calls menu, at /candidate-pipeline. Available to admins and owners.",
+      "source": "Menu: Candidate Pipeline",
+      "route": "/candidate-pipeline",
+      "kind": "page"
+    },
+    {
+      "id": "page-resume-vs-interview-consistency-report",
+      "title": "Where is Resume vs. Interview and what is it for?",
+      "keywords": [
+        "Resume vs. Interview",
+        "Resume",
+        "vs.",
+        "Interview",
+        "consistency-report",
+        "Calls"
+      ],
+      "answer": "Resume vs. Interview: Compares what a candidate said in their resume with what they said in the interview. Find it in the Calls menu, at /consistency-report. Available to admins and owners.",
+      "source": "Menu: Resume vs. Interview",
+      "route": "/consistency-report",
+      "kind": "page"
+    },
+    {
+      "id": "page-interview-qa-interview-mode-qa",
+      "title": "Where is Interview QA and what is it for?",
+      "keywords": [
+        "Interview QA",
+        "Interview",
+        "QA",
+        "interview-mode-qa",
+        "Calls"
+      ],
+      "answer": "Interview QA: Question-and-answer review for interview mode. Find it in the Calls menu, at /interview-mode-qa. Available to admins and owners.",
+      "source": "Menu: Interview QA",
+      "route": "/interview-mode-qa",
+      "kind": "page"
+    },
+    {
+      "id": "page-candidate-tracker-candidate-tracker",
+      "title": "Where is Candidate Tracker and what is it for?",
+      "keywords": [
+        "Candidate Tracker",
+        "Candidate",
+        "Tracker",
+        "candidate-tracker",
+        "Calls"
+      ],
+      "answer": "Candidate Tracker: A tracker for every candidate and where they stand. Find it in the Calls menu, at /candidate-tracker. Available to admins and owners.",
+      "source": "Menu: Candidate Tracker",
+      "route": "/candidate-tracker",
+      "kind": "page"
+    },
+    {
+      "id": "page-offer-letters-offer-letters",
+      "title": "Where is Offer Letters and what is it for?",
+      "keywords": [
+        "Offer Letters",
+        "Offer",
+        "Letters",
+        "offer-letters",
+        "Calls"
+      ],
+      "answer": "Offer Letters: Create and track offer letters for candidates. Find it in the Calls menu, at /offer-letters. Available to admins and owners.",
+      "source": "Menu: Offer Letters",
+      "route": "/offer-letters",
+      "kind": "page"
+    },
+    {
+      "id": "page-candidate-sequences-candidate-sequences",
+      "title": "Where is Candidate Sequences and what is it for?",
+      "keywords": [
+        "Candidate Sequences",
+        "Candidate",
+        "Sequences",
+        "candidate-sequences",
+        "Calls"
+      ],
+      "answer": "Candidate Sequences: Automated messages sent to candidates as they move through hiring. Find it in the Calls menu, at /candidate-sequences. Available to admins and owners.",
+      "source": "Menu: Candidate Sequences",
+      "route": "/candidate-sequences",
+      "kind": "page"
+    },
+    {
+      "id": "page-hiring-analytics-hiring-analytics",
+      "title": "Where is Hiring Analytics and what is it for?",
+      "keywords": [
+        "Hiring Analytics",
+        "Hiring",
+        "Analytics",
+        "hiring-analytics",
+        "Calls"
+      ],
+      "answer": "Hiring Analytics: Recruiting metrics: how candidates move through hiring and where they drop off. Find it in the Calls menu, at /hiring-analytics. Available to admins and owners.",
+      "source": "Menu: Hiring Analytics",
+      "route": "/hiring-analytics",
+      "kind": "page"
+    },
+    {
+      "id": "page-headset-setup-headset-setup",
+      "title": "Where is Headset Setup and what is it for?",
+      "keywords": [
+        "Headset Setup",
+        "Headset",
+        "Setup",
+        "headset-setup",
+        "Calls",
+        "Calls"
+      ],
+      "answer": "Headset Setup: Set up and test your headset and microphone for calls. Find it in the Calls menu and Calls menu (agents), at /headset-setup. Available to admins and owners and agents.",
+      "source": "Menu: Headset Setup",
+      "route": "/headset-setup",
+      "kind": "page"
+    },
+    {
+      "id": "page-call-analytics-call-analytics",
+      "title": "Where is Call Analytics and what is it for?",
+      "keywords": [
+        "Call Analytics",
+        "Call",
+        "Analytics",
+        "call-analytics",
+        "Calls"
+      ],
+      "answer": "Call Analytics: Call volume, outcomes and talk time across the team. Find it in the Calls menu, at /call-analytics. Available to admins and owners.",
+      "source": "Menu: Call Analytics",
+      "route": "/call-analytics",
+      "kind": "page"
+    },
+    {
+      "id": "page-cron-job-monitor-cron-monitor",
+      "title": "Where is Cron Job Monitor and what is it for?",
+      "keywords": [
+        "Cron Job Monitor",
+        "Cron",
+        "Job",
+        "Monitor",
+        "cron-monitor",
+        "Calls"
+      ],
+      "answer": "Cron Job Monitor: Whether the scheduled background jobs (syncs, enrichment, sends) are running on time and what they did. Find it in the Calls menu, at /cron-monitor. Available to admins and owners.",
+      "source": "Menu: Cron Job Monitor",
+      "route": "/cron-monitor",
+      "kind": "page"
+    },
+    {
+      "id": "page-agent-coaching-agent-coaching",
+      "title": "Where is Agent Coaching and what is it for?",
+      "keywords": [
+        "Agent Coaching",
+        "Agent",
+        "Coaching",
+        "agent-coaching",
+        "Calls"
+      ],
+      "answer": "Agent Coaching: Coaching for agents. Find it in the Calls menu, at /agent-coaching. Available to admins and owners.",
+      "source": "Menu: Agent Coaching",
+      "route": "/agent-coaching",
+      "kind": "page"
+    },
+    {
+      "id": "page-call-quality-review-call-quality-review",
+      "title": "Where is Call Quality Review and what is it for?",
+      "keywords": [
+        "Call Quality Review",
+        "Call",
+        "Quality",
+        "Review",
+        "call-quality-review",
+        "Calls"
+      ],
+      "answer": "Call Quality Review: Review the quality of calls. Find it in the Calls menu, at /call-quality-review. Available to admins and owners.",
+      "source": "Menu: Call Quality Review",
+      "route": "/call-quality-review",
+      "kind": "page"
+    },
+    {
+      "id": "page-lead-auto-assign-lead-auto-assign",
+      "title": "Where is Lead Auto-Assign and what is it for?",
+      "keywords": [
+        "Lead Auto-Assign",
+        "Lead",
+        "Auto-Assign",
+        "lead-auto-assign",
+        "Calls"
+      ],
+      "answer": "Lead Auto-Assign: AI lead auto-assignment: how new leads are given to agents. Find it in the Calls menu, at /lead-auto-assign. Available to admins and owners.",
+      "source": "Menu: Lead Auto-Assign",
+      "route": "/lead-auto-assign",
+      "kind": "page"
+    },
+    {
+      "id": "page-ai-score-retraining-score-retraining",
+      "title": "Where is AI Score Retraining and what is it for?",
+      "keywords": [
+        "AI Score Retraining",
+        "AI",
+        "Score",
+        "Retraining",
+        "score-retraining",
+        "Calls"
+      ],
+      "answer": "AI Score Retraining: Record closed-deal outcomes so the prospect scoring model can be retrained, and see past retraining runs. Find it in the Calls menu, at /score-retraining. Available to admins and owners.",
+      "source": "Menu: AI Score Retraining",
+      "route": "/score-retraining",
+      "kind": "page"
+    },
+    {
+      "id": "page-analytics-analytics",
+      "title": "Where is Analytics and what is it for?",
+      "keywords": [
+        "Analytics",
+        "Analytics",
+        "analytics",
+        "Analytics & Reports"
+      ],
+      "answer": "Analytics: Overall lead and outreach analytics. Find it in the Analytics & Reports menu, at /analytics. Available to admins and owners.",
+      "source": "Menu: Analytics",
+      "route": "/analytics",
+      "kind": "page"
+    },
+    {
+      "id": "page-advanced-reports-advanced-reports",
+      "title": "Where is Advanced Reports and what is it for?",
+      "keywords": [
+        "Advanced Reports",
+        "Advanced",
+        "Reports",
+        "advanced-reports",
+        "Analytics & Reports"
+      ],
+      "answer": "Advanced Reports: Deeper reports you can slice by market, source, agent and period. Find it in the Analytics & Reports menu, at /advanced-reports. Available to admins and owners.",
+      "source": "Menu: Advanced Reports",
+      "route": "/advanced-reports",
+      "kind": "page"
+    },
+    {
+      "id": "page-campaign-analytics-campaign-analytics",
+      "title": "Where is Campaign Analytics and what is it for?",
+      "keywords": [
+        "Campaign Analytics",
+        "Campaign",
+        "Analytics",
+        "campaign-analytics",
+        "Analytics & Reports"
+      ],
+      "answer": "Campaign Analytics: Results per campaign: sends, replies and conversions. Find it in the Analytics & Reports menu, at /campaign-analytics. Available to admins and owners.",
+      "source": "Menu: Campaign Analytics",
+      "route": "/campaign-analytics",
+      "kind": "page"
+    },
+    {
+      "id": "page-template-performance-template-performance",
+      "title": "Where is Template Performance and what is it for?",
+      "keywords": [
+        "Template Performance",
+        "Template",
+        "Performance",
+        "template-performance",
+        "Analytics & Reports"
+      ],
+      "answer": "Template Performance: Which message templates get replies and which do not. Find it in the Analytics & Reports menu, at /template-performance. Available to admins and owners.",
+      "source": "Menu: Template Performance",
+      "route": "/template-performance",
+      "kind": "page"
+    },
+    {
+      "id": "page-outreach-performance-outreach-performance",
+      "title": "Where is Outreach Performance and what is it for?",
+      "keywords": [
+        "Outreach Performance",
+        "Outreach",
+        "Performance",
+        "outreach-performance",
+        "Analytics & Reports"
+      ],
+      "answer": "Outreach Performance: How outreach performs by channel, agent and message. Find it in the Analytics & Reports menu, at /outreach-performance. Available to admins and owners.",
+      "source": "Menu: Outreach Performance",
+      "route": "/outreach-performance",
+      "kind": "page"
+    },
+    {
+      "id": "page-activity-timeline-activity-timeline",
+      "title": "Where is Activity Timeline and what is it for?",
+      "keywords": [
+        "Activity Timeline",
+        "Activity",
+        "Timeline",
+        "activity-timeline",
+        "Analytics & Reports"
+      ],
+      "answer": "Activity Timeline: A timeline of recent activity. Find it in the Analytics & Reports menu, at /activity-timeline. Available to admins and owners.",
+      "source": "Menu: Activity Timeline",
+      "route": "/activity-timeline",
+      "kind": "page"
+    },
+    {
+      "id": "page-audit-trail-audit-trail",
+      "title": "Where is Audit Trail and what is it for?",
+      "keywords": [
+        "Audit Trail",
+        "Audit",
+        "Trail",
+        "audit-trail",
+        "Analytics & Reports"
+      ],
+      "answer": "Audit Trail: A record of who changed what in the system. Find it in the Analytics & Reports menu, at /audit-trail. Available to admins and owners.",
+      "source": "Menu: Audit Trail",
+      "route": "/audit-trail",
+      "kind": "page"
+    },
+    {
+      "id": "page-admin-audit-log-admin-audit-log",
+      "title": "Where is Admin Audit Log and what is it for?",
+      "keywords": [
+        "Admin Audit Log",
+        "Admin",
+        "Audit",
+        "Log",
+        "admin-audit-log",
+        "Analytics & Reports"
+      ],
+      "answer": "Admin Audit Log: The administrator-level log of sensitive actions. Find it in the Analytics & Reports menu, at /admin-audit-log. Available to admins and owners.",
+      "source": "Menu: Admin Audit Log",
+      "route": "/admin-audit-log",
+      "kind": "page"
+    },
+    {
+      "id": "page-compliance-audit-compliance-audit",
+      "title": "Where is Compliance Audit and what is it for?",
+      "keywords": [
+        "Compliance Audit",
+        "Compliance",
+        "Audit",
+        "compliance-audit",
+        "Analytics & Reports"
+      ],
+      "answer": "Compliance Audit: Checks outreach against compliance rules such as opt-outs and quiet hours. Find it in the Analytics & Reports menu, at /compliance-audit. Available to admins and owners.",
+      "source": "Menu: Compliance Audit",
+      "route": "/compliance-audit",
+      "kind": "page"
+    },
+    {
+      "id": "page-compliance-change-log-compliance-change-log",
+      "title": "Where is Compliance Change Log and what is it for?",
+      "keywords": [
+        "Compliance Change Log",
+        "Compliance",
+        "Change",
+        "Log",
+        "compliance-change-log",
+        "Analytics & Reports"
+      ],
+      "answer": "Compliance Change Log: A history of changes to compliance settings and rules. Find it in the Analytics & Reports menu, at /compliance-change-log. Available to admins and owners.",
+      "source": "Menu: Compliance Change Log",
+      "route": "/compliance-change-log",
+      "kind": "page"
+    },
+    {
+      "id": "page-city-regulations-str-city-regulations",
+      "title": "Where is City Regulations / STR and what is it for?",
+      "keywords": [
+        "City Regulations / STR",
+        "City",
+        "Regulations",
+        "STR",
+        "city-regulations",
+        "Analytics & Reports"
+      ],
+      "answer": "City Regulations / STR: Short-term-rental regulations by city, so you know the rules before you pitch an owner. Find it in the Analytics & Reports menu, at /city-regulations. Available to admins and owners.",
+      "source": "Menu: City Regulations / STR",
+      "route": "/city-regulations",
+      "kind": "page"
+    },
+    {
+      "id": "page-trace-regulation-regulation-trace",
+      "title": "Where is Trace Regulation and what is it for?",
+      "keywords": [
+        "Trace Regulation",
+        "Trace",
+        "Regulation",
+        "regulation-trace",
+        "Analytics & Reports"
+      ],
+      "answer": "Trace Regulation: Trace a city regulation record. Find it in the Analytics & Reports menu, at /regulation-trace. Available to admins and owners.",
+      "source": "Menu: Trace Regulation",
+      "route": "/regulation-trace",
+      "kind": "page"
+    },
+    {
+      "id": "page-pre-launch-checklist-pre-launch-checklist",
+      "title": "Where is Pre-Launch Checklist and what is it for?",
+      "keywords": [
+        "Pre-Launch Checklist",
+        "Pre-Launch",
+        "Checklist",
+        "pre-launch-checklist",
+        "Analytics & Reports"
+      ],
+      "answer": "Pre-Launch Checklist: The pre-launch compliance checklist for a property: click an item to cycle its status and open its reference. Find it in the Analytics & Reports menu, at /pre-launch-checklist. Available to admins and owners.",
+      "source": "Menu: Pre-Launch Checklist",
+      "route": "/pre-launch-checklist",
+      "kind": "page"
+    },
+    {
+      "id": "page-onboarding-doc-review-onboarding-doc-review",
+      "title": "Where is Onboarding Doc Review and what is it for?",
+      "keywords": [
+        "Onboarding Doc Review",
+        "Onboarding",
+        "Doc",
+        "Review",
+        "onboarding-doc-review",
+        "Analytics & Reports"
+      ],
+      "answer": "Onboarding Doc Review: Review and approve the documents homeowners upload during short-term-rental onboarding. Find it in the Analytics & Reports menu, at /onboarding-doc-review. Available to admins and owners.",
+      "source": "Menu: Onboarding Doc Review",
+      "route": "/onboarding-doc-review",
+      "kind": "page"
+    },
+    {
+      "id": "page-checklist-automation-checklist-auto-advance-sett",
+      "title": "Where is Checklist Automation and what is it for?",
+      "keywords": [
+        "Checklist Automation",
+        "Checklist",
+        "Automation",
+        "checklist-auto-advance-settings",
+        "Analytics & Reports"
+      ],
+      "answer": "Checklist Automation: Settings that automatically advance stale onboarding checklist steps and remind homeowners about pending items. Find it in the Analytics & Reports menu, at /checklist-auto-advance-settings. Available to admins and owners.",
+      "source": "Menu: Checklist Automation",
+      "route": "/checklist-auto-advance-settings",
+      "kind": "page"
+    },
+    {
+      "id": "page-crm-export-hubspot-crm-export",
+      "title": "Where is CRM Export (HubSpot) and what is it for?",
+      "keywords": [
+        "CRM Export (HubSpot)",
+        "CRM",
+        "Export",
+        "HubSpot",
+        "crm-export",
+        "Analytics & Reports"
+      ],
+      "answer": "CRM Export (HubSpot): Send leads to HubSpot. Find it in the Analytics & Reports menu, at /crm-export. Available to admins and owners.",
+      "source": "Menu: CRM Export (HubSpot)",
+      "route": "/crm-export",
+      "kind": "page"
+    },
+    {
+      "id": "page-scheduled-exports-exports",
+      "title": "Where is Scheduled Exports and what is it for?",
+      "keywords": [
+        "Scheduled Exports",
+        "Scheduled",
+        "Exports",
+        "exports",
+        "Analytics & Reports"
+      ],
+      "answer": "Scheduled Exports: Exports that run on a schedule and are delivered to you. Find it in the Analytics & Reports menu, at /exports. Available to admins and owners.",
+      "source": "Menu: Scheduled Exports",
+      "route": "/exports",
+      "kind": "page"
+    },
+    {
+      "id": "page-csv-export-csv-export",
+      "title": "Where is CSV Export and what is it for?",
+      "keywords": [
+        "CSV Export",
+        "CSV",
+        "Export",
+        "csv-export",
+        "Analytics & Reports"
+      ],
+      "answer": "CSV Export: Download leads as a CSV file with the columns you choose. Find it in the Analytics & Reports menu, at /csv-export. Available to admins and owners.",
+      "source": "Menu: CSV Export",
+      "route": "/csv-export",
+      "kind": "page"
+    },
+    {
+      "id": "page-ai-score-breakdown-score-breakdown",
+      "title": "Where is AI Score Breakdown and what is it for?",
+      "keywords": [
+        "AI Score Breakdown",
+        "AI",
+        "Score",
+        "Breakdown",
+        "score-breakdown",
+        "Analytics & Reports"
+      ],
+      "answer": "AI Score Breakdown: Why a lead has its score: how much each factor contributed. Find it in the Analytics & Reports menu, at /score-breakdown. Available to admins and owners.",
+      "source": "Menu: AI Score Breakdown",
+      "route": "/score-breakdown",
+      "kind": "page"
+    },
+    {
+      "id": "page-roi-calculator-roi-calculator",
+      "title": "Where is ROI Calculator and what is it for?",
+      "keywords": [
+        "ROI Calculator",
+        "ROI",
+        "Calculator",
+        "roi-calculator",
+        "Analytics & Reports"
+      ],
+      "answer": "ROI Calculator: Work out revenue against cost and the return on outreach and enrichment. Find it in the Analytics & Reports menu, at /roi-calculator. Available to admins and owners.",
+      "source": "Menu: ROI Calculator",
+      "route": "/roi-calculator",
+      "kind": "page"
+    },
+    {
+      "id": "page-lead-lifecycle-funnel-lead-lifecycle",
+      "title": "Where is Lead Lifecycle Funnel and what is it for?",
+      "keywords": [
+        "Lead Lifecycle Funnel",
+        "Lead",
+        "Lifecycle",
+        "Funnel",
+        "lead-lifecycle",
+        "Analytics & Reports"
+      ],
+      "answer": "Lead Lifecycle Funnel: The funnel from new lead to live property, with the drop-off at each step. Find it in the Analytics & Reports menu, at /lead-lifecycle. Available to admins and owners.",
+      "source": "Menu: Lead Lifecycle Funnel",
+      "route": "/lead-lifecycle",
+      "kind": "page"
+    },
+    {
+      "id": "page-agent-management-agent-management",
+      "title": "Where is Agent Management and what is it for?",
+      "keywords": [
+        "Agent Management",
+        "Agent",
+        "Management",
+        "agent-management",
+        "Agents & Team"
+      ],
+      "answer": "Agent Management: Add, edit and set up agents, including territories and lead permissions. Find it in the Agents & Team menu, at /agent-management. Available to admins and owners.",
+      "source": "Menu: Agent Management",
+      "route": "/agent-management",
+      "kind": "page"
+    },
+    {
+      "id": "page-workspace-management-workspace-management",
+      "title": "Where is Workspace Management and what is it for?",
+      "keywords": [
+        "Workspace Management",
+        "Workspace",
+        "Management",
+        "workspace-management",
+        "Agents & Team"
+      ],
+      "answer": "Workspace Management: Manage workspaces. Find it in the Agents & Team menu, at /workspace-management. Available to admins and owners.",
+      "source": "Menu: Workspace Management",
+      "route": "/workspace-management",
+      "kind": "page"
+    },
+    {
+      "id": "page-user-management-user-management",
+      "title": "Where is User Management and what is it for?",
+      "keywords": [
+        "User Management",
+        "User",
+        "Management",
+        "user-management",
+        "Agents & Team"
+      ],
+      "answer": "User Management: Manage user accounts, roles and whether each person is active. Find it in the Agents & Team menu, at /user-management. Available to admins and owners.",
+      "source": "Menu: User Management",
+      "route": "/user-management",
+      "kind": "page"
+    },
+    {
+      "id": "page-agents-legacy-agents",
+      "title": "Where is Agents (Legacy) and what is it for?",
+      "keywords": [
+        "Agents (Legacy)",
+        "Agents",
+        "Legacy",
+        "agents",
+        "Agents & Team"
+      ],
+      "answer": "Agents (Legacy): The earlier agents screen, where you change an agent's role, territories and default lead permissions. Find it in the Agents & Team menu, at /agents. Available to admins and owners.",
+      "source": "Menu: Agents (Legacy)",
+      "route": "/agents",
+      "kind": "page"
+    },
+    {
+      "id": "page-agent-leaderboard-agent-leaderboard",
+      "title": "Where is Agent Leaderboard and what is it for?",
+      "keywords": [
+        "Agent Leaderboard",
+        "Agent",
+        "Leaderboard",
+        "agent-leaderboard",
+        "Agents & Team"
+      ],
+      "answer": "Agent Leaderboard: Agents ranked by activity and results. Find it in the Agents & Team menu, at /agent-leaderboard. Available to admins and owners.",
+      "source": "Menu: Agent Leaderboard",
+      "route": "/agent-leaderboard",
+      "kind": "page"
+    },
+    {
+      "id": "page-agent-performance-agent-performance",
+      "title": "Where is Agent Performance and what is it for?",
+      "keywords": [
+        "Agent Performance",
+        "Agent",
+        "Performance",
+        "agent-performance",
+        "Agents & Team"
+      ],
+      "answer": "Agent Performance: Per-agent performance: calls, conversions and trends. Find it in the Agents & Team menu, at /agent-performance. Available to admins and owners.",
+      "source": "Menu: Agent Performance",
+      "route": "/agent-performance",
+      "kind": "page"
+    },
+    {
+      "id": "page-conversion-analytics-agent-conversion-analytics",
+      "title": "Where is Conversion Analytics and what is it for?",
+      "keywords": [
+        "Conversion Analytics",
+        "Conversion",
+        "Analytics",
+        "agent-conversion-analytics",
+        "Agents & Team"
+      ],
+      "answer": "Conversion Analytics: How each agent's leads convert, stage to stage. Find it in the Agents & Team menu, at /agent-conversion-analytics. Available to admins and owners.",
+      "source": "Menu: Conversion Analytics",
+      "route": "/agent-conversion-analytics",
+      "kind": "page"
+    },
+    {
+      "id": "page-close-rate-analytics-conversion-analytics",
+      "title": "Where is Close Rate Analytics and what is it for?",
+      "keywords": [
+        "Close Rate Analytics",
+        "Close",
+        "Rate",
+        "Analytics",
+        "conversion-analytics",
+        "Agents & Team"
+      ],
+      "answer": "Close Rate Analytics: Close rates across the team, by stage and source. Find it in the Agents & Team menu, at /conversion-analytics. Available to admins and owners.",
+      "source": "Menu: Close Rate Analytics",
+      "route": "/conversion-analytics",
+      "kind": "page"
+    },
+    {
+      "id": "page-agent-routing-band-agent-routing",
+      "title": "Where is Agent Routing (Band) and what is it for?",
+      "keywords": [
+        "Agent Routing (Band)",
+        "Agent",
+        "Routing",
+        "Band",
+        "agent-routing",
+        "Agents & Team"
+      ],
+      "answer": "Agent Routing (Band): Agent routing: a lead batch report and weekly actual versus predicted conversion. Find it in the Agents & Team menu, at /agent-routing. Available to admins and owners.",
+      "source": "Menu: Agent Routing (Band)",
+      "route": "/agent-routing",
+      "kind": "page"
+    },
+    {
+      "id": "page-agent-productivity-agent-productivity",
+      "title": "Where is Agent Productivity and what is it for?",
+      "keywords": [
+        "Agent Productivity",
+        "Agent",
+        "Productivity",
+        "agent-productivity",
+        "Agents & Team"
+      ],
+      "answer": "Agent Productivity: How much each agent gets done: calls, texts and follow-ups. Find it in the Agents & Team menu, at /agent-productivity. Available to admins and owners.",
+      "source": "Menu: Agent Productivity",
+      "route": "/agent-productivity",
+      "kind": "page"
+    },
+    {
+      "id": "page-team-performance-team-performance",
+      "title": "Where is Team Performance and what is it for?",
+      "keywords": [
+        "Team Performance",
+        "Team",
+        "Performance",
+        "team-performance",
+        "Agents & Team"
+      ],
+      "answer": "Team Performance: Team-wide performance at a glance. Find it in the Agents & Team menu, at /team-performance. Available to admins and owners.",
+      "source": "Menu: Team Performance",
+      "route": "/team-performance",
+      "kind": "page"
+    },
+    {
+      "id": "page-team-agent-performance-team-agents",
+      "title": "Where is Team Agent Performance and what is it for?",
+      "keywords": [
+        "Team Agent Performance",
+        "Team",
+        "Agent",
+        "Performance",
+        "team-agents",
+        "Agents & Team"
+      ],
+      "answer": "Team Agent Performance: Per-agent call volume, conversion rates, talk time and coaching flags, with a 7-day view. Find it in the Agents & Team menu, at /team-agents. Available to admins and owners.",
+      "source": "Menu: Team Agent Performance",
+      "route": "/team-agents",
+      "kind": "page"
+    },
+    {
+      "id": "page-team-lead-board-team-lead-board",
+      "title": "Where is Team Lead Board and what is it for?",
+      "keywords": [
+        "Team Lead Board",
+        "Team",
+        "Lead",
+        "Board",
+        "team-lead-board",
+        "Agents & Team"
+      ],
+      "answer": "Team Lead Board: Every lead on the team's board, with the option to reassign a lead. Find it in the Agents & Team menu, at /team-lead-board. Available to admins and owners.",
+      "source": "Menu: Team Lead Board",
+      "route": "/team-lead-board",
+      "kind": "page"
+    },
+    {
+      "id": "page-agent-workload-board-agent-workload-board",
+      "title": "Where is Agent Workload Board and what is it for?",
+      "keywords": [
+        "Agent Workload Board",
+        "Agent",
+        "Workload",
+        "Board",
+        "agent-workload-board",
+        "Agents & Team"
+      ],
+      "answer": "Agent Workload Board: How many leads each agent is carrying, so work can be balanced. Find it in the Agents & Team menu, at /agent-workload-board. Available to admins and owners.",
+      "source": "Menu: Agent Workload Board",
+      "route": "/agent-workload-board",
+      "kind": "page"
+    },
+    {
+      "id": "page-manager-team-metrics-manager-team-metrics",
+      "title": "Where is Manager Team Metrics and what is it for?",
+      "keywords": [
+        "Manager Team Metrics",
+        "Manager",
+        "Team",
+        "Metrics",
+        "manager-team-metrics",
+        "Agents & Team"
+      ],
+      "answer": "Manager Team Metrics: Manager view of the team: stage breakdown by agent and revenue against cost with ROI. Find it in the Agents & Team menu, at /manager-team-metrics. Available to admins and owners.",
+      "source": "Menu: Manager Team Metrics",
+      "route": "/manager-team-metrics",
+      "kind": "page"
+    },
+    {
+      "id": "page-agent-onboarding-agent-onboarding",
+      "title": "Where is Agent Onboarding and what is it for?",
+      "keywords": [
+        "Agent Onboarding",
+        "Agent",
+        "Onboarding",
+        "agent-onboarding",
+        "Agents & Team"
+      ],
+      "answer": "Agent Onboarding: Onboarding for a new agent. Find it in the Agents & Team menu, at /agent-onboarding. Available to admins and owners.",
+      "source": "Menu: Agent Onboarding",
+      "route": "/agent-onboarding",
+      "kind": "page"
+    },
+    {
+      "id": "page-bulk-agent-invite-bulk-invite",
+      "title": "Where is Bulk Agent Invite and what is it for?",
+      "keywords": [
+        "Bulk Agent Invite",
+        "Bulk",
+        "Agent",
+        "Invite",
+        "bulk-invite",
+        "Agents & Team"
+      ],
+      "answer": "Bulk Agent Invite: Invite many agents at once. Find it in the Agents & Team menu, at /bulk-invite. Available to admins and owners.",
+      "source": "Menu: Bulk Agent Invite",
+      "route": "/bulk-invite",
+      "kind": "page"
+    },
+    {
+      "id": "page-commission-rules-commission-rules",
+      "title": "Where is Commission Rules and what is it for?",
+      "keywords": [
+        "Commission Rules",
+        "Commission",
+        "Rules",
+        "commission-rules",
+        "Agents & Team"
+      ],
+      "answer": "Commission Rules: Set how agent commissions are calculated. Find it in the Agents & Team menu, at /commission-rules. Available to admins and owners.",
+      "source": "Menu: Commission Rules",
+      "route": "/commission-rules",
+      "kind": "page"
+    },
+    {
+      "id": "page-ai-features-ai-features",
+      "title": "Where is AI Features and what is it for?",
+      "keywords": [
+        "AI Features",
+        "AI",
+        "Features",
+        "ai-features",
+        "Tools & Admin"
+      ],
+      "answer": "AI Features: The AI features of the app (Claude), shown with whether the API key is configured to switch them on. Find it in the Tools & Admin menu, at /ai-features. Available to admins and owners.",
+      "source": "Menu: AI Features",
+      "route": "/ai-features",
+      "kind": "page"
+    },
+    {
+      "id": "page-workflows-workflows",
+      "title": "Where is Workflows and what is it for?",
+      "keywords": [
+        "Workflows",
+        "Workflows",
+        "workflows",
+        "Tools & Admin"
+      ],
+      "answer": "Workflows: Build email and SMS sequences that automate outreach. Find it in the Tools & Admin menu, at /workflows. Available to admins and owners.",
+      "source": "Menu: Workflows",
+      "route": "/workflows",
+      "kind": "page"
+    },
+    {
+      "id": "page-operations-operations",
+      "title": "Where is Operations and what is it for?",
+      "keywords": [
+        "Operations",
+        "Operations",
+        "operations",
+        "Tools & Admin"
+      ],
+      "answer": "Operations: Property operations: cleanings, maintenance and inventory across all properties. Find it in the Tools & Admin menu, at /operations. Available to admins and owners.",
+      "source": "Menu: Operations",
+      "route": "/operations",
+      "kind": "page"
+    },
+    {
+      "id": "page-integration-hub-integration-hub",
+      "title": "Where is Integration Hub and what is it for?",
+      "keywords": [
+        "Integration Hub",
+        "Integration",
+        "Hub",
+        "integration-hub",
+        "Tools & Admin"
+      ],
+      "answer": "Integration Hub: Connect services, manage API keys and watch usage quotas. Find it in the Tools & Admin menu, at /integration-hub. Available to admins and owners.",
+      "source": "Menu: Integration Hub",
+      "route": "/integration-hub",
+      "kind": "page"
+    },
+    {
+      "id": "page-subscription-billing-billing",
+      "title": "Where is Subscription & Billing and what is it for?",
+      "keywords": [
+        "Subscription & Billing",
+        "Subscription",
+        "Billing",
+        "billing",
+        "Tools & Admin"
+      ],
+      "answer": "Subscription & Billing: Your subscription and billing. Find it in the Tools & Admin menu, at /billing. Available to admins and owners.",
+      "source": "Menu: Subscription & Billing",
+      "route": "/billing",
+      "kind": "page"
+    },
+    {
+      "id": "page-admin-management-admin-management",
+      "title": "Where is Admin Management and what is it for?",
+      "keywords": [
+        "Admin Management",
+        "Admin",
+        "Management",
+        "admin-management",
+        "Tools & Admin"
+      ],
+      "answer": "Admin Management: Admin tools for SMS templates (variables fill in at send time) and pre-built replies to common homeowner objections. Find it in the Tools & Admin menu, at /admin-management. Available to admins and owners.",
+      "source": "Menu: Admin Management",
+      "route": "/admin-management",
+      "kind": "page"
+    },
+    {
+      "id": "page-admin-config-admin-config",
+      "title": "Where is Admin Config and what is it for?",
+      "keywords": [
+        "Admin Config",
+        "Admin",
+        "Config",
+        "admin-config",
+        "Tools & Admin"
+      ],
+      "answer": "Admin Config: API keys, verification status, rate limits, sync intervals and environment settings. Find it in the Tools & Admin menu, at /admin-config. Available to admins and owners.",
+      "source": "Menu: Admin Config",
+      "route": "/admin-config",
+      "kind": "page"
+    },
+    {
+      "id": "page-webhook-inspector-webhook-inspector",
+      "title": "Where is Webhook Inspector and what is it for?",
+      "keywords": [
+        "Webhook Inspector",
+        "Webhook",
+        "Inspector",
+        "webhook-inspector",
+        "Tools & Admin"
+      ],
+      "answer": "Webhook Inspector: See the webhooks AVYRO has received and what they contained, to debug an integration. Find it in the Tools & Admin menu, at /webhook-inspector. Available to admins and owners.",
+      "source": "Menu: Webhook Inspector",
+      "route": "/webhook-inspector",
+      "kind": "page"
+    },
+    {
+      "id": "page-base44-submissions-base44-submissions",
+      "title": "Where is Base44 Submissions and what is it for?",
+      "keywords": [
+        "Base44 Submissions",
+        "Base44",
+        "Submissions",
+        "base44-submissions",
+        "Tools & Admin"
+      ],
+      "answer": "Base44 Submissions: Submissions received from the Base44 forms. Find it in the Tools & Admin menu, at /base44-submissions. Available to admins and owners.",
+      "source": "Menu: Base44 Submissions",
+      "route": "/base44-submissions",
+      "kind": "page"
+    },
+    {
+      "id": "page-ops-monitoring-ops-monitoring",
+      "title": "Where is Ops Monitoring and what is it for?",
+      "keywords": [
+        "Ops Monitoring",
+        "Ops",
+        "Monitoring",
+        "ops-monitoring",
+        "Tools & Admin"
+      ],
+      "answer": "Ops Monitoring: A real-time operations dashboard: API health, delivery rates, enrichment syncs, webhook health and an incident timeline. Find it in the Tools & Admin menu, at /ops-monitoring. Available to admins and owners.",
+      "source": "Menu: Ops Monitoring",
+      "route": "/ops-monitoring",
+      "kind": "page"
+    },
+    {
+      "id": "page-performance-dashboard-performance-dashboard",
+      "title": "Where is Performance Dashboard and what is it for?",
+      "keywords": [
+        "Performance Dashboard",
+        "Performance",
+        "Dashboard",
+        "performance-dashboard",
+        "Tools & Admin"
+      ],
+      "answer": "Performance Dashboard: Real-time latency, render, API and session health. Find it in the Tools & Admin menu, at /performance-dashboard. Available to admins and owners.",
+      "source": "Menu: Performance Dashboard",
+      "route": "/performance-dashboard",
+      "kind": "page"
+    },
+    {
+      "id": "page-performance-diagnostics-performance-diagnostics",
+      "title": "Where is Performance Diagnostics and what is it for?",
+      "keywords": [
+        "Performance Diagnostics",
+        "Performance",
+        "Diagnostics",
+        "performance-diagnostics",
+        "Tools & Admin"
+      ],
+      "answer": "Performance Diagnostics: Performance diagnostics for the app. Find it in the Tools & Admin menu, at /performance-diagnostics. Available to admins and owners.",
+      "source": "Menu: Performance Diagnostics",
+      "route": "/performance-diagnostics",
+      "kind": "page"
+    },
+    {
+      "id": "page-score-simulator-score-simulator",
+      "title": "Where is Score Simulator and what is it for?",
+      "keywords": [
+        "Score Simulator",
+        "Score",
+        "Simulator",
+        "score-simulator",
+        "Tools & Admin"
+      ],
+      "answer": "Score Simulator: Try changes to the scoring and see how leads would score before you apply them. Find it in the Tools & Admin menu, at /score-simulator. Available to admins and owners.",
+      "source": "Menu: Score Simulator",
+      "route": "/score-simulator",
+      "kind": "page"
+    },
+    {
+      "id": "page-scoring-rules-scoring-rules",
+      "title": "Where is Scoring Rules and what is it for?",
+      "keywords": [
+        "Scoring Rules",
+        "Scoring",
+        "Rules",
+        "scoring-rules",
+        "Tools & Admin"
+      ],
+      "answer": "Scoring Rules: The rules behind the prospect score. Find it in the Tools & Admin menu, at /scoring-rules. Available to admins and owners.",
+      "source": "Menu: Scoring Rules",
+      "route": "/scoring-rules",
+      "kind": "page"
+    },
+    {
+      "id": "page-score-weight-editor-score-weight-editor",
+      "title": "Where is Score Weight Editor and what is it for?",
+      "keywords": [
+        "Score Weight Editor",
+        "Score",
+        "Weight",
+        "Editor",
+        "score-weight-editor",
+        "Tools & Admin"
+      ],
+      "answer": "Score Weight Editor: Adjust how much each factor counts toward the prospect score. Find it in the Tools & Admin menu, at /score-weight-editor. Available to admins and owners.",
+      "source": "Menu: Score Weight Editor",
+      "route": "/score-weight-editor",
+      "kind": "page"
+    },
+    {
+      "id": "page-bulk-actions-bulk-actions",
+      "title": "Where is Bulk Actions and what is it for?",
+      "keywords": [
+        "Bulk Actions",
+        "Bulk",
+        "Actions",
+        "bulk-actions",
+        "Tools & Admin"
+      ],
+      "answer": "Bulk Actions: Apply one action, such as an assignment or stage change, to many leads at once. Find it in the Tools & Admin menu, at /bulk-actions. Available to admins and owners.",
+      "source": "Menu: Bulk Actions",
+      "route": "/bulk-actions",
+      "kind": "page"
+    },
+    {
+      "id": "page-roles-permissions-admin-roles",
+      "title": "Where is Roles & Permissions and what is it for?",
+      "keywords": [
+        "Roles & Permissions",
+        "Roles",
+        "Permissions",
+        "admin-roles",
+        "Tools & Admin"
+      ],
+      "answer": "Roles & Permissions: Roles and permissions: who can see and do what. Find it in the Tools & Admin menu, at /admin-roles. Available to admins and owners.",
+      "source": "Menu: Roles & Permissions",
+      "route": "/admin-roles",
+      "kind": "page"
+    },
+    {
+      "id": "page-event-dashboard-admin-events",
+      "title": "Where is Event Dashboard and what is it for?",
+      "keywords": [
+        "Event Dashboard",
+        "Event",
+        "Dashboard",
+        "admin-events",
+        "Tools & Admin"
+      ],
+      "answer": "Event Dashboard: A dashboard of system events as they happen. Find it in the Tools & Admin menu, at /admin-events. Available to admins and owners.",
+      "source": "Menu: Event Dashboard",
+      "route": "/admin-events",
+      "kind": "page"
+    },
+    {
+      "id": "page-nurture-cadence-nurture-cadence",
+      "title": "Where is Nurture Cadence and what is it for?",
+      "keywords": [
+        "Nurture Cadence",
+        "Nurture",
+        "Cadence",
+        "nurture-cadence",
+        "Tools & Admin"
+      ],
+      "answer": "Nurture Cadence: The nurture cadence engine: choose a sequence and manage the long, gentle follow-up for leads who have not replied. Find it in the Tools & Admin menu, at /nurture-cadence. Available to admins and owners.",
+      "source": "Menu: Nurture Cadence",
+      "route": "/nurture-cadence",
+      "kind": "page"
+    },
+    {
+      "id": "page-notification-prefs-notifications",
+      "title": "Where is Notification Prefs and what is it for?",
+      "keywords": [
+        "Notification Prefs",
+        "Notification",
+        "Prefs",
+        "notifications",
+        "Tools & Admin"
+      ],
+      "answer": "Notification Prefs: Choose which notifications you receive and how. Find it in the Tools & Admin menu, at /notifications. Available to admins and owners.",
+      "source": "Menu: Notification Prefs",
+      "route": "/notifications",
+      "kind": "page"
+    },
+    {
+      "id": "page-homeowner-notifications-homeowner-notifications",
+      "title": "Where is Homeowner Notifications and what is it for?",
+      "keywords": [
+        "Homeowner Notifications",
+        "Homeowner",
+        "Notifications",
+        "homeowner-notifications",
+        "Tools & Admin"
+      ],
+      "answer": "Homeowner Notifications: Notifications sent to homeowners. Find it in the Tools & Admin menu, at /homeowner-notifications. Available to admins and owners.",
+      "source": "Menu: Homeowner Notifications",
+      "route": "/homeowner-notifications",
+      "kind": "page"
+    },
+    {
+      "id": "page-session-management-session-management",
+      "title": "Where is Session Management and what is it for?",
+      "keywords": [
+        "Session Management",
+        "Session",
+        "Management",
+        "session-management",
+        "Tools & Admin"
+      ],
+      "answer": "Session Management: Signed-in sessions. Find it in the Tools & Admin menu, at /session-management. Available to admins and owners.",
+      "source": "Menu: Session Management",
+      "route": "/session-management",
+      "kind": "page"
+    },
+    {
+      "id": "page-team-onboarding-team-onboarding",
+      "title": "Where is Team Onboarding and what is it for?",
+      "keywords": [
+        "Team Onboarding",
+        "Team",
+        "Onboarding",
+        "team-onboarding",
+        "Tools & Admin"
+      ],
+      "answer": "Team Onboarding: Onboarding for the team. Find it in the Tools & Admin menu, at /team-onboarding. Available to admins and owners.",
+      "source": "Menu: Team Onboarding",
+      "route": "/team-onboarding",
+      "kind": "page"
+    },
+    {
+      "id": "page-agent-profile-agent-profile",
+      "title": "Where is Agent Profile and what is it for?",
+      "keywords": [
+        "Agent Profile",
+        "Agent",
+        "Profile",
+        "agent-profile",
+        "Tools & Admin"
+      ],
+      "answer": "Agent Profile: Your agent profile. Find it in the Tools & Admin menu, at /agent-profile. Available to admins and owners.",
+      "source": "Menu: Agent Profile",
+      "route": "/agent-profile",
+      "kind": "page"
+    },
+    {
+      "id": "page-help-center-help-center",
+      "title": "Where is Help Center and what is it for?",
+      "keywords": [
+        "Help Center",
+        "Help",
+        "Center",
+        "help-center",
+        "Tools & Admin",
+        "Help"
+      ],
+      "answer": "Help Center: Answers, articles and guides for every part of the app. Find it in the Tools & Admin menu and Help menu (agents), at /help-center. Available to admins and owners and agents.",
+      "source": "Menu: Help Center",
+      "route": "/help-center",
+      "kind": "page"
+    },
+    {
+      "id": "page-my-dashboard-agent-workspace",
+      "title": "Where is My Dashboard and what is it for?",
+      "keywords": [
+        "My Dashboard",
+        "My",
+        "Dashboard",
+        "agent-workspace",
+        "Core"
+      ],
+      "answer": "My Dashboard: Your own dashboard: today's work, your leads and what needs doing next. Find it in the Core menu, at /agent-workspace. Available to agents.",
+      "source": "Menu: My Dashboard",
+      "route": "/agent-workspace",
+      "kind": "page"
+    },
+    {
+      "id": "page-my-leads-agent-my-leads",
+      "title": "Where is My Leads and what is it for?",
+      "keywords": [
+        "My Leads",
+        "My",
+        "Leads",
+        "agent-my-leads",
+        "Core"
+      ],
+      "answer": "My Leads: The leads assigned to you, to search, filter and work. Find it in the Core menu, at /agent-my-leads. Available to agents.",
+      "source": "Menu: My Leads",
+      "route": "/agent-my-leads",
+      "kind": "page"
+    },
+    {
+      "id": "page-follow-ups-agent-my-leads",
+      "title": "Where is Follow-Ups and what is it for?",
+      "keywords": [
+        "Follow-Ups",
+        "Follow-Ups",
+        "agent-my-leads",
+        "Core"
+      ],
+      "answer": "Follow-Ups: Your leads that have a follow-up due. Find it in the Core menu, at /agent-my-leads. Available to agents.",
+      "source": "Menu: Follow-Ups",
+      "route": "/agent-my-leads",
+      "kind": "page"
+    },
+    {
+      "id": "page-call-workspace-teleprompter",
+      "title": "Where is Call Workspace and what is it for?",
+      "keywords": [
+        "Call Workspace",
+        "Call",
+        "Workspace",
+        "teleprompter",
+        "Calls"
+      ],
+      "answer": "Call Workspace: The call workspace: a live script and lead details for making calls. Find it in the Calls menu, at /teleprompter. Available to agents.",
+      "source": "Menu: Call Workspace",
+      "route": "/teleprompter",
+      "kind": "page"
+    },
+    {
+      "id": "page-call-history-outreach-history",
+      "title": "Where is Call History and what is it for?",
+      "keywords": [
+        "Call History",
+        "Call",
+        "History",
+        "outreach-history",
+        "Calls"
+      ],
+      "answer": "Call History: Every message sent to a lead Find it in the Calls menu, at /outreach-history. Available to agents.",
+      "source": "Menu: Call History",
+      "route": "/outreach-history",
+      "kind": "page"
+    },
+    {
+      "id": "page-my-performance-agent-self-performance",
+      "title": "Where is My Performance and what is it for?",
+      "keywords": [
+        "My Performance",
+        "My",
+        "Performance",
+        "agent-self-performance",
+        "My Performance"
+      ],
+      "answer": "My Performance: Your own results: calls, conversions and goals. Find it in the My Performance menu, at /agent-self-performance. Available to agents.",
+      "source": "Menu: My Performance",
+      "route": "/agent-self-performance",
+      "kind": "page"
+    },
+    {
+      "id": "page-my-activity-activity-timeline",
+      "title": "Where is My Activity and what is it for?",
+      "keywords": [
+        "My Activity",
+        "My",
+        "Activity",
+        "activity-timeline",
+        "My Performance"
+      ],
+      "answer": "My Activity: A timeline of recent activity. Find it in the My Performance menu, at /activity-timeline. Available to agents.",
+      "source": "Menu: My Activity",
+      "route": "/activity-timeline",
+      "kind": "page"
+    },
+    {
+      "id": "page-my-commissions-agent-commissions",
+      "title": "Where is My Commissions and what is it for?",
+      "keywords": [
+        "My Commissions",
+        "My",
+        "Commissions",
+        "agent commissions",
+        "My Performance"
+      ],
+      "answer": "My Commissions: Your own commissions and what they are based on. Find it in the My Performance menu, at /agent/commissions. Available to agents.",
+      "source": "Menu: My Commissions",
+      "route": "/agent/commissions",
+      "kind": "page"
+    },
+    {
+      "id": "page-my-profile-agent-profile",
+      "title": "Where is My Profile and what is it for?",
+      "keywords": [
+        "My Profile",
+        "My",
+        "Profile",
+        "agent-profile",
+        "Help"
+      ],
+      "answer": "My Profile: Your own profile and preferences. Find it in the Help menu, at /agent-profile. Available to agents.",
+      "source": "Menu: My Profile",
+      "route": "/agent-profile",
+      "kind": "page"
+    },
+    {
+      "id": "page-account-settings-settings",
+      "title": "Where is Account Settings and what is it for?",
+      "keywords": [
+        "Account Settings",
+        "Account",
+        "Settings",
+        "settings",
+        "Help"
+      ],
+      "answer": "Account Settings: Your account settings and preferences. Find it in the Help menu, at /settings. Available to agents.",
+      "source": "Menu: Account Settings",
+      "route": "/settings",
+      "kind": "page"
+    },
+    {
+      "id": "menu-admin-core",
+      "title": "What is in the Core menu for admins and owners?",
+      "keywords": [
+        "Core",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "admins and owners",
+        "Dashboard",
+        "Executive Overview",
+        "Pipeline Board",
+        "Map View",
+        "Field View (Mobile)",
+        "Time Clock",
+        "Team Chat",
+        "My Profile & Prefs",
+        "System Health",
+        "AVA Knowledge"
+      ],
+      "answer": "The Core menu for admins and owners has 10 pages: Dashboard (Your command center: KPI cards for the lead pipeline, the stage funnel, top-scored leads and the recent activity feed); Executive Overview (How outreach is converting across the company, with cards, bars and rows you can click to dig into the detail); Pipeline Board (The campaign board: one column per stage, one card per lead with its score and latest activity, plus filters by state, program, minimum score and sort order); Map View (Leads plotted on a map so you can see where properties are and open one from its pin); Field View (Mobile) (A phone-friendly view for working leads in the field: touch a pin to see the lead, with call-quality feedback and assignment override); Time Clock (Clock in and out and track your breaks); Team Chat (Message your team inside AVYRO); My Profile & Prefs (Your own profile and preferences); System Health (Live status checks of every AVYRO service, with a 90-day history you can click into by day); AVA Knowledge (Teach AVA answers for your team and see what she could not answer).",
+      "source": "Menu: Core",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-admin-leads-pipeline",
+      "title": "What is in the Leads & Pipeline menu for admins and owners?",
+      "keywords": [
+        "Leads & Pipeline",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "admins and owners",
+        "Lead Management",
+        "Lead Record",
+        "Lead Profile",
+        "Lead Sources",
+        "Lead Sources Manager",
+        "ML Prospect Scoring",
+        "Property Screening",
+        "Property Report",
+        "Questionnaires",
+        "Duplicate Detection",
+        "Duplicate Audit",
+        "Dedup Monitor",
+        "Renewal Alerts",
+        "Agreement Signing"
+      ],
+      "answer": "The Leads & Pipeline menu for admins and owners has 14 pages: Lead Management (Search, filter and work every lead); Lead Record (Full record, notes and activity); Lead Profile (Owner, property and contact details); Lead Sources (Where leads come from and how they convert); Lead Sources Manager (Add, pause and tune lead sources); ML Prospect Scoring (Model-driven prospect scores); Property Screening (Qualify properties before outreach); Property Report (Revenue estimate and market report); Questionnaires (Owner intake and qualification forms); Duplicate Detection (Find and merge duplicate leads); Duplicate Audit (Review past merges and matches); Dedup Monitor (Live duplicate detection health); Renewal Alerts (Upcoming agreement renewals); Agreement Signing (Send and track agreements).",
+      "source": "Menu: Leads & Pipeline",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-admin-property-operations",
+      "title": "What is in the Property Operations menu for admins and owners?",
+      "keywords": [
+        "Property Operations",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "admins and owners",
+        "Managed Properties",
+        "Turnovers & Cleaning"
+      ],
+      "answer": "The Property Operations menu for admins and owners has 2 pages: Managed Properties (Homes under management); Turnovers & Cleaning (Cleaning jobs and guest turnovers).",
+      "source": "Menu: Property Operations",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-admin-data-sync",
+      "title": "What is in the Data & Sync menu for admins and owners?",
+      "keywords": [
+        "Data & Sync",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "admins and owners",
+        "Data Sync",
+        "Sync Health",
+        "Trulia Source Integrity",
+        "Data Freshness Monitor",
+        "Sync Ops Dashboard",
+        "Sync Regression Monitor",
+        "Sync Diagnostics",
+        "Enrichment Rules Engine",
+        "Validation Analytics",
+        "Contact Enrichment",
+        "Enrichment Review Queue",
+        "Source Intelligence",
+        "Enrichment Costs",
+        "Integration Health",
+        "CSV Pre-Flight",
+        "Re-Score Events",
+        "Lead Data Quality",
+        "Data Quality Monitor",
+        "Verification Debug"
+      ],
+      "answer": "The Data & Sync menu for admins and owners has 19 pages: Data Sync (Run and monitor data imports); Sync Health (Sync status and failures); Trulia Source Integrity (Checks that the Trulia lead source is still delivering clean data, with a button to run a sync for that source); Data Freshness Monitor (How current each data source is); Sync Ops Dashboard (Live source pulls, per-portfolio health, validation and alerts for the data sync); Sync Regression Monitor (Flags synced leads that fail quality checks, so a source that starts returning bad data is noticed within days); Sync Diagnostics (Row-by-row detail of sync runs: click any row to expand what happened and why); Enrichment Rules Engine (The saved confidence rules for enrichment, and any real violations caught during validation); Validation Analytics (How enrichment results hold up under validation: pass and fail rates over time); Contact Enrichment (Find phones and emails for owners); Enrichment Review Queue (Enrichment results that need a person to approve or reject them before they are trusted); Source Intelligence (Share, quality, verification and conversion per lead source, computed from real counts of the leads); Enrichment Costs (What enrichment and skip-trace lookups cost, so you can keep spending in check); Integration Health (Whether each connected service (sync sources, messaging, email) is up and responding); CSV Pre-Flight (Validate a CSV before import); Re-Score Events (An audit log of every lead score change: who triggered it, when, old versus new score and the reason); Lead Data Quality (Where lead records are missing or inconsistent, so they can be fixed before outreach); Data Quality Monitor (Ongoing data-quality checks across the lead database and how they trend); Verification Debug (Trace any property through the verification pipeline to see why it did or did not pass).",
+      "source": "Menu: Data & Sync",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-admin-outreach",
+      "title": "What is in the Outreach menu for admins and owners?",
+      "keywords": [
+        "Outreach",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "admins and owners",
+        "Email Templates",
+        "Auth Email Templates",
+        "Message Templates",
+        "Template Editor",
+        "Template Ratings",
+        "Template AI Suggestions",
+        "Cadence Engine",
+        "Cadence Performance",
+        "Cadence AI Insights",
+        "Escalated Leads",
+        "Follow-Up Sequences",
+        "SMS Delivery",
+        "Campaigns",
+        "Co-Host Pipeline",
+        "Seller & Owner Services",
+        "SMS Campaign Analytics",
+        "Inbound Threads",
+        "Bulk Outreach Composer",
+        "Bulk Email Outreach",
+        "Email Campaigns",
+        "SMS Cadence Templates",
+        "Delivery KPIs",
+        "Outreach History",
+        "Outreach Tracking",
+        "Retry Queue",
+        "Alert Hub",
+        "Alerts Inbox",
+        "Info-Request Links"
+      ],
+      "answer": "The Outreach menu for admins and owners has 28 pages: Email Templates (Branded outreach emails); Auth Email Templates (Sign-in and invite emails); Message Templates (Reusable SMS and email messages); Template Editor (Create and edit templates); Template Ratings (Which templates agents rate best); Template AI Suggestions (AI rewrites to lift replies); Cadence Engine (Build multi-step outreach cadences); Cadence Performance (Reply and conversion by cadence); Cadence AI Insights (AI tips to improve cadences); Escalated Leads (Leads needing a human follow-up); Follow-Up Sequences (Automated follow-up steps); SMS Delivery (Delivery status for every text); Campaigns (Plan and launch campaigns); Co-Host Pipeline (Co-host prospects and offers); Seller & Owner Services (Seller replies, permissions and partners); SMS Campaign Analytics (Texting results by campaign); Inbound Threads (Replies from homeowners); Bulk Outreach Composer (Send to many leads at once); Bulk Email Outreach (Bulk email with tracking); Email Campaigns (Email campaign builder); SMS Cadence Templates (Text templates for cadences); Delivery KPIs (Delivery, bounce and opt-out rates); Outreach History (Every message sent to a lead); Outreach Tracking (Opens, clicks and replies); Retry Queue (Failed sends waiting to retry); Alert Hub (System and outreach alerts); Alerts Inbox (Your unread alerts); Info-Request Links (Homeowner info-request links).",
+      "source": "Menu: Outreach",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-admin-calls",
+      "title": "What is in the Calls menu for admins and owners?",
+      "keywords": [
+        "Calls",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "admins and owners",
+        "Live Teleprompter",
+        "Interview Mode",
+        "Live Lead Queue",
+        "Interview Calendar",
+        "Interview Recordings",
+        "Candidate Profiles",
+        "Candidate Kanban",
+        "Candidate Pipeline",
+        "Resume vs. Interview",
+        "Interview QA",
+        "Candidate Tracker",
+        "Offer Letters",
+        "Candidate Sequences",
+        "Hiring Analytics",
+        "Headset Setup",
+        "Call Analytics",
+        "Cron Job Monitor",
+        "Agent Coaching",
+        "Call Quality Review",
+        "Lead Auto-Assign",
+        "AI Score Retraining"
+      ],
+      "answer": "The Calls menu for admins and owners has 21 pages: Live Teleprompter (The call workspace: a live script and lead details for making calls); Interview Mode (The live teleprompter in interview mode, used when interviewing candidates); Live Lead Queue (The live queue of leads waiting for an agent); Interview Calendar (Scheduled candidate interviews on a calendar); Interview Recordings (Recordings of past interviews to review); Candidate Profiles (Hiring candidates and their profiles in one place); Candidate Kanban (Hiring candidates on a board, moved between stages); Candidate Pipeline (The hiring funnel: how many candidates sit at each stage of recruiting); Resume vs. Interview (Compares what a candidate said in their resume with what they said in the interview); Interview QA (Question-and-answer review for interview mode); Candidate Tracker (A tracker for every candidate and where they stand); Offer Letters (Create and track offer letters for candidates); Candidate Sequences (Automated messages sent to candidates as they move through hiring); Hiring Analytics (Recruiting metrics: how candidates move through hiring and where they drop off); Headset Setup (Set up and test your headset and microphone for calls); Call Analytics (Call volume, outcomes and talk time across the team); Cron Job Monitor (Whether the scheduled background jobs (syncs, enrichment, sends) are running on time and what they did); Agent Coaching (Coaching for agents); Call Quality Review (Review the quality of calls); Lead Auto-Assign (AI lead auto-assignment: how new leads are given to agents); AI Score Retraining (Record closed-deal outcomes so the prospect scoring model can be retrained, and see past retraining runs).",
+      "source": "Menu: Calls",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-admin-analytics-reports",
+      "title": "What is in the Analytics & Reports menu for admins and owners?",
+      "keywords": [
+        "Analytics & Reports",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "admins and owners",
+        "Analytics",
+        "Advanced Reports",
+        "Campaign Analytics",
+        "Template Performance",
+        "Outreach Performance",
+        "Activity Timeline",
+        "Audit Trail",
+        "Admin Audit Log",
+        "Compliance Audit",
+        "Compliance Change Log",
+        "City Regulations / STR",
+        "Trace Regulation",
+        "Pre-Launch Checklist",
+        "Onboarding Doc Review",
+        "Checklist Automation",
+        "CRM Export (HubSpot)",
+        "Scheduled Exports",
+        "CSV Export",
+        "AI Score Breakdown",
+        "ROI Calculator",
+        "Lead Lifecycle Funnel"
+      ],
+      "answer": "The Analytics & Reports menu for admins and owners has 21 pages: Analytics (Overall lead and outreach analytics); Advanced Reports (Deeper reports you can slice by market, source, agent and period); Campaign Analytics (Results per campaign: sends, replies and conversions); Template Performance (Which message templates get replies and which do not); Outreach Performance (How outreach performs by channel, agent and message); Activity Timeline (A timeline of recent activity); Audit Trail (A record of who changed what in the system); Admin Audit Log (The administrator-level log of sensitive actions); Compliance Audit (Checks outreach against compliance rules such as opt-outs and quiet hours); Compliance Change Log (A history of changes to compliance settings and rules); City Regulations / STR (Short-term-rental regulations by city, so you know the rules before you pitch an owner); Trace Regulation (Trace a city regulation record); Pre-Launch Checklist (The pre-launch compliance checklist for a property: click an item to cycle its status and open its reference); Onboarding Doc Review (Review and approve the documents homeowners upload during short-term-rental onboarding); Checklist Automation (Settings that automatically advance stale onboarding checklist steps and remind homeowners about pending items); CRM Export (HubSpot) (Send leads to HubSpot); Scheduled Exports (Exports that run on a schedule and are delivered to you); CSV Export (Download leads as a CSV file with the columns you choose); AI Score Breakdown (Why a lead has its score: how much each factor contributed); ROI Calculator (Work out revenue against cost and the return on outreach and enrichment); Lead Lifecycle Funnel (The funnel from new lead to live property, with the drop-off at each step).",
+      "source": "Menu: Analytics & Reports",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-admin-agents-team",
+      "title": "What is in the Agents & Team menu for admins and owners?",
+      "keywords": [
+        "Agents & Team",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "admins and owners",
+        "Agent Management",
+        "Workspace Management",
+        "User Management",
+        "Agents (Legacy)",
+        "Agent Leaderboard",
+        "Agent Performance",
+        "Conversion Analytics",
+        "Close Rate Analytics",
+        "Agent Routing (Band)",
+        "Agent Productivity",
+        "Team Performance",
+        "Team Agent Performance",
+        "Team Lead Board",
+        "Agent Workload Board",
+        "Manager Team Metrics",
+        "Agent Onboarding",
+        "Bulk Agent Invite",
+        "Commission Rules"
+      ],
+      "answer": "The Agents & Team menu for admins and owners has 18 pages: Agent Management (Add, edit and set up agents, including territories and lead permissions); Workspace Management (Manage workspaces); User Management (Manage user accounts, roles and whether each person is active); Agents (Legacy) (The earlier agents screen, where you change an agent's role, territories and default lead permissions); Agent Leaderboard (Agents ranked by activity and results); Agent Performance (Per-agent performance: calls, conversions and trends); Conversion Analytics (How each agent's leads convert, stage to stage); Close Rate Analytics (Close rates across the team, by stage and source); Agent Routing (Band) (Agent routing: a lead batch report and weekly actual versus predicted conversion); Agent Productivity (How much each agent gets done: calls, texts and follow-ups); Team Performance (Team-wide performance at a glance); Team Agent Performance (Per-agent call volume, conversion rates, talk time and coaching flags, with a 7-day view); Team Lead Board (Every lead on the team's board, with the option to reassign a lead); Agent Workload Board (How many leads each agent is carrying, so work can be balanced); Manager Team Metrics (Manager view of the team: stage breakdown by agent and revenue against cost with ROI); Agent Onboarding (Onboarding for a new agent); Bulk Agent Invite (Invite many agents at once); Commission Rules (Set how agent commissions are calculated).",
+      "source": "Menu: Agents & Team",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-admin-tools-admin",
+      "title": "What is in the Tools & Admin menu for admins and owners?",
+      "keywords": [
+        "Tools & Admin",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "admins and owners",
+        "AI Features",
+        "Workflows",
+        "Operations",
+        "Integration Hub",
+        "Subscription & Billing",
+        "Admin Management",
+        "Admin Config",
+        "Webhook Inspector",
+        "Base44 Submissions",
+        "Ops Monitoring",
+        "Performance Dashboard",
+        "Performance Diagnostics",
+        "Score Simulator",
+        "Scoring Rules",
+        "Score Weight Editor",
+        "Bulk Actions",
+        "Roles & Permissions",
+        "Event Dashboard",
+        "Nurture Cadence",
+        "Notification Prefs",
+        "Homeowner Notifications",
+        "Session Management",
+        "Team Onboarding",
+        "Agent Profile",
+        "Help Center"
+      ],
+      "answer": "The Tools & Admin menu for admins and owners has 25 pages: AI Features (The AI features of the app (Claude), shown with whether the API key is configured to switch them on); Workflows (Build email and SMS sequences that automate outreach); Operations (Property operations: cleanings, maintenance and inventory across all properties); Integration Hub (Connect services, manage API keys and watch usage quotas); Subscription & Billing (Your subscription and billing); Admin Management (Admin tools for SMS templates (variables fill in at send time) and pre-built replies to common homeowner objections); Admin Config (API keys, verification status, rate limits, sync intervals and environment settings); Webhook Inspector (See the webhooks AVYRO has received and what they contained, to debug an integration); Base44 Submissions (Submissions received from the Base44 forms); Ops Monitoring (A real-time operations dashboard: API health, delivery rates, enrichment syncs, webhook health and an incident timeline); Performance Dashboard (Real-time latency, render, API and session health); Performance Diagnostics (Performance diagnostics for the app); Score Simulator (Try changes to the scoring and see how leads would score before you apply them); Scoring Rules (The rules behind the prospect score); Score Weight Editor (Adjust how much each factor counts toward the prospect score); Bulk Actions (Apply one action, such as an assignment or stage change, to many leads at once); Roles & Permissions (Roles and permissions: who can see and do what); Event Dashboard (A dashboard of system events as they happen); Nurture Cadence (The nurture cadence engine: choose a sequence and manage the long, gentle follow-up for leads who have not replied); Notification Prefs (Choose which notifications you receive and how); Homeowner Notifications (Notifications sent to homeowners); Session Management (Signed-in sessions); Team Onboarding (Onboarding for the team); Agent Profile (Your agent profile); Help Center (Answers, articles and guides for every part of the app).",
+      "source": "Menu: Tools & Admin",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-admin-overview",
+      "title": "How is the menu organized for admins and owners?",
+      "keywords": [
+        "menu",
+        "sidebar",
+        "navigation",
+        "navigate",
+        "categories",
+        "sections",
+        "where",
+        "find",
+        "everything",
+        "overview",
+        "admins and owners"
+      ],
+      "answer": "Admins and owners see 9 menu categories on the left: Core (10), Leads & Pipeline (14), Property Operations (2), Data & Sync (19), Outreach (28), Calls (21), Analytics & Reports (21), Agents & Team (18), Tools & Admin (25). Each category opens to show its pages. I can open any page for you and point at it in the menu, or walk you through a whole category.",
+      "source": "Menu overview",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-agent-core",
+      "title": "What is in the Core menu for agents?",
+      "keywords": [
+        "Core",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "agents",
+        "My Dashboard",
+        "My Leads",
+        "Time Clock",
+        "Team Chat",
+        "Follow-Ups"
+      ],
+      "answer": "The Core menu for agents has 5 pages: My Dashboard (Your own dashboard: today's work, your leads and what needs doing next); My Leads (The leads assigned to you, to search, filter and work); Time Clock (Clock in and out and track your breaks); Team Chat (Message your team inside AVYRO); Follow-Ups (Your leads that have a follow-up due).",
+      "source": "Menu: Core",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-agent-calls",
+      "title": "What is in the Calls menu for agents?",
+      "keywords": [
+        "Calls",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "agents",
+        "Call Workspace",
+        "Headset Setup",
+        "Call History"
+      ],
+      "answer": "The Calls menu for agents has 3 pages: Call Workspace (The call workspace: a live script and lead details for making calls); Headset Setup (Set up and test your headset and microphone for calls); Call History (Every message sent to a lead).",
+      "source": "Menu: Calls",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-agent-my-performance",
+      "title": "What is in the My Performance menu for agents?",
+      "keywords": [
+        "My Performance",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "agents",
+        "My Performance",
+        "My Activity",
+        "My Commissions"
+      ],
+      "answer": "The My Performance menu for agents has 3 pages: My Performance (Your own results: calls, conversions and goals); My Activity (A timeline of recent activity); My Commissions (Your own commissions and what they are based on).",
+      "source": "Menu: My Performance",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-agent-help",
+      "title": "What is in the Help menu for agents?",
+      "keywords": [
+        "Help",
+        "menu",
+        "sidebar",
+        "navigation",
+        "where",
+        "find",
+        "agents",
+        "Help Center",
+        "My Profile",
+        "Account Settings"
+      ],
+      "answer": "The Help menu for agents has 3 pages: Help Center (Answers, articles and guides for every part of the app); My Profile (Your own profile and preferences); Account Settings (Your account settings and preferences).",
+      "source": "Menu: Help",
+      "kind": "menu"
+    },
+    {
+      "id": "menu-agent-overview",
+      "title": "How is the menu organized for agents?",
+      "keywords": [
+        "menu",
+        "sidebar",
+        "navigation",
+        "navigate",
+        "categories",
+        "sections",
+        "where",
+        "find",
+        "everything",
+        "overview",
+        "agents"
+      ],
+      "answer": "Agents see 4 menu categories on the left: Core (5), Calls (3), My Performance (3), Help (3). Each category opens to show its pages. I can open any page for you and point at it in the menu, or walk you through a whole category.",
+      "source": "Menu overview",
+      "kind": "menu"
     }
   ]
 }

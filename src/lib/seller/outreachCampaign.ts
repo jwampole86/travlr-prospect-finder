@@ -134,26 +134,26 @@ export const MESSAGES: CampaignMessage[] = [
   },
 ];
 
-const SALE_PITCH = "We help owners sell their home through NAVEO Homes, and it may be able to earn while it's on the market. Not in a rush? NAVEO Stays could be another option.";
+const SALE_PITCH = "If a sale is on the table, we support owners through the process, and if the home will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental in the meantime.";
 
 /** For a home that is for sale: the first approach is helping them sell. No property management, no promise of a sale price or income. */
 export const SALE_MESSAGES: CampaignMessage[] = [
   {
     id: 'sale-entry-sms', step: 'entry', listing: 'sale', channel: 'sms', title: 'For sale, first text',
-    body: `Hi {{first_name}}, this is {{agent_name}} with {{brand}}.\nI saw {{address}} is for sale and wanted to reach out.\n${SALE_PITCH}\nOpen to a quick chat? Reply YES, or STOP to opt out.`,
+    body: `Hi {{first_name}}, this is {{agent_name}} with {{brand}}.\nI'm reaching out about {{address}}.\n${SALE_PITCH}\nWorth a short conversation? Reply YES, or STOP to opt out.`,
   },
   {
     id: 'sale-entry-email', step: 'entry', listing: 'sale', channel: 'email', title: 'For sale, first email',
     subjects: ['Selling {{address}}? Here to help', 'A thought about {{address}}'],
-    body: `Hi {{first_name}},\n\nI saw {{address}} is for sale and wanted to reach out.\n\n${SALE_PITCH}\n\nWould you be open to a quick conversation? Just reply and we'll find a time that suits you.\n\n– {{agent_name}}\n{{brand}}`,
+    body: `Hi {{first_name}},\n\nI'm reaching out about {{address}}.\n\n${SALE_PITCH}\n\nWorth a short conversation? Just reply and we'll find a time that suits you.\n\n– {{agent_name}}\n{{brand}}`,
   },
   {
     id: 'sale-followup-day3-sms', step: 'follow_up', listing: 'sale', channel: 'sms', title: 'For sale, no reply, day 3: text',
-    body: `Hi {{first_name}}, just circling back on {{address}}. Still happy to help you sell, and to talk through earning while it's on the market. Reply YES for a quick chat, or STOP to opt out.`,
+    body: `Hi {{first_name}}, just circling back on {{address}}. Still happy to talk through a sale, and a short-term rental while it's listed. Reply YES for a quick chat, or STOP to opt out.`,
   },
   {
     id: 'sale-followup-day7-email', step: 'follow_up', listing: 'sale', channel: 'email', title: 'For sale, no reply, day 7: email', subjects: ['Still here if you want help selling {{address}}'],
-    body: `Hi {{first_name}},\n\nNo rush. I'm keeping the door open in case you'd like help selling {{address}}, or want to talk through whether it could earn while it's on the market.\n\nJust reply whenever you're ready.\n\n– {{agent_name}}\n{{brand}}`,
+    body: `Hi {{first_name}},\n\nNo rush. I'm keeping the door open in case you'd like support with a sale of {{address}}, or want to talk through a short-term rental while it's listed.\n\nJust reply whenever you're ready.\n\n– {{agent_name}}\n{{brand}}`,
   },
 ];
 MESSAGES.push(...SALE_MESSAGES);

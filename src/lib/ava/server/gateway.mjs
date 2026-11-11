@@ -13,6 +13,7 @@ import { CARDS, mergeCards } from './cards.mjs';
 
 const TIERS = ['Luxury', 'Standard'];
 const STATUSES = ['Verified', 'Pending', 'Unverified'];
+export const STAT_DIMENSIONS = ['stage', 'source', 'state', 'contact', 'skip_trace', 'listing_type'];
 const STAGES = ['New Lead', 'Contacted', 'Interested', 'Proposal Sent', 'Under Contract', 'Live', 'Not a Fit'];
 const FOLLOWUP_SCOPES = ['due', 'overdue', 'upcoming'];
 const MAX_STEPS = 5;
@@ -22,15 +23,15 @@ const ID_RE = /^[a-z0-9][a-z0-9-]{0,47}$/;
 const ROUTE_RE = /^\/[A-Za-z0-9\-_/]{0,119}$/;
 const LEAD_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
-const SYSTEM_PROMPT = `You are AVA, the in-app assistant for AVYRO AI. Be concise and friendly.
+const SYSTEM_PROMPT = `You are AVA, the in-app assistant for AVYRO AI. Be friendly and clear. Keep small talk short, but when you answer from approved help, cover every key point it gives (in your own words, up to about 250 words, in short paragraphs or a numbered list) rather than shortening it. For a screen, say what it is, where it is in the menu and who can use it. Never add steps, settings or features that the approved help does not state. Offer to take them to a screen (go_to_page) or walk them through it (a tour) only when they asked where something is or how to do something there; add no offers to plain explanations.
 Rules:
 - You only help with AVYRO: how it works, the user's own leads and follow-ups, and finding things on screen. Politely decline only what is clearly not about AVYRO (poems, general knowledge, other software, news, weather) in one sentence and offer what you can help with. Anything about syncing, data, leads, agents, roles, billing, messaging, reports, integrations, compliance or the screens is about AVYRO, so look it up; if the approved help does not cover it, say you do not have that in the approved knowledge instead of saying you cannot assist.
 - Answer product questions only from the approved help: the "Approved help found for this message" section below, or search_knowledge results. Call search_knowledge before ever saying you do not have something; if neither the help below nor a search covers it, say you do not have that in the approved knowledge and do not guess. When the help covers it, answer from it directly, using only what it says: add no benefits, reasons or features it does not state; never replace it with "check with your administrator" or "contact support".
 - Only say what is or is not on the user's screen if the screen context tells you. Never claim a screen has no map, filters or buttons you were not told about.
 - Use search_leads for lead questions; report only what the tool returned, and mention how fresh the data is when the result includes asOf or newestRecordAt.
-- Use go_to_page when the user asks to go somewhere or where a screen is in the menu (open=false when they only ask where), show_on_screen for parts of the current screen, and start_tour when they want a walkthrough of a listed tour. You point and open; you never click, type into or change anything on the user's behalf.
+- Use go_to_page when the user asks to go somewhere or where a screen is in the menu (open=false when they only ask where), show_on_screen for parts of the current screen, and start_tour when they want a walkthrough of a listed tour (the "menu" tours walk through a whole menu category, one item at a time, and are the way to explain the navigation). You point and open; you never click, type into or change anything on the user's behalf.
 - Explain why, not only what: when a tool result has a why or missing list, give the one or two reasons that matter. Action buttons for the results appear under your answer by themselves, so do not list ids or paste buttons, and do not describe a button as if it already did something.
-- Use get_lead_details for one lead, list_followups for reminders, review_verification for leads that still need checking, get_briefing for "what should I focus on today", seller_pipeline for the seller pipeline (if you have it) and offer_export when they want the leads on screen exported.
+- Use get_stats for "how many" questions about the user's leads (by stage, source, state, contact status, skip-trace result or listing type), and report only the numbers it returns. Use get_lead_details for one lead, list_followups for reminders, review_verification for leads that still need checking, get_briefing for "what should I focus on today", seller_pipeline for the seller pipeline (if you have it) and offer_export when they want the leads on screen exported.
 - To change anything (create_followup, update_lead_stage, complete_followup) call that tool with the ids a tool returned or the selected lead. The user is asked to confirm before anything changes, so never claim it is done until a later message says so.
 - When asked what you think of the screen, the filters or an item, do not say you have no opinions: give a brief, practical read from the screen context (what the filters narrow down, how many records match, one sensible next step), and say plainly what you cannot see. Never invent data that is not in the context.
 - The screen context says what is open, which filters are active and how many records match. "This one" means the selected or open item; if nothing is open, ask which one they mean.
@@ -54,7 +55,7 @@ export function sanitizeContext(raw) {
   const ids = (list, max) => (Array.isArray(list) ? list : []).filter((x) => typeof x === 'string' && ID_RE.test(x)).slice(0, max);
   const tours = (Array.isArray(c.tours) ? c.tours : [])
     .filter((t) => t && typeof t.id === 'string' && ID_RE.test(t.id))
-    .slice(0, 12)
+    .slice(0, 40)
     .map((t) => ({ id: t.id, title: optText(t.title, 80) ?? t.id }));
   const sel = c.selection && typeof c.selection === 'object' ? c.selection : {};
   return {
@@ -258,6 +259,19 @@ export const TOOLS = {
     clean: () => ({}),
     run: (backend, args, ctx) => backend.getBriefing(args, ctx)
   },
+  get_stats: {
+    mutating: false,
+    spec: () => ({
+      description: "Counts across the user's own leads (an admin or owner sees the whole organization, an agent only their assigned leads), grouped one way: by pipeline stage, by listing source, by market (state), by contact status (verified, with a phone number), by skip-trace result, or by listing type (for sale or for rent). Use it for \"how many\" questions. Report only the numbers it returned.",
+      parameters: { type: 'object', additionalProperties: false, required: ['by'], properties: { by: { type: 'string', enum: STAT_DIMENSIONS } } }
+    }),
+    clean(raw) {
+      const by = oneOf(raw.by, STAT_DIMENSIONS);
+      if (!by) throw new ToolError('invalid arguments');
+      return { by };
+    },
+    run: (backend, args, ctx) => backend.getStats(args, ctx)
+  },
   seller_pipeline: {
     mutating: false,
     spec: () => ({
@@ -359,7 +373,7 @@ function describeSource(tool, result) {
   if (tool === 'search_leads') {
     return { kind: 'leads', label: result.label ?? 'Lead database', live, asOf: result.asOf, newestRecordAt: result.newestRecordAt, count: Array.isArray(result.leads) ? result.leads.length : 0 };
   }
-  if (['get_lead_details', 'list_followups', 'review_verification', 'get_briefing', 'seller_pipeline'].includes(tool)) {
+  if (['get_lead_details', 'list_followups', 'review_verification', 'get_briefing', 'get_stats', 'seller_pipeline'].includes(tool)) {
     return { kind: 'leads', label: result.label ?? 'AVYRO data', live, asOf: result.asOf, newestRecordAt: result.newestRecordAt };
   }
   if (tool === 'search_knowledge') {

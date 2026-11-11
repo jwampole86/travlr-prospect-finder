@@ -9,7 +9,7 @@ const StudioPanel = lazy(() => import('../ui/StudioPanel').then((m) => ({ defaul
 import { newRequestId, useAva } from '../runtime/useAva';
 import { createOrchestrator } from '../runtime/orchestrator';
 import { micLevel, openMic, MicSession } from '../runtime/mic';
-import { cancelSpeech, speechSupported } from '../runtime/speech';
+import { cancelSpeech, configureVoice, speechSupported } from '../runtime/speech';
 import { SttSession, sttSupported, startRecognition } from '../runtime/stt';
 import { startWakeListener } from '../runtime/wake';
 import type { WakeMatch } from '../runtime/wake';
@@ -101,6 +101,15 @@ export interface AvaWidgetProps {
   offset?: { right: number; bottom: number };
 }
 
+/** The voices on offer. The server only speaks with voices it knows, so these ids must match its list. */
+const AVA_VOICES = [
+  { id: 'coral', label: 'Coral: warm and friendly' },
+  { id: 'shimmer', label: 'Shimmer: bright and light' },
+  { id: 'nova', label: 'Nova: upbeat' },
+  { id: 'sage', label: 'Sage: calm and clear' },
+  { id: 'ballad', label: 'Ballad: soft' },
+];
+
 export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'expanded', offset }: AvaWidgetProps) {
   setAssetBase(host.assetBase);
   const hostRef = useRef(host);
@@ -145,6 +154,13 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
   const [caption, setCaption] = useState<string | null>(null);
   const voiceRef = useRef(false);
   voiceRef.current = voiceReplies;
+  // Conversation mode: after AVA speaks an answer she listens for the reply, so the exchange can stay hands-free.
+  const [conversation, setConversation] = useState(() => { try { return window.localStorage.getItem('ava.conversation') === 'on'; } catch { return false; } });
+  const conversationRef = useRef(false);
+  conversationRef.current = conversation;
+  const [voiceName, setVoiceName] = useState(() => { try { return window.localStorage.getItem('ava.voice') || 'coral'; } catch { return 'coral'; } });
+  const voiceNameRef = useRef('coral');
+  voiceNameRef.current = voiceName;
   const mic = useRef<MicSession | null>(null);
   const micReq = useRef<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null); // the floating layer: the character, which can leave its home to point at things
@@ -188,10 +204,17 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
       onAction: (id, status) => setMessages((m) => m.map((x) => (x.action?.id === id ? { ...x, action: { ...x.action, status } } : x))),
       onLearn: (e) => learning.record(e),
       voiceReplies: () => voiceRef.current,
-      onCaption: setCaption
+      onCaption: setCaption,
+      afterSpokenReply: () => { if (conversationRef.current) window.setTimeout(() => { if (conversationRef.current && !mic.current) void toggleMicRef.current(); }, 400); }
     }),
     [bus]
   );
+
+  // The natural voice comes from the host's voice service, with the person's chosen voice sent along each time.
+  useEffect(() => {
+    configureVoice(host.voiceUrl ? { url: host.voiceUrl, getHeaders: () => hostRef.current.getAuthHeaders?.() ?? {}, voice: () => voiceNameRef.current } : null);
+    return () => configureVoice(null);
+  }, [host.voiceUrl]);
 
   // Open on mount; mirror the OS reduced-motion preference.
   useEffect(() => {
@@ -447,6 +470,16 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     orchestrator.submit(text);
   };
   const stop = () => { orchestrator.stop('user'); cancelSpeech(); };
+
+  const toggleConversation = (on: boolean) => {
+    setConversation(on);
+    if (on) setVoiceReplies(true);
+    try { window.localStorage.setItem('ava.conversation', on ? 'on' : 'off'); } catch { /* ignore */ }
+  };
+  const chooseVoice = (name: string) => {
+    setVoiceName(name);
+    try { window.localStorage.setItem('ava.voice', name); } catch { /* ignore */ }
+  };
 
   const toggleCaptions = (on: boolean) => {
     setCaptionsOn(on);
@@ -756,8 +789,21 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
               </form>
               <div className="toggles">
                 <label className="switch">
-                  <input type="checkbox" checked={voiceReplies} disabled={!speechSupported()} onChange={(e) => setVoiceReplies(e.target.checked)} /> Spoken replies
+                  <input type="checkbox" checked={voiceReplies} disabled={!speechSupported()} onChange={(e) => { setVoiceReplies(e.target.checked); if (!e.target.checked) toggleConversation(false); }} /> Spoken replies
                 </label>
+                {voiceReplies && sttSupported() && (
+                  <label className="switch" title="After AVA speaks, she listens for your reply. Say nothing and she stops listening.">
+                    <input type="checkbox" checked={conversation} onChange={(e) => toggleConversation(e.target.checked)} /> Talk with me
+                  </label>
+                )}
+                {voiceReplies && host.voiceUrl && (
+                  <label className="voice-pick">
+                    Voice{' '}
+                    <select value={voiceName} onChange={(e) => chooseVoice(e.target.value)} aria-label="AVA's voice">
+                      {AVA_VOICES.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+                    </select>
+                  </label>
+                )}
                 {sttSupported() && micGranted && !wakeBroken && (
                   <span className="wake-status" title={'Say "Hey AVA" to wake her. Your browser\'s speech service listens for the phrase, and nothing reaches AVA until it hears it.'}>
                     <span className={`wake-dot ${wakeListening ? 'on' : ''}`} role="status" aria-label={wakeListening ? 'Listening for Hey AVA' : 'Hey AVA is paused'} />
