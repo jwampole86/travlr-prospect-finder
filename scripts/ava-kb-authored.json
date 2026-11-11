@@ -862,6 +862,22 @@
       "answer": "The recommendation comes from fixed, deliberately cautious rules, checked in this order, so a person can see why and correct it. Investor exit: the home already runs as a short-term rental or the owner is open to buyers who want income. Sell only: a tenant lives there; the owner needs to sell right away (under a month); short-term rentals are restricted or prohibited; the rules are not confirmed; there is no net income estimate to compare; or the home is already listed or under contract. Otherwise, when rentals are allowed and there is an estimated interim net, it is Rent while preparing for an owner with six months or more who has not listed, and Sell + Earn for everyone else. Interim net is the estimated monthly net income times the months available before the sale. The sale side uses the owner's price expectation less selling costs (default 7 percent) and a default 90 days to sell until a person enters real figures, and it says when defaults are used. It always notes that net proceeds are the owner's expectation, not a valuation. The result is an estimate to plan the conversation, not an offer to buy, sell or rent, and it never sets the service route by itself.",
       "source": "Scoring, estimates and data sources",
       "kind": "guide"
+    },
+    {
+      "id": "background-avm",
+      "title": "What is an AVM and a confidence score in general, and does AVYRO have one?",
+      "keywords": [
+        "avm",
+        "automated valuation model",
+        "valuation model",
+        "confidence score",
+        "mismo",
+        "general background",
+        "how avms work"
+      ],
+      "answer": "General background, not an AVYRO feature. An automated valuation model (AVM) estimates a property's market value with statistics instead of an appraiser, usually from recent comparable sales, the property's facts and local market trends, and returns a point estimate and often a range. A confidence score is the provider's own measure of how much it trusts a particular estimate: more recent, similar comparable sales and complete property data generally mean higher confidence, and sparse, old or unusual data mean lower. Providers use different scales, so one provider's score is not comparable with another's. Industry groups such as MISMO have worked on a common definition that frames confidence as the probability an estimate falls within a set band of the true value; check the standard itself for its current wording. An AVM is a screening tool, not an appraisal. AVYRO does not produce an AVM or an AVM confidence score for property value. It holds a rent estimate from RentCast, income figures from AirDNA, and the owner's own price expectation for net proceeds; see the entry on estimates for how those work.",
+      "source": "General background (not an AVYRO feature)",
+      "kind": "guide"
     }
   ]
 }

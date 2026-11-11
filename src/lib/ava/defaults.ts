@@ -17,6 +17,7 @@ import { anonymousTopic, buildVocabulary, personalizationNote } from '@/componen
 import { KNOWLEDGE } from './knowledge';
 import type { AvaHandlerActor, AvaHandlerDeps } from './handler';
 import type { SpeakDeps } from './speakHandler';
+import { askClaude, deeperEnabled, type DeeperDeps, type DeeperStore } from './deeper';
 
 /** AVA is on unless AVA_ENABLED=false is set on the server (the kill switch). */
 export const avaEnabled = () => process.env.AVA_ENABLED !== 'false';
@@ -122,5 +123,46 @@ export function speakDeps(): SpeakDeps {
         signal
       });
     }
+  };
+}
+
+// Deeper answers have their own, tighter limit (default 10 an hour per person) and their own counter, so they never share the chat counter.
+const allowDeeper = createSharedRateLimiter(async (key, limit, windowSeconds) => {
+  const { data, error } = await getSupabaseAdmin().rpc('ava_rate_hit', { p_key: key, p_limit: limit, p_window_seconds: windowSeconds });
+  return error ? null : (data as boolean | null);
+}, { max: Number(process.env.AVA_DEEPER_PER_HOUR) || 10, windowMs: 3_600_000 });
+
+export function createDeeperStore(db: ReturnType<typeof getSupabaseAdmin>): DeeperStore {
+  return {
+    async insert(row) {
+      const { data } = await db.from('ava_deeper_answers').insert(row).select('id').single();
+      return (data?.id as string | undefined) ?? null;
+    },
+    // Only answers a person rated helpful are ever shown to the model as examples.
+    async pastHelpful(organizationId) {
+      const { data } = await db.from('ava_deeper_answers').select('question,answer').eq('organization_id', organizationId).eq('status', 'answered').eq('feedback', 'up').order('created_at', { ascending: false }).limit(100);
+      return (data ?? []).filter((r) => r.answer).map((r) => ({ question: String(r.question), answer: String(r.answer) }));
+    },
+    async todayCount(organizationId) {
+      const since = new Date(); since.setUTCHours(0, 0, 0, 0);
+      const { count } = await db.from('ava_deeper_answers').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId).gte('created_at', since.toISOString());
+      return count ?? 0;
+    },
+    async setFeedback(id, actorId, organizationId, feedback) {
+      const { data } = await db.from('ava_deeper_answers').update({ feedback }).eq('id', id).eq('actor_id', actorId).eq('organization_id', organizationId).select('id');
+      return !!data?.length;
+    },
+  };
+}
+
+export function deeperDeps(): DeeperDeps {
+  const env = () => ({ ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, AVA_DEEPER_ENABLED: process.env.AVA_DEEPER_ENABLED, AVA_DEEPER_MODEL: process.env.AVA_DEEPER_MODEL });
+  return {
+    enabled: () => avaEnabled() && deeperEnabled(env()),
+    getActor,
+    allow: allowDeeper,
+    store: createDeeperStore(getSupabaseAdmin()),
+    ask: (prompt, signal) => askClaude(env(), prompt, signal),
+    dailyCap: () => Number(process.env.AVA_DEEPER_DAILY_CAP) || 100,
   };
 }

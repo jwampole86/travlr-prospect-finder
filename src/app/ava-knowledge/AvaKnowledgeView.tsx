@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Card, cx } from '@/app/campaigns/shared';
 import { Field, api, btnCls, inputCls, primaryBtnCls } from '@/app/seller-pipeline/ui';
+import DeeperAnswersPanel from './DeeperAnswersPanel';
 
 type Entry = { id: string; title: string; answer: string; keywords: string[]; status: 'draft' | 'published' | 'retired'; updated_at: string };
 type Data = { entries: Entry[]; unanswered: Array<{ topic: string; count: number; lastSeen: string }>; notHelpful: Array<{ topic: string; count: number }> };
@@ -92,6 +93,8 @@ export default function AvaKnowledgeView() {
           </div>
         </Card>
       </div>
+
+      <DeeperAnswersPanel onDrafted={() => void load()} />
 
       <Card className="p-5" data-ava-anchor="knowledge-list">
         <h2 className="text-sm font-semibold">Your team&rsquo;s answers</h2>
