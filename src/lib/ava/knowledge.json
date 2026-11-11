@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-bffb0bd9",
+  "version": "2026-11-11-36425a89",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -571,7 +571,7 @@
         "owner services",
         "sale"
       ],
-      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has five tabs: Dashboard, Opportunities, Campaign, Partners and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
+      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has six tabs: Dashboard, Opportunities, Campaign, Partners, Referrals and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
@@ -855,6 +855,77 @@
       "answer": "AVA is the round electric-blue button in the bottom-right corner of every screen for admins, owners and agents. Tap it to open her. If you tucked her away with Hide, tap the blue AVA tab on the right edge of the screen to bring her back, or say \"Hey AVA\" once your microphone is allowed. You can drag her to a different spot, and Focus mode keeps her out of the way until you need her.",
       "source": "AVA assistant",
       "route": "/",
+      "kind": "guide"
+    },
+    {
+      "id": "partner-recruiting",
+      "title": "How do I find and track broker partners who accept referrals?",
+      "keywords": [
+        "broker",
+        "partner",
+        "recruit",
+        "recruiting",
+        "team lead",
+        "referral partner",
+        "accepts referrals",
+        "license",
+        "license number",
+        "license status",
+        "lookup",
+        "verify license",
+        "pass criteria",
+        "brokers"
+      ],
+      "answer": "Use the Partners tab in Seller & owner services. Add each broker or team lead with their role, brokerage, niche, license number and state, whether they accept referrals, whether they will report outcomes, their typical referral fee and how they like to send updates. Move them through To contact, Emailed, Call booked, Partner or Pass. Each partner shows a link to the state's official license lookup and the date you last checked the license; a check older than 90 days is marked for another look. A partner meets the pass criteria when they accept referrals, agree to report outcomes and have a verified license. The Recruiting playbook at the top has the first email and the five qualifying questions. Admins and owners only.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "partner-referral-statuses",
+      "title": "How do I record what a partner broker reports back on a lead?",
+      "keywords": [
+        "referral",
+        "referrals",
+        "status",
+        "statuses",
+        "received",
+        "contacted",
+        "listed",
+        "under contract",
+        "closed",
+        "dead",
+        "report",
+        "reporting",
+        "update rate",
+        "outcome",
+        "outcomes",
+        "partner scorecard"
+      ],
+      "answer": "Use the Referrals tab. Record each lead you send to a partner, then log each status they report with the date it applied: received, contacted the owner, listed (MLS number optional), under contract, then closed (close price optional) or dead (one-line reason). A lead can only be sent to a partner whose license is verified, with legal review done and the agreement on file, and only when the owner's permission to share their details is recorded. Statuses only move forward, and closed or dead ends the referral. Admins and owners only.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "partner-update-rate",
+      "title": "How do I know if a partner broker has stopped reporting?",
+      "keywords": [
+        "update rate",
+        "stopped reporting",
+        "not reporting",
+        "ghost",
+        "ghosting",
+        "flag",
+        "needs attention",
+        "scorecard",
+        "watch",
+        "pause partner",
+        "70%"
+      ],
+      "answer": "Each partner card on the Partners tab shows an update rate: of the referrals sent more than a week ago, how many have any status beyond sent. The target is 70%. A partner is marked Watch when one referral has not been acknowledged after a week, one open referral has had no update for a month, or the rate is under 70%. They are marked Not reporting when the rate is under 70% across at least three referrals, or two or more referrals are unacknowledged or a month without an update. Use the Needs attention filter to see them, and consider pausing a partner until they catch up.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
       "kind": "guide"
     },
     {
