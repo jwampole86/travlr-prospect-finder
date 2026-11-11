@@ -59,7 +59,8 @@ export async function POST(req: NextRequest) {
     if (enr?.do_not_contact === true) return fail('This lead is marked do not contact.', 409);
   }
 
-  const address = [lead.address, lead.city, [lead.state, lead.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  // NAVEO sends the whole address in one field, so the city and state are only added when the address does not already carry them.
+  const address = lead.city && String(lead.address ?? '').toLowerCase().includes(String(lead.city).toLowerCase()) ? String(lead.address) : [lead.address, lead.city, [lead.state, lead.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   const meta = (ctx.actor.user.user_metadata ?? {}) as { full_name?: string };
   const sender = (meta.full_name ?? '').split(' ')[0] || 'The NAVEO Homes team';
   const { subject, text } = (() => {
