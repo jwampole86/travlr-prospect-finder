@@ -131,7 +131,7 @@ describe('the ready-made campaigns', () => {
 
   it('writes the email footer with the mailing address, or a visible reminder when it is missing', () => {
     expect(emailFooter({ brand: 'NAVEO Homes', company_address: '1 Main St, Reno, NV 89501' })).toContain('NAVEO Homes, 1 Main St, Reno, NV 89501');
-    expect(emailFooter({})).toContain('[add your company mailing address]');
+    expect(emailFooter({ brand: 'NAVEO Homes' })).toMatch(/^--\nNAVEO Homes\n/);
     expect(emailFooter({})).toMatch(/unsubscribe/);
   });
 });

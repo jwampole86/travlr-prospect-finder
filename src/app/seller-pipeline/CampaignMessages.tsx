@@ -10,7 +10,7 @@ import { btnCls } from './ui';
 export function MessageCard({ message, vars }: { message: CampaignMessage; vars: CampaignVars }) {
   const [subject, setSubject] = useState(0);
   const [copied, setCopied] = useState<'subject' | 'body' | null>(null);
-  // Every email ends with who it is from, a mailing address and a way to stop; texts already carry the opt-out line.
+  // Every email ends with who it is from and a way to stop; texts already carry the opt-out line.
   const body = renderMessage(message.body, vars) + (message.channel === 'email' ? `\n\n${emailFooter(vars)}` : '');
   const subjectText = message.subjects ? renderMessage(message.subjects[subject] ?? message.subjects[0], vars) : null;
 

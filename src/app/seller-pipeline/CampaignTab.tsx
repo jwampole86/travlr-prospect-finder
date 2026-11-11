@@ -47,8 +47,7 @@ export default function CampaignTab() {
         <ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground space-y-0.5">
           <li>Text only owners who agreed to texts, and email only owners who agreed to email. Never anyone marked Do Not Contact or who replied STOP.</li>
           <li>AVYRO&rsquo;s own text sending skips owners who opted out or are suppressed. These messages are copied and sent from your own tools, so check permission yourself first.</li>
-          <li>Every text ends with the opt-out line, and every email ends with our mailing address and a way to unsubscribe. Honor a STOP or an unsubscribe right away.</li>
-          {address === null && <li className="text-red-700 font-medium">The company mailing address is not set (COMPANY_POSTAL_ADDRESS), so emails show a bracketed reminder. Add it before sending any email.</li>}
+          <li>Every text ends with the opt-out line, and every email ends with a way to unsubscribe. Honor a STOP or an unsubscribe right away.</li>
         </ul>
       </Card>
 

@@ -73,12 +73,11 @@ export function renderMessage(text: string, vars: CampaignVars = {}): string {
 }
 
 /**
- * What every email needs at the bottom: who it is from, a mailing address and a way to stop. The address is the company's own (COMPANY_POSTAL_ADDRESS);
- * when it is not known the footer says so in brackets so it cannot be sent without one by accident.
+ * The email footer: who it is from and a way to stop. A mailing address is added only when COMPANY_POSTAL_ADDRESS is set.
  */
 export function emailFooter(vars: CampaignVars = {}): string {
-  const address = vars.company_address?.trim() || '[add your company mailing address]';
-  return `--\n${vars.brand?.trim() || 'NAVEO'}, ${address}\nIf you would rather not get these emails, reply "unsubscribe" or use the unsubscribe link and we will stop right away.`;
+  const address = vars.company_address?.trim();
+  return `--\n${vars.brand?.trim() || 'NAVEO'}${address ? `, ${address}` : ''}\nIf you would rather not get these emails, reply "unsubscribe" or use the unsubscribe link and we will stop right away.`;
 }
 
 export interface CampaignMessage {
