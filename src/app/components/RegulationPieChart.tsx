@@ -39,7 +39,7 @@ interface CategoryStat {
 const REG_COLORS: Record<string, string> = {
   Allowed: 'var(--success)',
   Restricted: 'var(--warning)',
-  'Permit Required': '#f59e0b',
+  'Permit Required': '#f97316',
   'Primary Residence Required': '#a855f7',
   'Review Required': '#3b82f6',
   Prohibited: 'var(--danger)',
