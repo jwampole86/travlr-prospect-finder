@@ -512,7 +512,9 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
     }
   }
 
-  const failedCount = sources.filter((s) => s.health === 'failed').length;
+  // A source whose own data provider is down is not something AVYRO can fix, so it is counted apart from real failures.
+  const providerDownCount = sources.filter((s) => s.health === 'failed' && isProviderOutage(s.dbError)).length;
+  const failedCount = sources.filter((s) => s.health === 'failed').length - providerDownCount;
   const staleCount = sources.filter((s) => s.health === 'stale').length;
   const healthyCount = sources.filter((s) => s.health === 'healthy').length;
   const manualCount = sources.filter((s) => s.health === 'manual').length;
@@ -522,10 +524,11 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
 
   // Only degrade to "needs sync" if portfolio truly has zero leads
   const effectiveFailedCount = portfolioHasNoLeads ? 0 : failedCount;
+  const effectiveProviderDownCount = portfolioHasNoLeads ? 0 : providerDownCount;
   const effectiveStaleCount = portfolioHasNoLeads ? sources.length : staleCount;
   const effectiveHealthyCount = portfolioHasNoLeads ? 0 : healthyCount;
   const effectiveManualCount = portfolioHasNoLeads ? 0 : manualCount;
-  const allOperational = effectiveFailedCount === 0 && effectiveStaleCount === 0 && sources.length > 0;
+  const allOperational = effectiveFailedCount === 0 && effectiveProviderDownCount === 0 && effectiveStaleCount === 0 && sources.length > 0;
 
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -533,8 +536,8 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <div className={`w-2 h-2 rounded-full ${effectiveFailedCount > 0 ? 'bg-danger' : effectiveStaleCount > 0 ? 'bg-warning' : 'bg-success'}`} />
-            {(effectiveFailedCount > 0 || effectiveStaleCount > 0) && (
+            <div className={`w-2 h-2 rounded-full ${effectiveFailedCount > 0 ? 'bg-danger' : effectiveStaleCount > 0 || effectiveProviderDownCount > 0 ? 'bg-warning' : 'bg-success'}`} />
+            {(effectiveFailedCount > 0 || effectiveStaleCount > 0 || effectiveProviderDownCount > 0) && (
               <div className={`absolute inset-0 rounded-full animate-ping ${effectiveFailedCount > 0 ? 'bg-danger/40' : 'bg-warning/40'}`} />
             )}
           </div>
@@ -542,6 +545,11 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
           {effectiveFailedCount > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-danger/10 text-danger border border-danger/20 font-semibold">
               {effectiveFailedCount} failed
+            </span>
+          )}
+          {effectiveProviderDownCount > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20 font-semibold" title="The source's own data provider is down; nothing for AVYRO to fix">
+              {effectiveProviderDownCount} provider down
             </span>
           )}
           {effectiveStaleCount > 0 && effectiveFailedCount === 0 && (
@@ -570,6 +578,12 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
             <span className="flex items-center gap-1">
               <AlertTriangle size={11} className="text-warning" />
               {portfolioHasNoLeads ? 'no data' : `${effectiveStaleCount} stale`}
+            </span>
+          )}
+          {effectiveProviderDownCount > 0 && (
+            <span className="flex items-center gap-1">
+              <AlertTriangle size={11} className="text-warning" />
+              {effectiveProviderDownCount} provider down
             </span>
           )}
           {effectiveFailedCount > 0 && (
@@ -606,6 +620,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
           const isHealthy = displayHealth === 'healthy';
           const isStale = displayHealth === 'stale';
           const isFailed = displayHealth === 'failed';
+          const isDown = isFailed && isProviderOutage(source.dbError);
           const isUnknown = displayHealth === 'unknown';
           const isManual = displayHealth === 'manual';
 
@@ -617,7 +632,8 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
               <div className="shrink-0">
                 {isHealthy && <CheckCircle2 size={14} className="text-success" />}
                 {isStale && <AlertTriangle size={14} className="text-warning" />}
-                {isFailed && <XCircle size={14} className="text-danger" />}
+                {isFailed && !isDown && <XCircle size={14} className="text-danger" />}
+                {isDown && <AlertTriangle size={14} className="text-warning" />}
                 {(isUnknown || isManual) && <Clock size={14} className="text-muted-foreground" />}
               </div>
 
@@ -648,14 +664,14 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
                     <Clock size={9} />
                     Last pull:{' '}
                     <span className={`font-medium ${
-                      isHealthy ? 'text-success' : isStale ?'text-warning': isFailed ?'text-danger': 'text-muted-foreground'
+                      isHealthy ? 'text-success' : isStale || isDown ?'text-warning': isFailed ?'text-danger': 'text-muted-foreground'
                     }`}>
                       {portfolioHasNoLeads ? 'Never (for this portfolio)' : formatPullTime(displayTime)}
                     </span>
                   </span>
                   {isFailed && !portfolioHasNoLeads && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-danger/10 text-danger font-medium">
-                      {isProviderOutage(source.dbError) ? 'Provider outage' : 'Sync failed'}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isDown ? 'bg-warning/10 text-warning' : 'bg-danger/10 text-danger'}`}>
+                      {isDown ? 'Provider down' : 'Sync failed'}
                     </span>
                   )}
                   {isStale && !portfolioHasNoLeads && (
@@ -686,9 +702,9 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
               {/* Health badge + Retry button */}
               <div className="shrink-0 flex items-center gap-2">
                 <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium capitalize ${
-                  isHealthy ? 'bg-success/10 text-success border-success/20' : isStale ?'bg-warning/10 text-warning border-warning/20': isFailed ?'bg-danger/10 text-danger border-danger/20': 'bg-muted text-muted-foreground border-border'
+                  isHealthy ? 'bg-success/10 text-success border-success/20' : isStale || isDown ?'bg-warning/10 text-warning border-warning/20': isFailed ?'bg-danger/10 text-danger border-danger/20': 'bg-muted text-muted-foreground border-border'
                 }`}>
-                  {portfolioHasNoLeads ? 'no data' : isUnknown ? 'not synced' : isManual ? (MANUAL_SOURCE_LABELS[source.name] || 'manual') : source.health}
+                  {portfolioHasNoLeads ? 'no data' : isUnknown ? 'not synced' : isManual ? (MANUAL_SOURCE_LABELS[source.name] || 'manual') : isFailed && isProviderOutage(source.dbError) ? 'provider down' : source.health}
                 </span>
 
                 {/* Only show Retry for genuinely stale/failed/unknown/manual sources */}
