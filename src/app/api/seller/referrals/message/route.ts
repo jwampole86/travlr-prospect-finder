@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fail, sellerContext } from '@/lib/seller/api';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { authorizationFor } from '@/lib/seller/consentLedger';
 import { TEMPLATE_LABEL, leadRef, messageAllowed, renderPartnerMessage, type MessageTemplate } from '@/lib/seller/partnerMessages';
 
 const TEMPLATES = Object.keys(TEMPLATE_LABEL) as MessageTemplate[];
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
     let oq = ctx.db.from('seller_opportunities').select('authorization_status').eq('lead_id', ref.lead_id).in('status', ['open', 'paused', 'won']);
     if (ctx.orgId) oq = oq.eq('organization_id', ctx.orgId);
     const { data: opp } = await oq.maybeSingle();
-    if (opp?.authorization_status !== 'authorized') return fail("The owner's permission to share their details is not recorded, so the lead packet was not sent.", 409);
+    if (!opp || (await authorizationFor(ctx.db, ref.lead_id, 'partner_sharing')).status !== 'authorized') return fail("The owner's permission to share their details is not recorded, so the lead packet was not sent.", 409);
     const { data: enr } = await ctx.db.from('lead_enrichments').select('do_not_contact').eq('lead_id', ref.lead_id).maybeSingle();
     if (enr?.do_not_contact === true) return fail('This lead is marked do not contact.', 409);
   }

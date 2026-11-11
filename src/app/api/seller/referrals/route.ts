@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fail, sellerContext } from '@/lib/seller/api';
 import { REFERRAL_STATUSES, canMoveTo, commercialBlockers, referralBlockers, scorePartner, type ReferralStatus } from '@/lib/seller/partnerReferrals';
 import { partnerCoversState, stateBlockers } from '@/lib/seller/stateActivation';
+import { authorizationFor } from '@/lib/seller/consentLedger';
 import { feeAfterCommission, protectionEnds, withinProtection, type FeeStatus } from '@/lib/seller/partnerFees';
 
 const isStatus = (v: unknown): v is ReferralStatus => typeof v === 'string' && (REFERRAL_STATUSES as readonly string[]).includes(v);
@@ -59,7 +60,8 @@ export async function POST(req: NextRequest) {
   if (ctx.orgId) oq = oq.eq('organization_id', ctx.orgId);
   const { data: opp } = await oq.maybeSingle();
   if (!opp) blockers.push('There is no open seller opportunity for this lead.');
-  else if (opp.authorization_status !== 'authorized') blockers.push("The owner's permission to share their details with a partner is not recorded.");
+  // Checked live for sharing with a partner: the stored status follows the opportunity's route, which may not be set yet.
+  else if ((await authorizationFor(ctx.db, leadId, 'partner_sharing')).status !== 'authorized') blockers.push("The owner's permission to share their details with a partner is not recorded.");
 
   // The property's state must be cleared by counsel, and the partner must be licensed there.
   const { data: lead } = await ctx.db.from('leads').select('state').eq('id', leadId).maybeSingle();
