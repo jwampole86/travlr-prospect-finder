@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-5f2db445",
+  "version": "2026-11-11-c771b2f1",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -1019,6 +1019,78 @@
         "management services"
       ],
       "answer": "NAVEO Homes sources and qualifies permissioned seller leads and refers them to a licensed real estate broker under the National Real Estate Referral Partner Agreement, one form for all 50 states and DC, signed before the introduction. Each partner's commercial terms (fee percentage, protection period, days to pay, exclusivity, responsible broker) are recorded from its Exhibit A on the Partners tab. The national form does not replace state clearance: each state is still checked and signed off in the States tab, and some states need extra forms or disclosures for out-of-state referrals. The partner broker performs all licensed brokerage activity and holds an active license in the property's state; NAVEO does not act as the listing broker or broker of record. The fee is a percentage of the commission the partner actually receives on a closed referred transaction, paid to NAVEO by the brokerage on the terms in the agreement's Exhibit A, and no fee is owed if the deal does not close unless the exhibit says so. The partner reports status as set out in Exhibit B: received, contacted, listed, under contract, closed or dead, with a first update within seven days. NAVEO can suspend new leads if the partner's license is not active or reporting stops. Management through NAVEO Stays is optional for the owner and never a condition of the sale referral. This is a summary, not legal advice.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "partner-fees",
+      "title": "How are referral fees calculated and tracked when a partner closes a deal?",
+      "keywords": [
+        "fee",
+        "fees",
+        "referral fee",
+        "owed",
+        "invoice",
+        "invoiced",
+        "paid",
+        "overdue",
+        "commission",
+        "protection period",
+        "180 days",
+        "payment",
+        "payee",
+        "w-9",
+        "due date",
+        "ledger"
+      ],
+      "answer": "On the Referrals tab, when a partner reports a lead closed you record the commission they received and the date. The fee is the agreed percentage of that commission, to the cent, and it is due the agreed number of business days after the partner was paid (weekends skipped). The percentage, protection period, payee, payment method and due days are copied onto each referral when it is sent, so renegotiating later never changes an old deal. You then mark the fee invoiced and, when it arrives, paid with the amount; a short payment is flagged, and a fee past its due date shows as overdue. The Referral fees summary shows what is owed now, what is overdue, what has been paid, and how many closes are still waiting on a commission, with a labelled rough estimate from the close price. If a referral was marked dead but the same owner lists or closes with the partner inside the protection period, you can reopen it and the fee is still owed. A lead cannot be sent until the partner's fee percentage, protection period, payment method and payee are on record. Bank account numbers should not be stored in AVYRO; keep wire and ACH details in a secure vault.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "partner-license-check",
+      "title": "Can AVYRO check a broker's license against the state's records?",
+      "keywords": [
+        "verify license",
+        "license check",
+        "check license",
+        "state records",
+        "active license",
+        "expired license",
+        "license lookup",
+        "arizona",
+        "colorado",
+        "nevada",
+        "public database",
+        "automatic",
+        "weekly"
+      ],
+      "answer": "For Arizona and Colorado, yes. On a partner with a license state and number, press Check against state records. AVYRO reads the state's published records (Colorado's open data and Arizona's public database download), confirms the license is active, and also checks that the name or brokerage on the record matches the partner, so a wrong number is not accepted. It shows the license type, expiry, employing brokerage and any discipline listed, and warns when it is a salesperson license because the fee must go through the employing broker. Verified partners are re-checked every week; if the state shows a license as inactive it is marked expired and new referrals to that partner stop. Other states, Nevada included, do not publish records in a form AVYRO can read, so someone still checks the official lookup and records the date. Brokerage (entity) licenses in Arizona also have to be checked on the state site.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "partner-matching",
+      "title": "How does AVYRO pick the best broker partner for a lead?",
+      "keywords": [
+        "match",
+        "matching",
+        "best partner",
+        "suggest partner",
+        "assign",
+        "assignment",
+        "needs partner",
+        "capacity",
+        "coverage",
+        "markets",
+        "budget band",
+        "property types",
+        "which broker"
+      ],
+      "answer": "On the Referrals tab, choose a lead whose owner has given permission and AVYRO suggests the best partners. A partner is only suggested if it is active, license verified, agreement and legal review done, licensed in the lead's state, not marked do not assign, not at its maximum open leads, not flagged as having stopped reporting, and covers the lead's market, property type and budget band where those are known. The rest are shown with the reason each was ruled out. The suggestions are ranked: a city match counts most, then a county match, a budget in the middle of their band, a good update rate, earlier closes, an exclusive territory and any manual boost. If no partner qualifies, the lead is shown as needing a partner, so recruit one for that state; the owner can still be offered the NAVEO Stays path meanwhile. The state must also be switched on in the States tab before a lead can be sent.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"

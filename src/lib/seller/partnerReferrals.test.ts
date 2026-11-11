@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canMoveTo, licenseCheckAgeDays, licenseLookupFor, referralBlockers, scorePartner, type ReferralRow } from './partnerReferrals';
+import { canMoveTo, commercialBlockers, licenseCheckAgeDays, licenseLookupFor, referralBlockers, scorePartner, type ReferralRow } from './partnerReferrals';
 
 const NOW = new Date('2026-11-10T12:00:00Z');
 const ago = (d: number) => new Date(NOW.getTime() - d * 86_400_000).toISOString();
@@ -50,6 +50,20 @@ describe('sending a lead to a partner', () => {
     expect(canMoveTo('listed', 'sent')).toBe(false);
     expect(canMoveTo('closed', 'listed')).toBe(false);
     expect(canMoveTo('listed', 'listed')).toBe(false);
+  });
+
+  it('lets a dead referral come back only while the protection period runs', () => {
+    expect(canMoveTo('dead', 'closed')).toBe(false);
+    expect(canMoveTo('dead', 'listed', { reopenable: true })).toBe(true);
+    expect(canMoveTo('dead', 'closed', { reopenable: true })).toBe(true);
+    expect(canMoveTo('dead', 'received', { reopenable: true })).toBe(false);
+    expect(canMoveTo('closed', 'listed', { reopenable: true })).toBe(false);
+  });
+
+  it('needs the fee, protection period, payment method and payee on record before a lead is sent', () => {
+    expect(commercialBlockers({})).toHaveLength(4);
+    expect(commercialBlockers({ referral_fee_percent: 25, protection_days: 180, payment_method: 'ach', payee_name: ' ' })).toHaveLength(1);
+    expect(commercialBlockers({ referral_fee_percent: 25, protection_days: 180, payment_method: 'check', payee_name: 'Desert Peak Realty LLC' })).toEqual([]);
   });
 });
 

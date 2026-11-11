@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fail, sellerContext } from '@/lib/seller/api';
-import { REFERRAL_STATUSES, canMoveTo, referralBlockers, scorePartner, type ReferralStatus } from '@/lib/seller/partnerReferrals';
+import { REFERRAL_STATUSES, canMoveTo, commercialBlockers, referralBlockers, scorePartner, type ReferralStatus } from '@/lib/seller/partnerReferrals';
 import { partnerCoversState, stateBlockers } from '@/lib/seller/stateActivation';
+import { feeAfterCommission, protectionEnds, withinProtection, type FeeStatus } from '@/lib/seller/partnerFees';
 
 const isStatus = (v: unknown): v is ReferralStatus => typeof v === 'string' && (REFERRAL_STATUSES as readonly string[]).includes(v);
 const text = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
+const num = (v: unknown): number | null | undefined => (v === '' || v === null || v === undefined ? null : Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : undefined);
+const day = (v: unknown): string | null => {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const t = Date.parse(v + 'T00:00:00Z');
+  return Number.isFinite(t) && t <= Date.now() + 86_400_000 ? v : null;
+};
 const when = (v: unknown): string | null => {
   if (typeof v !== 'string' || !v) return null;
   const t = Date.parse(v);
@@ -30,7 +37,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ items: data ?? [], updates });
 }
 
-/** POST sends one lead to a partner. Blocked unless the partner is cleared and the owner's permission to share is recorded. */
+/** POST sends one lead to a partner. Blocked unless the partner and the lead's state are cleared and the owner's permission to share is recorded. */
 export async function POST(req: NextRequest) {
   const ctx = await sellerContext(req);
   if ('error' in ctx) return ctx.error;
@@ -39,11 +46,12 @@ export async function POST(req: NextRequest) {
   const leadId = text(body.lead_id, 64);
   if (!partnerId || !leadId) return fail('partner_id and lead_id are required');
 
-  let pq = ctx.db.from('service_partners').select('id,name,license_status,legal_reviewed,agreement_on_file,relationship_status,states,license_state').eq('id', partnerId);
+  let pq = ctx.db.from('service_partners').select('*').eq('id', partnerId);
   if (ctx.orgId) pq = pq.eq('organization_id', ctx.orgId);
   const { data: partner } = await pq.maybeSingle();
   if (!partner) return fail('Partner not found', 404);
-  const blockers = referralBlockers(partner);
+  const blockers = [...referralBlockers(partner), ...commercialBlockers(partner)];
+  if (partner.do_not_assign) blockers.push('This partner is marked do not assign.');
 
   let oq = ctx.db.from('seller_opportunities').select('id,authorization_status').eq('lead_id', leadId).in('status', ['open', 'paused']);
   if (ctx.orgId) oq = oq.eq('organization_id', ctx.orgId);
@@ -68,10 +76,14 @@ export async function POST(req: NextRequest) {
   if (score.flag === 'stopped') blockers.push(`${partner.name} has stopped reporting: ${score.reason}`);
   if (blockers.length) return fail('This lead cannot be sent to the partner yet.', 409, { blockers });
 
+  const sentAt = new Date().toISOString();
+  // The terms are copied onto the referral so a later change to the partner never rewrites an old deal.
   const row = {
     ...(ctx.orgId ? { organization_id: ctx.orgId } : {}),
     partner_id: partnerId, lead_id: leadId, opportunity_id: opp?.id ?? null, property_label: text(body.property_label, 200), notes: text(body.notes, 1000),
-    status: 'sent' as const, created_by: ctx.actor.user.id
+    status: 'sent' as const, sent_at: sentAt, created_by: ctx.actor.user.id,
+    fee_percent: partner.referral_fee_percent, protection_days: partner.protection_days, protection_ends_at: protectionEnds(sentAt, partner.protection_days),
+    payment_method_snapshot: partner.payment_method, payee_name_snapshot: partner.payee_name, payment_due_days_snapshot: partner.payment_due_days
   };
   const { data, error } = await ctx.db.from('partner_referrals').insert(row).select('*').single();
   if (error) return fail(error.code === '23505' ? 'This lead already has an open referral.' : error.message, error.code === '23505' ? 409 : 422);
@@ -79,39 +91,82 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ item: data }, { status: 201 });
 }
 
-/** PATCH records a status the partner reported (with the date it applied) and keeps the history. */
+/**
+ * PATCH records what the partner reported (a status with the date it applied), or an event in the life of the fee: the commission the partner
+ * received, the invoice, the payment, or a waiver. Statuses move forward only; a dead referral can come back while the protection period runs.
+ */
 export async function PATCH(req: NextRequest) {
   const ctx = await sellerContext(req);
   if ('error' in ctx) return ctx.error;
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const id = text(body.id, 64);
   if (!id) return fail('id is required');
-  let q = ctx.db.from('partner_referrals').select('id,status').eq('id', id);
+  let q = ctx.db.from('partner_referrals').select('*').eq('id', id);
   if (ctx.orgId) q = q.eq('organization_id', ctx.orgId);
   const { data: cur } = await q.maybeSingle();
   if (!cur) return fail('Not found', 404);
 
   const patch: Record<string, unknown> = {};
+  let nextStatus: ReferralStatus = cur.status;
+  let reopened = false;
+
   if (body.status !== undefined) {
     if (!isStatus(body.status)) return fail('Unknown status');
-    if (!canMoveTo(cur.status as ReferralStatus, body.status)) return fail(`A referral cannot move from ${cur.status} to ${body.status}.`, 409);
+    const reopenable = cur.status === 'dead' && withinProtection(cur.protection_ends_at);
+    if (!canMoveTo(cur.status, body.status, { reopenable })) {
+      return fail(cur.status === 'dead' && !reopenable ? 'This referral is dead and its protection period has ended or was never set.' : `A referral cannot move from ${cur.status} to ${body.status}.`, 409);
+    }
+    reopened = cur.status === 'dead';
+    nextStatus = body.status;
     patch.status = body.status;
     patch.status_at = when(body.status_at) ?? new Date().toISOString();
+    if (reopened) { patch.reopened_at = new Date().toISOString(); patch.dead_reason = null; }
   }
   if ('mls_number' in body) patch.mls_number = text(body.mls_number, 40);
-  if ('dead_reason' in body) patch.dead_reason = text(body.dead_reason, 300);
+  if ('dead_reason' in body && !reopened) patch.dead_reason = text(body.dead_reason, 300);
   if ('notes' in body) patch.notes = text(body.notes, 1000);
   if ('close_price' in body) {
-    const n = Number(body.close_price);
-    patch.close_price = body.close_price === '' || body.close_price === null ? null : Number.isFinite(n) && n >= 0 ? n : undefined;
-    if (patch.close_price === undefined) return fail('close_price must be a number');
+    const n = num(body.close_price);
+    if (n === undefined) return fail('close_price must be a number');
+    patch.close_price = n;
   }
+
+  // The fee: set when the referral closes, filled in once the commission is known.
+  const feeEvent = typeof body.fee_event === 'string' ? body.fee_event : null;
+  const closing = nextStatus === 'closed' && cur.status !== 'closed';
+  if (closing || feeEvent === 'commission_received') {
+    if (nextStatus !== 'closed') return fail('A fee is only recorded on a closed referral.', 409);
+    const commission = num('commission_received' in body ? body.commission_received : cur.commission_received);
+    if (commission === undefined) return fail('commission_received must be a number');
+    const received = day('commission_received_on' in body ? body.commission_received_on : cur.commission_received_on);
+    if (feeEvent === 'commission_received' && (commission === null || !received)) return fail('Enter the commission the partner received and the date they received it.');
+    if (cur.fee_status === 'paid' || cur.fee_status === 'waived') return fail('This fee is already settled.', 409);
+    Object.assign(patch, { commission_received: commission, commission_received_on: received }, feeAfterCommission({ feePercent: cur.fee_percent, commissionReceived: commission, receivedOn: received, dueDays: cur.payment_due_days_snapshot }));
+    if (cur.fee_status === 'invoiced' && patch.fee_status === 'due') patch.fee_status = 'invoiced';
+  } else if (feeEvent) {
+    if (cur.status !== 'closed') return fail('A fee is only recorded on a closed referral.', 409);
+    if (feeEvent === 'invoiced') {
+      if (cur.fee_status !== 'due') return fail('Only a fee that is due can be invoiced.', 409);
+      Object.assign(patch, { fee_status: 'invoiced' satisfies FeeStatus, fee_invoiced_on: day(body.on) ?? new Date().toISOString().slice(0, 10) });
+    } else if (feeEvent === 'paid') {
+      if (cur.fee_status !== 'due' && cur.fee_status !== 'invoiced') return fail('Only a fee that is due or invoiced can be marked paid.', 409);
+      const amount = num(body.amount);
+      if (amount === undefined || amount === null) return fail('Enter the amount that was paid.');
+      Object.assign(patch, { fee_status: 'paid' satisfies FeeStatus, fee_paid_amount: amount, fee_paid_on: day(body.on) ?? new Date().toISOString().slice(0, 10) });
+    } else if (feeEvent === 'waived') {
+      if (cur.fee_status === 'paid') return fail('This fee was already paid.', 409);
+      Object.assign(patch, { fee_status: 'waived' satisfies FeeStatus });
+    } else return fail('Unknown fee event');
+  }
+  // A referral that came back from dead starts over: no fee until it closes again.
+  if (reopened && nextStatus !== 'closed') Object.assign(patch, { fee_status: 'not_due', fee_amount: null, fee_due_on: null });
+
   if (!Object.keys(patch).length) return fail('Nothing to change');
   const { data, error } = await ctx.db.from('partner_referrals').update(patch).eq('id', id).select('*').maybeSingle();
-  if (error) return fail(error.message, 422);
+  if (error) return fail(error.code === '23505' ? 'Another referral for this lead is already open.' : error.message, error.code === '23505' ? 409 : 422);
   if (patch.status) {
     await ctx.db.from('partner_referral_updates').insert({
-      ...(ctx.orgId ? { organization_id: ctx.orgId } : {}), referral_id: id, status: patch.status, status_at: patch.status_at, note: text(body.note, 300), recorded_by: ctx.actor.user.id
+      ...(ctx.orgId ? { organization_id: ctx.orgId } : {}), referral_id: id, status: patch.status, status_at: patch.status_at, note: text(body.note, 300) ?? (reopened ? 'Back within the protection period' : null), recorded_by: ctx.actor.user.id
     });
   }
   return NextResponse.json({ item: data });

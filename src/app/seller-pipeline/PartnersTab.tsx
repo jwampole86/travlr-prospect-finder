@@ -6,8 +6,23 @@ import { Card } from '@/app/campaigns/shared';
 import { SERVICE_LINES, SERVICE_LINE_LABEL } from '@/lib/seller/types';
 import { Field, api, btnCls, inputCls, primaryBtnCls } from './ui';
 import PartnerPlaybook from './PartnerPlaybook';
+import { isAutomatic } from '@/lib/seller/licenseVerify';
 import { settlementTermsWarning } from '@/lib/seller/settlementPolicy';
 import { LICENSE_RECHECK_DAYS, licenseCheckAgeDays, licenseLookupFor, scorePartner, type PartnerScore, type ReferralRow } from '@/lib/seller/partnerReferrals';
+
+type LicenseCheck = { outcome: string; message: string; source: string; checkedAt: string; record?: { name: string; type: string; status: string; expires: string | null; employer: string | null; discipline: string | null; url: string | null } | null };
+const split = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
+const OUTCOME_TONE: Record<string, string> = { verified: 'text-emerald-700', inactive: 'text-red-700', needs_review: 'text-amber-800', not_found: 'text-amber-800', error: 'text-amber-800', manual: 'text-muted-foreground' };
+
+function LicenseCheckNote({ check }: { check: LicenseCheck }) {
+  const r = check.record;
+  return (
+    <p className={`mt-1 text-xs ${OUTCOME_TONE[check.outcome] ?? ''}`}>
+      State record check ({new Date(check.checkedAt).toLocaleDateString()}): {check.message}
+      {r && <span className="text-muted-foreground"> {r.name} · {r.type} · {r.status}{r.employer ? ` · ${r.employer}` : ''}{r.discipline ? ` · Discipline: ${r.discipline}` : ''}</span>}
+    </p>
+  );
+}
 
 const exhibitSummary = (p: Partner) => [
   p.referral_fee_percent != null && (p.referral_fee_percent + '% fee'),
@@ -27,11 +42,14 @@ export type Partner = {
   license_type: string | null; license_number: string | null; license_state: string | null; license_status: string; states: string[];
   relationship_status: string; compensation_terms: string | null; legal_reviewed: boolean; agreement_on_file: boolean; notes: string | null;
   license_verified_at?: string | null; partner_role?: string | null; brokerage?: string | null; niche?: string | null; accepts_referrals?: string; will_report?: string;
+  markets?: string[]; property_types?: string[]; price_min?: number | null; price_max?: number | null; max_open_leads?: number | null; do_not_assign?: boolean;
+  payment_method?: string | null; payee_name?: string | null; preferred_invoice_email?: string | null; w9_on_file?: boolean; license_check?: LicenseCheck | null;
   responsible_broker?: string | null; referral_fee_percent?: number | null; protection_days?: number | null; payment_due_days?: number | null; exclusive_territory?: string | null; agreement_signed_on?: string | null;
   referral_fee_range?: string | null; update_method?: string | null; excluded_areas?: string | null; recruit_status?: string; license_lookup_url?: string | null;
 };
 
-const EMPTY = { name: '', contact_name: '', contact_email: '', contact_phone: '', services: ['sale_partner'] as string[], license_type: '', license_number: '', license_state: '', states: '', compensation_terms: '', partner_role: 'broker', brokerage: '', niche: '', accepts_referrals: 'unknown', will_report: 'unknown', referral_fee_range: '', update_method: '', recruit_status: 'to_contact', responsible_broker: '', referral_fee_percent: '', protection_days: '', payment_due_days: '', exclusive_territory: '', agreement_signed_on: '' };
+const EMPTY = { name: '', contact_name: '', contact_email: '', contact_phone: '', services: ['sale_partner'] as string[], license_type: '', license_number: '', license_state: '', states: '', compensation_terms: '', partner_role: 'broker', brokerage: '', niche: '', accepts_referrals: 'unknown', will_report: 'unknown', referral_fee_range: '', update_method: '', recruit_status: 'to_contact', markets: '', property_types: '', max_open_leads: '', price_min: '', price_max: '', payment_method: '', payee_name: '', preferred_invoice_email: '', payment_instructions: '', w9_on_file: 'false', fee_notes: '',
+  responsible_broker: '', referral_fee_percent: '', protection_days: '', payment_due_days: '', exclusive_territory: '', agreement_signed_on: '' };
 
 export default function PartnersTab() {
   const [items, setItems] = useState<Partner[] | null>(null);
@@ -53,9 +71,14 @@ export default function PartnersTab() {
   async function add() {
     setBusy(true); setError(null);
     try {
-      await api('/api/seller/partners', { method: 'POST', body: { ...form, states: form.states.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean), license_lookup_url: form.license_state ? licenseLookupFor(form.license_state).url : '' } });
+      await api('/api/seller/partners', { method: 'POST', body: { ...form, states: form.states.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean), markets: split(form.markets), property_types: split(form.property_types).map((t) => t.toLowerCase()), w9_on_file: form.w9_on_file === 'true', license_lookup_url: form.license_state ? licenseLookupFor(form.license_state).url : '' } });
       setForm(EMPTY); setOpen(false); await load();
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
+  const [checking, setChecking] = useState<string | null>(null);
+  async function verify(id: string) {
+    setChecking(id); setError(null);
+    try { await api('/api/seller/partners/verify', { method: 'POST', body: { id } }); await load(); } catch (e) { setError((e as Error).message); } finally { setChecking(null); }
   }
   async function patch(id: string, body: Record<string, unknown>) {
     try { await api('/api/seller/partners', { method: 'PATCH', body: { id, ...body } }); await load(); } catch (e) { setError((e as Error).message); }
@@ -110,6 +133,17 @@ export default function PartnersTab() {
             <Field label="Will report outcomes?"><select className={inputCls} value={form.will_report} onChange={(e) => setForm({ ...form, will_report: e.target.value })}>{YES_NO.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
             <Field label="Typical referral fee"><input className={inputCls} placeholder="25% of their side" value={form.referral_fee_range} onChange={(e) => setForm({ ...form, referral_fee_range: e.target.value })} /></Field>
             <Field label="Preferred update method"><input className={inputCls} placeholder="Email reply, shared sheet, CRM note" value={form.update_method} onChange={(e) => setForm({ ...form, update_method: e.target.value })} /></Field>
+            <Field label="Markets they work (comma separated)"><input className={inputCls} placeholder="Tucson, Pima County" value={form.markets} onChange={(e) => setForm({ ...form, markets: e.target.value })} /></Field>
+            <Field label="Property types (comma separated)"><input className={inputCls} placeholder="sfr, condo, townhome, luxury" value={form.property_types} onChange={(e) => setForm({ ...form, property_types: e.target.value })} /></Field>
+            <Field label="Max open leads"><input inputMode="numeric" className={inputCls} placeholder="15" value={form.max_open_leads} onChange={(e) => setForm({ ...form, max_open_leads: e.target.value })} /></Field>
+            <Field label="Lowest price they take ($)"><input inputMode="numeric" className={inputCls} value={form.price_min} onChange={(e) => setForm({ ...form, price_min: e.target.value })} /></Field>
+            <Field label="Highest price they take ($)"><input inputMode="numeric" className={inputCls} value={form.price_max} onChange={(e) => setForm({ ...form, price_max: e.target.value })} /></Field>
+            <Field label="How they pay"><select className={inputCls} value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}><option value="">Not set</option><option value="ach">ACH</option><option value="check">Check</option><option value="wire">Wire</option><option value="other">Other</option></select></Field>
+            <Field label="Exact legal payee (usually the brokerage)"><input className={inputCls} placeholder="Desert Peak Realty LLC" value={form.payee_name} onChange={(e) => setForm({ ...form, payee_name: e.target.value })} /></Field>
+            <Field label="Invoice email"><input type="email" className={inputCls} value={form.preferred_invoice_email} onChange={(e) => setForm({ ...form, preferred_invoice_email: e.target.value })} /></Field>
+            <Field label="Payment notes (no account numbers)" className="sm:col-span-2"><input className={inputCls} placeholder="Wire details are in the vault, ref ..." value={form.payment_instructions} onChange={(e) => setForm({ ...form, payment_instructions: e.target.value })} /></Field>
+            <Field label="W-9 on file"><select className={inputCls} value={form.w9_on_file} onChange={(e) => setForm({ ...form, w9_on_file: e.target.value })}><option value="false">No</option><option value="true">Yes</option></select></Field>
+            <Field label="Fee notes"><input className={inputCls} placeholder="30% for 90 days, then 25%" value={form.fee_notes} onChange={(e) => setForm({ ...form, fee_notes: e.target.value })} /></Field>
             <Field label="Responsible broker (Exhibit A)"><input className={inputCls} value={form.responsible_broker} onChange={(e) => setForm({ ...form, responsible_broker: e.target.value })} /></Field>
             <Field label="Referral fee, % of their commission"><input inputMode="decimal" className={inputCls} placeholder="25" value={form.referral_fee_percent} onChange={(e) => setForm({ ...form, referral_fee_percent: e.target.value })} /></Field>
             <Field label="Protection period (days)"><input inputMode="numeric" className={inputCls} placeholder="180" value={form.protection_days} onChange={(e) => setForm({ ...form, protection_days: e.target.value })} /></Field>
@@ -157,6 +191,17 @@ export default function PartnersTab() {
                   Exhibit A: {exhibitSummary(p)}
                 </p>
               )}
+              {(p.payment_method || p.payee_name) && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Pays by {p.payment_method ?? 'not set'} to {p.payee_name ?? 'no payee recorded'}{p.preferred_invoice_email ? ` · invoices to ${p.preferred_invoice_email}` : ''} · W-9 {p.w9_on_file ? 'on file' : 'not on file'}
+                </p>
+              )}
+              {(p.markets?.length || p.property_types?.length || p.price_min != null || p.price_max != null || p.max_open_leads != null) && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Takes: {[p.markets?.length ? p.markets.join(', ') : null, p.property_types?.length ? p.property_types.join(', ') : null, (p.price_min != null || p.price_max != null) ? `${p.price_min != null ? '$' + Number(p.price_min).toLocaleString() : 'any'} to ${p.price_max != null ? '$' + Number(p.price_max).toLocaleString() : 'any'}` : null, p.max_open_leads != null ? `up to ${p.max_open_leads} open leads` : null].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              {p.license_check && <LicenseCheckNote check={p.license_check} />}
               {p.compensation_terms && <p className="mt-1 text-xs">{p.compensation_terms}</p>}
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
@@ -175,6 +220,10 @@ export default function PartnersTab() {
               <button className={btnCls} onClick={() => patch(p.id, p.license_status === 'verified' && !(age !== null && age > LICENSE_RECHECK_DAYS) ? { license_status: 'unverified', license_verified_at: null } : { license_status: 'verified', license_verified_at: new Date().toISOString() })}>
                 {p.license_status === 'verified' ? (age !== null && age > LICENSE_RECHECK_DAYS ? 'Re-checked today' : 'License verified ✓') : 'Mark license verified'}
               </button>
+              {p.license_number && p.license_state && (isAutomatic(p.license_state)
+                ? <button className={btnCls} disabled={checking === p.id} onClick={() => verify(p.id)}>{checking === p.id && <Loader2 size={14} className="animate-spin" />} Check against {p.license_state} records</button>
+                : <span className="self-center text-muted-foreground">{p.license_state} has no public data feed: check the official lookup</span>)}
+              <button className={btnCls} onClick={() => patch(p.id, { do_not_assign: !p.do_not_assign })}>{p.do_not_assign ? 'Do not assign ✓' : 'Mark do not assign'}</button>
               <button className={btnCls} onClick={() => patch(p.id, { legal_reviewed: !p.legal_reviewed })}>{p.legal_reviewed ? 'Legal review done ✓' : 'Mark legal review done'}</button>
               <button className={btnCls} onClick={() => patch(p.id, { agreement_on_file: !p.agreement_on_file })}>{p.agreement_on_file ? 'Agreement on file ✓' : 'Mark agreement on file'}</button>
             </div>

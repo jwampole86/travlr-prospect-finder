@@ -101,10 +101,24 @@ export function licenseLookupFor(state: string | null | undefined): { label: str
 
 export const licenseCheckAgeDays = (verifiedAt: string | null | undefined, now: Date = new Date()): number | null => (verifiedAt ? days(verifiedAt, now) : null);
 
-/** A single recorded step is only allowed to move a referral forward: closed and dead end it, and nothing goes back to "sent". */
-export function canMoveTo(from: ReferralStatus, to: ReferralStatus): boolean {
+/**
+ * A recorded step only moves a referral forward: closed and dead end it, and nothing goes back to "sent". The one exception is a dead referral
+ * that comes back to life (the owner lists or closes with the same partner) while the protection period is still running.
+ */
+export function canMoveTo(from: ReferralStatus, to: ReferralStatus, opts: { reopenable?: boolean } = {}): boolean {
   if (from === to) return false;
-  if (isFinal(from)) return false;
   if (to === 'sent') return false;
+  if (from === 'dead') return !!opts.reopenable && (to === 'listed' || to === 'under_contract' || to === 'closed');
+  if (from === 'closed') return false;
   return true;
+}
+
+/** The commercial terms that must be on record before a lead is sent: without them a closed referral cannot be invoiced. */
+export function commercialBlockers(p: { referral_fee_percent?: number | null; protection_days?: number | null; payment_method?: string | null; payee_name?: string | null }): string[] {
+  const out: string[] = [];
+  if (p.referral_fee_percent == null) out.push('Record the referral fee % from Exhibit A.');
+  if (p.protection_days == null) out.push('Record the protection period (days) from Exhibit A.');
+  if (!p.payment_method) out.push("Record how the partner will pay (ACH, check, wire or other).");
+  if (!p.payee_name?.trim()) out.push('Record the exact legal payee, usually the brokerage.');
+  return out;
 }
