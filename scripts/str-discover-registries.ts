@@ -4,12 +4,12 @@
  *
  *   npx tsx scripts/str-discover-registries.ts
  *
- * Everything it reads is published by governments through public endpoints. California, Colorado, Nevada and Washington are skipped
- * (California by request, the others are already loaded by hand).
+ * Everything it reads is published by governments through public endpoints. Colorado, Nevada and Washington are skipped
+ * (they are already loaded by hand).
  */
 import fs from 'fs';
 
-const SKIP_STATES = new Set(['CA', 'CO', 'NV', 'WA']);
+const SKIP_STATES = new Set(['CO', 'NV', 'WA']);
 const STATES: Record<string, string> = { AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NH: 'New Hampshire', NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming', DC: 'District of Columbia' };
 const NAME_OK = /short[- ]?term|vacation rental|\bstr\b|\bstvr\b|\bvhr\b|transient|holiday rental|nightly rental|tourist (home|rental)|lodging|airbnb|vrbo/i;
 const NAME_BAD = /zone|zoning|district|boundar|buffer|overlay|\barea\b|areas\b|restrict|allocation|\bcap\b|sector|setback|density|ordinance|violation|complaint|inspection|code enforcement|survey|neighbor|lookup|application|eligib|hotel tax|occupancy tax|revenue|parcel boundary|history|renewal|waitlist|statistics|dashboard|story|hub\b|template|test/i;
@@ -97,7 +97,7 @@ async function probeSocrata(c: Cand): Promise<Probed | null> {
 
 (async () => {
   const queries = ['short term rental', 'vacation rental', 'short-term rental permit', 'short term rental license', 'short term rental registration', 'STR permits', 'STVR', 'transient lodging', 'vacation rental permit', 'short term rentals registered'];
-  const stateQ = Object.values(STATES).filter(n => !['California', 'Colorado', 'Nevada', 'Washington'].includes(n)).flatMap(n => [`short term rental ${n}`, `vacation rental ${n}`]);
+  const stateQ = Object.values(STATES).filter(n => !['Colorado', 'Nevada', 'Washington'].includes(n)).flatMap(n => [`short term rental ${n}`, `vacation rental ${n}`]);
   console.log(`catalog searches: ${queries.length} general + ${stateQ.length} per-state`);
   const hub = (await pool([...queries, ...stateQ], 6, hubSearch)).flat();
   const soc = (await pool([...queries, 'airbnb', 'short term rental licenses', 'vacation rental registry', 'short term rental registrations'], 4, socrataSearch)).flat();

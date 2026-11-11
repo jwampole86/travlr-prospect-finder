@@ -31,6 +31,14 @@ export interface MatchOptions {
   exceptStates?: string[];
   /** Skip listings that already have a match result, so a scheduled run only looks at new ones. */
   onlyUnmatched?: boolean;
+  /** With onlyUnmatched: also look again at listings that found no registry nearby, which is worth doing after new registries are loaded. Unchanged results are not rewritten. */
+  recheckNoRegistry?: boolean;
+  /** Only listings that currently have one of these match results (for example 'too_many'), for a targeted re-check. */
+  onlyStatuses?: string[];
+  /** Multiplies the search radius; below 1 narrows it, so crowded areas yield fewer candidates. */
+  radiusScale?: number;
+  /** Only write results that narrowed to one to three homes; anything else keeps its earlier result. */
+  onlyImprove?: boolean;
   /** Only ELITE listings. */
   eliteOnly?: boolean;
   /** Only LUXURY listings (ELITE included). */
@@ -50,16 +58,6 @@ export interface MatchSummary { checked: number; tally: Record<string, number>; 
 export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promise<MatchSummary> {
   // Without a RentCast key, only registries that publish bedrooms can be matched; the rest are left for a run that has one.
   const canLookUp = !!process.env.RENTCAST_API_KEY;
-  const reg: Array<Record<string, any>> = [];
-  // PostgREST returns at most 1,000 rows per request, so the registry has to be read in pages.
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await db.from('str_registry').select('jurisdiction,permit_id,address,address_norm,lat,lng,holder_name,license_type,active,bedrooms,contact').eq('active', true).order('jurisdiction').order('permit_id').range(from, from + 999);
-    if (error) throw error;
-    reg.push(...(data ?? []));
-    if ((data ?? []).length < 1000) break;
-  }
-  const registry = reg.filter(r => r.lat != null && r.lng != null) as Array<{ jurisdiction: string; permit_id: string; address: string; address_norm: string; lat: number; lng: number; holder_name: string | null; license_type: string | null; bedrooms: number | null; contact: Record<string, any> | null }>;
-
   const except = (opts.exceptStates ?? []).map(s => s.toUpperCase());
   const cands: Array<Record<string, any>> = [];
   const chunks = opts.markets && !except.length ? Array.from({ length: Math.ceil(opts.markets.length / 40) }, (_, i) => opts.markets!.slice(i * 40, i * 40 + 40)) : [null];
@@ -67,7 +65,8 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
     for (let from = 0; ; from += 1000) {
       let q = db.from('str_listings').select('property_id,market,title,bedrooms,bathrooms,lat,lng,address_match_confidence,host_listing_count,is_luxury,is_elite,revenue_potential_ltm,under_score,matched_owner,match_status').or('segment.eq.candidate,and(segment.eq.new_or_dormant,is_luxury.eq.true)').order('property_id');
       if (chunk) q = q.in('market', chunk);
-      if (opts.onlyUnmatched) q = q.is('match_status', null);
+      if (opts.onlyStatuses?.length) q = q.in('match_status', opts.onlyStatuses);
+      else if (opts.onlyUnmatched) q = opts.recheckNoRegistry ? q.or('match_status.is.null,match_status.eq.no_registry_nearby') : q.is('match_status', null);
       if (opts.eliteOnly) q = q.eq('is_elite', true);
       if (opts.luxuryOnly) q = q.eq('is_luxury', true);
       const { data, error } = await q.range(from, from + 999); if (error) throw error;
@@ -76,14 +75,43 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
     }
   }
 
+  type RegRow = { jurisdiction: string; permit_id: string; address: string; address_norm: string; lat: number; lng: number; holder_name: string | null; license_type: string | null; bedrooms: number | null; contact: Record<string, any> | null };
+  // The registry is large (hundreds of thousands of licences), so only the area around each market's candidates is read.
+  const regByKey = new Map<string, RegRow>();
+  const boxes = new Map<string, { s: number; n: number; w: number; e: number }>();
+  for (const c of cands) {
+    if (c.lat == null || c.lng == null) continue;
+    const lat = Number(c.lat), lng = Number(c.lng); const k = String(c.market); const bx = boxes.get(k);
+    if (!bx) boxes.set(k, { s: lat, n: lat, w: lng, e: lng }); else { bx.s = Math.min(bx.s, lat); bx.n = Math.max(bx.n, lat); bx.w = Math.min(bx.w, lng); bx.e = Math.max(bx.e, lng); }
+  }
+  for (const bx of boxes.values()) {
+    // PostgREST returns at most 1,000 rows per request, so each area is read in pages.
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await db.from('str_registry').select('jurisdiction,permit_id,address,address_norm,lat,lng,holder_name,license_type,active,bedrooms,contact').eq('active', true)
+        .gte('lat', bx.s - 0.03).lte('lat', bx.n + 0.03).gte('lng', bx.w - 0.04).lte('lng', bx.e + 0.04).order('jurisdiction').order('permit_id').range(from, from + 999);
+      if (error) throw error;
+      for (const r of (data ?? []) as RegRow[]) if (r.lat != null && r.lng != null) regByKey.set(`${r.jurisdiction}|${r.permit_id}`, r);
+      if ((data ?? []).length < 1000) break;
+    }
+  }
+  // A grid of about 2 km cells keeps the nearby-licence lookup fast when there are tens of thousands of licences.
+  const CELL = 0.02;
+  const grid = new Map<string, RegRow[]>();
+  for (const r of regByKey.values()) { const k = `${Math.floor(r.lat / CELL)}|${Math.floor(r.lng / CELL)}`; const g = grid.get(k); if (g) g.push(r); else grid.set(k, [r]); }
+  const licencesAround = (p: { lat: number; lng: number }) => {
+    const out: RegRow[] = []; const ci = Math.floor(p.lat / CELL), cj = Math.floor(p.lng / CELL);
+    for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) { const g = grid.get(`${i}|${j}`); if (g) out.push(...g); }
+    return out;
+  };
+
   const results: Array<Record<string, any>> = []; let lookups = 0;
   // The lookup budget goes to the most valuable homes first.
   cands.sort((a, b) => Number(!!b.is_elite) - Number(!!a.is_elite) || Number(!!b.is_luxury) - Number(!!a.is_luxury) || Number(b.revenue_potential_ltm ?? 0) - Number(a.revenue_potential_ltm ?? 0));
   for (const c of cands) {
     if (c.lat == null || c.lng == null) continue;
     const here = { lat: Number(c.lat), lng: Number(c.lng) };
-    const radiusM = c.address_match_confidence === 'High' ? 150 : c.address_match_confidence === 'Medium' ? 350 : 600;
-    const near = registry.filter(r => Math.abs(r.lat - here.lat) < 0.02 && meters(here, r) <= radiusM);
+    const radiusM = (c.address_match_confidence === 'High' ? 150 : c.address_match_confidence === 'Medium' ? 350 : 600) * (opts.radiusScale ?? 1);
+    const near = licencesAround(here).filter(r => meters(here, r) <= radiusM);
     let status = 'no_registry_nearby'; const candidates: Array<Record<string, any>> = [];
     if (near.length) {
       const needsParcels = near.some(r => r.bedrooms == null);
@@ -128,6 +156,9 @@ export async function matchOwners(db: SupabaseClient, opts: MatchOptions): Promi
         .sort((x, y) => (x.distanceM ?? 1e9) - (y.distanceM ?? 1e9));
       if (found.length >= 1 && found.length <= 3) { candidates.push(...found); status = 'ambiguous'; }
     }
+    if (opts.onlyImprove && status !== 'unique' && status !== 'ambiguous') { opts.onProgress?.('x'); continue; }
+    // Nothing changed for a listing that still has no registry nearby, so there is nothing to write.
+    if (opts.recheckNoRegistry && status === 'no_registry_nearby' && c.match_status === 'no_registry_nearby') { opts.onProgress?.('.'); continue; }
     results.push({ property_id: c.property_id, market: c.market, title: c.title, status, candidates, previous: c.matched_owner ?? null });
     opts.onProgress?.(status === 'unique' ? 'U' : status === 'ambiguous' ? 'a' : status === 'no_registry_nearby' ? '.' : 'x');
   }

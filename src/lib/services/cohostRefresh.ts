@@ -7,13 +7,13 @@ import { enrichAssessorOwners } from '@/lib/services/strAssessor';
 import { lookupEntityOwners } from '@/lib/services/strEntity';
 
 const num = (v: string | undefined, d: number) => (v && Number.isFinite(Number(v)) ? Number(v) : d);
-export const EXCLUDED_STATES = ['CA'];
+export const EXCLUDED_STATES: string[] = [];
 export const stateOf = (market: string) => market.split(',').pop()!.trim().toUpperCase();
 
 export interface RefreshResult { runId: number | null; status: string; markets: string[]; apiCalls: number; newListings: number; updatedListings: number; newMatches: number; skipTraced: number; quotaRemaining: number | null; note?: string }
 
 /**
- * Re-pulls the markets that have gone longest without a refresh (every state except California), stores new and changed listings,
+ * Re-pulls the markets that have gone longest without a refresh (every state), stores new and changed listings,
  * rescores those markets, matches new candidates to public STR registries and skip-traces new unique matches.
  *
  * AirDNA calls are the scarce resource, so a run stops at a per-run call cap or when the monthly allowance drops below a reserve
@@ -43,8 +43,9 @@ export async function runCohostRefresh(db: SupabaseClient, opts: { trigger: 'cro
   };
 
   try {
-    const { data: due, error } = await db.from('str_market_refresh').select('market,state,next_offset,total_listings').eq('enabled', true).not('state', 'in', `(${EXCLUDED_STATES.join(',')})`)
-      .order('last_refreshed_at', { ascending: true, nullsFirst: true }).limit(60);
+    let dueQuery = db.from('str_market_refresh').select('market,state,next_offset,total_listings').eq('enabled', true);
+    if (EXCLUDED_STATES.length) dueQuery = dueQuery.not('state', 'in', `(${EXCLUDED_STATES.join(',')})`);
+    const { data: due, error } = await dueQuery.order('last_refreshed_at', { ascending: true, nullsFirst: true }).limit(60);
     if (error) throw error;
     if (!due?.length) return await finish('skipped', 'No markets are set up for refresh');
 
@@ -90,13 +91,17 @@ export async function runCohostRefresh(db: SupabaseClient, opts: { trigger: 'cro
       await lookupEntityOwners(db, { limit: 15, write: true }).catch(() => null);
       // Tracing the owners of new matches is left to the cohost-skiptrace job, which works ELITE first.
     }
+    // Sweep: listings in any market that were never checked against the licence lists, and ones that found no list before (more may have been loaded since).
+    // It uses no AirDNA allowance, and the property-record lookups are capped.
+    const sweep = Date.now() < deadline - 45_000 ? await matchOwners(db, { onlyUnmatched: true, recheckNoRegistry: true, write: true, maxLookups: 60 }).catch(() => null) : null;
+    if (sweep) result.newMatches += sweep.uniqueIds.length;
     return await finish(stopNote ? 'quota_reserve' : 'ok', stopNote);
   } catch (e) {
     return await finish('error', (e as Error).message.slice(0, 300));
   }
 }
 
-/** Adds markets (for example a new city) to the refresh rotation. California is never added. */
+/** Adds markets (for example a new city) to the refresh rotation. */
 export async function addRefreshMarkets(db: SupabaseClient, markets: string[]) {
   const rows = markets.filter(m => /,\s*[A-Za-z]{2}$/.test(m.trim()) && !EXCLUDED_STATES.includes(stateOf(m))).map(m => ({ market: m.trim(), state: stateOf(m) }));
   if (rows.length) await db.from('str_market_refresh').upsert(rows, { onConflict: 'market', ignoreDuplicates: true });

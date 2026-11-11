@@ -33,8 +33,16 @@ const MATCH_LABEL: Record<string, { text: string; cls: string }> = {
   unique: { text: 'Probable match', cls: 'bg-emerald-100 text-emerald-700' }, ambiguous: { text: '2-3 possible homes', cls: 'bg-amber-100 text-amber-700' },
   none_match: { text: 'No match', cls: 'bg-slate-100 text-slate-600' }, no_registry_nearby: { text: 'No license list here', cls: 'bg-slate-100 text-slate-600' }, too_many: { text: 'Too many possible', cls: 'bg-slate-100 text-slate-600' },
 };
+/** How well a market's listings are covered by public licence lists, from the share of checked listings that had a list nearby. */
+function coverageLabel(c?: MarketCoverage): string {
+  if (!c) return '';
+  if (c.checked === 0) return ' · not checked yet';
+  const share = c.covered / c.checked;
+  return share >= 0.6 ? ' · license list: good' : share >= 0.15 ? ' · license list: partial' : ' · no license list yet';
+}
 const money = (n: number | null) => (n == null ? '-' : `$${Math.round(n).toLocaleString()}`);
 
+interface MarketCoverage { market: string; candidates: number; checked: number; covered: number; probable: number }
 interface RefreshInfo { lastRun: { started_at: string; finished_at: string | null; status: string; trigger: string; api_calls: number; new_listings: number; new_matches: number; quota_remaining: number | null; note: string | null; markets: number } | null; markets: number; oldestRefresh: string | null; firstRunAt: string | null; intervalHours: number }
 type SortKey = 'best' | 'potential_desc' | 'potential_asc' | 'earned_desc' | 'newest' | 'niche_priority';
 const SORTS: Array<[SortKey, string]> = [['best', 'Best match first'], ['potential_desc', 'Potential earnings: high to low'], ['potential_asc', 'Potential earnings: low to high'], ['earned_desc', 'Earned last 12 months: high to low'], ['newest', 'Newest listings'], ['niche_priority', 'Niche priority (national ranking)']];
@@ -130,6 +138,7 @@ export default function CoHostView() {
   const changeSort = (s: SortKey) => { setSort(s); try { localStorage.setItem('cohost_sort', s); } catch { /* storage unavailable */ } };
   const [totals, setTotals] = useState<{ all: number; luxury: number; elite: number } | null>(null);
   const [refresh, setRefresh] = useState<RefreshInfo | null>(null);
+  const [coverage, setCoverage] = useState<MarketCoverage[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [verifying, setVerifying] = useState<string | null>(null);
   const [verifyErr, setVerifyErr] = useState<Record<string, string>>({});
@@ -155,7 +164,7 @@ export default function CoHostView() {
     try {
       const res = await fetch(`/api/cohost${niches.length ? `?niche=${niches.join(',')}` : ''}`, { cache: 'no-store' }); const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Could not load');
-      setListings(j.listings ?? []); setCrm(j.crm ?? []); setStages(j.stages ?? []); setModels(j.serviceModels ?? []); setTotals(j.totals ?? null); setRefresh(j.refresh ?? null); setError(null);
+      setListings(j.listings ?? []); setCrm(j.crm ?? []); setStages(j.stages ?? []); setModels(j.serviceModels ?? []); setTotals(j.totals ?? null); setRefresh(j.refresh ?? null); setCoverage(j.coverage ?? []); setError(null);
     } catch (e) { setError((e as Error).message); } finally { setLoading(false); }
   }, [niches]);
   useEffect(() => { load(); }, [load]);
@@ -199,6 +208,8 @@ export default function CoHostView() {
 
   const stateOf = (m: string) => m.split(',').pop()?.trim().toUpperCase() ?? '';
   const states = useMemo(() => ['all', ...[...new Set(listings.map(l => stateOf(l.market)).filter(Boolean))].sort()], [listings]);
+  const coverageByMarket = useMemo(() => new Map(coverage.map(c => [c.market, c])), [coverage]);
+  const coverageRows = useMemo(() => coverage.filter(c => usState === 'all' || stateOf(c.market) === usState).sort((a, b) => b.candidates - a.candidates).slice(0, 40), [coverage, usState]);
   const markets = useMemo(() => ['all', ...[...new Set(listings.map(l => l.market).filter(m => usState === 'all' || stateOf(m) === usState))].sort()], [listings, usState]);
   type Facet = 'stage' | 'view' | 'luxury' | 'elite' | 'verified' | 'contact';
   const isMatched = (l: Listing) => ['unique', 'ambiguous'].includes(l.match_status ?? '');
@@ -269,10 +280,26 @@ export default function CoHostView() {
 
       {refresh && (
         <p className="text-xs text-muted-foreground -mt-2">
-          Listings refresh automatically every {refresh.intervalHours} hours across {refresh.markets} markets in every state except California, a few markets at a time so the data allowance lasts the month.
+          Listings refresh automatically every {refresh.intervalHours} hours across {refresh.markets} markets in every state, a few markets at a time so the data allowance lasts the month.
           {refresh.lastRun ? ` Last run ${ago(refresh.lastRun.started_at)}: ${refresh.lastRun.new_listings} new listings, ${refresh.lastRun.new_matches} new owner matches${refresh.lastRun.status !== 'ok' ? ` (${refresh.lastRun.note ?? refresh.lastRun.status})` : ''}.` : ' No automatic run has happened yet.'}
           {refresh.oldestRefresh ? ` The longest-waiting market was last refreshed ${ago(refresh.oldestRefresh)}.` : ''}
         </p>
+      )}
+
+      {view !== 'crm' && coverageRows.length > 0 && (
+        <details className="bg-card border border-border rounded-xl text-sm">
+          <summary className="cursor-pointer select-none px-4 py-3 font-semibold">License-list coverage by market <span className="font-normal text-muted-foreground">(where to expect owner matches)</span></summary>
+          <div className="px-4 pb-4 overflow-x-auto">
+            <p className="text-xs text-muted-foreground mb-2">An owner match needs a public license or permit list for the area. “Covered” is the share of checked listings with a list nearby; “Probable” is how many of those turned into a likely owner match. Markets are sorted by candidate listings{usState === 'all' ? ' (top 40)' : ` in ${usState}`}.</p>
+            <table className="w-full text-xs"><thead><tr className="text-left uppercase tracking-wide text-muted-foreground"><th className="py-1 pr-3">Market</th><th className="pr-3">Candidates</th><th className="pr-3">Checked</th><th className="pr-3">Covered</th><th className="pr-3">Probable</th><th>List</th></tr></thead>
+              <tbody>{coverageRows.map(c => (
+                <tr key={c.market} className="border-t border-border">
+                  <td className="py-1.5 pr-3 font-medium">{c.market}</td><td className="pr-3 tabular-nums">{c.candidates.toLocaleString()}</td><td className="pr-3 tabular-nums">{c.checked.toLocaleString()}</td>
+                  <td className="pr-3 tabular-nums">{c.checked ? `${Math.round((c.covered / c.checked) * 100)}%` : '-'}</td><td className="pr-3 tabular-nums">{c.probable.toLocaleString()}</td>
+                  <td className="text-muted-foreground">{coverageLabel(c).replace(' · ', '').replace('license list: ', '') || '-'}</td>
+                </tr>))}</tbody></table>
+          </div>
+        </details>
       )}
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm px-4 py-3 flex items-start gap-2.5">
@@ -296,7 +323,7 @@ export default function CoHostView() {
         {view !== 'crm' && <button onClick={() => setContactOnly(v => !v)} aria-pressed={contactOnly} title="Show only listings with an owner phone or email we can use" className={`h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border text-sm font-semibold ${contactOnly ? 'bg-[#0369a1] border-[#0369a1] text-[#ffffff] ring-2 ring-[#7dd3fc] shadow-md' : 'border-border bg-card text-foreground hover:bg-muted'}`}>{contactOnly ? <Check size={14} strokeWidth={3} /> : <Mail size={14} className="text-[#0369a1]" />} Has contact <span className={`px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${contactOnly ? 'bg-[#ffffff] text-[#075985]' : 'bg-[#0369a1] text-white'}`}>{contactCount}</span></button>}
         {view !== 'crm' && <a href="/api/cohost/export" title="Download a CSV of owners with a mailing address, phone or email. Leaves out opted-out, declined and conflicting matches." className="h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border border-border bg-card text-sm font-semibold hover:bg-muted"><Download size={14} /> Export owners (CSV)</a>}
         {view !== 'crm' && <SelectBox value={usState} onChange={e => { setUsState(e.target.value); setMarket('all'); }} aria-label="State">{states.map(s => <option key={s} value={s}>{s === 'all' ? 'All states' : s}</option>)}</SelectBox>}
-        {view !== 'crm' && <SelectBox value={market} onChange={e => setMarket(e.target.value)} aria-label="Market">{markets.map(m => <option key={m} value={m}>{m === 'all' ? 'All markets' : m}</option>)}</SelectBox>}
+        {view !== 'crm' && <SelectBox value={market} onChange={e => setMarket(e.target.value)} aria-label="Market">{markets.map(m => <option key={m} value={m}>{m === 'all' ? 'All markets' : `${m}${coverageLabel(coverageByMarket.get(m))}`}</option>)}</SelectBox>}
         {view !== 'crm' && <SelectBox value={sort} onChange={e => changeSort(e.target.value as SortKey)} aria-label="Sort">{SORTS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}</SelectBox>}
         <span className="text-xs text-muted-foreground">{view === 'crm' ? `${crm.length} leads` : `${shown.length} listings${eliteOnly ? ' (elite)' : luxuryOnly ? ' (luxury)' : ''}${totals && view === 'all' ? ` shown of ${totals.all.toLocaleString()} candidates nationwide (the strongest by each ranking)` : ''}`}</span>
       </div>

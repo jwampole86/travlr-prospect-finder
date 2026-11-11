@@ -21,6 +21,17 @@ async function marketOccupancy(db: ReturnType<typeof getSupabaseAdmin>) {
   return map;
 }
 
+// Coverage by market changes only as matching runs, so it is kept for ten minutes.
+let coverageCache: { at: number; rows: Array<{ market: string; candidates: number; checked: number; covered: number; probable: number }> } | null = null;
+async function registryCoverage(db: ReturnType<typeof getSupabaseAdmin>) {
+  if (coverageCache && Date.now() - coverageCache.at < 600_000) return coverageCache.rows;
+  const { data } = await db.rpc('str_registry_coverage');
+  const rows = ((data ?? []) as Array<{ market: string; candidates: number | string; checked: number | string; covered: number | string; probable: number | string }>)
+    .map(r => ({ market: r.market, candidates: Number(r.candidates), checked: Number(r.checked), covered: Number(r.covered), probable: Number(r.probable) }));
+  if (rows.length) coverageCache = { at: Date.now(), rows };
+  return rows;
+}
+
 /** GET /api/cohost  (admin). Co-host pipeline: existing short-term-rental owners we found on Airbnb, Vrbo and similar listings, plus CRM leads moved to the co-host program. */
 export async function GET(req: NextRequest) {
   const auth = await requireAdminActor(req);
@@ -77,7 +88,7 @@ export async function GET(req: NextRequest) {
 
   const { data: crm } = await db.from('leads').select('id,address,city,state,owner_name,contact_phone,program,cohost_service,existing_platforms,program_reason,program_set_at,stage').eq('program', 'co_host').order('program_set_at', { ascending: false }).limit(500);
   const refresh = { lastRun: lastRun?.[0] ? { ...lastRun[0], markets: (lastRun[0].markets ?? []).length } : null, markets: marketCount ?? 0, oldestRefresh: oldest?.[0]?.last_refreshed_at ?? null, firstRunAt: firstRun?.[0]?.started_at ?? null, intervalHours: 12 };
-  return NextResponse.json({ listings: clean, crm: crm ?? [], stages: STAGES, serviceModels: SERVICE_MODELS, totals: { all: totalAll, luxury: totalLux, elite: totalElite }, refresh });
+  return NextResponse.json({ listings: clean, crm: crm ?? [], stages: STAGES, serviceModels: SERVICE_MODELS, totals: { all: totalAll, luxury: totalLux, elite: totalElite }, refresh, coverage: await registryCoverage(db) });
 }
 
 /** PATCH /api/cohost { propertyId, stage?, serviceModel?, notes? }  (admin). Moves a listing through the co-host pipeline. */

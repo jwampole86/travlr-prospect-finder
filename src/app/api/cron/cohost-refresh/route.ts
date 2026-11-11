@@ -6,7 +6,7 @@ export const maxDuration = 300;
 
 /**
  * GET /api/cron/cohost-refresh  (CRON_SECRET)
- * Refreshes co-host listings for every state except California. Runs every 12 hours (see vercel.json); the AirDNA spend per run is capped
+ * Refreshes co-host listings for every state. Runs every 12 hours (see vercel.json); the AirDNA spend per run is capped
  * by COHOST_REFRESH_CALLS_PER_RUN and a monthly reserve by COHOST_REFRESH_MIN_REMAINING.
  */
 export async function GET(req: NextRequest) {
