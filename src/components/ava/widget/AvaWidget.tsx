@@ -1,4 +1,5 @@
 // Synced from ava-assistant. Do not edit here: change it there and run tools/sync-to-travlr.mjs.
+// LOCAL CHANGE (not yet in ava-assistant): the "Get a deeper answer" button. Marked LOCAL below; carry it upstream or a re-sync will drop it.
 import { FormEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AvaStage, preloadAvaModel } from '../render/AvaStage';
@@ -31,7 +32,9 @@ import { briefingDue, clampPosition, dayKey, defaultLayout, loadLayout, saveLayo
 import type { LayoutPrefs } from './layout';
 import './ava-widget.css';
 
-interface Message { role: 'user' | 'ava' | 'system'; text: string; sources?: SourceNote[]; rateable?: boolean; topic?: string | null; rated?: 1 | -1; cards?: AvaCard[]; action?: { id: string; summary: string; status: ActionStatus } }
+interface Message { role: 'user' | 'ava' | 'system'; text: string; sources?: SourceNote[]; rateable?: boolean; topic?: string | null; rated?: 1 | -1; cards?: AvaCard[]; action?: { id: string; summary: string; status: ActionStatus }; deeper?: Deeper }
+// LOCAL: a staff-requested answer from an AI model, shown apart from AVA's approved help.
+type Deeper = { state: 'loading' } | { state: 'error'; message: string } | { state: 'done'; id: string | null; answer: string; label: string; reviewNote?: string; feedback?: 'up' | 'down' };
 type Mode = 'closed' | 'mini' | 'expanded';
 
 export function greetingFor(host: AvaHost): string {
@@ -467,6 +470,31 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     learning.record({ kind: 'feedback', rating: value, topic: m.topic ?? null, ...(reason ? { reason } : {}) });
   };
 
+  // LOCAL: ask for a deeper answer when AVA had nothing approved to say. Only on request; the server labels, scrubs and logs it.
+  const setDeeper = (index: number, deeper: Deeper) => setMessages((all) => all.map((x, i) => (i === index ? { ...x, deeper } : x)));
+  const askDeeper = async (index: number) => {
+    const question = messages.slice(0, index).reverse().find((x) => x.role === 'user')?.text;
+    if (!question) return;
+    setDeeper(index, { state: 'loading' });
+    try {
+      const res = await fetch('/api/ava/deeper', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ question, reply: messages[index].text, route: hostRef.current.getRoute() }) });
+      if (!res.ok) {
+        const msg = res.status === 429 ? 'Deeper answers are at their limit for now. Try again later.' : res.status === 404 ? 'Deeper answers are not turned on.' : 'I could not get a deeper answer right now.';
+        return setDeeper(index, { state: 'error', message: msg });
+      }
+      const data = await res.json();
+      setDeeper(index, { state: 'done', id: typeof data.id === 'string' ? data.id : null, answer: String(data.answer ?? ''), label: String(data.label ?? ''), reviewNote: typeof data.reviewNote === 'string' ? data.reviewNote : undefined });
+    } catch {
+      setDeeper(index, { state: 'error', message: 'I could not get a deeper answer right now.' });
+    }
+  };
+  const rateDeeper = (index: number, feedback: 'up' | 'down') => {
+    const d = messages[index]?.deeper;
+    if (d?.state !== 'done' || d.feedback) return;
+    setDeeper(index, { ...d, feedback });
+    if (d.id) void fetch('/api/ava/deeper/feedback', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: d.id, feedback }) }).catch(() => undefined);
+  };
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const text = draft.trim();
@@ -746,6 +774,28 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                               )}
                             </div>
                           ))}
+                        </div>
+                      )}
+                      {m.role === 'ava' && m.rateable && !m.sources?.length && !host.offlineDemo && (host.role === 'admin' || host.role === 'owner' || host.role === 'agent') && (
+                        <div className="deeper">
+                          {!m.deeper && <button type="button" className="chip small" onClick={() => void askDeeper(i)} title="Asks an AI model for general guidance. It is not approved AVYRO help.">Get a deeper answer</button>}
+                          {m.deeper?.state === 'loading' && <span className="rate-why">Thinking it through…</span>}
+                          {m.deeper?.state === 'error' && <span className="rate-why">{m.deeper.message}</span>}
+                          {m.deeper?.state === 'done' && (
+                            <>
+                              <small className="deeper-label">{m.deeper.label}</small>
+                              <p className="deeper-answer">{m.deeper.answer}</p>
+                              {m.deeper.reviewNote && <small className="deeper-label">{m.deeper.reviewNote}</small>}
+                              <div className="rate" role="group" aria-label="Was this deeper answer helpful?">
+                                {m.deeper.feedback ? <span className="rate-thanks">Thanks, noted.</span> : (
+                                  <>
+                                    <button type="button" onClick={() => rateDeeper(i, 'up')} aria-label="Helpful" title="Helpful">👍</button>
+                                    <button type="button" onClick={() => rateDeeper(i, 'down')} aria-label="Not helpful" title="Not helpful">👎</button>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                       {m.rateable && (
