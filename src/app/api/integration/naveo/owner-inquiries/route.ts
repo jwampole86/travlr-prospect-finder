@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
     const { data, error } = await db.from('leads').insert({
       id: newId, organization_id: access.organizationId, price_type: 'rent',
       address: inq.address ?? `Street address not provided${inq.location ? ` — ${inq.location}` : ''}`,
-      city: inq.address ? null : inq.location, property_type: inq.propertyType,
+      // leads.city cannot be empty-null: use the area the owner gave unless it is just the address again.
+      city: inq.location && inq.location !== inq.address ? inq.location : '', property_type: inq.propertyType,
       contact_name: inq.name, contact_phone: inq.phone, owner_email: inq.referred ? null : inq.email,
       source: 'Direct', cadence_step: 0, sms_opt_in: false,
       ...(inq.referred

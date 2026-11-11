@@ -38,6 +38,13 @@ describe('owner inquiry intake', () => {
     expect(recordSellerSignal.mock.calls[0][1].intent.level).toBe('possible');
   });
 
+  it('never leaves the city null when only a street address is given', async () => {
+    await call({ email: 'a@b.co', address: '77 Earn Test Way, Henderson, NV', property_location: '77 Earn Test Way, Henderson, NV' });
+    expect(inserted[0]).toMatchObject({ address: '77 Earn Test Way, Henderson, NV', city: '' });
+    await call({ email: 'a@b.co', address: '1 Main St', property_location: 'Las Vegas, NV' });
+    expect(inserted[1]).toMatchObject({ city: 'Las Vegas, NV' });
+  });
+
   it('records consent only when the owner ticked the box, and never for a referred owner', async () => {
     await call({ email: 'a@b.co' });
     expect(recordConsent).not.toHaveBeenCalled();
