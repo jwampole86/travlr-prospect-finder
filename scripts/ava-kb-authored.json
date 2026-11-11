@@ -898,6 +898,63 @@
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
+    },
+    {
+      "id": "pipelines-overview",
+      "title": "What are the different pipelines, and which statuses belong to which?",
+      "keywords": [
+        "pipelines",
+        "pipeline stages",
+        "which pipeline",
+        "referral pipeline",
+        "stays pipeline",
+        "cohost pipeline",
+        "statuses",
+        "stage names",
+        "homes pipeline"
+      ],
+      "answer": "AVYRO has three separate sets of stages, and a status from one is not a stage of another. 1) Seller opportunities, for owners who may sell (NAVEO Homes): seven stages, Seller signal, Permission and verification, Qualified, Routed to a service, Human consultation, Agreement and Outcome. 2) Partner referrals, once an owner is sent to a licensed broker: sent, received, contacted, listed, under contract, then closed or dead. 3) The Co-Host pipeline, for owners who already host on rental sites: Identified, Reviewed, Contacted, Replied, Audit sent, Meeting, Agreed, Onboarded, with Declined and Not a fit as the two ways out. NAVEO Stays has no pipeline of its own: a home has a listing status (draft, active, paused, blocked, maintenance), a guest booking has a status (confirmed, pending, cancelled, completed), and a managed property moves through onboarding, active, paused and offboarded. One property can appear in more than one of these, joined by the same lead id.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "stays-statuses",
+      "title": "What do the NAVEO Stays statuses mean for a listing, a booking and a managed property?",
+      "keywords": [
+        "listing status",
+        "draft listing",
+        "paused listing",
+        "blocked listing",
+        "maintenance listing",
+        "booking status",
+        "managed property status",
+        "onboarding tasks",
+        "stays statuses",
+        "offboarded"
+      ],
+      "answer": "A NAVEO Stays listing has one of five listing statuses. Draft is staged and not public; the market launch moves it to active. Active homes can be booked, but only if the listing is also quality-approved and nothing recorded blocks short-term rental. Paused is held back; an owner can pause or resume their own listing, but cannot resume a listing NAVEO has not approved. Blocked and maintenance are set by staff and keep the listing off the site. A guest booking is confirmed, pending, cancelled or completed: confirming holds its nights, cancelling frees them, and a cancelled booking cannot be reopened. A managed property (a property NAVEO runs for an owner) moves through onboarding, active, paused and offboarded, with onboarding tasks that are each to do, done, blocked or skipped. These statuses describe a listing and its stays; the stages in the seller and Co-Host pipelines describe owners.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "cohost-pipeline-stages",
+      "title": "What are the stages of the Co-Host pipeline?",
+      "keywords": [
+        "co-host",
+        "cohost",
+        "co host pipeline",
+        "identified",
+        "reviewed",
+        "audit sent",
+        "meeting",
+        "agreed",
+        "onboarded",
+        "declined",
+        "not a fit"
+      ],
+      "answer": "The Co-Host pipeline tracks owners who already list a short-term rental, in these stages: Identified, Reviewed, Contacted, Replied, Audit sent, Meeting, Agreed and Onboarded, plus Declined and Not a fit. Sending the first email or text to an Identified or Reviewed owner moves them to Contacted, and an owner who answers moves from Identified, Reviewed or Contacted to Replied. An owner marked Declined or Not a fit is blocked: no email or text can be sent to them. A person moves an owner between the other stages from the stage menu on the Co-Host screen. This pipeline is separate from the seller opportunity stages and from the partner referral statuses.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
     }
   ]
 }

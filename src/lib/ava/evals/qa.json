@@ -53,7 +53,10 @@
     { "q": "Does AVYRO write listings back to Zillow or the MLS?", "entry": "data-sources-no-writeback" },
     { "q": "How does AVYRO decide between Sell only and Sell + Earn?", "entry": "dual-path-rules" },
     { "q": "What is an AVM and how does a confidence score work in general?", "entry": "background-avm" },
-    { "q": "What ready-made owner campaigns are there and what must I check before sending?", "entry": "ready-made-campaigns" }
+    { "q": "What ready-made owner campaigns are there and what must I check before sending?", "entry": "ready-made-campaigns" },
+    { "q": "What are the different pipelines and their statuses?", "entry": "pipelines-overview" },
+    { "q": "What do the NAVEO Stays listing and booking statuses mean?", "entry": "stays-statuses" },
+    { "q": "What are the stages of the Co-Host pipeline?", "entry": "cohost-pipeline-stages" }
   ],
   "unsupported": [
     "What is the weather in Denver today?",

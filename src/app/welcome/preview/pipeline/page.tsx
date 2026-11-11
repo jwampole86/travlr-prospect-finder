@@ -17,7 +17,7 @@ export default function PipelinePreviewPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-foreground">Pipeline</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Sample data for illustration purposes only</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Illustrative example only: the people and numbers shown are made up</p>
             </div>
             <button
               type="button"

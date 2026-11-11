@@ -16,7 +16,7 @@ export default function AboutPage() {
         <div className="max-w-3xl mx-auto px-5 sm:px-6 py-14 sm:py-20 text-center">
           <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">About</p>
           <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">Technology built by operators, for operators.</h1>
-          <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed">AVYRO powers modern vacation rental operations, starting with NAVEO Stays and NAVEO Homes and built for operators who want to grow.</p>
+          <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed">AVYRO powers modern vacation rental operations, starting with <a href="https://staynaveo.com/" className="font-medium text-primary hover:underline" target="_blank" rel="noopener noreferrer">NAVEO Stays</a> and <a href="https://naveohomes.com/" className="font-medium text-primary hover:underline" target="_blank" rel="noopener noreferrer">NAVEO Homes</a> and built for operators who want to grow.</p>
         </div>
       </section>
       <section className="max-w-3xl mx-auto px-5 sm:px-6 py-12 space-y-10">
@@ -29,7 +29,7 @@ export default function AboutPage() {
         <div>
           <h2 className="text-xl font-bold text-foreground">Our relationship with NAVEO Stays</h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
-            NAVEO Stays is the consumer marketplace where guests book high-quality homes and owners raise their hand to list. It runs on AVYRO, which makes it our first major customer and our proving ground. Every feature is shaped by running a real operation. NAVEO Homes, which supports owners through a home sale, runs on AVYRO as well.
+            <a href="https://staynaveo.com/" className="font-medium text-primary hover:underline" target="_blank" rel="noopener noreferrer">NAVEO Stays</a> is the consumer marketplace where guests book high-quality homes and owners raise their hand to list. It runs on AVYRO, which makes it our first major customer and our proving ground. Every feature is shaped by running a real operation. <a href="https://naveohomes.com/" className="font-medium text-primary hover:underline" target="_blank" rel="noopener noreferrer">NAVEO Homes</a>, which supports owners through a home sale, runs on AVYRO as well.
           </p>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
             The two are distinct on purpose. NAVEO Stays is the storefront for travelers and homeowners. AVYRO AI is the platform for the operators and managers behind it, and it is built to serve other operators too.

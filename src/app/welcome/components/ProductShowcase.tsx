@@ -122,7 +122,7 @@ export default function ProductShowcase({ presentation = 'standard' }: ProductSh
             <ActiveBody />
             {isHero && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent sm:hidden" />}
           </div>
-          <p className="mt-4 text-[10px] text-muted-foreground text-center">Sample data shown for illustration purposes only.</p>
+          <p className="mt-4 text-[10px] text-muted-foreground text-center">Illustrative example only. The people, addresses and phone numbers shown are made up and are not real.</p>
         </div>
       </div>
     </div>
