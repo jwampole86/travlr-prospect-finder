@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-36425a89",
+  "version": "2026-11-11-a716aaba",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -571,7 +571,7 @@
         "owner services",
         "sale"
       ],
-      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has six tabs: Dashboard, Opportunities, Campaign, Partners, Referrals and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
+      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has seven tabs: Dashboard, Opportunities, Campaign, Partners, Referrals, States and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
@@ -902,7 +902,7 @@
         "outcomes",
         "partner scorecard"
       ],
-      "answer": "Use the Referrals tab. Record each lead you send to a partner, then log each status they report with the date it applied: received, contacted the owner, listed (MLS number optional), under contract, then closed (close price optional) or dead (one-line reason). A lead can only be sent to a partner whose license is verified, with legal review done and the agreement on file, and only when the owner's permission to share their details is recorded. Statuses only move forward, and closed or dead ends the referral. Admins and owners only.",
+      "answer": "Use the Referrals tab. Record each lead you send to a partner, then log each status they report with the date it applied: received, contacted the owner, listed (MLS number optional), under contract, then closed (close price optional) or dead (one-line reason). A lead can only be sent when the partner's license is verified, legal review is done, the agreement is on file, the partner is licensed in the property's state, that state is switched on in the States tab with counsel's sign-off, the partner has not stopped reporting, and the owner's permission to share their details is recorded. Statuses only move forward, and closed or dead ends the referral. Admins and owners only.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
@@ -924,6 +924,101 @@
         "70%"
       ],
       "answer": "Each partner card on the Partners tab shows an update rate: of the referrals sent more than a week ago, how many have any status beyond sent. The target is 70%. A partner is marked Watch when one referral has not been acknowledged after a week, one open referral has had no update for a month, or the rate is under 70%. They are marked Not reporting when the rate is under 70% across at least three referrals, or two or more referrals are unacknowledged or a month without an update. Use the Needs attention filter to see them, and consider pausing a partner until they catch up.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "state-activation",
+      "title": "How do I clear a new state before sending leads to a partner broker there?",
+      "keywords": [
+        "state",
+        "states",
+        "activate",
+        "activation",
+        "clear a state",
+        "new state",
+        "50 states",
+        "51",
+        "counsel",
+        "sign-off",
+        "tracker",
+        "checklist",
+        "regulator",
+        "licensing by state",
+        "expand"
+      ],
+      "answer": "Use the States tab in Seller & owner services. It lists all 50 states and DC, each with its regulator. Activate states one at a time, in the order seller-intent leads appear. For each state, check the regulator's own site and answer four questions: can a licensed broker pay and receive a referral fee, can an unlicensed person be paid (almost always no), must the fee go through the brokerage, and is a written referral agreement required. Record the statutes you checked, the official license lookup, and the counsel who reviewed it with the date. A state can only be switched to Pilot or Live once counsel's review date is recorded, and leads in a state that is not switched on cannot be sent to a partner. You can download the whole tracker as a spreadsheet. The researched notes for Arizona, Nevada and Colorado are pre-filled for counsel to confirm. This is a checklist, not legal advice.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "referral-fee-rules",
+      "title": "What are the general rules for real estate referral fees between brokers?",
+      "keywords": [
+        "referral fee",
+        "referral fees",
+        "broker to broker",
+        "unlicensed",
+        "unlicensed payee",
+        "licensed",
+        "active license",
+        "written agreement",
+        "percentage",
+        "cap",
+        "state law",
+        "rules",
+        "through the brokerage"
+      ],
+      "answer": "Across essentially every state, referral fees between licensed real estate brokers are allowed, while paying an unlicensed person for a real estate referral is prohibited or heavily restricted. The fee normally goes brokerage to brokerage rather than agent to agent, the payee must hold an active license, and a written referral agreement before the introduction is best practice (Colorado treats a contractual referral relationship as part of reasonable cause). States do not generally cap the percentage; 20 to 35 percent is custom, not law. What varies by state is who may be paid (out-of-state brokers, inactive licenses), the payment path, whether the agreement must be written, and any required disclosures, which is why each state is cleared in the States tab with counsel before the first paid referral. This is general information, not legal advice.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "escrow-title-policy",
+      "title": "Can NAVEO take a fee for referring escrow or title companies, or act as an escrow company?",
+      "keywords": [
+        "escrow",
+        "title",
+        "title company",
+        "title insurance",
+        "settlement",
+        "settlement services",
+        "respa",
+        "section 8",
+        "kickback",
+        "per closing",
+        "mortgage referral",
+        "affiliated business",
+        "afba",
+        "appendix d",
+        "hold funds",
+        "earnest money"
+      ],
+      "answer": "No. Escrow, title and mortgage are settlement services. Under RESPA Section 8, giving or accepting a fee, kickback or other thing of value for referring that business on a federally related mortgage loan is prohibited, as are unearned fee splits. NAVEO Homes refers owners to licensed real estate brokers only. It does not accept or pay per-closing fees for sending escrow, title or mortgage business, and it does not hold earnest money or closing funds, which needs an escrow license and bond from the state regulator (for example Arizona's Department of Insurance and Financial Institutions or Nevada's Mortgage Lending Division). The owner chooses their own escrow or title company. If NAVEO ever owned part of such a company, a compliant affiliated business arrangement with the written Appendix D disclosure, no required use, and payment only as a return on ownership would be needed, with RESPA counsel. Decline any offer of money per closing until counsel has reviewed it. This is general information, not legal advice.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "naveo-homes-model",
+      "title": "How does the NAVEO Homes broker referral model work, and who does the licensed work?",
+      "keywords": [
+        "naveo homes",
+        "referral model",
+        "licensed work",
+        "listing broker",
+        "agreement",
+        "referral partner agreement",
+        "exhibit a",
+        "exhibit b",
+        "non-exclusive",
+        "protection period",
+        "management services"
+      ],
+      "answer": "NAVEO Homes sources and qualifies permissioned seller leads and refers them to a licensed real estate broker under a written referral agreement signed before the introduction. The partner broker performs all licensed brokerage activity and holds an active license in the property's state; NAVEO does not act as the listing broker or broker of record. The fee is a percentage of the commission the partner actually receives on a closed referred transaction, paid to NAVEO by the brokerage on the terms in the agreement's Exhibit A, and no fee is owed if the deal does not close unless the exhibit says so. The partner reports status as set out in Exhibit B: received, contacted, listed, under contract, closed or dead, with a first update within seven days. NAVEO can suspend new leads if the partner's license is not active or reporting stops. Management through NAVEO Stays is optional for the owner and never a condition of the sale referral. This is a summary, not legal advice.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"

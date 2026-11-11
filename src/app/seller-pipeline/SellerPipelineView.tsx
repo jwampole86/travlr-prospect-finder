@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BadgeDollarSign, ClipboardCheck, Handshake, LayoutDashboard, ListChecks, Send } from 'lucide-react';
+import { BadgeDollarSign, ClipboardCheck, Handshake, MapPinned, LayoutDashboard, ListChecks, Send } from 'lucide-react';
 import { Card, cx } from '@/app/campaigns/shared';
 import DashboardTab from './DashboardTab';
 import OpportunitiesTab from './OpportunitiesTab';
@@ -9,14 +9,16 @@ import PartnersTab from './PartnersTab';
 import RevenueTab from './RevenueTab';
 import CampaignTab from './CampaignTab';
 import ReferralsTab from './ReferralsTab';
+import StatesTab from './StatesTab';
 
-type TabId = 'dashboard' | 'opportunities' | 'campaign' | 'partners' | 'referrals' | 'revenue';
+type TabId = 'dashboard' | 'opportunities' | 'campaign' | 'partners' | 'referrals' | 'states' | 'revenue';
 const TABS: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={15} /> },
   { id: 'opportunities', label: 'Opportunities', icon: <ListChecks size={15} /> },
   { id: 'campaign', label: 'Campaign', icon: <Send size={15} /> },
   { id: 'partners', label: 'Partners', icon: <Handshake size={15} /> },
   { id: 'referrals', label: 'Referrals', icon: <ClipboardCheck size={15} /> },
+  { id: 'states', label: 'States', icon: <MapPinned size={15} /> },
   { id: 'revenue', label: 'Revenue', icon: <BadgeDollarSign size={15} /> },
 ];
 
@@ -51,6 +53,7 @@ export default function SellerPipelineView() {
       {tab === 'campaign' && <CampaignTab />}
       {tab === 'partners' && <PartnersTab />}
       {tab === 'referrals' && <ReferralsTab />}
+      {tab === 'states' && <StatesTab />}
       {tab === 'revenue' && <RevenueTab />}
       </div>
     </div>

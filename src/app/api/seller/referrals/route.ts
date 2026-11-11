@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fail, sellerContext } from '@/lib/seller/api';
-import { REFERRAL_STATUSES, canMoveTo, referralBlockers, type ReferralStatus } from '@/lib/seller/partnerReferrals';
+import { REFERRAL_STATUSES, canMoveTo, referralBlockers, scorePartner, type ReferralStatus } from '@/lib/seller/partnerReferrals';
+import { partnerCoversState, stateBlockers } from '@/lib/seller/stateActivation';
 
 const isStatus = (v: unknown): v is ReferralStatus => typeof v === 'string' && (REFERRAL_STATUSES as readonly string[]).includes(v);
 const text = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
   const leadId = text(body.lead_id, 64);
   if (!partnerId || !leadId) return fail('partner_id and lead_id are required');
 
-  let pq = ctx.db.from('service_partners').select('id,license_status,legal_reviewed,agreement_on_file,relationship_status,states').eq('id', partnerId);
+  let pq = ctx.db.from('service_partners').select('id,name,license_status,legal_reviewed,agreement_on_file,relationship_status,states,license_state').eq('id', partnerId);
   if (ctx.orgId) pq = pq.eq('organization_id', ctx.orgId);
   const { data: partner } = await pq.maybeSingle();
   if (!partner) return fail('Partner not found', 404);
@@ -49,6 +50,22 @@ export async function POST(req: NextRequest) {
   const { data: opp } = await oq.maybeSingle();
   if (!opp) blockers.push('There is no open seller opportunity for this lead.');
   else if (opp.authorization_status !== 'authorized') blockers.push("The owner's permission to share their details with a partner is not recorded.");
+
+  // The property's state must be cleared by counsel, and the partner must be licensed there.
+  const { data: lead } = await ctx.db.from('leads').select('state').eq('id', leadId).maybeSingle();
+  const state = typeof lead?.state === 'string' ? lead.state.toUpperCase() : null;
+  let sq = ctx.db.from('state_activation').select('*').eq('state', state ?? '');
+  if (ctx.orgId) sq = sq.eq('organization_id', ctx.orgId);
+  const { data: activation } = state ? await sq.maybeSingle() : { data: null };
+  blockers.push(...stateBlockers(activation, state));
+  if (state && !partnerCoversState(partner, state)) blockers.push(`${partner.name} is not recorded as licensed in ${state}.`);
+
+  // A partner who has stopped reporting gets no new leads until they catch up (Section 6.3 of the partner agreement).
+  let rq = ctx.db.from('partner_referrals').select('status,sent_at,status_at').eq('partner_id', partnerId);
+  if (ctx.orgId) rq = rq.eq('organization_id', ctx.orgId);
+  const { data: history } = await rq;
+  const score = scorePartner((history ?? []) as Array<{ status: ReferralStatus; sent_at: string; status_at: string }>);
+  if (score.flag === 'stopped') blockers.push(`${partner.name} has stopped reporting: ${score.reason}`);
   if (blockers.length) return fail('This lead cannot be sent to the partner yet.', 409, { blockers });
 
   const row = {

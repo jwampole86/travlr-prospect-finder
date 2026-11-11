@@ -6,6 +6,7 @@ import { Card } from '@/app/campaigns/shared';
 import { SERVICE_LINES, SERVICE_LINE_LABEL } from '@/lib/seller/types';
 import { Field, api, btnCls, inputCls, primaryBtnCls } from './ui';
 import PartnerPlaybook from './PartnerPlaybook';
+import { settlementTermsWarning } from '@/lib/seller/settlementPolicy';
 import { LICENSE_RECHECK_DAYS, licenseCheckAgeDays, licenseLookupFor, scorePartner, type PartnerScore, type ReferralRow } from '@/lib/seller/partnerReferrals';
 
 const RECRUIT = [['to_contact', 'To contact'], ['emailed', 'Emailed'], ['call_booked', 'Call booked'], ['partner', 'Partner'], ['pass', 'Pass']] as const;
@@ -100,7 +101,7 @@ export default function PartnersTab() {
             <Field label="Typical referral fee"><input className={inputCls} placeholder="25% of their side" value={form.referral_fee_range} onChange={(e) => setForm({ ...form, referral_fee_range: e.target.value })} /></Field>
             <Field label="Preferred update method"><input className={inputCls} placeholder="Email reply, shared sheet, CRM note" value={form.update_method} onChange={(e) => setForm({ ...form, update_method: e.target.value })} /></Field>
             <Field label="Recruiting status"><select className={inputCls} value={form.recruit_status} onChange={(e) => setForm({ ...form, recruit_status: e.target.value })}>{RECRUIT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
-            <Field label="Compensation terms" className="sm:col-span-3"><textarea className={`${inputCls} h-20 py-2`} value={form.compensation_terms} onChange={(e) => setForm({ ...form, compensation_terms: e.target.value })} /></Field>
+            <Field label="Compensation terms" className="sm:col-span-3"><textarea className={`${inputCls} h-20 py-2`} value={form.compensation_terms} onChange={(e) => setForm({ ...form, compensation_terms: e.target.value })} />{settlementTermsWarning(form.compensation_terms) && <span className="mt-1 block text-xs text-amber-800">{settlementTermsWarning(form.compensation_terms)}</span>}</Field>
             <div className="sm:col-span-3"><button disabled={busy || !form.name.trim()} onClick={add} className={primaryBtnCls}>{busy && <Loader2 size={14} className="animate-spin" />} Save partner</button></div>
           </div>
         )}
