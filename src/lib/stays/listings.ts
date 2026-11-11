@@ -63,3 +63,13 @@ export function stagedListing(row: StaysListingRow) {
     cancellation_policy: typeof a.cancellation_policy === 'string' ? a.cancellation_policy : null, property_type: row.property_type,
   };
 }
+
+/** What an owner sees about their own home: its state and price, and who it is for. Never other owners' details. */
+export function ownerListing(row: StaysListingRow) {
+  const a = (row.attributes && typeof row.attributes === 'object' ? row.attributes : {}) as Record<string, unknown>;
+  return {
+    id: row.id, title: row.title, city: row.city, state: row.state, status: row.status, quality_approved: row.quality_approved === true,
+    price_per_night: num(row.price_per_night), cleaning_fee: num(row.cleaning_fee), min_nights: num(row.min_nights) ?? 1,
+    image: arr(row.images)[0] ?? null, rating: num(a.rating), review_count: num(a.review_count) ?? 0,
+  };
+}
