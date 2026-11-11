@@ -1,3 +1,4 @@
+import { estimateStrRevenue, STR_MODEL_VERSION } from '@/lib/strEstimate';
 import 'server-only';
 import type { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getRentalEstimate } from '@/lib/services/airdnaService';
@@ -62,6 +63,10 @@ export async function lookupAirdna(db: Db, lead: AirdnaLead): Promise<LookupResu
   if (!ok) { await db.from('leads').update({ airdna_checked_at: now }).eq('id', lead.id); return { figures: null, transient: false, quotaRemaining }; }
   const figures: AirdnaFigures = { adr: Math.round(Number(e!.avgDailyRate)), occupancy: Math.round(occ!), annualRevenue: e!.annualRevenue ? Math.round(e!.annualRevenue) : null, confidence: conf, scope: 'property' };
   await db.from('leads').update({ airdna_adr: figures.adr, airdna_occupancy: figures.occupancy, airdna_annual_revenue: figures.annualRevenue, airdna_confidence: conf, airdna_checked_at: now, airdna_data: compact(e!.raw) }).eq('id', lead.id);
+  // The lead's own figures now replace the modelled estimate (weighted by AirDNA's confidence), so "Est. Net/Mo" and the score follow them.
+  const { data: own } = await db.from('leads').select('price,price_type,beds').eq('id', lead.id).maybeSingle();
+  const est = estimateStrRevenue({ price: own?.price != null ? Number(own.price) : null, priceType: own?.price_type as string | null, beds: own?.beds != null ? Number(own.beds) : lead.beds, airdna: { adr: figures.adr, occupancy: figures.occupancy, confidence: conf } });
+  await db.from('leads').update({ estimated_adr: est.adr, estimated_occupancy: est.occupancy, estimated_gross_monthly: est.grossMonthly, estimated_net_monthly: est.netMonthly, calculation_version: STR_MODEL_VERSION, calculated_at: now }).eq('id', lead.id);
   await rescoreLeadsByIds(db, [lead.id]).catch(() => 0);
   return { figures, transient: false, quotaRemaining };
 }

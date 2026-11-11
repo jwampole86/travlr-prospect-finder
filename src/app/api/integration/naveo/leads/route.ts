@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { fillEstimateForNewLead } from '@/lib/leadEstimateFill';
 import { naveoSellerAccess } from '@/lib/seller/naveoAccess';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { recordConsent } from '@/lib/seller/consentLedger';
@@ -60,6 +61,8 @@ export async function POST(req: NextRequest) {
     }).select('id').single();
     if (error || !data) return NextResponse.json({ error: 'could_not_create_lead' }, { status: 500 });
     leadId = data.id as string;
+    // The same estimate the owner is shown on the estimate page, so AVYRO's recommendation and NAVEO agree on the numbers.
+    after(() => fillEstimateForNewLead(db, leadId, lead.address, lead.city, lead.state).catch(() => false));
   }
 
   if (lead.followUpConsent) {

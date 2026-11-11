@@ -62,7 +62,7 @@ export interface ProspectScoringInput {
 }
 
 /** Bump when the formula changes so stored scores can be recomputed. */
-export const SCORE_MODEL_VERSION = 'v4-live-signals';
+export const SCORE_MODEL_VERSION = 'v5-calibrated-revenue';
 
 export interface ProspectScoreFactor {
   key: string;
@@ -126,11 +126,12 @@ export function revenueBasis(input: ProspectScoringInput): number {
 function scoreRevenue(input: ProspectScoringInput): ProspectScoreFactor {
   const revenue = revenueBasis(input);
   let score = 8;
-  if (revenue >= 12000) score = 100;
-  else if (revenue >= 8000) score = 90;
-  else if (revenue >= 5000) score = 78;
-  else if (revenue >= 3000) score = 62;
-  else if (revenue >= 1500) score = 45;
+  // Tiers sit where they did when estimates ran about 1.7x too high (12,000 / 8,000 / 5,000 / 3,000 / 1,500), moved down to the calibrated estimates so the same share of leads lands in each tier.
+  if (revenue >= 9000) score = 100;
+  else if (revenue >= 6000) score = 90;
+  else if (revenue >= 3700) score = 78;
+  else if (revenue >= 2200) score = 62;
+  else if (revenue >= 1100) score = 45;
 
   if (input.luxury) score = Math.min(100, score + 15);
 

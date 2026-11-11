@@ -1,3 +1,4 @@
+import { estimateStrRevenue, STR_MODEL_VERSION } from '@/lib/strEstimate';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { isSkipTraceEligible } from '@/lib/services/fsboSkipTraceService';
@@ -104,18 +105,12 @@ function normalizePhone(phone: string): string | null {
 }
 
 // ─── Revenue calculation (AVYRO AI model) ──────────────────────────────────────
-function calculateTravlrRevenue(beds: number, baths: number, state: string, currentRent: number | null) {
-  const baseADR: Record<number, number> = { 1: 120, 2: 175, 3: 225, 4: 295, 5: 380, 6: 450 };
-  const adr = baseADR[Math.min(beds || 3, 6)] || 225;
-  const stateMultipliers: Record<string, number> = {
-    CA: 1.35, NY: 1.30, WA: 1.20, CO: 1.15, FL: 1.25, TX: 1.10,
-    NV: 1.20, MA: 1.25, OR: 1.10, ME: 1.05, UT: 1.10, MD: 1.15,
-    AZ: 1.10, ID: 1.05, MT: 1.05, WY: 1.05,
-  };
-  const multiplier = stateMultipliers[state] || 1.0;
-  const projectedADR = Math.round(adr * multiplier);
-  const projectedOccupancy = Math.min(0.78, 0.62 + (beds || 3) * 0.02);
-  const projectedMonthlyGross = Math.round(projectedADR * 30 * projectedOccupancy);
+// The estimate itself lives in lib/strEstimate (fitted to AirDNA's figures); this adds the owner-side breakdown.
+function calculateTravlrRevenue(beds: number, baths: number, state: string, currentRent: number | null, price: number, priceType: 'sale' | 'rent', airdna?: { adr?: number | null; occupancy?: number | null; confidence?: string | null } | null) {
+  const est = estimateStrRevenue({ price: priceType === 'sale' ? price : currentRent, priceType, beds, airdna });
+  const projectedADR = est.adr;
+  const projectedOccupancy = est.occupancy;
+  const projectedMonthlyGross = est.grossMonthly;
   const projectedAnnualGross = projectedMonthlyGross * 12;
   const estimatedManagementFee = 0.20;
   const projectedManagementRevenue = Math.round(projectedAnnualGross * estimatedManagementFee);
@@ -130,13 +125,13 @@ function calculateTravlrRevenue(beds: number, baths: number, state: string, curr
     potentialUpliftPct = Math.round((potentialUplift / annualCurrentRent) * 100);
   }
   return {
-    projectedADR, projectedOccupancy: Math.round(projectedOccupancy * 100),
+    projectedADR, projectedOccupancy,
     projectedMonthlyGross, projectedAnnualGross,
     estimatedManagementFee: Math.round(estimatedManagementFee * 100),
     projectedManagementRevenue, projectedOwnerGross, estimatedOperatingCosts,
     projectedOwnerNet, potentialUplift, potentialUpliftPct,
-    projectedOwnerNetMonthly: Math.round(projectedOwnerNet / 12),
-    calculationVersion: 'travlr-v1.0', calculatedAt: new Date().toISOString(),
+    projectedOwnerNetMonthly: est.netMonthly,
+    calculationVersion: STR_MODEL_VERSION, calculatedAt: new Date().toISOString(),
   };
 }
 
@@ -526,7 +521,7 @@ export async function POST(req: NextRequest) {
     if (fingerprints.length > 0) {
       const { data: byFingerprint } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes, airdna_adr, airdna_occupancy, airdna_confidence')
         .in('dedup_fingerprint', fingerprints);
 
       if (byFingerprint) {
@@ -540,7 +535,7 @@ export async function POST(req: NextRequest) {
     if (sourceIds.length > 0) {
       const { data: bySourceId } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes, airdna_adr, airdna_occupancy, airdna_confidence')
         .in('source_property_id', sourceIds);
 
       if (bySourceId) {
@@ -554,7 +549,7 @@ export async function POST(req: NextRequest) {
     if (apns.length > 0) {
       const { data: byAPN } = await supabase
         .from('leads')
-        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+        .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes, airdna_adr, airdna_occupancy, airdna_confidence')
         .in('apn', apns);
 
       if (byAPN) {
@@ -602,7 +597,7 @@ export async function POST(req: NextRequest) {
         if (!existingLead && normalized.standardizedAddress) {
           const { data: fallback } = await supabase
             .from('leads')
-            .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes')
+            .select('id, standardized_address, dedup_fingerprint, source_property_id, apn, contact_name, contact_phone, has_phone, verified_owner, verified_number, current_monthly_rent, price_type, listing_agent_name, mls_number, estimated_monthly_rent_ai, is_fsbo, is_furnished, is_apartment_community, primary_agent_id, primary_agent_name, assigned_agents, assigned_at, assigned_by, prospect_score, enrichment_status, outreach_status, created_at, notes, airdna_adr, airdna_occupancy, airdna_confidence')
             .or(`standardized_address.ilike.${normalized.standardizedAddress},address.ilike.${pr.rawAddress}`)
             .limit(1);
 
@@ -614,7 +609,8 @@ export async function POST(req: NextRequest) {
         }
 
         // ── 5b. Revenue & score ───────────────────────────────────────────────
-        const revenue = calculateTravlrRevenue(pr.rawBeds, pr.rawBaths, normalized.state, currentRent);
+        const revenue = calculateTravlrRevenue(pr.rawBeds, pr.rawBaths, normalized.state, currentRent, pr.rawPrice, pr.rawPriceType,
+          existingLead ? { adr: Number(existingLead.airdna_adr) || null, occupancy: Number(existingLead.airdna_occupancy) || null, confidence: existingLead.airdna_confidence as string | null } : null);
         // Luxury is classified once and reused for both the score and the stored flag.
         const luxuryResult = classifyLuxury({
           state: normalized.state, zip: normalized.zipCode || pr.rawZip, priceType: pr.rawPriceType,

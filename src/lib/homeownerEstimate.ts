@@ -74,7 +74,7 @@ const money = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 interface LeadFacts {
   id: string; address: string; airdnaAdr: number | null; airdnaOccupancy: number | null; airdnaCheckedAt: string | null;
   beds: number | null; baths: number | null; type: string | null; price: number | null; priceType: string | null;
-  rent: number | null; adr: number | null; occupancy: number | null;
+  rent: number | null; adr: number | null; occupancy: number | null; calibrated: boolean;
 }
 
 async function findLead(db: ReturnType<typeof getSupabaseAdmin>, a: ParsedAddress): Promise<LeadFacts | null> {
@@ -83,7 +83,7 @@ async function findLead(db: ReturnType<typeof getSupabaseAdmin>, a: ParsedAddres
   if (!number) return null;
   const safe = a.street.replace(/[%_\\,()]/g, ' ').replace(/\s+/g, ' ').trim();
   const { data } = await db.from('leads')
-    .select('id,address,city,beds,baths,property_type,price,price_type,estimated_monthly_rent_ai,estimated_adr,estimated_occupancy,airdna_adr,airdna_occupancy,airdna_checked_at')
+    .select('id,address,city,beds,baths,property_type,price,price_type,estimated_monthly_rent_ai,estimated_adr,estimated_occupancy,calculation_version,airdna_adr,airdna_occupancy,airdna_checked_at')
     .eq('state', a.state).ilike('address', `${safe}%`).or('is_synthetic.is.null,is_synthetic.eq.false').limit(5);
   const lead = (data ?? []).find(l => !a.city || String(l.city || '').toLowerCase() === a.city.toLowerCase()) ?? null;
   if (!lead) return null;
@@ -96,6 +96,7 @@ async function findLead(db: ReturnType<typeof getSupabaseAdmin>, a: ParsedAddres
     priceType: lead.price_type ? String(lead.price_type) : null,
     rent: lead.estimated_monthly_rent_ai ? Number(lead.estimated_monthly_rent_ai) : null,
     adr: lead.estimated_adr ? Number(lead.estimated_adr) : null,
+    calibrated: String(lead.calculation_version ?? '').startsWith('avyro-v2'),
     occupancy: lead.estimated_occupancy ? Number(lead.estimated_occupancy) : null,
   };
 }
@@ -251,8 +252,9 @@ export async function buildHomeownerReport(rawAddress: string): Promise<Homeowne
   // its occupancy (68-74%) and nightly rates sat well above what AirDNA finds (about 52% booked). It is scaled down to match, and
   // AirDNA's own figures for the address replace it whenever we have them.
   const MODEL_OCC = 0.75; const MODEL_ADR = 0.74;
-  const adrBase = air ? air.adr : Math.round((lead?.adr ?? (BASE_ADR[beds] ?? 225) * (STATE_MULT[a.state] ?? 1)) * MODEL_ADR);
-  const occBase = air ? air.occupancy : Math.round((lead?.occupancy ?? Math.min(0.78, 0.62 + beds * 0.02) * 100) * MODEL_OCC);
+  // A lead's stored figures from the calibrated model (avyro-v2) are already at AirDNA's level; older stored figures and the bedroom fallback are scaled down.
+  const adrBase = air ? air.adr : lead?.calibrated && lead.adr ? lead.adr : Math.round((lead?.adr ?? (BASE_ADR[beds] ?? 225) * (STATE_MULT[a.state] ?? 1)) * MODEL_ADR);
+  const occBase = air ? air.occupancy : lead?.calibrated && lead.occupancy ? lead.occupancy : Math.round((lead?.occupancy ?? Math.min(0.78, 0.62 + beds * 0.02) * 100) * MODEL_OCC);
   let expectedGross = adrBase * 30 * (occBase / 100);
   const floorGross = air ? 0 : longTermRent * 1.0;
   const adrExpected = expectedGross < floorGross ? Math.round(floorGross / (30 * occBase / 100)) : adrBase;
