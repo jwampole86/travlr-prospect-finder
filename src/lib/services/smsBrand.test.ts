@@ -20,7 +20,7 @@ describe('which NAVEO texts an owner', () => {
     const r = resolveRecipientPersonalization(owner('sale'), OUTREACH_TEMPLATE);
     expect(r.status).toBe('READY');
     expect(r.renderedMessage).toContain('Jennifer with NAVEO Homes');
-    expect(r.renderedMessage).toContain('we support owners through the process');
+    expect(r.renderedMessage).toContain('we connect owners with a licensed local broker to guide the sale');
     expect(r.renderedMessage).toContain('NAVEO Stays may be able to run it as a short-term rental');
     expect(r.renderedMessage).toContain('Worth a short conversation?');
     expect(r.renderedMessage).not.toMatch(/we help owners sell|sell their home|earn while/i);

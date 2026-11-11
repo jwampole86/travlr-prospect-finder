@@ -134,7 +134,7 @@ export const MESSAGES: CampaignMessage[] = [
   },
 ];
 
-const SALE_PITCH = "If a sale is on the table, we support owners through the process, and if the home will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental in the meantime.";
+const SALE_PITCH = "If a sale is on the table, we connect owners with a licensed local broker to guide the sale, and if the home will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental in the meantime.";
 
 /** For a home that is for sale: the first approach is helping them sell. No property management, no promise of a sale price or income. */
 export const SALE_MESSAGES: CampaignMessage[] = [

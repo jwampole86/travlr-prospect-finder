@@ -690,7 +690,7 @@ NAVEO Stays | staynaveo.com`,
 ];
 
 // ─── NAVEO Homes: homes that are for sale (help them sell; no property management) ───────────────────────────────────
-const HOMES_PITCH = "If a sale is on the table, we support owners through the process, and if the home will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental in the meantime.";
+const HOMES_PITCH = "If a sale is on the table, we connect owners with a licensed local broker to guide the sale, and if the home will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental in the meantime.";
 const HOMES_SIGNOFF = `Best,
 {{senderName}}
 NAVEO Homes`;

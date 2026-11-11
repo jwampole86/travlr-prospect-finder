@@ -21,10 +21,14 @@ export default function AvaFindMe() {
   );
 }
 
-/** Asks AVA to introduce herself once the person finishes the welcome tour (she says hello the first time only). */
-export function requestAvaIntroduction() {
+/** Asks AVA to introduce herself once per person (recorded on the account), after the welcome tour. */
+export async function requestAvaIntroduction() {
   try {
     if (window.localStorage.getItem('ava.introduced') === 'yes') return;
+    const res = await fetch('/api/ava/intro', { method: 'POST', credentials: 'include' });
+    const body = res.ok ? ((await res.json()) as { first?: boolean }) : {};
+    window.localStorage.setItem('ava.introduced', 'yes');
+    if (!body.first) return;
     window.localStorage.setItem('ava.introduce', 'pending');
   } catch { return; }
   window.dispatchEvent(new CustomEvent('ava:introduce'));
