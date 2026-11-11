@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHOICES, CHOICE_ORDER, ENTRY_MARKER, MESSAGES, isEntryQuestion, messagesForChoice, parseChoice, renderMessage } from './outreachCampaign';
+import { CHOICES, CHOICE_ORDER, ENTRY_MARKER, MESSAGES, SALE_MESSAGES, isEntryQuestion, messagesForChoice, messagesForListing, parseChoice, renderMessage } from './outreachCampaign';
 
 describe('reading an owner\'s answer', () => {
   it('takes a clear 1 to 4, however it is typed', () => {
@@ -26,8 +26,10 @@ describe('reading an owner\'s answer', () => {
 describe('the messages', () => {
   it('has a text and an email for each of the four answers, and a first and follow-up message', () => {
     for (const c of CHOICE_ORDER) expect(messagesForChoice(c).map((m) => m.channel).sort()).toEqual(['email', 'sms']);
-    expect(MESSAGES.filter((m) => m.step === 'entry').map((m) => m.channel).sort()).toEqual(['email', 'sms']);
-    expect(MESSAGES.filter((m) => m.step === 'follow_up')).toHaveLength(2);
+    for (const l of ['rent', 'sale'] as const) {
+      expect(messagesForListing(l, 'entry').map((m) => m.channel).sort()).toEqual(['email', 'sms']);
+      expect(messagesForListing(l, 'follow_up')).toHaveLength(2);
+    }
     expect(new Set(MESSAGES.map((m) => m.id)).size).toBe(MESSAGES.length);
   });
 
@@ -50,12 +52,27 @@ describe('the messages', () => {
   });
 
   it('names the NAVEO that matches the property in the first messages, and never names TRAVLR anywhere', () => {
-    for (const m of MESSAGES.filter((x) => x.step === 'entry')) {
+    for (const m of messagesForListing('rent', 'entry')) {
       expect(renderMessage(m.body, { brand: 'NAVEO Stays' })).toContain('NAVEO Stays');
       expect(renderMessage(m.body, { brand: 'NAVEO Homes' })).toContain('NAVEO Homes');
       expect(renderMessage(m.body, { brand: 'NAVEO Homes' })).not.toContain('NAVEO Stays');
     }
     for (const m of MESSAGES) expect(JSON.stringify(m)).not.toMatch(/travlr/i);
+  });
+
+  it('a home for sale is offered help selling through NAVEO Homes, never property management', () => {
+    expect(SALE_MESSAGES.length).toBe(4);
+    for (const m of SALE_MESSAGES) {
+      const text = renderMessage(m.body + ' ' + (m.subjects ?? []).join(' '), { brand: 'NAVEO Homes' });
+      expect(text).not.toMatch(/manag|STR\b|management fee|travlr/i);
+      expect(text).not.toMatch(/guarantee|we will buy|cash offer|your home is worth/i);
+      expect(isEntryQuestion(text)).toBe(false);
+    }
+    const first = renderMessage(messagesForListing('sale', 'entry').find((m) => m.channel === 'sms')!.body, { brand: 'NAVEO Homes' });
+    expect(first).toContain('sell their home through NAVEO Homes');
+    expect(first).toContain('earn while it');
+    expect(first).toContain('NAVEO Stays could be another option');
+    expect(first).toContain('STOP to opt out');
   });
 
   it('keeps the compliance promises: no price or sale guarantee, and the branch messages do not claim anything automatic', () => {

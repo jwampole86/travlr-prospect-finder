@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10-386c3ff4",
+  "version": "2026-11-11-c97fe8f1",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -731,9 +731,12 @@
         "what are you looking for",
         "reply 1 2 3 4",
         "sms",
-        "subject line"
+        "subject line",
+        "for sale",
+        "listed for sale",
+        "selling through naveo homes"
       ],
-      "answer": "The entry text says who you are, mentions the property address, and asks one question: are you mainly looking to sell, rent long-term, rent short-term, or still deciding? The owner replies 1, 2, 3 or 4. The email asks the same question with the same four options, as a reply or a button. Suggested email subject lines to test: Quick question about the address; Sell, rent, or both? We need 10 seconds; So we don't send the wrong options. Only the path they choose is followed up.",
+      "answer": "The entry text says who you are, mentions the property address, and asks one question: are you mainly looking to sell, rent long-term, rent short-term, or still deciding? The owner replies 1, 2, 3 or 4. The email asks the same question with the same four options, as a reply or a button. Suggested email subject lines to test: Quick question about the address; Sell, rent, or both? We need 10 seconds; So we don't send the wrong options. Only the path they choose is followed up. If the property is for sale, don't ask the four-option question. The Campaign tab has a 'for sale' choice: the first message offers help selling the home through NAVEO Homes, says it may be able to earn while it's on the market, and mentions NAVEO Stays as another option if the owner is in no rush. It never mentions property management.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
       "kind": "guide"
@@ -976,6 +979,23 @@
         "sale"
       ],
       "answer": "Seller solutions is where an owner who wants to sell goes. It is not a listing appointment, and no promise about price or sale is made until the proper steps are complete. The team first confirms the owner has authority to discuss the property, captures their timeline, occupancy and goals, and then routes them to the correct licensed pathway or other service options if the timing is not right.",
+      "source": "Seller & owner outreach playbook",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "playbook-for-sale-messaging",
+      "title": "What do messages to owners of homes that are for sale say?",
+      "keywords": [
+        "for sale",
+        "fsbo",
+        "sale listing",
+        "naveo homes message",
+        "sell through naveo homes",
+        "no property management",
+        "earn while on the market"
+      ],
+      "answer": "Texts, emails and messages to the owner of a home that is for sale are sent as NAVEO Homes and offer help selling the home. They say the home may be able to earn while it's on the market, and that NAVEO Stays is another option if the owner is in no immediate rush. They never mention property management and never promise a sale price, a buyer or income. A home for rent is sent as NAVEO Stays instead.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
       "kind": "guide"

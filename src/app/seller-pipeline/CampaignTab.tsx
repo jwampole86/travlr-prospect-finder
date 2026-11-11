@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Card } from '@/app/campaigns/shared';
-import { CHOICES, CHOICE_ORDER, MESSAGES, messagesForChoice, type CampaignVars } from '@/lib/seller/outreachCampaign';
+import { CHOICES, CHOICE_ORDER, messagesForChoice, messagesForListing, type CampaignVars } from '@/lib/seller/outreachCampaign';
 import { MessageCard } from './CampaignMessages';
 import { Field, inputCls } from './ui';
 import { OUTREACH_BRANDS } from '@/lib/brands';
@@ -13,8 +13,8 @@ export default function CampaignTab() {
   // Every message names the NAVEO that matches the property: Stays for a home for rent, Homes for one for sale.
   const brand = listing === 'sale' ? OUTREACH_BRANDS.homes : OUTREACH_BRANDS.stays;
   const shown: CampaignVars = { ...vars, brand: brand.name };
-  const entry = MESSAGES.filter((m) => m.step === 'entry');
-  const followUps = MESSAGES.filter((m) => m.step === 'follow_up');
+  const entry = messagesForListing(listing, 'entry');
+  const followUps = messagesForListing(listing, 'follow_up');
 
   return (
     <div className="space-y-5" data-ava-anchor="seller-campaign">
@@ -36,7 +36,8 @@ export default function CampaignTab() {
           <Field label="Your name"><input className={inputCls} value={vars.agent_name} onChange={(e) => setVars({ ...vars, agent_name: e.target.value })} placeholder="your AVYRO team" /></Field>
           <Field label="Property address"><input className={inputCls} value={vars.address} onChange={(e) => setVars({ ...vars, address: e.target.value })} placeholder="your property" /></Field>
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">The first text must keep the line &ldquo;Reply with 1, 2, 3 or 4&rdquo;: that is how AVYRO knows a 1 to 4 reply is an answer to it.</p>
+        {listing === 'rent' && <p className="mt-2 text-[11px] text-muted-foreground">The first text must keep the line &ldquo;Reply with 1, 2, 3 or 4&rdquo;: that is how AVYRO knows a 1 to 4 reply is an answer to it.</p>}
+        {listing === 'sale' && <p className="mt-2 text-[11px] text-muted-foreground">For a home that is for sale, the first approach is helping them sell through NAVEO Homes. It never mentions property management.</p>}
       </Card>
 
       <section aria-labelledby="camp-entry" className="space-y-2">

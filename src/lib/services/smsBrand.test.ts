@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HOMES_OUTREACH_TEMPLATE, OUTREACH_TEMPLATE, resolveRecipientPersonalization, type SmsRecipient } from './smsPersonalizationService';
+import { HOMES_OUTREACH_TEMPLATE, INTRO_TEMPLATE, OUTREACH_TEMPLATE, REVENUE_TEMPLATE, resolveRecipientPersonalization, type SmsRecipient } from './smsPersonalizationService';
 import { EMAIL_TEMPLATE_SEEDS_FOR_TEST } from './smsBrand.fixture';
 
 const owner = (priceType: string | null): SmsRecipient => ({
@@ -16,14 +16,24 @@ describe('which NAVEO texts an owner', () => {
     expect(r.renderedMessage).not.toMatch(/NAVEO Homes|travlr/i);
   });
 
-  it('a home for sale hears from NAVEO Homes, with the options question and no rental-income pitch', () => {
+  it('a home for sale hears from NAVEO Homes about selling, with no property-management or rental-income pitch', () => {
     const r = resolveRecipientPersonalization(owner('sale'), OUTREACH_TEMPLATE);
     expect(r.status).toBe('READY');
     expect(r.renderedMessage).toContain('Jennifer with NAVEO Homes');
-    expect(r.renderedMessage).toContain('Reply with 1, 2, 3 or 4');
+    expect(r.renderedMessage).toContain('sell their home through NAVEO Homes');
+    expect(r.renderedMessage).toContain('earn while it');
+    expect(r.renderedMessage).toContain('NAVEO Stays could be another option');
     expect(r.renderedMessage).toContain('Reply STOP to opt out');
-    expect(r.renderedMessage).not.toMatch(/STR|NAVEO Stays|travlr/i);
+    expect(r.renderedMessage).not.toMatch(/manag|\bSTR\b|travlr/i);
     expect(r.renderedMessage).not.toContain('{');
+  });
+
+  it('every standard text swaps to its for-sale version for a home for sale, and none of them mentions managing', () => {
+    for (const t of [OUTREACH_TEMPLATE, INTRO_TEMPLATE, REVENUE_TEMPLATE]) {
+      const r = resolveRecipientPersonalization(owner('sale'), t);
+      expect(r.renderedMessage).not.toMatch(/manag|\bSTR\b|vacation rental|travlr/i);
+      expect(r.renderedMessage).toContain('NAVEO');
+    }
   });
 
   it('a type that is not known falls back to NAVEO Stays, and a person\'s own custom text is only branded, never swapped', () => {
@@ -34,7 +44,7 @@ describe('which NAVEO texts an owner', () => {
 
   it('the standard texts keep the opt-out line and the question marker the reply routing relies on', () => {
     expect(OUTREACH_TEMPLATE).toContain('Reply STOP to opt out');
-    expect(HOMES_OUTREACH_TEMPLATE).toContain('Reply with 1, 2, 3 or 4');
+    expect(HOMES_OUTREACH_TEMPLATE).toContain('Reply STOP to opt out');
     for (const t of [OUTREACH_TEMPLATE, HOMES_OUTREACH_TEMPLATE]) expect(t).not.toMatch(/travlr/i);
   });
 });

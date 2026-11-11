@@ -1,5 +1,6 @@
 'use client';
 
+import { forSaleListingMessage } from '@/lib/forSaleOutreach';
 import { outreachBrandFor } from '@/lib/brands';
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Lead, LeadStage } from '@/data/mockLeads';
@@ -190,7 +191,10 @@ function PlatformMessageModal({ lead, onClose }: { lead: Lead; onClose: () => vo
   const [copied, setCopied] = useState(false);
 
   const brandName = outreachBrandFor(lead.priceType).name;
-  const messageTemplate = `Hi! I came across your listing at ${lead.address} and wanted to reach out — I'm with ${brandName}, a property management company. If you're ever curious what ${lead.address} could earn as a managed vacation rental, here's a free instant estimate, no strings attached: ${estimateUrl}`;
+  // For a home for sale the message is about selling through NAVEO Homes (no estimate link, no management pitch).
+  const messageTemplate = lead.priceType === 'sale'
+    ? forSaleListingMessage(lead.address)
+    : `Hi! I came across your listing at ${lead.address} and wanted to reach out — I'm with ${brandName}, a property management company. If you're ever curious what ${lead.address} could earn as a managed vacation rental, here's a free instant estimate, no strings attached: ${estimateUrl}`;
 
   function handleCopy() {
     navigator.clipboard.writeText(messageTemplate).then(() => {

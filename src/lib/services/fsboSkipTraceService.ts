@@ -51,6 +51,9 @@ function describeMatch(m: ResidentMatch) {
  * resident of record as contact/owner name. Names are never marked verified: a resident
  * at the address is a lead to confirm, not proof of ownership.
  */
+/** Tries before a lead that keeps failing is left as ERROR for a person to look at. */
+export const MAX_ATTEMPTS = 3;
+
 export async function runFsboSkipTrace(
   db: SupabaseClient,
   opts: { limit?: number; deadlineMs?: number; leadId?: string } = {}
@@ -61,7 +64,7 @@ export async function runFsboSkipTrace(
 
   const staleCutoff = new Date(Date.now() - STALE_RUNNING_MS).toISOString();
   const queueFilter = `skip_trace_status.eq.PENDING,and(skip_trace_status.eq.RUNNING,skip_traced_at.lt.${staleCutoff})`;
-  const columns = 'id,address,city,state,zip,contact_name,contact_phone,listing_agent_phone,secondary_phones,price_type,is_fsbo';
+  const columns = 'id,address,city,state,zip,contact_name,contact_phone,listing_agent_phone,secondary_phones,price_type,is_fsbo,skip_trace_result';
 
   let candidates: Array<Record<string, any>> | null = null;
   let error: unknown = null;
@@ -112,7 +115,10 @@ export async function runFsboSkipTrace(
       break;
     }
     if (result.status === 'ERROR') {
-      await db.from('leads').update({ skip_trace_status: 'ERROR', skip_traced_at: now, skip_trace_result: { error: result.error } }).eq('id', lead.id);
+      // A timeout or provider hiccup is not an answer about the address: try again on a later run, and only give up after MAX_ATTEMPTS.
+      const attempts = Number((lead.skip_trace_result as { attempts?: number } | null)?.attempts ?? 0) + 1;
+      const giveUp = attempts >= MAX_ATTEMPTS;
+      await db.from('leads').update({ skip_trace_status: giveUp ? 'ERROR' : 'PENDING', skip_traced_at: now, skip_trace_result: { error: result.error, attempts } }).eq('id', lead.id);
       summary.errors++;
       continue;
     }

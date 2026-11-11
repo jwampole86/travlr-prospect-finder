@@ -1,4 +1,5 @@
 import { OUTREACH_BRANDS, applyOutreachBrand, outreachBrandFor } from '@/lib/brands';
+import { HOMES_FIRST_TEXT, HOMES_INTRO_TEXT, HOMES_REVENUE_TEXT } from '@/lib/forSaleOutreach';
 
 /**
  * NAVEO SMS Personalization Service
@@ -330,9 +331,9 @@ export function resolveRecipientPersonalization(
   }
 
   // The sender is named for the property: NAVEO Homes for a home that is for sale, NAVEO Stays for one that is for rent. The standard
-  // outreach template has a version for each, so a for-sale owner is never pitched vacation-rental income.
+  // standard outreach templates have a for-sale version, so a for-sale owner is never pitched rental income or property management.
   const brand = outreachBrandFor(recipient.priceType);
-  const useTemplate = template === OUTREACH_TEMPLATE && brand.key === 'homes' ? HOMES_OUTREACH_TEMPLATE : template;
+  const useTemplate = brand.key === 'homes' ? (HOMES_VERSION.get(template) ?? template) : template;
   const rendered = applyOutreachBrand(renderSmsTemplate(useTemplate, base.firstName, base.outreachAddress), brand);
 
   // Validate rendered message
@@ -448,15 +449,19 @@ Happy to answer any questions!
 
 Reply STOP to opt out`;
 
-/** The same slot for a home that is for sale: NAVEO Homes asks the owner what they want, and a 1 to 4 reply is recorded (see seller-pipeline). */
-export const HOMES_OUTREACH_TEMPLATE = `Hi {first_name}! I'm Jennifer with {brand}. I came across {address} and wanted to reach out.
+/** The same slot for a home that is for sale: NAVEO Homes helps them sell. Wording lives in lib/forSaleOutreach.ts. */
+export const HOMES_OUTREACH_TEMPLATE = HOMES_FIRST_TEXT;
 
-Quick question so we send the right info: are you mainly looking to sell, rent long-term, rent short-term, or still deciding?
+/** The generic templates agents pick in the bulk composer, and their for-sale counterparts. */
+export const INTRO_TEMPLATE = `Hi {first_name}! This is Jennifer with {brand}. I came across {address} and wanted to reach out. We handle guests, cleaning, maintenance, and pricing so owners don't have to. Would you be open to a quick call?\n\nReply STOP to opt out.`;
+export const REVENUE_TEMPLATE = `Hi {first_name}, I ran a quick analysis on {address} and the numbers look strong. I'd love to share a personalized revenue projection — no commitment needed. Can I send it over?\n\nReply STOP to opt out.`;
 
-Reply with 1, 2, 3 or 4.
-
-Reply STOP to opt out`;
-
+/** A for-sale owner gets the for-sale version of these, never the rental pitch. */
+const HOMES_VERSION = new Map<string, string>([
+  [OUTREACH_TEMPLATE, HOMES_FIRST_TEXT],
+  [INTRO_TEMPLATE, HOMES_INTRO_TEXT],
+  [REVENUE_TEMPLATE, HOMES_REVENUE_TEXT],
+]);
 /** The old name, kept so existing imports keep working. */
 export const TRAVLR_OUTREACH_TEMPLATE = OUTREACH_TEMPLATE;
 /** Used only to make sure the brand registry is loaded with this module. */

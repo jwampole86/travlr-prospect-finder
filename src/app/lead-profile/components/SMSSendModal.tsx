@@ -28,25 +28,30 @@ const SMS_TEMPLATES = [
     id: 'intro',
     label: 'Initial Introduction',
     body: `Hi {name}, this is {agent} from {brand}. We help homeowners like you earn more from your property through short-term rentals. Would you be open to a quick 10-minute call this week?\n\nReply STOP to opt out.`,
+    homesBody: `Hi {name}, this is {agent} from {brand}. We help owners sell their home, and it may be able to earn while it's on the market. Would you be open to a quick 10-minute call this week?\n\nReply STOP to opt out.`,
   },
   {
     id: 'followup',
     label: 'Follow-Up Nudge',
     body: `Hi {name}, just following up on my earlier message. We've helped similar properties in your area earn 30–50% more than traditional rentals. Happy to share a free revenue estimate — no commitment needed.\n\nReply STOP to opt out.`,
+    homesBody: `Hi {name}, just following up on my earlier message. Not in a rush to sell? NAVEO Stays could be another option while we find the right fit. Happy to talk it through, with no commitment.\n\nReply STOP to opt out.`,
   },
   {
     id: 'revenue',label: 'Revenue Estimate Offer',
     body: `Hi {name}, I ran a quick analysis on your property and the numbers look strong. I'd love to share a personalized revenue projection. Can I send it over?\n\nReply STOP to opt out.`,
+    homesBody: `Hi {name}, I took a quick look at your home. I'd love to share what selling through NAVEO Homes looks like, and how it may be able to earn while it's on the market. Can I send it over?\n\nReply STOP to opt out.`,
   },
   {
     id: 'proposal',
     label: 'Proposal Ready',
     body: `Hi {name}, your custom partnership proposal is ready. It outlines projected earnings, our management fee, and next steps. Would you like me to walk you through it on a call?\n\nReply STOP to opt out.`,
+    homesBody: `Hi {name}, your custom plan for selling through NAVEO Homes is ready. It outlines the steps, timing and next options. Would you like me to walk you through it on a call?\n\nReply STOP to opt out.`,
   },
   {
     id: 'checkin',
     label: 'Check-In',
     body: `Hi {name}, just checking in — have you had a chance to review the info I sent? Happy to answer any questions or adjust the proposal to better fit your goals.\n\nReply STOP to opt out.`,
+    homesBody: `Hi {name}, just checking in — have you had a chance to look over what I sent? Happy to answer any questions or adjust the plan to fit your timing.\n\nReply STOP to opt out.`,
   },
   {
     id: 'custom',
@@ -54,6 +59,11 @@ const SMS_TEMPLATES = [
     body: '',
   },
 ];
+
+/** A home for sale is offered the for-sale wording of a template (NAVEO Homes), never the rental pitch. */
+function pickBody(t: { body: string; homesBody?: string }, brand: string): string {
+  return brand === 'NAVEO Homes' && t.homesBody ? t.homesBody : t.body;
+}
 
 function fillTemplate(body: string, name: string, agent: string, brand: string): string {
   return body
@@ -174,7 +184,7 @@ export default function SMSSendModal({ leadId, leadName, recipientPhone, onClose
   const [step, setStep] = useState<Step>('compose');
   const [selectedTemplateId, setSelectedTemplateId] = useState('intro');
   const [phone, setPhone] = useState(recipientPhone || '');
-  const [rawBody, setBody] = useState(() => fillTemplate(SMS_TEMPLATES[0].body, leadName, `your ${brandName} agent`, brandName));
+  const [rawBody, setBody] = useState(() => fillTemplate(pickBody(SMS_TEMPLATES[0], brandName), leadName, `your ${brandName} agent`, brandName));
   const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
@@ -205,7 +215,7 @@ export default function SMSSendModal({ leadId, leadName, recipientPhone, onClose
     setSelectedTemplateId(id);
     const tpl = SMS_TEMPLATES.find(t => t.id === id);
     if (tpl) {
-      setBody(fillTemplate(tpl.body, leadName, `your ${brandName} agent`, brandName));
+      setBody(fillTemplate(pickBody(tpl, brandName), leadName, `your ${brandName} agent`, brandName));
     }
   }
 

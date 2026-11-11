@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { HOMES_CADENCE_EMAIL, HOMES_CADENCE_SMS } from '@/lib/forSaleOutreach';
 import { outreachBrandFor } from '@/lib/brands';
 import { createClient } from '@supabase/supabase-js';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
@@ -147,7 +148,7 @@ export async function POST(req: NextRequest) {
 
         if (channel === 'email' && lead.email) {
           const subject = resolveVars(currentStep.subject || 'A message from {{brand}}', vars);
-          const html = buildEmailHtml(leadName, currentStep.template_key, vars, brand.name);
+          const html = buildEmailHtml(leadName, currentStep.template_key, vars, brand.name, brand.key === 'homes');
           const { data: emailData, error: emailErr } = await resend.emails.send({
             from: emailFrom,
             to: [lead.email],
@@ -312,7 +313,7 @@ async function logEvent(supabase: any, data: {
   });
 }
 
-function buildEmailHtml(leadName: string, templateKey: string, vars: Record<string, string>, brandName: string): string {
+function buildEmailHtml(leadName: string, templateKey: string, vars: Record<string, string>, brandName: string, forSale = false): string {
   const unsubUrl = vars['{{unsubscribeUrl}}'] || '#';
   const templates: Record<string, string> = {
     initial_outreach: `<p>Hi ${leadName},</p><p>I came across your property and wanted to reach out about a potential short-term rental opportunity that could significantly increase your monthly income.</p><p>Would you be open to a quick conversation?</p>`,
@@ -321,28 +322,22 @@ function buildEmailHtml(leadName: string, templateKey: string, vars: Record<stri
     proposal_introduction: `<p>Hi ${leadName},</p><p>Your personalized rental estimate is ready. Based on comparable properties in your area, your property could generate significant monthly income as a short-term rental.</p>`,
     closing: `<p>Hi ${leadName},</p><p>This is my final follow-up. If you're ever curious about what your property could earn, I'm here to help. No pressure — just reach out when the time is right.</p>`,
   };
-  const body = templates[templateKey] || `<p>Hi ${leadName},</p><p>Thank you for your interest. We'd love to connect with you.</p>`;
+  const sale = (HOMES_CADENCE_EMAIL[templateKey] || '').replaceAll('{{leadName}}', leadName).replaceAll('{{address}}', vars['{{address}}'] || 'your address');
+  const body = (forSale && sale) || templates[templateKey] || `<p>Hi ${leadName},</p><p>Thank you for your interest. We'd love to connect with you.</p>`;
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
     ${body}
     <p style="margin-top:24px">Best,<br><strong>${brandName} Team</strong></p>
     <hr style="margin-top:32px;border:none;border-top:1px solid #eee">
     <p style="font-size:11px;color:#999;margin-top:12px">
-      You're receiving this because you expressed interest in short-term rental management.
+      You're receiving this because ${forSale ? 'you listed a home for sale' : 'you expressed interest in short-term rental management'}.
       <a href="${unsubUrl}" style="color:#999">Unsubscribe</a> at any time.
     </p>
   </body></html>`;
 }
 
 function getSMSTemplate(templateKey: string, brand: 'stays' | 'homes' = 'stays'): string {
-  // A home for sale is not pitched vacation-rental income: NAVEO Homes asks what the owner wants (a 1 to 4 reply is recorded for the team).
-  if (brand === 'homes') {
-    const homes: Record<string, string> = {
-      initial_outreach: 'Hi {{leadName}}, this is {{brand}}. We came across {{address}}. Are you mainly looking to sell, rent long-term, rent short-term, or still deciding? Reply with 1, 2, 3 or 4. Reply STOP to opt out.',
-      follow_up_1: 'Hi {{leadName}}, following up from {{brand}} about {{address}}. Reply with 1, 2, 3 or 4: 1 sale, 2 long-term rent, 3 short-term rent, 4 still deciding. Reply STOP to opt out.',
-      closing: 'Hi {{leadName}}, last message from {{brand}}. Reach out anytime if you want to talk through options for {{address}}. STOP to opt out.',
-    };
-    return homes[templateKey] || 'Hi {{leadName}}, this is {{brand}}. Reply STOP to opt out.';
-  }
+  // A home for sale is helped to sell through NAVEO Homes, with no rental or management pitch (wording in lib/forSaleOutreach.ts).
+  if (brand === 'homes') return HOMES_CADENCE_SMS[templateKey] || 'Hi {{leadName}}, this is {{brand}}. Reply STOP to opt out.';
   const templates: Record<string, string> = {
     initial_outreach: 'Hi {{leadName}}, this is {{brand}}. We help property owners earn more with short-term rentals. Interested in a free estimate for {{address}}? Reply YES or STOP to opt out.',
     follow_up_1: 'Hi {{leadName}}, following up from {{brand}}. Your property at {{address}} could earn significantly more as a short-term rental. Reply YES to learn more or STOP to opt out.',

@@ -689,6 +689,29 @@ NAVEO Stays | staynaveo.com`,
   },
 ];
 
+// ─── NAVEO Homes: homes that are for sale (help them sell; no property management) ───────────────────────────────────
+const HOMES_PITCH = "We help owners sell their home through NAVEO Homes, and it may be able to earn while it's on the market. Not in a rush? NAVEO Stays could be another option.";
+const HOMES_SIGNOFF = `Best,
+{{senderName}}
+NAVEO Homes`;
+const HOMES_TEMPLATES: TemplateSeed[] = [
+  {
+    name: 'Homes — Initial Outreach', portfolio: 'MASTER', tag: 'outreach', category: 'initial_outreach',
+    subject: 'Selling {{address}}? Here to help',
+    body: `Hi {{contactName}},\n\nI saw {{address}} is for sale and wanted to reach out.\n\n${HOMES_PITCH}\n\nWould you be open to a quick 10-minute call this week?\n\n${HOMES_SIGNOFF}`,
+  },
+  {
+    name: 'Homes — Follow-Up #1', portfolio: 'MASTER', tag: 'follow up', category: 'follow_up_1',
+    subject: 'Following up on {{address}}',
+    body: `Hi {{contactName}},\n\nJust following up about {{address}}. I'm happy to walk you through how selling with NAVEO Homes works, and whether it makes sense for the home to earn in the meantime.\n\nNo commitment, just reply whenever suits you.\n\n${HOMES_SIGNOFF}`,
+  },
+  {
+    name: 'Homes — Check-In / Re-Engage', portfolio: 'MASTER', tag: 'check in', category: 'check_in',
+    subject: 'Still here to help with {{address}}',
+    body: `Hi {{contactName}},\n\nChecking in one more time about {{address}}. If you're in no rush, NAVEO Stays is another option we can talk through, and if you'd rather sell, I'm glad to help with that too.\n\n${HOMES_SIGNOFF}`,
+  },
+];
+
 export const LEGACY_DEFAULT_TEMPLATE_NAMES = ['CO', 'CA', 'NV', 'WA', 'MD'].flatMap((prefix) => [
   `${prefix} — Initial Outreach`,
   `${prefix} — Follow-Up #1`,
@@ -700,6 +723,7 @@ export const LEGACY_DEFAULT_TEMPLATE_NAMES = ['CO', 'CA', 'NV', 'WA', 'MD'].flat
 export const ALL_TEMPLATE_SEEDS: TemplateSeed[] = [
   ...PORTFOLIO_STATES.flatMap(({ value, label }) => buildMarketTemplates(value, label)),
   ...MASTER_TEMPLATES,
+  ...HOMES_TEMPLATES,
 ];
 
 function buildMarketTemplates(portfolio: string, label: string): TemplateSeed[] {

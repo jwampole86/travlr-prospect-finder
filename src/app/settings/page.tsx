@@ -61,7 +61,7 @@ interface TeamMember {
 
 const DEFAULT_SETTINGS: OperatorSettings = {
   sender_email: 'onboarding@resend.dev',
-  sender_name: 'TRAVLR Vacation Homes',
+  sender_name: 'NAVEO Stays',
   notify_email_sent: true,
   notify_sync_health: true,
   notify_failed_cadence: true,
@@ -1100,7 +1100,7 @@ export default function OperatorSettingsPage() {
                   type="text"
                   value={settings.sender_name}
                   onChange={(e) => setSettings((s) => ({ ...s, sender_name: e.target.value }))}
-                  placeholder="TRAVLR Vacation Homes"
+                  placeholder="NAVEO Stays"
                   className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>

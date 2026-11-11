@@ -72,6 +72,8 @@ export interface CampaignMessage {
   step: 'entry' | 'branch' | 'follow_up';
   choice?: Choice;
   channel: 'sms' | 'email';
+  /** Which kind of property the first and follow-up messages are for. A home for rent gets the options question; a home for sale is helped to sell. Branch messages apply to both. */
+  listing?: 'rent' | 'sale';
   title: string;
   /** Email subject (the first one is the default; the rest are for testing). */
   subjects?: string[];
@@ -82,11 +84,11 @@ const STOP = ' Reply STOP to opt out.';
 
 export const MESSAGES: CampaignMessage[] = [
   {
-    id: 'entry-sms', step: 'entry', channel: 'sms', title: 'First text: what are you looking for?',
+    id: 'entry-sms', step: 'entry', listing: 'rent', channel: 'sms', title: 'First text: what are you looking for?',
     body: `Hi {{first_name}}, this is {{agent_name}} with {{brand}}.\nYou reached out (or we spoke) about your property at {{address}}.\nQuick question so we send the right info:\nAre you mainly looking to sell, rent long-term, rent short-term, or still deciding?\n${ENTRY_MARKER}.${STOP}`,
   },
   {
-    id: 'entry-email', step: 'entry', channel: 'email', title: 'First email: what are you looking for?',
+    id: 'entry-email', step: 'entry', listing: 'rent', channel: 'email', title: 'First email: what are you looking for?',
     subjects: ['Quick question about {{address}}', 'Sell, rent, or both? We need 10 seconds', "So we don't send the wrong options…"],
     body: `Hi {{first_name}},\n\nThanks for connecting with us about {{address}}.\n\nTo make sure we only send relevant options (and respect your time), can you tell us what you're currently considering?\n\n1. Selling the property\n2. Long-term rental management\n3. Short-term / vacation rental (Airbnb-style)\n4. Still exploring / open to more than one\n\nJust reply with the number.\n\nWe'll only follow up with the path that matches what you choose.\n\n– {{agent_name}}\n{{brand}}`,
   },
@@ -123,14 +125,41 @@ export const MESSAGES: CampaignMessage[] = [
     body: `Hi {{first_name}},\n\nYou told us you're still weighing options for {{address}} (sale, long-term rent, short-term, or a combination).\n\nWe'll keep this practical:\n1. Confirm current situation (occupancy, timeline, goals)\n2. Show which paths are realistically available\n3. Give you one clear recommended next step (no pressure)\n\nReply YES and we'll schedule a short options conversation.\n\n– {{agent_name}}\n{{brand}}`,
   },
   {
-    id: 'followup-day3-sms', step: 'follow_up', channel: 'sms', title: 'No reply, day 3: text',
+    id: 'followup-day3-sms', step: 'follow_up', listing: 'rent', channel: 'sms', title: 'No reply, day 3: text',
     body: `Hi {{first_name}}, just circling back on {{address}}.\nStill happy to help whether you're leaning sale, rent, or still deciding.\n${ENTRY_MARKER} whenever you're ready (1 sale, 2 long-term, 3 short-term, 4 still deciding).${STOP}`,
   },
   {
-    id: 'followup-day7-email', step: 'follow_up', channel: 'email', title: 'No reply, day 7: email', subjects: ['Still here if you want the right path for {{address}}'],
+    id: 'followup-day7-email', step: 'follow_up', listing: 'rent', channel: 'email', title: 'No reply, day 7: email', subjects: ['Still here if you want the right path for {{address}}'],
     body: `Hi {{first_name}},\n\nNo rush — just keeping the door open.\n\nWhenever you're ready, reply with:\n1 = Sale\n2 = Long-term management\n3 = Short-term / Stays\n4 = Still exploring\n\nWe'll only send the matching next step.\n\n– {{agent_name}}`,
   },
 ];
+
+const SALE_PITCH = "We help owners sell their home through NAVEO Homes, and it may be able to earn while it's on the market. Not in a rush? NAVEO Stays could be another option.";
+
+/** For a home that is for sale: the first approach is helping them sell. No property management, no promise of a sale price or income. */
+export const SALE_MESSAGES: CampaignMessage[] = [
+  {
+    id: 'sale-entry-sms', step: 'entry', listing: 'sale', channel: 'sms', title: 'For sale, first text',
+    body: `Hi {{first_name}}, this is {{agent_name}} with {{brand}}.\nI saw {{address}} is for sale and wanted to reach out.\n${SALE_PITCH}\nOpen to a quick chat? Reply YES, or STOP to opt out.`,
+  },
+  {
+    id: 'sale-entry-email', step: 'entry', listing: 'sale', channel: 'email', title: 'For sale, first email',
+    subjects: ['Selling {{address}}? Here to help', 'A thought about {{address}}'],
+    body: `Hi {{first_name}},\n\nI saw {{address}} is for sale and wanted to reach out.\n\n${SALE_PITCH}\n\nWould you be open to a quick conversation? Just reply and we'll find a time that suits you.\n\n– {{agent_name}}\n{{brand}}`,
+  },
+  {
+    id: 'sale-followup-day3-sms', step: 'follow_up', listing: 'sale', channel: 'sms', title: 'For sale, no reply, day 3: text',
+    body: `Hi {{first_name}}, just circling back on {{address}}. Still happy to help you sell, and to talk through earning while it's on the market. Reply YES for a quick chat, or STOP to opt out.`,
+  },
+  {
+    id: 'sale-followup-day7-email', step: 'follow_up', listing: 'sale', channel: 'email', title: 'For sale, no reply, day 7: email', subjects: ['Still here if you want help selling {{address}}'],
+    body: `Hi {{first_name}},\n\nNo rush. I'm keeping the door open in case you'd like help selling {{address}}, or want to talk through whether it could earn while it's on the market.\n\nJust reply whenever you're ready.\n\n– {{agent_name}}\n{{brand}}`,
+  },
+];
+MESSAGES.push(...SALE_MESSAGES);
+
+/** The first and follow-up messages for a kind of property. */
+export const messagesForListing = (listing: 'rent' | 'sale', step: 'entry' | 'follow_up') => MESSAGES.filter((m) => m.step === step && m.listing === listing);
 
 /** The messages to offer a person once an owner has answered: the text and the email for their choice. */
 export const messagesForChoice = (choice: Choice) => MESSAGES.filter((m) => m.step === 'branch' && m.choice === choice);

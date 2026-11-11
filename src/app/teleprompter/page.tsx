@@ -794,7 +794,7 @@ function HeadsetSetupPanel({
         <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 mb-4 text-center">
           <Mic className="w-8 h-8 text-blue-500 mx-auto mb-3" />
           <p className="text-sm font-semibold text-foreground mb-1">Microphone Access Required</p>
-          <p className="text-xs text-muted-foreground mb-4">TRAVLR needs microphone access to power live call suggestions during homeowner calls.</p>
+          <p className="text-xs text-muted-foreground mb-4">NAVEO needs microphone access to power live call suggestions during homeowner calls.</p>
           <button onClick={requestPermission} className="px-5 py-2.5 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity touch-manipulation">Allow Microphone Access</button>
         </div>
       )}

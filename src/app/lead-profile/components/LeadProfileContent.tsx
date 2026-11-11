@@ -1,5 +1,6 @@
 'use client';
 
+import { forSaleOutreachMessage } from '@/lib/forSaleOutreach';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useRouter } from 'next/navigation';
@@ -1023,7 +1024,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   // The message is from the NAVEO that matches the property: Stays for a home for rent, Homes for one for sale (not pitched rental income).
   const outreachBrand = outreachBrandFor(lead.priceType);
   const outreachMessage = outreachBrand.key === 'homes'
-    ? `${variant.opening} I'm with ${outreachBrand.name}. Are you mainly looking to sell, rent long-term, rent short-term, or still deciding? Happy to point you to the right next step.\n— ${agentFirstName}, ${outreachBrand.name}`
+    ? forSaleOutreachMessage({ opening: variant.opening, agentFirstName })
     : `${variant.opening} I'm with ${outreachBrand.name}, a property management company. ${variant.cta}\navyropro.ai/estimate\nYou can also learn more about us at avyropro.ai. Happy to answer any questions!\n— ${agentFirstName}, ${outreachBrand.name}`;
 
   async function handleCopyMessage() {

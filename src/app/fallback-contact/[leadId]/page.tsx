@@ -1,5 +1,7 @@
 'use client';
 
+import { forSaleListingMessage } from '@/lib/forSaleOutreach';
+import { outreachBrandFor } from '@/lib/brands';
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
@@ -58,9 +60,11 @@ function getSourceDisplayName(source: string): string {
   return source;
 }
 
-function buildOutreachMessage(address: string, city: string, state: string, sourceName: string): string {
+function buildOutreachMessage(address: string, city: string, state: string, sourceName: string, priceType?: string | null): string {
+  const brandName = outreachBrandFor(priceType).name; // NAVEO Stays for a home for rent, NAVEO Homes for one for sale
   const fullAddress = [address, city, state].filter(Boolean).join(', ');
-  return `Hi! I came across your listing at ${fullAddress} and wanted to reach out — I'm with TRAVLR Vacation Homes, a property management company. If you're ever curious what ${address} could earn as a managed vacation rental, here's a free instant estimate, no strings attached:\n\nhttps://travlrpro3047.builtwithrocket.new/estimate`;
+  if (outreachBrandFor(priceType).key === 'homes') return forSaleListingMessage(fullAddress);
+  return `Hi! I came across your listing at ${fullAddress} and wanted to reach out — I'm with ${brandName}, a property management company. If you're ever curious what ${address} could earn as a managed vacation rental, here's a free instant estimate, no strings attached:\n\nhttps://travlrpro3047.builtwithrocket.new/estimate`;
 }
 
 export default function FallbackContactPage() {
@@ -83,7 +87,7 @@ export default function FallbackContactPage() {
       try {
         const { data, error } = await supabase
           .from('leads')
-          .select('id, address, city, state, zip, source, listing_url, beds, baths, price')
+          .select('id, address, city, state, zip, source, listing_url, beds, baths, price, price_type')
           .eq('id', leadId)
           .single();
         if (error || !data) throw error;
@@ -148,7 +152,7 @@ export default function FallbackContactPage() {
 
   const handleCopyMessage = async () => {
     if (!lead) return;
-    const msg = buildOutreachMessage(lead.address, lead.city, lead.state, lead.source);
+    const msg = buildOutreachMessage(lead.address, lead.city, lead.state, lead.source, (lead as { price_type?: string | null }).price_type);
     try {
       await navigator.clipboard.writeText(msg);
       setCopiedMessage(true);
@@ -197,7 +201,7 @@ export default function FallbackContactPage() {
 
   const fullAddress = [lead.address, lead.city, lead.state, lead.zip].filter(Boolean).join(', ');
   const sourceName = getSourceDisplayName(lead.source);
-  const outreachMessage = buildOutreachMessage(lead.address, lead.city, lead.state, lead.source);
+  const outreachMessage = buildOutreachMessage(lead.address, lead.city, lead.state, lead.source, (lead as { price_type?: string | null }).price_type);
   const searchUrl = getPropertyListingUrl(null, lead.address, lead.city, lead.state, lead.zip, lead.source);
 
   return (

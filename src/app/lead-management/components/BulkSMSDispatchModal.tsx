@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MessageSquare, X, Send, CheckCircle, AlertCircle, Clock, Calendar, Eye, ShieldCheck, Zap, RefreshCw, ChevronRight, ChevronLeft, ChevronDown, Users, BarChart2, User, MapPin, Phone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { runPersonalizationReconciliation, OUTREACH_TEMPLATE, type SmsRecipient, type ResolvedPersonalization, type PersonalizationReconciliation,  } from '@/lib/services/smsPersonalizationService';
+import { runPersonalizationReconciliation, OUTREACH_TEMPLATE, INTRO_TEMPLATE, REVENUE_TEMPLATE, type SmsRecipient, type ResolvedPersonalization, type PersonalizationReconciliation,  } from '@/lib/services/smsPersonalizationService';
 
 interface Lead {
   id: string;
@@ -52,7 +52,7 @@ const FALLBACK_TEMPLATES: SMSTemplate[] = [
     id: 'intro',
     name: 'Initial Outreach (Generic)',
     category: 'Outreach',
-    body: `Hi {first_name}! This is Jennifer with {brand}. I came across {address} and wanted to reach out. We handle guests, cleaning, maintenance, and pricing so owners don't have to. Would you be open to a quick call?\n\nReply STOP to opt out.`,
+    body: INTRO_TEMPLATE,
   },
   {
     id: 'followup1',
@@ -64,7 +64,7 @@ const FALLBACK_TEMPLATES: SMSTemplate[] = [
     id: 'revenue',
     name: 'Revenue Estimate Offer',
     category: 'Outreach',
-    body: `Hi {first_name}, I ran a quick analysis on {address} and the numbers look strong. I'd love to share a personalized revenue projection — no commitment needed. Can I send it over?\n\nReply STOP to opt out.`,
+    body: REVENUE_TEMPLATE,
   },
   {
     id: 'custom',

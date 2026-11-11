@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { runFsboSkipTrace, UNDISCLOSED_ADDRESS_PREFIX } from '@/lib/services/fsboSkipTraceService';
 import { skipTracePace } from '@/lib/services/skipTraceQuota';
+import { finishCronRun, startCronRun } from '@/lib/recordCronRun';
+
+/** A lead with no resident found is looked at again after this long, in case the listing or the public records changed. */
+const RECHECK_NO_MATCH_DAYS = 45;
 
 export const maxDuration = 300;
 
@@ -103,6 +107,37 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const summary = await runFsboSkipTrace(db, { limit: leadId ? limit : paced, leadId, deadlineMs: 240_000 });
-  return NextResponse.json({ ok: true, paced, enqueued, enqueuedListings, enqueuedLuxury, ...summary });
+  // When there is no new lead left to queue, spend the spare allowance re-checking addresses that found nobody a while ago.
+  let requeuedNoMatch = 0;
+  if (!leadId && feed > 0 && enqueuedListings + enqueuedLuxury + enqueued === 0) {
+    const cutoff = new Date(Date.now() - RECHECK_NO_MATCH_DAYS * 86_400_000).toISOString();
+    const { data: stale } = await db.from('leads').select('id')
+      .eq('skip_trace_status', 'NO_MATCH')
+      .filter('skip_trace_result->>reason', 'eq', 'no_resident_at_address')
+      .is('contact_name', null)
+      .lt('skip_traced_at', cutoff)
+      .order('skip_traced_at', { ascending: true })
+      .limit(paced * 3);
+    const ids = (stale || []).map(l => l.id as string);
+    if (ids.length > 0) {
+      await db.from('leads').update({ skip_trace_status: 'PENDING' }).in('id', ids);
+      requeuedNoMatch = ids.length;
+    }
+  }
+
+  const run = await startCronRun('fsbo-skip-trace', { paced, leadId: leadId ?? null });
+  try {
+    const summary = await runFsboSkipTrace(db, { limit: leadId ? limit : paced, leadId, deadlineMs: 240_000 });
+    await finishCronRun(run, {
+      status: summary.stoppedEarly === 'RATE_LIMITED' ? 'partial' : 'success',
+      leadsScanned: summary.claimed,
+      errorCount: summary.errors,
+      errors: summary.stopReason ? [summary.stopReason] : [],
+      metadata: { paced, enqueued, enqueuedListings, enqueuedLuxury, requeuedNoMatch, ...summary },
+    });
+    return NextResponse.json({ ok: true, paced, enqueued, enqueuedListings, enqueuedLuxury, requeuedNoMatch, ...summary });
+  } catch (e) {
+    await finishCronRun(run, { status: 'failed', errorCount: 1, errors: [(e as Error).message] });
+    throw e;
+  }
 }

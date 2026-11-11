@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { outreachBrandFor } from '@/lib/brands';
 import { createClient } from '@supabase/supabase-js';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
 
@@ -30,17 +31,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email blocked: this lead is marked Do Not Contact.' }, { status: 422 });
     }
 
-    const emailSubject = subject || `TRAVLR Vacation Homes — ${propertyAddress}`;
+    // The sender is the NAVEO that matches the property: Stays for a home for rent, Homes for one for sale.
+    const { data: listing } = supabase ? await supabase.from('leads').select('price_type').eq('id', leadId).maybeSingle() : { data: null };
+    const brandName = outreachBrandFor((listing as { price_type?: string | null } | null)?.price_type).name;
+    const emailSubject = subject || `${brandName} — ${propertyAddress}`;
     const escapedMessage = escapeHtml(message).replace(/\n/g, '<br/>');
     const { data, error } = await getResendClient().emails.send({
-      from: getResendFrom(),
+      from: getResendFrom(brandName),
       to: [to],
       subject: emailSubject,
       text: message,
       html: `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1a1a1a;">
           <p style="white-space: pre-wrap; line-height: 1.7; font-size: 15px;">${escapedMessage}</p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280;">TRAVLR Vacation Homes · <a href="https://avyropro.ai" style="color: #6366f1;">avyropro.ai</a></p>
+          <p style="font-size: 12px; color: #6b7280;">${brandName} · <a href="https://avyropro.ai" style="color: #6366f1;">avyropro.ai</a></p>
         </div>`,
     });
 

@@ -115,9 +115,11 @@ export async function POST(req: NextRequest) {
       const first = String(lead.contact_name || '').trim().split(/\s+/)[0];
       const fu = await scheduleYesFollowup(db, lead.id, /^[A-Za-z'-]{2,}$/.test(first) ? first : null).catch(() => null);
       const later = !!fu?.ok && !!fu.sendAt && Date.parse(fu.sendAt) - Date.now() > 2 * 3_600_000;
+      // The free rental estimate is only for a home for rent; an owner selling is not sent it.
+      const estimateLine = brand.key === 'stays' ? ` Your free estimate: ${site}/estimate.` : '';
       reply = fu?.ok
-        ? `Thanks for replying YES! We'll text you ${later ? 'in the morning' : 'shortly'} to find a time for a quick call. Your free estimate: ${site}/estimate. Reply STOP anytime to opt out.`
-        : `Thanks! A ${brand.name} specialist will reach out shortly. Your free estimate: ${site}/estimate. Reply STOP anytime to opt out.`;
+        ? `Thanks for replying YES! We'll text you ${later ? 'in the morning' : 'shortly'} to find a time for a quick call.${estimateLine} Reply STOP anytime to opt out.`
+        : `Thanks! A ${brand.name} specialist will reach out shortly.${estimateLine} Reply STOP anytime to opt out.`;
     } else if (lead) {
       // Signature could not be verified (no Twilio webhook token): alert a human, but do not record consent.
       await notifyAdmins(db, {
@@ -128,7 +130,9 @@ export async function POST(req: NextRequest) {
     }
   } else if (mode === 'help') {
     await log('sms_help_request', 'Lead requested HELP via SMS');
-    reply = `${brand.name}: avyropro.ai. Reply YES for a call about your free estimate, STOP to opt out.`;
+    reply = brand.key === 'homes'
+      ? `${brand.name}: we help owners sell their home. Reply YES for a call with a specialist, STOP to opt out.`
+      : `${brand.name}: avyropro.ai. Reply YES for a call about your free estimate, STOP to opt out.`;
   } else if (mode !== 'scheduled' && lead && toE164(from)) {
     await db.from('leads').update({ stage: 'human_outreach', escalated_at: now, escalation_reason: 'Inbound SMS reply needs a human' }).eq('id', lead.id).in('stage', ['New Lead', 'Contacted']);
     // A question gets an answer right away at any hour; the team is alerted below either way.

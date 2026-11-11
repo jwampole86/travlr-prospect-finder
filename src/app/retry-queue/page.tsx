@@ -253,7 +253,7 @@ export default function RetryQueuePage() {
             ? metadata.message
             : row.full_body || null;
         const emailMessage = row.full_body;
-        const emailSubject = row.subject || 'TRAVLR Vacation Homes';
+        const emailSubject = row.subject || 'NAVEO Stays';
         const preview = row.body_preview || (typeof metadata.message === 'string' ? metadata.message : row.full_body) || 'No preview saved';
         const knownSmsBlock = !!lead?.sms_opted_out_at || guard?.do_not_contact === true;
 
