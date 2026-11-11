@@ -13,6 +13,8 @@ describe('naveoSellerAccess', () => {
     expect(naveoSellerAccess('POST', '/api/integration/naveo/leads', KEY, env)).not.toBeNull();
     expect(naveoSellerAccess('GET', '/api/integration/naveo/listings', KEY, env)).not.toBeNull();
     expect(naveoSellerAccess('POST', '/api/integration/naveo/owner-inquiries', KEY, env)).not.toBeNull();
+    expect(naveoSellerAccess('GET', '/api/integration/naveo/stays/listings', KEY, env)).not.toBeNull();
+    expect(naveoSellerAccess('GET', '/api/integration/naveo/stays/listings/abc-123/availability', KEY, env)).not.toBeNull();
   });
 
   it('rejects a missing, short or wrong key', () => {
@@ -31,7 +33,7 @@ describe('naveoSellerAccess', () => {
       ['POST', '/api/seller/partners'], ['PATCH', '/api/seller/partners'], ['POST', '/api/seller/partners/verify'], ['GET', '/api/seller/agreements'],
       ['POST', '/api/seller/agreements'], ['GET', '/api/seller/revenue'], ['POST', '/api/seller/states'], ['POST', '/api/seller/backfill'],
       ['PATCH', '/api/seller/opportunities/abc'], ['POST', '/api/seller/opportunities'], ['PATCH', '/api/seller/opportunities/abc/assessments'],
-      ['POST', '/api/integration/naveo/listings'], ['GET', '/api/integration/naveo/owner-inquiries'], ['GET', '/api/leads/paginated'], ['GET', '/api/seller/referrals/../partners'], ['DELETE', '/api/seller/referrals'],
+      ['POST', '/api/integration/naveo/listings'], ['GET', '/api/integration/naveo/owner-inquiries'], ['POST', '/api/integration/naveo/stays/listings'], ['GET', '/api/integration/naveo/stays/listings/abc/../../../seller/revenue'], ['PATCH', '/api/integration/naveo/stays/listings/abc'], ['GET', '/api/leads/paginated'], ['GET', '/api/seller/referrals/../partners'], ['DELETE', '/api/seller/referrals'],
     ]) {
       expect(naveoSellerAccess(method, path, KEY, env), `${method} ${path}`).toBeNull();
     }
