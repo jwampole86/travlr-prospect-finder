@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-757de70a",
+  "version": "2026-11-11-6973ae22",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -1322,6 +1322,104 @@
       "source": "NAVEO sites and AVYRO",
       "kind": "guide",
       "route": "/seller-pipeline"
+    },
+    {
+      "id": "score-prospect-score",
+      "title": "How is the Prospect Score calculated?",
+      "keywords": [
+        "prospect score",
+        "prospect_score",
+        "score bands",
+        "hot warm nurture cold",
+        "score model",
+        "scoring weights",
+        "revenue potential",
+        "property fit",
+        "regulatory feasibility",
+        "lead quality",
+        "engagement and freshness"
+      ],
+      "answer": "The Prospect Score is a 0 to 100 number on every lead that says how good a short-term-rental prospect it is and how ready it is to contact. It is not a seller-intent score. Five factors are each scored 0 to 100 and weighted: Revenue Potential 25, Property Fit 25, Regulatory Feasibility 25, Lead Quality 15, and Engagement and Freshness 10 (weights can be changed in the score weight editor). Revenue Potential uses estimated monthly net income, preferring AirDNA's own figure, then the stored estimate, then the listed rent or a rent estimate for a sale listing; a sale price never counts as income. Property Fit rewards 3 to 5 bedrooms, 2 or more baths, houses and townhomes, furnished and luxury homes, and penalizes apartment communities. Regulatory Feasibility is Allowed 100, Restricted 70, Pending 35, Unknown 25, and Prohibited or Banned 0. Lead Quality rewards a verified owner, a verified address, a usable phone, an email and a skip-trace match. Engagement rewards replies, callbacks, link clicks, answered calls, a submitted estimate form and fresh listings, and fades as the last activity ages. The raw total is stretched so 60 raw becomes about 75, then capped when key data is missing, floored to 80 or higher for a lead who replied or asked for a call (the floor fades with silence), and capped at 30 if they declined. Do Not Contact, a prohibited market or a terminal stage blocks the lead. Bands: Hot 80 or more, Warm 60 to 79, Nurture 40 to 59, Cold below 40, and Blocked. The model version is stored with each score so it can be recomputed when the formula changes.",
+      "source": "Scoring, estimates and data sources",
+      "kind": "guide"
+    },
+    {
+      "id": "score-seller-intent",
+      "title": "How is seller intent scored, and who sees it?",
+      "keywords": [
+        "intent score",
+        "intent_score",
+        "seller intent",
+        "explicit intent",
+        "possible intent",
+        "service fit score",
+        "naveo intent",
+        "homeowner score"
+      ],
+      "answer": "Seller intent is a separate 0 to 100 number, stored as intent_score on a seller opportunity. It is for internal prioritizing and partner matching and is never shown to homeowners. For a text or email reply it is read from the words: each explicit sentence about selling (wants to sell, considering a sale, putting it on the market, asked for an offer or value, asked about a buyer) adds 45; if there is none, a mention of selling or a broker adds 20; a life change such as retiring, downsizing or relocating adds 10; a stated timeline adds 15. A reply that says they are not selling scores nothing. A NAVEO Homes sell-form submission is an explicit signal and starts at 70, plus 10 for a plan to sell within 3 months and 5 for a phone number. A NAVEO Stays owner inquiry starts at 60 as a rental-management request, plus 5 for a phone and 5 if they already self-manage or use a manager. An owner who was only referred is a weak signal at 35. On a repeat signal the opportunity keeps the higher score. A separate service fit score is the best match among the services AVYRO suggests (a sale partner scores 85 for explicit intent and 45 for possible intent). Neither number is a prediction that a home will sell, and a person always decides the route.",
+      "source": "Scoring, estimates and data sources",
+      "kind": "guide"
+    },
+    {
+      "id": "estimates-and-confidence",
+      "title": "Does AVYRO have an automated valuation (AVM) or an AVM confidence score?",
+      "keywords": [
+        "avm",
+        "automated valuation",
+        "property value",
+        "value estimate",
+        "confidence score",
+        "rent estimate",
+        "rentcast",
+        "airdna",
+        "net proceeds",
+        "estimated value",
+        "confidence"
+      ],
+      "answer": "AVYRO does not run a sale-value AVM and has no AVM confidence score for property value. The estimates it does hold are different. Rent: for sale listings it replaces the market-average rent with RentCast's long-term rent estimate for the property (an AVM for rent, not value), highest-scoring leads first and capped by a monthly request budget. That lead is marked HIGH confidence when the estimate's low-to-high range is within 40 percent of the rent, MEDIUM otherwise, and a lookup with no answer is marked as a miss so it is not retried every run. Short-term income: AirDNA supplies daily rate, occupancy, annual revenue and its own confidence level, and the Prospect Score treats 65 percent of AirDNA annual revenue, divided by 12, as net monthly income. Seller net proceeds in the dual-path analysis come from the price the owner says they expect minus selling costs (7 percent by default), and it says plainly that this is the owner's expectation, not a valuation or comparable sales. The NAVEO Homes site's own estimate before AVYRO answers is a simple price-per-square-foot calculation by market and condition with a fixed band of about 4 percent each way, not a model with a confidence score. None of these is an appraisal, an offer or a promise.",
+      "source": "Scoring, estimates and data sources",
+      "kind": "guide"
+    },
+    {
+      "id": "data-sources-no-writeback",
+      "title": "Where does AVYRO get listing and property data, and does it send anything back to Zillow or the MLS?",
+      "keywords": [
+        "zillow",
+        "mls",
+        "rapidapi",
+        "trulia",
+        "hotpads",
+        "padmapper",
+        "data sources",
+        "listing sources",
+        "send back",
+        "syndicate",
+        "craigslist",
+        "propertyreach",
+        "source label"
+      ],
+      "answer": "AVYRO only reads listing data and never sends anything to Zillow, the MLS or any portal. Listings arrive from Zillow, PadMapper and HotPads through a data provider's API, from Trulia through its own ingestion, from Craigslist and other portals, and from manual and master CSV uploads. Each lead keeps its source label (Zillow, HotPads, Trulia, Redfin, Airbnb, VRBO, MLS, Direct and others). MLS is only a label for rows loaded from licensed sources; the code has no direct MLS feed connector. Rent and income figures come from RentCast and AirDNA, and owner phone and email from skip-trace and PropertyReach style enrichment. A listing on Zillow with no agent or broker, or marked as a Zillow Rentals listing, is treated as owner-listed. Source pulls report when a source is unavailable instead of silently returning zero, never create made-up properties, and never move a lead's pipeline stage. Once a property is a lead, referrals, bookings and status live in AVYRO. Use of any portal or MLS data must follow that source's licence and display terms.",
+      "source": "Scoring, estimates and data sources",
+      "kind": "guide"
+    },
+    {
+      "id": "dual-path-rules",
+      "title": "How does AVYRO choose between Sell only, Sell + Earn, Rent while preparing and Investor exit?",
+      "keywords": [
+        "dual path",
+        "sell + earn",
+        "sell only",
+        "rent while preparing",
+        "investor exit",
+        "recommendation rules",
+        "interim net",
+        "selling costs",
+        "days to sale",
+        "dual opportunity"
+      ],
+      "answer": "The recommendation comes from fixed, deliberately cautious rules, checked in this order, so a person can see why and correct it. Investor exit: the home already runs as a short-term rental or the owner is open to buyers who want income. Sell only: a tenant lives there; the owner needs to sell right away (under a month); short-term rentals are restricted or prohibited; the rules are not confirmed; there is no net income estimate to compare; or the home is already listed or under contract. Otherwise, when rentals are allowed and there is an estimated interim net, it is Rent while preparing for an owner with six months or more who has not listed, and Sell + Earn for everyone else. Interim net is the estimated monthly net income times the months available before the sale. The sale side uses the owner's price expectation less selling costs (default 7 percent) and a default 90 days to sell until a person enters real figures, and it says when defaults are used. It always notes that net proceeds are the owner's expectation, not a valuation. The result is an estimate to plan the conversation, not an offer to buy, sell or rent, and it never sets the service route by itself.",
+      "source": "Scoring, estimates and data sources",
+      "kind": "guide"
     },
     {
       "id": "playbook-overview",

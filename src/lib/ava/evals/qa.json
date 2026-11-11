@@ -46,7 +46,12 @@
     { "q": "What happens when a homeowner submits their property on naveohomes.com?", "entry": "homes-seller-intake" },
     { "q": "How does NAVEO Stays prevent a double booking?", "entry": "stays-bookings" },
     { "q": "Which homes can guests see on NAVEO Stays?", "entry": "stays-listings-gate" },
-    { "q": "What happens to a referred owner on NAVEO Stays?", "entry": "stays-owner-inquiries" }
+    { "q": "What happens to a referred owner on NAVEO Stays?", "entry": "stays-owner-inquiries" },
+    { "q": "How is the prospect score calculated?", "entry": "score-prospect-score" },
+    { "q": "How is seller intent scored and is it shown to homeowners?", "entry": "score-seller-intent" },
+    { "q": "Does AVYRO have an AVM or a valuation confidence score?", "entry": "estimates-and-confidence" },
+    { "q": "Does AVYRO write listings back to Zillow or the MLS?", "entry": "data-sources-no-writeback" },
+    { "q": "How does AVYRO decide between Sell only and Sell + Earn?", "entry": "dual-path-rules" }
   ],
   "unsupported": [
     "What is the weather in Denver today?",
