@@ -5,7 +5,7 @@ import { toE164 } from '@/lib/services/smsConsent';
 
 // Where a person is told that a prospect wrote back. Override with REPLY_ALERT_PHONE and REPLY_ALERT_EMAIL.
 const ALERT_PHONE = toE164(process.env.REPLY_ALERT_PHONE ?? '+19498758622');
-const ALERT_EMAIL = process.env.REPLY_ALERT_EMAIL ?? 'info@staytrvlr.com';
+const ALERT_EMAIL = process.env.REPLY_ALERT_EMAIL ?? 'info@staynaveo.com';
 
 /** The shared alert address and number, so per-user alerts do not repeat them. */
 export const teamAlertTargets = () => ({ phone: ALERT_PHONE, email: ALERT_EMAIL });

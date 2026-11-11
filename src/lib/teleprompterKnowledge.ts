@@ -21,7 +21,7 @@ ${TRAVLR_PROOF_POINTS.map(p => `- ${p}`).join('\n')}
 - The Wall Street Journal article is "The Short-Term Rental Hosts Spending Big to Trick Out Luxury Homes", which covers how NAVEO Stays' owners turned a hillside geodome in Palm Desert into a standout luxury short-term rental. Palm Springs Life ran "Book Your Stay at This Geodome in Palm Desert", a tour of NAVEO Stays' five-bedroom Perch retreat.
 - Our story: founders Jen and Spencer took a family vacation to La Quinta, California more than a decade ago, saw how much better group travel could be, left careers in digital marketing and law, and started NAVEO Stays to combine the space and character of private vacation homes with personalized service, modern technology and resort-style amenities. We started with guests (families, friends, companies on reunions, retreats and weekend getaways) and then built a program for luxury homeowners, an effortless ownership solution.
 - We describe ourselves as boutique luxury vacation rental management, with white-glove service, local expertise and personalized guest experiences.
-- Contact: phone (949) 539-8862, available 24/7; email info@staytrvlr.com, answered within 24 hours; website avyropro.ai. The free homeowner revenue estimate is at avyropro.ai/estimate.
+- Contact: phone (949) 539-8862, available 24/7; email info@staynaveo.com, answered within 24 hours; website avyropro.ai. The free homeowner revenue estimate is at avyropro.ai/estimate.
 
 WHERE WE OPERATE
 - Our website lists these destinations: the Coachella Valley (Palm Desert, La Quinta, Palm Springs, Indio, Coachella, Bermuda Dunes), plus Aspen, Breckenridge, Vail, Las Vegas, Seattle, Bellevue, Miami, Boston, Dallas and Salt Lake City.

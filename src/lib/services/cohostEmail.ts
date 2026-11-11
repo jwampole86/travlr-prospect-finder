@@ -18,7 +18,7 @@ export async function cohostAlertTarget(db: Db, propertyId: string) {
   return { who: [l?.title, l?.market && `(${l.market})`].filter(Boolean).join(' ') || 'A co-host prospect', url: `${OFFER_SITE}/cohost?open=${encodeURIComponent(propertyId)}` };
 }
 
-const REPLY_TO = process.env.REPLY_ALERT_EMAIL ?? 'info@staytrvlr.com';
+const REPLY_TO = process.env.COHOST_REPLY_TO ?? 'info@staynaveo.com';
 const POSTAL = process.env.COHOST_POSTAL_ADDRESS ?? '17 Coronel Pl, Aliso Viejo, CA 92656-1631';
 export const DAILY_CAP = 40;
 const COOLDOWN_DAYS = 3;

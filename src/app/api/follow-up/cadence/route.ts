@@ -8,7 +8,7 @@ export const maxDuration = 60;
 
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai').replace(/\/$/, '');
 const POSTAL = process.env.COHOST_POSTAL_ADDRESS ?? '17 Coronel Pl, Aliso Viejo, CA 92656-1631';
-const REPLY_TO = process.env.REPLY_ALERT_EMAIL ?? 'info@staytrvlr.com';
+const REPLY_TO = process.env.COHOST_REPLY_TO ?? 'info@staynaveo.com';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FALLBACK = { subject: 'Following up on {{address}}', body: 'Hi {{contactName}},\n\nI wanted to follow up about {{address}}. Would you be open to a quick conversation about what it could earn as a managed vacation rental?\n\nBest regards,\n{{senderName}}' };
 

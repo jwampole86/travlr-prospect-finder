@@ -79,7 +79,7 @@ const SERVICES: ServiceConfig[] = [
     ],
     productionFields: [
       { key: 'RESEND_API_KEY', label: 'Production API Key', placeholder: 're_live_••••••••••••••••••••••••••••••', isSecret: true, hint: 'Use a production key with your verified sending domain' },
-      { key: 'RESEND_FROM_EMAIL', label: 'Verified Sender Email', placeholder: 'outreach@staytrvlr.com', hint: 'Use an address on a verified Resend domain' },
+      { key: 'RESEND_FROM_EMAIL', label: 'Verified Sender Email', placeholder: 'info@staynaveo.com', hint: 'Use an address on a verified Resend domain' },
       { key: 'RESEND_FROM_NAME', label: 'Sender Name', placeholder: 'AVYRO AI' },
     ],
   },

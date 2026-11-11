@@ -1,5 +1,5 @@
 // Public contact options shown to homeowners. Phone and instant booking appear only when configured.
-export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'info@staytrvlr.com';
+export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'info@staynaveo.com';
 export const CONTACT_PHONE = process.env.NEXT_PUBLIC_CONTACT_PHONE || null;
 export const WEBSITE_URL = 'https://avyropro.ai';
 export const WEBSITE_LABEL = 'avyropro.ai';

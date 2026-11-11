@@ -56,7 +56,7 @@ export default function WorkspaceInviteModal({
                     value={form.email}
                     onChange={(event) => onChange({ email: event.target.value })}
                     className={`${inputClass} pl-9`}
-                    placeholder="jamie@staytrvlr.com"
+                    placeholder="jamie@avyropro.ai"
                     type="email"
                   />
                 </div>
