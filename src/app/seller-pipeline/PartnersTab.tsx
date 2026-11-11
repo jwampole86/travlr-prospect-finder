@@ -9,6 +9,15 @@ import PartnerPlaybook from './PartnerPlaybook';
 import { settlementTermsWarning } from '@/lib/seller/settlementPolicy';
 import { LICENSE_RECHECK_DAYS, licenseCheckAgeDays, licenseLookupFor, scorePartner, type PartnerScore, type ReferralRow } from '@/lib/seller/partnerReferrals';
 
+const exhibitSummary = (p: Partner) => [
+  p.referral_fee_percent != null && (p.referral_fee_percent + '% fee'),
+  p.protection_days != null && (p.protection_days + '-day protection'),
+  p.payment_due_days != null && ('due ' + p.payment_due_days + ' business days after they are paid'),
+  p.exclusive_territory ? 'exclusive: ' + p.exclusive_territory : 'non-exclusive',
+  p.responsible_broker && ('responsible broker ' + p.responsible_broker),
+  p.agreement_signed_on && ('signed ' + new Date(p.agreement_signed_on + 'T00:00:00').toLocaleDateString()),
+].filter(Boolean).join(' · ');
+
 const RECRUIT = [['to_contact', 'To contact'], ['emailed', 'Emailed'], ['call_booked', 'Call booked'], ['partner', 'Partner'], ['pass', 'Pass']] as const;
 const YES_NO = [['unknown', 'Unknown'], ['yes', 'Yes'], ['no', 'No']] as const;
 const ROLES = [['team_lead', 'Team lead'], ['broker', 'Broker'], ['agent', 'Agent'], ['vendor', 'Vendor']] as const;
@@ -18,10 +27,11 @@ export type Partner = {
   license_type: string | null; license_number: string | null; license_state: string | null; license_status: string; states: string[];
   relationship_status: string; compensation_terms: string | null; legal_reviewed: boolean; agreement_on_file: boolean; notes: string | null;
   license_verified_at?: string | null; partner_role?: string | null; brokerage?: string | null; niche?: string | null; accepts_referrals?: string; will_report?: string;
+  responsible_broker?: string | null; referral_fee_percent?: number | null; protection_days?: number | null; payment_due_days?: number | null; exclusive_territory?: string | null; agreement_signed_on?: string | null;
   referral_fee_range?: string | null; update_method?: string | null; excluded_areas?: string | null; recruit_status?: string; license_lookup_url?: string | null;
 };
 
-const EMPTY = { name: '', contact_name: '', contact_email: '', contact_phone: '', services: ['sale_partner'] as string[], license_type: '', license_number: '', license_state: '', states: '', compensation_terms: '', partner_role: 'broker', brokerage: '', niche: '', accepts_referrals: 'unknown', will_report: 'unknown', referral_fee_range: '', update_method: '', recruit_status: 'to_contact' };
+const EMPTY = { name: '', contact_name: '', contact_email: '', contact_phone: '', services: ['sale_partner'] as string[], license_type: '', license_number: '', license_state: '', states: '', compensation_terms: '', partner_role: 'broker', brokerage: '', niche: '', accepts_referrals: 'unknown', will_report: 'unknown', referral_fee_range: '', update_method: '', recruit_status: 'to_contact', responsible_broker: '', referral_fee_percent: '', protection_days: '', payment_due_days: '', exclusive_territory: '', agreement_signed_on: '' };
 
 export default function PartnersTab() {
   const [items, setItems] = useState<Partner[] | null>(null);
@@ -100,6 +110,12 @@ export default function PartnersTab() {
             <Field label="Will report outcomes?"><select className={inputCls} value={form.will_report} onChange={(e) => setForm({ ...form, will_report: e.target.value })}>{YES_NO.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
             <Field label="Typical referral fee"><input className={inputCls} placeholder="25% of their side" value={form.referral_fee_range} onChange={(e) => setForm({ ...form, referral_fee_range: e.target.value })} /></Field>
             <Field label="Preferred update method"><input className={inputCls} placeholder="Email reply, shared sheet, CRM note" value={form.update_method} onChange={(e) => setForm({ ...form, update_method: e.target.value })} /></Field>
+            <Field label="Responsible broker (Exhibit A)"><input className={inputCls} value={form.responsible_broker} onChange={(e) => setForm({ ...form, responsible_broker: e.target.value })} /></Field>
+            <Field label="Referral fee, % of their commission"><input inputMode="decimal" className={inputCls} placeholder="25" value={form.referral_fee_percent} onChange={(e) => setForm({ ...form, referral_fee_percent: e.target.value })} /></Field>
+            <Field label="Protection period (days)"><input inputMode="numeric" className={inputCls} placeholder="180" value={form.protection_days} onChange={(e) => setForm({ ...form, protection_days: e.target.value })} /></Field>
+            <Field label="Fee due (business days after they are paid)"><input inputMode="numeric" className={inputCls} placeholder="10" value={form.payment_due_days} onChange={(e) => setForm({ ...form, payment_due_days: e.target.value })} /></Field>
+            <Field label="Exclusive territory (blank = non-exclusive)"><input className={inputCls} value={form.exclusive_territory} onChange={(e) => setForm({ ...form, exclusive_territory: e.target.value })} /></Field>
+            <Field label="Agreement signed on"><input type="date" className={inputCls} value={form.agreement_signed_on} onChange={(e) => setForm({ ...form, agreement_signed_on: e.target.value })} /></Field>
             <Field label="Recruiting status"><select className={inputCls} value={form.recruit_status} onChange={(e) => setForm({ ...form, recruit_status: e.target.value })}>{RECRUIT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
             <Field label="Compensation terms" className="sm:col-span-3"><textarea className={`${inputCls} h-20 py-2`} value={form.compensation_terms} onChange={(e) => setForm({ ...form, compensation_terms: e.target.value })} />{settlementTermsWarning(form.compensation_terms) && <span className="mt-1 block text-xs text-amber-800">{settlementTermsWarning(form.compensation_terms)}</span>}</Field>
             <div className="sm:col-span-3"><button disabled={busy || !form.name.trim()} onClick={add} className={primaryBtnCls}>{busy && <Loader2 size={14} className="animate-spin" />} Save partner</button></div>
@@ -136,6 +152,11 @@ export default function PartnersTab() {
                 {sc.total === 0 ? 'No referrals sent yet.' : `${sc.total} referral${sc.total === 1 ? '' : 's'} · ${sc.open} open · ${sc.listed} listed · ${sc.underContract} under contract · ${sc.closed} closed · ${sc.dead} dead · Update rate: ${sc.rate === null ? 'too early' : `${Math.round(sc.rate * 100)}% (${sc.reported} of ${sc.due})`}`}
               </p>
               {sc.reason && <p className={`text-xs ${sc.flag === 'stopped' ? 'text-red-700' : 'text-amber-800'}`}>{sc.reason}</p>}
+              {(p.referral_fee_percent != null || p.protection_days != null || p.payment_due_days != null || p.agreement_signed_on || p.responsible_broker || p.exclusive_territory) && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Exhibit A: {exhibitSummary(p)}
+                </p>
+              )}
               {p.compensation_terms && <p className="mt-1 text-xs">{p.compensation_terms}</p>}
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
