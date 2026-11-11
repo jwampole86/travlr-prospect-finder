@@ -102,6 +102,7 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {},
 
   let lastStatus: number | undefined;
   let lastError: string | undefined;
+  let upstreamAuthFailed = false;
 
   for (const key of keys) {
     // Several attempts per key: the provider's per-second rate limit (an HTTP 429, or a 200 with a rate-limit message) is transient,
@@ -127,6 +128,10 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {},
         if (res.status === 401 || res.status === 403 || res.status === 429) {
           lastStatus = res.status;
           lastError = `HTTP ${res.status}`;
+          // The scraper listings run on the provider's own Apify account: when that account's token dies, RapidAPI relays Apify's
+          // "user-or-token-not-found" as a 401 even though our key and subscription are fine.
+          const body = res.status === 401 ? await res.json().catch(() => null) : null;
+          upstreamAuthFailed = (body as { error?: { type?: string } } | null)?.error?.type === 'user-or-token-not-found';
           break; // try the next key
         }
 
@@ -164,7 +169,8 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {},
     }
   }
 
-  if (lastStatus === 401) lastError = 'RapidAPI rejected the API key (HTTP 401): it is invalid or revoked. Replace RAPIDAPI_KEY_1 in the server environment.';
+  if (lastStatus === 401 && upstreamAuthFailed) lastError = "This source's data provider is down: its own sign-in is failing (HTTP 401 user-or-token-not-found), so there is nothing for AVYRO to pull. Your RapidAPI key and subscription are fine; this clears when the provider fixes it.";
+  else if (lastStatus === 401) lastError = 'RapidAPI rejected the API key (HTTP 401): it is invalid or revoked. Replace RAPIDAPI_KEY_1 in the server environment.';
   else if (lastStatus === 403) lastError = 'RapidAPI key is not subscribed to this API (HTTP 403). Subscribe the key or replace it in the server environment.';
   return { ok: false, status: lastStatus, error: lastError || 'All RapidAPI keys failed' };
 }
