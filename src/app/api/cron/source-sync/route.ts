@@ -35,12 +35,15 @@ const PROVIDERS: Record<string, (state: string, truliaPages: number) => Provider
   padmapper: (state) => ({ provider: 'padmapper', state }),
   hotpads: (state) => ({ provider: 'hotpads', state }),
   'zillow-search': (state) => ({ provider: 'zillow-search', region: state.toLowerCase(), maxPages: 1 }),
+  // Homes for sale from the same Trulia subscription (the quota is shared with the rental pulls, so these stay shallow).
+  'trulia-sale': (state) => ({ provider: 'trulia', type: 'sale', location: state, maxPages: 1 }),
   // The second Zillow subscription reads the pages after the first one's page 1, so each run reaches listings the other cannot.
   'zillow-real-estate': (state) => ({ provider: 'zillow-real-estate', region: state.toLowerCase(), startPage: 2, maxPages: 2 }),
 };
 
 /** Providers that search one city at a time (they have no state-wide search), fed from the state's busiest cities. */
 const CITY_PROVIDERS: Record<string, (city: string, state: string) => ProviderBody> = {
+  'trulia-sale': (city, state) => ({ provider: 'trulia', type: 'sale', location: `${city}, ${state}`, maxPages: 1, quietFailures: true }),
   'rent-com': (city, state) => ({ provider: 'rent-com', city, state, quietFailures: true }),
   'us-property-data': (city, state) => ({ provider: 'us-property-data', location: `${city}, ${state}`, status: 'for_rent', quietFailures: true }),
 };
@@ -87,7 +90,7 @@ export async function GET(req: NextRequest) {
   const truliaPages = Math.min(5, Math.max(1, Number(params.get('trulia_pages')) || DEFAULT_TRULIA_PAGES));
   const citiesParam = params.get('cities');
   const citiesPerState = Math.min(MAX_CITIES_PER_STATE, Math.max(0, citiesParam === null || citiesParam === '' ? DEFAULT_CITIES_PER_STATE : Number(citiesParam) || 0));
-  const sources = (params.get('sources') || [...Object.keys(PROVIDERS), ...Object.keys(CITY_PROVIDERS)].join(','))
+  const sources = (params.get('sources') || [...new Set([...Object.keys(PROVIDERS), ...Object.keys(CITY_PROVIDERS)])].join(','))
     .split(',')
     .map((source) => source.trim())
     .filter((source) => source in PROVIDERS || source in CITY_PROVIDERS);
@@ -161,7 +164,7 @@ export async function GET(req: NextRequest) {
       ok: event.status === 'success',
       at: String(event.created_at),
     }));
-    const sourceNames: Record<string, string> = { trulia: 'Trulia', padmapper: 'PadMapper', hotpads: 'HotPads', 'zillow-search': 'Zillow', 'zillow-real-estate': 'Zillow Real Estate', 'rent-com': 'Rent.com', 'us-property-data': 'US Property Data' };
+    const sourceNames: Record<string, string> = { trulia: 'Trulia', padmapper: 'PadMapper', hotpads: 'HotPads', 'zillow-search': 'Zillow', 'trulia-sale': 'Trulia', 'zillow-real-estate': 'Zillow Real Estate', 'rent-com': 'Rent.com', 'us-property-data': 'US Property Data' };
     const paused: Record<string, { failures: number; lastFailureAt: string | null; probing: boolean }> = {};
     for (const source of sources) {
       const circuit = circuitFor(pullEvents, sourceNames[source] ?? source, Date.now());
@@ -183,6 +186,9 @@ export async function GET(req: NextRequest) {
       'https://travlr-prospect-finder.vercel.app',
       process.env.VERCEL_ENV === 'production' && prodHost ? `https://${prodHost}` : req.nextUrl.origin,
     ].filter(Boolean))];
+    // The state-wide Trulia search returns the same first page every time, so it only runs on every 6th half-hour slot; the city pulls
+    // below rotate through different markets and carry the rest of the plan's 15,000 requests a month.
+    const truliaStateRun = Math.floor(Date.now() / 1_800_000) % 6 === 0 || params.get('trulia_state') === 'always';
     let originIndex = 0;
     const results: PullResult[] = [];
     const cityResults: PullResult[] = [];
@@ -242,7 +248,7 @@ export async function GET(req: NextRequest) {
           }
       };
       const pulls = await Promise.all(
-        sources.filter((source) => source in PROVIDERS).filter((source) => {
+        sources.filter((source) => source in PROVIDERS && (truliaStateRun || !source.startsWith('trulia'))).filter((source) => {
           const p = paused[source];
           if (!p) return true;
           // Paused: skip, except for a single probe (once the pause is old enough) to see whether the provider has recovered.

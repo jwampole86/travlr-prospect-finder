@@ -155,6 +155,7 @@ function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
  *   //   locations[] of such slugs, city+state (+ optional zips[]), or state alone (uses the active PadMapper
  *   //   cities in sync_source_coverage). Per-ZIP slugs surface individual houses; city slugs mostly buildings.
  *   location?: string,   // Trulia/us-property-data: city/state or ZIP, e.g. "Austin, TX"
+ *   type?: 'rent' | 'sale', // trulia: rentals (default) or homes for sale
  *   region?: string,      // Zillow (ToolzerHub, zillow-search and zillow-real-estate): region slug, e.g. "austin-tx"
  *   startPage?: number,   // first page to fetch (default 1); maxPages pages are read from there
  *   city?, state?: string, // rent-com
@@ -319,7 +320,7 @@ async function runImport(req: NextRequest) {
         return NextResponse.json({ error: 'location is required for provider=trulia' }, { status: 400 });
       }
       const result = await searchTruliaRentals({
-        location, page,
+        location, page, type: body?.type === 'sale' ? 'sale' : 'rent',
         priceMin: body?.priceMin, priceMax: body?.priceMax,
         bedsMin: body?.bedsMin, bathsMin: body?.bathsMin,
       });

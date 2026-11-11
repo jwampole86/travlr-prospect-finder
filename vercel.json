@@ -54,12 +54,16 @@
       "schedule": "*/30 * * * *"
     },
     {
-      "path": "/api/cron/source-sync?states=2&trulia_pages=2",
+      "path": "/api/cron/source-sync?states=2&trulia_pages=1&cities=2",
       "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/ava-prune",
       "schedule": "0 4 1 * *"
+    },
+    {
+      "path": "/api/cron/zillow-history?limit=5",
+      "schedule": "*/10 * * * *"
     },
     {
       "path": "/api/cron/registry-sync?limit=250",

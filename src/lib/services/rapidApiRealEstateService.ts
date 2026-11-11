@@ -220,6 +220,8 @@ export interface NormalizedRentalListing {
 // ─── Trulia — rent search ─────────────────────────────────────────────────────
 
 export interface TruliaRentSearchParams {
+  /** Rentals by default; 'sale' lists homes for sale. (Sold homes are not prospects, so they are not offered.) */
+  type?: 'rent' | 'sale';
   location: string;
   page?: number;
   sort?: 'newest' | 'price_asc' | 'price_desc' | 'sqft_desc';
@@ -239,23 +241,24 @@ interface TruliaListingRaw {
   url?: string;
   homeUrl?: string | null;
   floorSpace?: { formattedDimension?: string };
-  bedrooms?: { min?: number; max?: number };
-  bathrooms?: { min?: number; max?: number };
+  // Rentals report a min/max range, sale listings a single value.
+  bedrooms?: { min?: number; max?: number; value?: number };
+  bathrooms?: { min?: number; max?: number; value?: number };
   tags?: Array<{ kind?: string; formattedName?: string }>;
   metadata?: { compositeId?: string; legacyIdForSave?: string };
   media?: { photos?: Array<{ url?: { small?: string; medium?: string; large?: string } }>; heroImage?: { url?: { small?: string; medium?: string; large?: string } } };
   propertyType?: { value?: string };
-  activeListing?: { provider?: { listingAgent?: { name?: string } | null; broker?: { name?: string } | null } };
+  activeListing?: { dateListed?: string; provider?: { extraShortSummary?: string[]; listingAgent?: { name?: string } | null; broker?: { name?: string } | null } };
 }
 
-function normalizeTruliaListing(raw: TruliaListingRaw): NormalizedRentalListing {
+function normalizeTruliaListing(raw: TruliaListingRaw, type: 'rent' | 'sale' = 'rent'): NormalizedRentalListing {
   const loc = raw.location || {};
   const beds = raw.bedrooms;
   const baths = raw.bathrooms;
   const avgBeds = beds && (beds.min != null || beds.max != null)
-    ? Math.round(((beds.min ?? beds.max ?? 0) + (beds.max ?? beds.min ?? 0)) / 2) : null;
+    ? Math.round(((beds.min ?? beds.max ?? 0) + (beds.max ?? beds.min ?? 0)) / 2) : (beds?.value ?? null);
   const avgBaths = baths && (baths.min != null || baths.max != null)
-    ? Math.round((((baths.min ?? baths.max ?? 0) + (baths.max ?? baths.min ?? 0)) / 2) * 2) / 2 : null;
+    ? Math.round((((baths.min ?? baths.max ?? 0) + (baths.max ?? baths.min ?? 0)) / 2) * 2) / 2 : (baths?.value ?? null);
   const price = raw.price?.min != null || raw.price?.max != null
     ? Math.round(((raw.price.min ?? raw.price.max ?? 0) + (raw.price.max ?? raw.price.min ?? 0)) / 2)
     // Confirmed live 2026-10-11: some listings (e.g. single-point luxury
@@ -292,10 +295,11 @@ function normalizeTruliaListing(raw: TruliaListingRaw): NormalizedRentalListing 
     beds: avgBeds,
     baths: avgBaths,
     price,
-    // Only /v1/search/rent is ever called in this app — always a real rental.
-    listingStatus: 'for_rent',
+    listingStatus: type === 'sale' ? 'for_sale' : 'for_rent',
     listingAgentName: agentName,
     listingBrokerName: brokerName,
+    mlsNumber: provider?.extraShortSummary?.map(x => /^MLS#\s*(.+)$/i.exec(x)?.[1]).find(Boolean),
+    listingUpdatedAt: raw.activeListing?.dateListed,
     isFsbo,
     isApartmentCommunity,
     propertyTypeLabel,
@@ -306,10 +310,11 @@ function normalizeTruliaListing(raw: TruliaListingRaw): NormalizedRentalListing 
   };
 }
 
-/** GET /v1/search/rent — Trulia rental listings by city/state or ZIP. */
+/** GET /v1/search/{rent|sale} — Trulia listings by city/state or ZIP. */
 export async function searchTruliaRentals(
   params: TruliaRentSearchParams
 ): Promise<{ ok: boolean; listings: NormalizedRentalListing[]; error?: string; status?: number }> {
+  const type = params.type === 'sale' ? 'sale' : 'rent';
   const query = new URLSearchParams();
   // BUG WORKAROUND: the provider's `location` param reliably 500s for bare
   // ZIP codes ("Subject property not found"-style generic error, confirmed
@@ -319,7 +324,7 @@ export async function searchTruliaRentals(
   // the bare `location=ZIP` param does not.
   const isBareZip = /^\d{5}(-\d{4})?$/.test(params.location.trim());
   if (isBareZip) {
-    query.set('url', `https://www.trulia.com/for_rent/${params.location.trim().slice(0, 5)}_zip/`);
+    query.set('url', `https://www.trulia.com/for_${type}/${params.location.trim().slice(0, 5)}_zip/`);
   } else {
     query.set('location', params.location);
     if (params.page) query.set('page', String(params.page));
@@ -334,16 +339,16 @@ export async function searchTruliaRentals(
 
   // The provider answers a small share of live requests with a transient HTTP 500
   // ("please simply repeat the request"), so retry before reporting a failure.
-  let result = await rapidApiFetch(TRULIA_HOST, `/v1/search/rent?${query.toString()}`);
+  let result = await rapidApiFetch(TRULIA_HOST, `/v1/search/${type}?${query.toString()}`);
   for (let attempt = 1; attempt < 3 && !result.ok && result.status === 500; attempt++) {
-    result = await rapidApiFetch(TRULIA_HOST, `/v1/search/rent?${query.toString()}`);
+    result = await rapidApiFetch(TRULIA_HOST, `/v1/search/${type}?${query.toString()}`);
   }
   if (!result.ok) {
     return { ok: false, listings: [], error: result.error, status: result.status };
   }
 
   const data = result.data as { data?: { listings?: TruliaListingRaw[] } };
-  const listings = (data?.data?.listings || []).map(normalizeTruliaListing);
+  const listings = (data?.data?.listings || []).map(l => normalizeTruliaListing(l, type));
   return { ok: true, listings };
 }
 
@@ -591,6 +596,44 @@ export async function searchZillowRealEstate(
   const data = result.data as { data?: { results?: ZillowSearchResultRaw[] } };
   const listings = (data?.data?.results || []).map(r => normalizeZillowSearchResult(r, params.status));
   return { ok: true, listings };
+}
+
+export interface ZillowPriceEvent { date: string; price: number | null; event: string }
+export interface ZillowPropertyHistory {
+  /** Newest first. */
+  priceHistory: ZillowPriceEvent[];
+  /** Latest assessed value from the county tax records, if Zillow has one. */
+  taxAssessedValue: number | null;
+}
+
+/** GET /v1/zillow/history — price history (listings, price changes, sales) and tax history for one zpid. */
+export async function getZillowPropertyHistory(
+  zpid: string
+): Promise<{ ok: boolean; history?: ZillowPropertyHistory; error?: string; status?: number }> {
+  const result = await rapidApiFetch(ZILLOW_REAL_ESTATE_HOST, `/v1/zillow/history?${new URLSearchParams({ zpid })}`);
+  if (!result.ok) {
+    return { ok: false, error: result.error, status: result.status };
+  }
+  const data = (result.data as {
+    data?: { price_history?: Array<{ date?: string; price?: number | null; event?: string; time?: number }>; tax_history?: Array<{ time?: number; value?: number | null }> };
+  })?.data;
+  const priceHistory = (data?.price_history ?? [])
+    .filter(e => e.date && e.event)
+    .map(e => ({ date: String(e.date), price: e.price ?? null, event: String(e.event) }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const latestTax = [...(data?.tax_history ?? [])].filter(t => t.value).sort((a, b) => (b.time ?? 0) - (a.time ?? 0))[0];
+  return { ok: true, history: { priceHistory, taxAssessedValue: latestTax?.value ?? null } };
+}
+
+/** What the price history says about the home: its last sale, and how many times the asking price has been cut since. */
+export function summarizePriceHistory(events: ZillowPriceEvent[]): { lastSoldPrice: number | null; lastSoldDate: string | null; priceCuts: number } {
+  const sold = events.find(e => /^sold$/i.test(e.event) && e.price);
+  // Events are newest first, so the older price a change is compared with is the next entry.
+  let priceCuts = 0;
+  for (let i = 0; i < events.length - 1; i++) {
+    if (/price change/i.test(events[i].event) && events[i].price != null && events[i + 1].price != null && events[i].price! < events[i + 1].price!) priceCuts++;
+  }
+  return { lastSoldPrice: sold?.price ?? null, lastSoldDate: sold?.date ?? null, priceCuts };
 }
 
 export async function getZillowRealEstateHealth(): Promise<{ status: 'ACTIVE' | 'AUTH_ERROR' | 'DISABLED' | 'DEGRADED'; message: string; hasApiKey: boolean }> {
