@@ -2267,7 +2267,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
 
               {/* Admins decide which captured photos may be published */}
               {(role === 'admin' || role === 'owner') && <PhotoRightsPanel leadId={lead.id} />}
-              {(role === 'admin' || role === 'owner') && <PartnerMatchPanel leadId={lead.id} />}
+              {(role === 'admin' || role === 'owner') && <PartnerMatchPanel leadId={lead.id} city={lead.city} />}
               {(role === 'admin' || role === 'owner') && <PropertyRecordPanel leadId={lead.id} address={[lead.address, lead.city, lead.state].filter(Boolean).join(', ')} />}
 
               {/* Enrichment Timeline */}
