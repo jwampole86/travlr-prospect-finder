@@ -52,7 +52,8 @@
     { "q": "Does AVYRO have an AVM or a valuation confidence score?", "entry": "estimates-and-confidence" },
     { "q": "Does AVYRO write listings back to Zillow or the MLS?", "entry": "data-sources-no-writeback" },
     { "q": "How does AVYRO decide between Sell only and Sell + Earn?", "entry": "dual-path-rules" },
-    { "q": "What is an AVM and how does a confidence score work in general?", "entry": "background-avm" }
+    { "q": "What is an AVM and how does a confidence score work in general?", "entry": "background-avm" },
+    { "q": "What ready-made owner campaigns are there and what must I check before sending?", "entry": "ready-made-campaigns" }
   ],
   "unsupported": [
     "What is the weather in Denver today?",

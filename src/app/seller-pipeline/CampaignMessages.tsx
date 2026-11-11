@@ -3,14 +3,15 @@
 import React, { useState } from 'react';
 import { Check, Copy, Mail, MessageSquare } from 'lucide-react';
 import { cx } from '@/app/campaigns/shared';
-import { renderMessage, type CampaignMessage, type CampaignVars } from '@/lib/seller/outreachCampaign';
+import { emailFooter, renderMessage, type CampaignMessage, type CampaignVars } from '@/lib/seller/outreachCampaign';
 import { btnCls } from './ui';
 
 /** One campaign message, filled in for an owner, with a Copy button. Copying sends nothing: a person pastes it into their own text or email. */
 export function MessageCard({ message, vars }: { message: CampaignMessage; vars: CampaignVars }) {
   const [subject, setSubject] = useState(0);
   const [copied, setCopied] = useState<'subject' | 'body' | null>(null);
-  const body = renderMessage(message.body, vars);
+  // Every email ends with who it is from, a mailing address and a way to stop; texts already carry the opt-out line.
+  const body = renderMessage(message.body, vars) + (message.channel === 'email' ? `\n\n${emailFooter(vars)}` : '');
   const subjectText = message.subjects ? renderMessage(message.subjects[subject] ?? message.subjects[0], vars) : null;
 
   async function copy(what: 'subject' | 'body', text: string) {
@@ -38,6 +39,7 @@ export function MessageCard({ message, vars }: { message: CampaignMessage; vars:
           <button type="button" onClick={() => copy('subject', subjectText)} className={cx(btnCls, '!h-7 !px-2.5 text-xs')} aria-label="Copy subject">{copied === 'subject' ? 'Copied' : 'Copy subject'}</button>
         </div>
       )}
+      {message.note && <p className="mt-1 text-[11px] text-muted-foreground">{message.note}</p>}
       <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-foreground/90">{body}</pre>
     </div>
   );

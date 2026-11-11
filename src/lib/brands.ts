@@ -40,7 +40,7 @@ export interface OutreachBrand {
   key: OutreachBrandKey;
   /** What we call ourselves in a message. */
   name: string;
-  /** The brand's own website, when it has one. NAVEO Homes has none configured yet, so messages never invent a link for it. */
+  /** The brand's own website. */
   siteUrl: string | null;
   /** The one-line sign-off for emails. */
   signature: string;
@@ -51,7 +51,7 @@ export interface OutreachBrand {
 
 export const OUTREACH_BRANDS: Record<OutreachBrandKey, OutreachBrand> = {
   stays: { key: 'stays', name: 'NAVEO Stays', siteUrl: 'https://staynaveo.com', signature: 'NAVEO Stays | staynaveo.com', logo: '/brand/naveo-stays-512.png', symbol: '/brand/naveo-stays-symbol-256.png' },
-  homes: { key: 'homes', name: 'NAVEO Homes', siteUrl: null, signature: 'NAVEO Homes', logo: '/brand/naveo-homes-512.png', symbol: '/brand/naveo-homes-symbol-256.png' },
+  homes: { key: 'homes', name: 'NAVEO Homes', siteUrl: 'https://naveohomes.com', signature: 'NAVEO Homes | naveohomes.com', logo: '/brand/naveo-homes-512.png', symbol: '/brand/naveo-homes-symbol-256.png' },
 };
 
 /** For rent (or unknown) -> NAVEO Stays; for sale -> NAVEO Homes. Unknown goes to Stays because that is what the existing owner campaigns are. */

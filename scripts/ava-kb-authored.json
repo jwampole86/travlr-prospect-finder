@@ -878,6 +878,26 @@
       "answer": "General background, not an AVYRO feature. An automated valuation model (AVM) estimates a property's market value with statistics instead of an appraiser, usually from recent comparable sales, the property's facts and local market trends, and returns a point estimate and often a range. A confidence score is the provider's own measure of how much it trusts a particular estimate: more recent, similar comparable sales and complete property data generally mean higher confidence, and sparse, old or unusual data mean lower. Providers use different scales, so one provider's score is not comparable with another's. Industry groups such as MISMO have worked on a common definition that frames confidence as the probability an estimate falls within a set band of the true value; check the standard itself for its current wording. An AVM is a screening tool, not an appraisal. AVYRO does not produce an AVM or an AVM confidence score for property value. It holds a rent estimate from RentCast, income figures from AirDNA, and the owner's own price expectation for net proceeds; see the entry on estimates for how those work.",
       "source": "General background (not an AVYRO feature)",
       "kind": "guide"
+    },
+    {
+      "id": "ready-made-campaigns",
+      "title": "What ready-made owner campaigns are on the Campaign tab, and what must I check before sending them?",
+      "keywords": [
+        "ready-made campaigns",
+        "valuation invite",
+        "dual path",
+        "day 30",
+        "owner invitation",
+        "campaign templates",
+        "opt-out line",
+        "mailing footer",
+        "unsubscribe",
+        "bridge text"
+      ],
+      "answer": "Below the first-message sections of the Campaign tab are four ready-made sequences. NAVEO Homes: estimated value and sale timeline (an email, a text and a day 30 email). NAVEO Homes: sell now or earn while you wait (a day 3 email and a text). NAVEO Stays: list your vacation home (an owner email, a text, a day 4 email and a day 30 email). NAVEO Stays: rental income while listed for sale, one text for Homes leads recommended Sell + Earn. Each shows who it is for and the permission you need first: text only owners who agreed to texts, email only with email permission, never anyone marked Do Not Contact or who replied STOP, and the Stays bridge text only if the owner ticked the rental follow-up box. Every text ends with the opt-out line. Every email ends with the company's postal details, taken from the company setting for them, and an unsubscribe line; if that setting is empty the email shows a bracketed reminder and the tab warns you. Nothing is sent from the tab: you copy a message and send it from your own tool, so check permission yourself. Estimates are described as preliminary, not an appraisal, and rental income is never promised.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
     }
   ]
 }

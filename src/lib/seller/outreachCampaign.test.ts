@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHOICES, CHOICE_ORDER, ENTRY_MARKER, MESSAGES, SALE_MESSAGES, isEntryQuestion, messagesForChoice, messagesForListing, parseChoice, renderMessage } from './outreachCampaign';
+import { CHOICES, CHOICE_ORDER, ENTRY_MARKER, MESSAGES, READY_CAMPAIGNS, SALE_MESSAGES, emailFooter, isEntryQuestion, messagesForChoice, messagesForListing, parseChoice, renderMessage } from './outreachCampaign';
 
 describe('reading an owner\'s answer', () => {
   it('takes a clear 1 to 4, however it is typed', () => {
@@ -91,7 +91,47 @@ describe('the messages', () => {
     expect(filled).toContain('Hi Sam, this is Jen with NAVEO Homes.');
     expect(filled).toContain('12 Pine St, Denver');
     expect(filled).not.toContain('{{');
-    expect(renderMessage('Hi {{ first_name }} about {{address}} from {{agent_name}}')).toBe('Hi there about your property from your AVYRO team');
+    expect(renderMessage('Hi {{ first_name }} about {{address}} from {{agent_name}}')).toBe('Hi there about your property from the NAVEO team');
     expect(renderMessage('{{brand}}')).toBe('NAVEO');
+  });
+});
+
+describe('the ready-made campaigns', () => {
+  const all = READY_CAMPAIGNS.flatMap((c) => c.messages.map((m) => ({ c, m })));
+  const render = (m: (typeof all)[number]) => renderMessage(m.m.body + ' ' + (m.m.subjects ?? []).join(' '), { first_name: 'Sam', address: '1 Main St', agent_name: 'Jo', brand: m.c.brand === 'homes' ? 'NAVEO Homes' : 'NAVEO Stays' });
+
+  it('covers the four campaigns and keeps every id unique', () => {
+    expect(READY_CAMPAIGNS.map((c) => c.id)).toEqual(['homes-valuation', 'homes-dual-path', 'stays-owner', 'stays-bridge']);
+    const ids = [...MESSAGES, ...all.map((x) => x.m)].map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('puts the opt-out line on every text, and says who must have agreed before any message', () => {
+    for (const x of all) if (x.m.channel === 'sms') expect(x.m.body, x.m.id).toContain('Reply STOP to opt out.');
+    for (const c of READY_CAMPAIGNS) { expect(c.consent.length).toBeGreaterThan(20); expect(c.audience.length).toBeGreaterThan(10); }
+    expect(READY_CAMPAIGNS.find((c) => c.id === 'stays-bridge')?.consent).toMatch(/rental follow-up/i);
+  });
+
+  it('never shows an owner the name AVYRO or TRAVLR, even with no names filled in', () => {
+    for (const x of all) expect(render(x), x.m.id).not.toMatch(/avyro|travlr|powered by/i);
+    for (const m of MESSAGES) expect(renderMessage(m.body, {}), m.id).not.toMatch(/avyro/i);
+    expect(renderMessage('{{agent_name}}')).toBe('the NAVEO team');
+  });
+
+  it('fills in the links, and only says what the sites really say', () => {
+    for (const x of all) {
+      const text = render(x);
+      expect(text, x.m.id).not.toMatch(/\{\{/);
+      expect(text, x.m.id).not.toMatch(/quality-checked|guarantee(?!d)|we will buy|cash offer|your home is worth|strong candidate|keep more/i);
+    }
+    expect(render(all.find((x) => x.m.id === 'rc-homes-email-1')!)).toContain('https://naveohomes.com/sell');
+    expect(render(all.find((x) => x.m.id === 'rc-stays-email-1')!)).toContain('https://staynaveo.com/for-owners');
+    for (const id of ['rc-homes-email-1', 'rc-homes-email-2']) expect(render(all.find((x) => x.m.id === id)!)).toMatch(/not an appraisal|isn't guaranteed/);
+  });
+
+  it('writes the email footer with the mailing address, or a visible reminder when it is missing', () => {
+    expect(emailFooter({ brand: 'NAVEO Homes', company_address: '1 Main St, Reno, NV 89501' })).toContain('NAVEO Homes, 1 Main St, Reno, NV 89501');
+    expect(emailFooter({})).toContain('[add your company mailing address]');
+    expect(emailFooter({})).toMatch(/unsubscribe/);
   });
 });

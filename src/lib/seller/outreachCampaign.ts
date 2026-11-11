@@ -4,6 +4,7 @@
  * Nothing here sends anything: a person sends every message, and a reply never routes an owner on its own.
  */
 import type { ServiceLine } from './types';
+import { OUTREACH_BRANDS } from '@/lib/brands';
 
 export type Choice = 'sale' | 'rent_ltr' | 'rent_str' | 'both';
 
@@ -53,21 +54,37 @@ export function parseChoice(raw: string): Choice | null {
 }
 
 /** `brand` is who the message is from: NAVEO Stays for a home for rent, NAVEO Homes for one for sale (see lib/brands.ts). */
-export interface CampaignVars { first_name?: string; agent_name?: string; address?: string; brand?: string }
+export interface CampaignVars { first_name?: string; agent_name?: string; address?: string; brand?: string; company_address?: string }
 
-/** Fills {{first_name}}, {{agent_name}} and {{address}}, with a plain fallback when one is not known. */
+const HOMES_LINK = `${OUTREACH_BRANDS.homes.siteUrl}/sell`;
+const STAYS_LINK = `${OUTREACH_BRANDS.stays.siteUrl}/for-owners#analysis`;
+
+/** Fills {{first_name}}, {{agent_name}}, {{address}} and {{brand}}, with a plain fallback when one is not known, and the two site links. */
 export function renderMessage(text: string, vars: CampaignVars = {}): string {
   const v = {
     first_name: vars.first_name?.trim() || 'there',
-    agent_name: vars.agent_name?.trim() || 'your AVYRO team',
+    agent_name: vars.agent_name?.trim() || 'the NAVEO team',
     address: vars.address?.trim() || 'your property',
     brand: vars.brand?.trim() || 'NAVEO',
+    valuation_link: HOMES_LINK,
+    owner_link: STAYS_LINK,
   };
-  return text.replace(/\{\{\s*(first_name|agent_name|address|brand)\s*\}\}/g, (_, k: keyof typeof v) => v[k]);
+  return text.replace(/\{\{\s*(first_name|agent_name|address|brand|valuation_link|owner_link)\s*\}\}/g, (_, k: keyof typeof v) => v[k]);
+}
+
+/**
+ * What every email needs at the bottom: who it is from, a mailing address and a way to stop. The address is the company's own (COMPANY_POSTAL_ADDRESS);
+ * when it is not known the footer says so in brackets so it cannot be sent without one by accident.
+ */
+export function emailFooter(vars: CampaignVars = {}): string {
+  const address = vars.company_address?.trim() || '[add your company mailing address]';
+  return `--\n${vars.brand?.trim() || 'NAVEO'}, ${address}\nIf you would rather not get these emails, reply "unsubscribe" or use the unsubscribe link and we will stop right away.`;
 }
 
 export interface CampaignMessage {
   id: string;
+  /** Who may be sent this one, shown on the card. */
+  note?: string;
   /** Where in the campaign it belongs. */
   step: 'entry' | 'branch' | 'follow_up';
   choice?: Choice;
@@ -163,3 +180,91 @@ export const messagesForListing = (listing: 'rent' | 'sale', step: 'entry' | 'fo
 
 /** The messages to offer a person once an owner has answered: the text and the email for their choice. */
 export const messagesForChoice = (choice: Choice) => MESSAGES.filter((m) => m.step === 'branch' && m.choice === choice);
+
+// ─── Ready-made campaigns ─────────────────────────────────────────────────────────────────────────────────────
+// Short, low-pressure sequences for owners who have agreed to hear from us. Each text ends with the opt-out line; each email gets the footer when copied.
+// The claims are the ones the sites really make: estimates are preliminary and not an appraisal, rental income is never promised, and Stays homes meet quality standards.
+
+export interface ReadyCampaign {
+  id: string;
+  title: string;
+  /** Which NAVEO the messages are from; it fills {{brand}} in them whatever property type the tab is showing. */
+  brand: 'homes' | 'stays';
+  audience: string;
+  /** The permission to have before sending. */
+  consent: string;
+  messages: CampaignMessage[];
+}
+
+const NOTE_ESTIMATE = 'An estimate, not an appraisal or an offer. Rental income depends on local rules and is never promised.';
+
+export const READY_CAMPAIGNS: ReadyCampaign[] = [
+  {
+    id: 'homes-valuation', title: 'NAVEO Homes: estimated value and sale timeline', brand: 'homes',
+    audience: 'Owners showing seller intent, or with high equity, who agreed to hear from NAVEO Homes.',
+    consent: 'Texts only to owners who agreed to texts; emails only with email permission. Never to Do Not Contact or anyone who replied STOP.',
+    messages: [
+      {
+        id: 'rc-homes-email-1', step: 'entry', listing: 'sale', channel: 'email', title: 'Valuation invite: email', subjects: ["Your home's estimated value and sale timeline"], note: NOTE_ESTIMATE,
+        body: `Hi {{first_name}},\n\nYour property at {{address}} may be worth a look if you're thinking about selling.\n\n{{brand}} can show you:\n• A preliminary estimated value range\n• An estimated time-to-sale range\n• An optional look at temporary rental income while the home is listed\n\nIt's free, with no obligation, and takes a few minutes. It's a preliminary estimate, not an appraisal or an offer.\n\nGet your estimate:\n{{valuation_link}}\n\nBest,\n{{agent_name}}\n{{brand}}`,
+      },
+      {
+        id: 'rc-homes-sms-1', step: 'entry', listing: 'sale', channel: 'sms', title: 'Valuation ask: text',
+        body: `Hi {{first_name}}, this is {{agent_name}} with {{brand}}. We can send a free preliminary value range for {{address}}. Reply YES for the link.${STOP}`,
+      },
+      {
+        id: 'rc-homes-email-30', step: 'follow_up', listing: 'sale', channel: 'email', title: 'Day 30: email', subjects: ['Still thinking about {{address}}?'],
+        body: `Hi {{first_name}},\n\nIt's been about a month since I reached out about {{address}}.\n\nIf your plans have changed, or you're just curious what the numbers look like now, I can send a fresh preliminary estimate. No pressure either way.\n\n{{valuation_link}}\n\n{{agent_name}}\n{{brand}}`,
+      },
+    ],
+  },
+  {
+    id: 'homes-dual-path', title: 'NAVEO Homes: sell now, or earn while you wait?', brand: 'homes',
+    audience: 'Owners open to either a sale or temporary rental income while the home is listed.',
+    consent: 'Same as above. Mention rental income only for homes where short-term rentals are allowed or not yet confirmed, and keep the "may" wording.',
+    messages: [
+      {
+        id: 'rc-homes-email-2', step: 'follow_up', listing: 'sale', channel: 'email', title: 'Dual path, day 3: email', subjects: ['Sell now, or earn while you wait?'], note: NOTE_ESTIMATE,
+        body: `Hi {{first_name}},\n\nMany owners want to know two things about a home like {{address}}:\n1. What it could sell for\n2. Whether it could earn rental income while it's on the market\n\nNAVEO looks at both separately, so you can choose to sell only or explore "earn while you sell." Rental income depends on local rules and isn't guaranteed.\n\nSee your preliminary analysis:\n{{valuation_link}}\n\nNo listing agreement is needed to start.\n\n{{agent_name}}\n{{brand}}`,
+      },
+      {
+        id: 'rc-homes-sms-2', step: 'follow_up', listing: 'sale', channel: 'sms', title: 'Dual path: text',
+        body: `{{first_name}}, {{brand}} can show a sale estimate and possible rental income while {{address}} is listed. Want the free review? Reply YES.${STOP}`,
+      },
+    ],
+  },
+  {
+    id: 'stays-owner', title: 'NAVEO Stays: list your vacation home', brand: 'stays',
+    audience: 'Owners of short-term rentals, or homes that could be, who agreed to hear from NAVEO Stays.',
+    consent: 'Texts only to owners who agreed to texts; emails only with email permission. Never to Do Not Contact or anyone who replied STOP.',
+    messages: [
+      {
+        id: 'rc-stays-email-1', step: 'entry', listing: 'rent', channel: 'email', title: 'Owner invitation: email', subjects: ['List your vacation home with transparent pricing'], note: NOTE_ESTIMATE,
+        body: `Hi {{first_name}},\n\n{{brand}} helps owners reach guests directly, with:\n• All-in pricing shown to guests, with no guest service fee\n• Homes that meet our quality standards\n• Your choice of listing only or full-service management\n\nIf {{address}} is, or could be, a short-term rental, we'd like to show you estimated occupancy and net income scenarios. They're estimates, and income isn't guaranteed.\n\nSee owner options:\n{{owner_link}}\n\nBest,\n{{agent_name}}\n{{brand}}\nowners@naveo.com`,
+      },
+      {
+        id: 'rc-stays-sms-1', step: 'entry', listing: 'rent', channel: 'sms', title: 'Owner outreach: text',
+        body: `Hi {{first_name}}, {{agent_name}} from {{brand}}. We help vacation-home owners with transparent guest pricing and optional management. Want a free look at {{address}}? Reply YES.${STOP}`,
+      },
+      {
+        id: 'rc-stays-email-2', step: 'follow_up', listing: 'rent', channel: 'email', title: 'How we work, day 4: email', subjects: ['How owners work with NAVEO Stays'],
+        body: `Hi {{first_name}},\n\nHere's what {{brand}} focuses on:\n• Clear guest pricing\n• Direct guest demand\n• Owner control: list only, or add full-service management\n\nWe can take a no-obligation look at {{address}}: a permit check, a pricing range and an estimated net income.\n\nStart here:\n{{owner_link}}\n\n{{agent_name}}\n{{brand}}`,
+      },
+      {
+        id: 'rc-stays-email-30', step: 'follow_up', listing: 'rent', channel: 'email', title: 'Day 30: email', subjects: ['Quick check on {{address}}'],
+        body: `Hi {{first_name}},\n\nJust circling back on {{address}}.\n\nIf you're still open to looking at rental income or listing options, I'm happy to run an updated estimate. If the timing's off, no worries at all.\n\n{{owner_link}}\n\n{{agent_name}}\n{{brand}}`,
+      },
+    ],
+  },
+  {
+    id: 'stays-bridge', title: 'NAVEO Stays: rental income while listed for sale', brand: 'stays',
+    audience: 'NAVEO Homes leads whose recommendation is Sell + Earn.',
+    consent: 'Send only if the owner ticked the rental follow-up box ("I consent to NAVEO following up about temporary rental options"). NAVEO Stays is a separate sender from NAVEO Homes, so a sale-only permission is not enough.',
+    messages: [
+      {
+        id: 'rc-stays-sms-bridge', step: 'entry', listing: 'sale', channel: 'sms', title: 'Bridge from a sale lead: text',
+        body: `{{first_name}}, {{address}} may qualify for temporary rental income while it's listed for sale. {{brand}} can check. Reply YES for details.${STOP}`,
+      },
+    ],
+  },
+];
