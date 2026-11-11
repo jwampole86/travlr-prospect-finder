@@ -164,6 +164,8 @@ async function rapidApiFetch(host: string, path: string, init: RequestInit = {},
     }
   }
 
+  if (lastStatus === 401) lastError = 'RapidAPI rejected the API key (HTTP 401): it is invalid or revoked. Replace RAPIDAPI_KEY_1 in the server environment.';
+  else if (lastStatus === 403) lastError = 'RapidAPI key is not subscribed to this API (HTTP 403). Subscribe the key or replace it in the server environment.';
   return { ok: false, status: lastStatus, error: lastError || 'All RapidAPI keys failed' };
 }
 

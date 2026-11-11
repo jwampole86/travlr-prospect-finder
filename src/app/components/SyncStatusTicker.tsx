@@ -674,7 +674,7 @@ export default function SyncStatusTicker({ onLeadsRefreshed }: Props) {
                     </span>
                   )}
                 </div>
-                {isFailed && !portfolioHasNoLeads && source.dbError && (
+                {(isFailed || source.dbStatus === 'partial') && !portfolioHasNoLeads && source.dbError && (
                   <p className="text-[10.5px] leading-snug text-muted-foreground mt-1 max-w-[46ch]" title={source.dbError}>
                     {isProviderOutage(source.dbError)
                       ? `${source.name}'s data provider is down, so there is nothing for AVYRO to pull. Scheduled syncs pause this source and check it again every few hours; it resumes on its own when the provider recovers. Retry only helps once it is back.`
