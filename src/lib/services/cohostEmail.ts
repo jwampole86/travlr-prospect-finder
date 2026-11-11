@@ -113,7 +113,7 @@ async function blockReason(db: Db, m: Row): Promise<string | null> {
 async function deliver(m: Row, subject: string, to: string, scheduledAt?: Date) {
   const unsub = unsubscribeUrl(m.id);
   return getResendClient().emails.send({
-    from: getResendFrom(), to: [to], subject, html: buildHtml(m.body, unsub), text: plainText(m.body, unsub), replyTo: REPLY_TO,
+    from: getResendFrom('NAVEO Stays'), to: [to], subject, html: buildHtml(m.body, unsub), text: plainText(m.body, unsub), replyTo: REPLY_TO,
     ...(scheduledAt ? { scheduledAt: scheduledAt.toISOString() } : {}),
     headers: { 'List-Unsubscribe': `<${unsub}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
     tags: [{ name: 'kind', value: 'cohost_email' }, { name: 'campaign_id', value: m.campaign_id }],

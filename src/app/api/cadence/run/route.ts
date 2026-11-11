@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const resend = getResendClient();
-    const emailFrom = getResendFrom();
+    getResendFrom(); // fails early when no sender is configured at all
 
     // Load due enrollments
     const { data: enrollments, error: enrollErr } = await supabase
@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
           const subject = resolveVars(currentStep.subject || 'A message from {{brand}}', vars);
           const html = buildEmailHtml(leadName, currentStep.template_key, vars, brand.name, brand.key === 'homes');
           const { data: emailData, error: emailErr } = await resend.emails.send({
-            from: emailFrom,
+            from: getResendFrom(brand.name),
             to: [lead.email],
             subject,
             html,

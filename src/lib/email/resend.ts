@@ -12,9 +12,15 @@ export function getResendClient(): Resend {
   return new Resend(apiKey);
 }
 
-/** `brandName` (NAVEO Stays or NAVEO Homes) is the sender name an owner sees; without it the configured name, then NAVEO, is used. */
+/** Each NAVEO brand sends from its own domain: RESEND_FROM_EMAIL_STAYS and RESEND_FROM_EMAIL_HOMES. Until one is set, that brand uses RESEND_FROM_EMAIL. */
+function senderEmailFor(brandName?: string): string | undefined {
+  const brand = /homes/i.test(brandName ?? '') ? process.env.RESEND_FROM_EMAIL_HOMES : /stays/i.test(brandName ?? '') ? process.env.RESEND_FROM_EMAIL_STAYS : undefined;
+  return isConfigured(brand?.trim()) ? brand!.trim() : process.env.RESEND_FROM_EMAIL;
+}
+
+/** `brandName` (NAVEO Stays or NAVEO Homes) is the sender name an owner sees and picks that brand's sending address; without it the configured name and address, then NAVEO, are used. */
 export function getResendFrom(brandName?: string): string {
-  const email = process.env.RESEND_FROM_EMAIL;
+  const email = senderEmailFor(brandName);
   const name = brandName || process.env.RESEND_FROM_NAME || 'NAVEO';
   if (!isConfigured(email)) {
     throw new Error('RESEND_FROM_EMAIL is not configured with a verified sender address');
@@ -31,6 +37,8 @@ export function getResendConfigStatus() {
     senderConfigured: isConfigured(senderEmail),
     senderDomain,
     senderIsSandbox,
+    staysSenderDomain: senderEmailFor('NAVEO Stays')?.split('@')[1] || null,
+    homesSenderDomain: senderEmailFor('NAVEO Homes')?.split('@')[1] || null,
     productionReady: isConfigured(process.env.RESEND_API_KEY) && isConfigured(senderEmail) && !senderIsSandbox,
   };
 }

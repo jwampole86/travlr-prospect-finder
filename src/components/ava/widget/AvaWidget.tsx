@@ -798,7 +798,7 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
                           )}
                         </div>
                       )}
-                      {m.rateable && (
+                      {m.rateable && (!m.deeper || m.deeper.state === 'error') && (
                         <div className="rate" role="group" aria-label="Was this helpful?">
                           {m.rated === undefined ? (
                             <>
