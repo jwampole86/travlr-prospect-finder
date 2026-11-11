@@ -15,31 +15,33 @@ export const FOR_SALE_PITCH =
 export const FOR_SALE_ASK = 'Worth a short conversation?';
 
 /** First text to an owner of a home for sale. `{first_name}`, `{address}` and `{brand}` are filled in per recipient. */
-export const HOMES_FIRST_TEXT = `Hi {first_name}! I'm Jennifer with {brand}. Reaching out about {address}.
+export const HOMES_FIRST_TEXT = `Hi {first_name} — Jennifer with {brand}. Reaching out about {address}.
 
-${FOR_SALE_PITCH} ${FOR_SALE_ASK}
+${FOR_SALE_PITCH}
+${FOR_SALE_ASK}
 
 Reply STOP to opt out`;
 
 /** The one-to-one outreach message an agent copies from a lead for a home that is for sale. */
-export function forSaleOutreachMessage(opts: { opening: string; agentFirstName?: string }): string {
-  return `${opts.opening} I'm with NAVEO Homes. ${FOR_SALE_PITCH} ${FOR_SALE_ASK}\n— ${opts.agentFirstName || 'Your NAVEO Homes team'}, NAVEO Homes`;
+export function forSaleOutreachMessage(opts: { address: string; agentFirstName?: string }): string {
+  const who = opts.agentFirstName ? `${opts.agentFirstName} with NAVEO Homes` : 'NAVEO Homes here';
+  return `Hi — ${who}. Reaching out about ${opts.address}. ${FOR_SALE_PITCH}\n${FOR_SALE_ASK}\n— ${opts.agentFirstName || 'NAVEO Homes'}`;
 }
 
 /** Short opener used in the lead panel and the fallback page, which already say which listing they came across. */
-export function forSaleListingMessage(address: string): string {
-  return `Hi! I came across your listing at ${address} and wanted to reach out — I'm with NAVEO Homes. ${FOR_SALE_PITCH} ${FOR_SALE_ASK}`;
+export function forSaleListingMessage(address: string, agentFirstName?: string): string {
+  return forSaleOutreachMessage({ address, agentFirstName });
 }
 
 export const HOMES_REVENUE_TEXT =
   "Hi {first_name}, I took a quick look at {address}. I'd love to share how a sale with {brand} could work, and how NAVEO Stays may be able to run the home as a short-term rental while it's listed. No commitment. Can I send it over?\n\nReply STOP to opt out.";
 
 export const HOMES_INTRO_TEXT =
-  "Hi {first_name}! This is Jennifer with {brand}. Reaching out about {address}. If a sale is on the table, we connect owners with a licensed local broker to guide the sale. Worth a short call?\n\nReply STOP to opt out.";
+  "Hi {first_name} — Jennifer with {brand}. Reaching out about {address}. If a sale is on the table, we connect owners with a licensed local broker to guide the sale. Worth a short call?\n\nReply STOP to opt out.";
 
 /** Replies the cadence and the automatic answers send for a home for sale. */
 export const HOMES_CADENCE_SMS: Record<string, string> = {
-  initial_outreach: "Hi {{leadName}}, this is {{brand}}. If a sale is on the table for {{address}}, we connect owners with a licensed local broker to guide the sale. Worth a short conversation? Reply YES or STOP to opt out.",
+  initial_outreach: "Hi {{leadName}} — {{brand}} here. Reaching out about {{address}}. If a sale is on the table, we connect owners with a licensed local broker to guide the sale. Worth a short conversation? Reply YES or STOP to opt out.",
   follow_up_1: "Hi {{leadName}}, following up from {{brand}} about {{address}}. If the home will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental meanwhile. Reply YES to talk or STOP to opt out.",
   check_in: 'Hi {{leadName}}, {{brand}} here. Still thinking about selling {{address}}? Worth a short call to talk it through. Reply YES or STOP to opt out.',
   proposal_introduction: 'Hi {{leadName}}, I have some thoughts on a sale of {{address}} with {{brand}}. Reply YES and I will send them over. STOP to opt out.',

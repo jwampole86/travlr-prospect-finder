@@ -28,7 +28,7 @@ const SMS_TEMPLATES = [
     id: 'intro',
     label: 'Initial Introduction',
     body: `Hi {name}, this is {agent} from {brand}. We help homeowners like you earn more from your property through short-term rentals. Would you be open to a quick 10-minute call this week?\n\nReply STOP to opt out.`,
-    homesBody: `Hi {name}, this is {agent} from {brand}. Reaching out about your home. If a sale is on the table, we connect owners with a licensed local broker to guide the sale, and if it will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental meanwhile. Worth a short call this week?\n\nReply STOP to opt out.`,
+    homesBody: `Hi {name} — {agent} with {brand}. Reaching out about your home. If a sale is on the table, we connect owners with a licensed local broker to guide the sale, and if it will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental meanwhile. Worth a short call this week?\n\nReply STOP to opt out.`,
   },
   {
     id: 'followup',

@@ -1024,7 +1024,7 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   // The message is from the NAVEO that matches the property: Stays for a home for rent, Homes for one for sale (not pitched rental income).
   const outreachBrand = outreachBrandFor(lead.priceType);
   const outreachMessage = outreachBrand.key === 'homes'
-    ? forSaleOutreachMessage({ opening: variant.opening, agentFirstName })
+    ? forSaleOutreachMessage({ address: propertyAddress, agentFirstName })
     : `${variant.opening} I'm with ${outreachBrand.name}, a property management company. ${variant.cta}\navyropro.ai/estimate\nYou can also learn more about us at avyropro.ai. Happy to answer any questions!\n— ${agentFirstName}, ${outreachBrand.name}`;
 
   async function handleCopyMessage() {
