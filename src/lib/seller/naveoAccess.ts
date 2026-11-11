@@ -7,6 +7,7 @@ import { validIntegrationKey } from '@/lib/media/integrationKey';
  */
 const ALLOWED: Array<{ methods: string[]; path: RegExp }> = [
   { methods: ['POST'], path: /^\/api\/integration\/naveo\/leads$/ },
+  { methods: ['GET'], path: /^\/api\/integration\/naveo\/listings$/ },
   { methods: ['GET'], path: /^\/api\/seller\/opportunities$/ },
   { methods: ['GET'], path: /^\/api\/seller\/opportunities\/[A-Za-z0-9_-]{1,64}$/ },
   { methods: ['GET'], path: /^\/api\/seller\/dashboard$/ },
