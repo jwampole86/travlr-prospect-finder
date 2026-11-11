@@ -26,6 +26,8 @@ export async function GET(req: NextRequest) {
   if (ctx.orgId) q = q.eq('organization_id', ctx.orgId);
   const partnerId = req.nextUrl.searchParams.get('partner_id');
   if (partnerId) q = q.eq('partner_id', partnerId);
+  const leadFilter = req.nextUrl.searchParams.get('lead_id');
+  if (leadFilter) q = q.eq('lead_id', leadFilter);
   const { data, error } = await q;
   if (error) return fail(error.message, 500);
   const ids = (data ?? []).map((r) => r.id as string);

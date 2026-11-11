@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-c771b2f1",
+  "version": "2026-11-11-94dba03b",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -1090,7 +1090,7 @@
         "property types",
         "which broker"
       ],
-      "answer": "On the Referrals tab, choose a lead whose owner has given permission and AVYRO suggests the best partners. A partner is only suggested if it is active, license verified, agreement and legal review done, licensed in the lead's state, not marked do not assign, not at its maximum open leads, not flagged as having stopped reporting, and covers the lead's market, property type and budget band where those are known. The rest are shown with the reason each was ruled out. The suggestions are ranked: a city match counts most, then a county match, a budget in the middle of their band, a good update rate, earlier closes, an exclusive territory and any manual boost. If no partner qualifies, the lead is shown as needing a partner, so recruit one for that state; the owner can still be offered the NAVEO Stays path meanwhile. The state must also be switched on in the States tab before a lead can be sent.",
+      "answer": "On a lead's profile (admins and owners) the Partner broker panel, and on the Referrals tab, choose a lead whose owner has given permission and AVYRO suggests the best partners. A partner is only suggested if it is active, license verified, agreement and legal review done, licensed in the lead's state, not marked do not assign, not at its maximum open leads, not flagged as having stopped reporting, and covers the lead's market, property type and budget band where those are known. The rest are shown with the reason each was ruled out. The suggestions are ranked: a city match counts most, then a county match, a budget in the middle of their band, a good update rate, earlier closes, an exclusive territory and any manual boost. If no partner qualifies, the lead is shown as needing a partner, so recruit one for that state; the owner can still be offered the NAVEO Stays path meanwhile. The state must also be switched on in the States tab before a lead can be sent.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
