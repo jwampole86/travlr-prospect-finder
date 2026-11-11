@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString();
   const key = streetKey(lead.address);
 
-  const { data: candidates } = await db.from('leads').select('id,address,city,state,beds,baths,property_type').eq('organization_id', access.organizationId).ilike('address', `%${key}%`).limit(5);
+  const { data: candidates } = await db.from('leads').select('id,address,city,state,beds,baths,property_type,owner_email').eq('organization_id', access.organizationId).ilike('address', `%${key}%`).limit(5);
   const existing = (candidates ?? []).find((l) => streetKey(String(l.address ?? '')) === key);
 
   let leadId: string;
@@ -41,6 +41,13 @@ export async function POST(req: NextRequest) {
     if (!existing.property_type && lead.propertyType) patch.property_type = lead.propertyType;
     const { error } = await db.from('leads').update(patch).eq('id', leadId);
     if (error) return NextResponse.json({ error: 'could_not_update_lead' }, { status: 500 });
+    // Not proof of ownership, so this never opens the existing record: it is recorded as a claim for a person to approve, and the submitter sees only that it was received.
+    if (existing.owner_email !== lead.email) {
+      await db.from('lead_owner_claims').upsert(
+        { organization_id: access.organizationId, lead_id: leadId, email: lead.email, claimant_name: lead.name, address_text: lead.address, city: lead.city, state: lead.state },
+        { onConflict: 'lead_id,email', ignoreDuplicates: true },
+      );
+    }
   } else {
     const newId = `lead-naveo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const { data, error } = await db.from('leads').insert({

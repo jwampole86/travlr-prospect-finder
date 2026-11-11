@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { naveoSellerAccess } from '@/lib/seller/naveoAccess';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { ownerEmailFrom } from '@/lib/stays/owner';
+import { ownerEmailFrom, ownerFilter } from '@/lib/stays/owner';
 import { ownerListing } from '@/lib/stays/listings';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const ownerEmail = ownerEmailFrom(req);
   if (!ownerEmail) return NextResponse.json({ error: 'owner_required' }, { status: 403 });
   const { data, error } = await getSupabaseAdmin().from('stays_listings').select('*')
-    .eq('organization_id', access.organizationId).eq('owner_email', ownerEmail).order('created_at').limit(200);
+    .eq('organization_id', access.organizationId).or(ownerFilter(ownerEmail)).order('created_at').limit(200);
   if (error) return NextResponse.json({ error: 'could_not_load_listings' }, { status: 500 });
   return NextResponse.json({ listings: (data ?? []).map(ownerListing) }, { headers: { 'cache-control': 'no-store' } });
 }

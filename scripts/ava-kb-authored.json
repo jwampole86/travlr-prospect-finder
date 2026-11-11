@@ -13,7 +13,7 @@
         "owner services",
         "sale"
       ],
-      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has seven tabs: Dashboard, Opportunities, Campaign, Partners, Referrals, States and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
+      "answer": "When a homeowner's reply suggests they may sell, it lands in Seller & owner services as an opportunity for a person to review. Nothing is sent automatically: each step needs the owner's recorded permission, and a person approves which service fits. The screen has eight tabs: Dashboard, Opportunities, Campaign, Partners, Referrals, States, Owner access and Revenue. AVYRO only flags the reply for your team; it never contacts the owner on its own.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
@@ -725,7 +725,7 @@
         "performance",
         "owner reporting"
       ],
-      "answer": "Owners and staff can hold dates for owner use, maintenance or other reasons; a hold is refused if any of those nights is already booked, and only owner, maintenance and other holds can be removed that way. Showing holds are set by AVYRO staff. A guest review is tied to a booking reference, one review per booking, and updates the home's public rating and review count. Revenue and occupancy for a home over a date window are computed from AVYRO's own bookings: revenue counts a booking in the window its check-in falls in, and booked nights are clipped to the window. There is no owner portal or review form on NAVEO Stays yet, so these run through AVYRO's routes.",
+      "answer": "Owners and staff can hold dates for owner use, maintenance or other reasons; a hold is refused if any of those nights is already booked, and only owner, maintenance and other holds can be removed that way. Showing holds are set by AVYRO staff. A guest review is tied to a booking reference, one review per booking, and updates the home's public rating and review count. Revenue and occupancy for a home over a date window are computed from AVYRO's own bookings: revenue counts a booking in the window its check-in falls in, and booked nights are clipped to the window. Owners use the owner page on NAVEO Stays and guests use the review page opened from the emailed link, which goes out in the thank-you email after checkout. That email is sent by a daily job (15:00 UTC) that AVYRO's scheduler starts, because the Stays platform cannot schedule it itself.",
       "source": "NAVEO sites and AVYRO",
       "kind": "guide"
     },
@@ -760,9 +760,10 @@
         "owner view",
         "authorized emails"
       ],
-      "answer": "Owner access is decided in AVYRO by matching the email an owner signs in with to the owner_email stored on the home or submission, always lowercase and exact (no partial or domain matching). If owner_email is empty, no owner can open it. On NAVEO Stays, owner_email is on each listing, so a signed-in owner sees only their own homes and can hold dates, see bookings and revenue, and pause or resume bookings; someone else's home, or one that does not exist, looks the same (not found). On NAVEO Homes, owner_email is set when a homeowner submits their own property, and their submission page shows only the property, where it stands, the recommendation they were shown and the name of the partner introduced. It never shows the internal intent score, fee terms, or partner and broker notes. A repeat submission for a property AVYRO already holds does not gain access to the existing entry. The check runs on every request, not just at sign-in. To change an owner, update owner_email in AVYRO; the old email loses access at once. Co-owner or manager access is not built yet.",
+      "answer": "Owner access is decided in AVYRO by matching the email an owner signs in with to the owner_email stored on the home or submission, always lowercase and exact (no partial or domain matching). If owner_email is empty, no owner can open it. On NAVEO Stays, owner_email is on each listing, so a signed-in owner sees only their own homes and can hold dates, see bookings and revenue, and pause or resume bookings; someone else's home, or one that does not exist, looks the same (not found). On NAVEO Homes, owner_email is set when a homeowner submits their own property, and their submission page shows only the property, where it stands, the recommendation they were shown and the name of the partner introduced. It never shows the internal intent score, fee terms, or partner and broker notes. A repeat submission for a property AVYRO already holds does not open the existing entry: it is treated as an ownership claim, the submitter sees only that it was received, and a person compares the address and approves or dismisses it in the Owner access tab of Seller & owner services. The check runs on every request, not just at sign-in. Staff set each Stays home's owner email, and any co-owner or manager emails (up to 10) that may also manage it, in the Owner access tab; the old email loses access at once.",
       "source": "NAVEO sites and AVYRO",
-      "kind": "guide"
+      "kind": "guide",
+      "route": "/seller-pipeline"
     }
   ]
 }

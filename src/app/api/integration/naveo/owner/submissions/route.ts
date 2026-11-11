@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 /**
  * GET: the signed-in owner's own submissions (their email, passed in `x-owner-email` by NAVEO after it has authenticated them): the property, where it stands,
  * the recommendation they were shown and the partner introduced. Never other owners' leads, the intent score, fee terms or partner and broker notes.
+ * A submission for an address AVYRO already held appears as a pending claim: only what the owner typed and that it was received, nothing from the existing record.
  */
 export async function GET(req: NextRequest) {
   const access = naveoSellerAccess(req.method, req.nextUrl.pathname, req.headers.get('x-naveo-key'));
@@ -21,7 +22,13 @@ export async function GET(req: NextRequest) {
     .eq('organization_id', access.organizationId).eq('owner_email', ownerEmail).order('created_at', { ascending: false }).limit(50);
   if (error) return NextResponse.json({ error: 'could_not_load_submissions' }, { status: 500 });
   const ids = (leads ?? []).map((l) => l.id as string);
-  if (!ids.length) return NextResponse.json({ submissions: [] }, { headers: { 'cache-control': 'no-store' } });
+  const { data: claims } = await db.from('lead_owner_claims').select('lead_id,address_text,city,state,created_at')
+    .eq('organization_id', access.organizationId).eq('email', ownerEmail).eq('status', 'pending').order('created_at', { ascending: false }).limit(20);
+  const pending = (claims ?? []).filter((c) => !ids.includes(c.lead_id as string)).map((c) => ({
+    lead_id: null, address: c.address_text, city: c.city, state: c.state, submitted_at: c.created_at,
+    milestone: { key: 'verifying', label: 'Received. We are confirming ownership before showing more.' }, recommendation: null, partner: null,
+  }));
+  if (!ids.length) return NextResponse.json({ submissions: pending }, { headers: { 'cache-control': 'no-store' } });
 
   const [{ data: opps }, { data: refs }] = await Promise.all([
     db.from('seller_opportunities').select('*').eq('organization_id', access.organizationId).in('lead_id', ids).order('created_at', { ascending: false }),
@@ -42,5 +49,5 @@ export async function GET(req: NextRequest) {
       partner: partner ? { name: partner.name, brokerage: partner.brokerage } : null,
     };
   });
-  return NextResponse.json({ submissions }, { headers: { 'cache-control': 'no-store' } });
+  return NextResponse.json({ submissions: [...submissions, ...pending] }, { headers: { 'cache-control': 'no-store' } });
 }
