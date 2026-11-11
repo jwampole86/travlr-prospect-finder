@@ -292,6 +292,18 @@
       "entries": [
         "ava-teach"
       ]
+    },
+    {
+      "q": "What is your favorite color?",
+      "entries": [
+        "ava-about"
+      ]
+    },
+    {
+      "q": "I can't see AVA anymore, where did she go?",
+      "entries": [
+        "ava-where"
+      ]
     }
   ],
   "unsupported": [

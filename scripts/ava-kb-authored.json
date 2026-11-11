@@ -254,6 +254,50 @@
       "answer": "Yes. Ask for counts by pipeline stage, listing source, state, contact status (verified, with a phone number), skip-trace result, or for sale versus for rent. Admins and owners get totals for the whole organization; agents get counts for their own leads. The numbers come straight from the lead database when you ask, and I'll say when they were taken.",
       "source": "AVA assistant",
       "kind": "guide"
+    },
+    {
+      "id": "ava-about",
+      "title": "Who is AVA, what is she like, and what is her favorite color?",
+      "keywords": [
+        "who are you",
+        "who is ava",
+        "about ava",
+        "favorite color",
+        "favourite",
+        "personality",
+        "what are you like",
+        "are you human",
+        "are you real",
+        "your name",
+        "fun fact",
+        "hobby",
+        "are you an ai"
+      ],
+      "answer": "I'm AVA, the AVYRO assistant. I'm an AI, not a person, but I do have a personality: upbeat, warm and a little playful, and always happy to help. My favorite color is electric blue, which is why I glow that color, my favorite page is the Pipeline Board because I love watching leads move across it, and my favorite moment is when a team gets unstuck.",
+      "source": "AVA assistant",
+      "kind": "guide"
+    },
+    {
+      "id": "ava-where",
+      "title": "Where do I find AVA, and how do I bring her back if I hide her?",
+      "keywords": [
+        "where is ava",
+        "find ava",
+        "ava button",
+        "launcher",
+        "corner",
+        "hide ava",
+        "bring back",
+        "edge tab",
+        "open ava",
+        "can't find ava",
+        "cannot find ava",
+        "missing"
+      ],
+      "answer": "AVA is the round electric-blue button in the bottom-right corner of every screen for admins, owners and agents. Tap it to open her. If you tucked her away with Hide, tap the blue AVA tab on the right edge of the screen to bring her back, or say \"Hey AVA\" once your microphone is allowed. You can drag her to a different spot, and Focus mode keeps her out of the way until you need her.",
+      "source": "AVA assistant",
+      "route": "/",
+      "kind": "guide"
     }
   ]
 }

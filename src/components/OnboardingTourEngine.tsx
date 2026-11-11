@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, ChevronRight, ChevronLeft, HelpCircle, BookOpen, Lightbulb, ArrowRight, CheckCircle2, Sparkles, LayoutDashboard, List, Phone, MessageSquare, Calendar, FileText, BarChart2, HelpCircle as HelpIcon, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import AvaFindMe, { requestAvaIntroduction } from '@/components/AvaFindMe';
 import { useAuth } from '@/contexts/AuthContext';
 
 // ─── Tour Step Definitions ────────────────────────────────────────────────────
@@ -38,9 +39,29 @@ const TOUR_STEPS: TourStep[] = [
       'Activity Feed for recent team actions and system events',
       'Portfolio switcher to scope all data to a specific market',
     ],
-    nextAction: 'Next: Lead & Homeowner Pipeline',
-    nextActionHref: '/lead-management',
+    nextAction: 'Next: Meet AVA',
+    nextActionHref: '/help-center',
     tip: 'Pin your most-used portfolio in the sidebar switcher to load it by default every session.',
+  },
+  {
+    id: 'ava',
+    screen: 'AVA Assistant',
+    screenHref: '/help-center',
+    icon: Sparkles,
+    iconColor: 'text-primary',
+    title: 'AVA — Your Assistant on Every Screen',
+    overview: 'AVA is the assistant in the bottom-right corner of every screen: look for the round electric-blue AVA button (it pulses in the corner now). If you ever tuck her away, tap the blue AVA tab on the right edge to bring her back. Ask her how anything works, where a page is in the menu, or for your leads, follow-ups and counts, and she answers from the approved help and your live data. She can open pages, point at things and walk you through any menu category. You can type, tap the microphone, say "Hey AVA", or turn on spoken replies and talk with her.',
+    keyFeatures: [
+      'Ask how any screen works, or "where is…?", and AVA opens the page for you',
+      'Say "walk me through the Outreach menu" for a guided tour, item by item',
+      'Search leads, check follow-ups, get a daily briefing and see lead counts by stage, source or state',
+      'Find her in the bottom-right corner of every screen, and tap her any time you need help',
+      'AVA asks for your approval before she creates a follow-up or changes a lead, and only reports it done once it is saved',
+      'Search the menu with the box at the top of the left sidebar to find any page quickly',
+    ],
+    nextAction: 'Next: Data Sync & Quality',
+    nextActionHref: '/data-sync',
+    tip: 'Start with "What can you do?" or "Walk me through the menu". AVA only sees what your role allows, and she never clicks or types for you.',
   },
   {
     id: 'data-sync-admin',
@@ -68,7 +89,7 @@ const TOUR_STEPS: TourStep[] = [
     icon: List,
     iconColor: 'text-violet-500',
     title: 'Lead & Homeowner Pipeline — Work Your Prospects',
-    overview: 'Lead Management is where you spend most of your time. Browse, filter, enrich, and act on every lead. Leads tagged "Inbound — Self-Qualified" are warm homeowners who opted in via the TRAVLR estimate page — prioritize these above cold sync-sourced leads.',
+    overview: 'Lead Management is where you spend most of your time. Browse, filter, enrich, and act on every lead. Leads tagged "Inbound — Self-Qualified" are warm homeowners who opted in via the AVYRO AI estimate page — prioritize these above cold sync-sourced leads.',
     keyFeatures: [
       '"Inbound — Self-Qualified" tag = homeowner opted in via estimate landing page (warm lead)',
       'Full-text search across names, addresses, notes, and tags',
@@ -117,7 +138,7 @@ const TOUR_STEPS: TourStep[] = [
     ],
     nextAction: 'Next: Messaging Tools',
     nextActionHref: '/templates',
-    tip: 'Use the "warm inbound" script variant for "Inbound — Self-Qualified" leads — it opens by acknowledging they reached out, not re-introducing TRAVLR from scratch.',
+    tip: 'Use the "warm inbound" script variant for "Inbound — Self-Qualified" leads — it opens by acknowledging they reached out, not re-introducing AVYRO AI from scratch.',
   },
   {
     id: 'messaging',
@@ -169,7 +190,7 @@ const TOUR_STEPS: TourStep[] = [
       'Send Partnership Agreement via DocuSign from the lead\'s detail view — one click',
       'Signing status tracked in real time: sent → viewed → signed → completed',
       'DocuSign completion = commission trigger (system-verifiable event)',
-      'Embedded signing portal: homeowner can sign without leaving the TRAVLR flow',
+      'Embedded signing portal: homeowner can sign without leaving the AVYRO AI flow',
       'Void and resend available if the homeowner needs a corrected document',
     ],
     nextAction: 'Next: Performance & Reporting',
@@ -248,28 +269,9 @@ const TOUR_STEPS: TourStep[] = [
       'Admins/owners get a "Team Status" tab showing everyone currently clocked in or on break in real time',
       'Only one open shift per person is allowed at a time — clock out before starting a new one',
     ],
-    nextAction: 'Next: Meet AVA',
-    nextActionHref: '/help-center',
-    tip: 'Use the Team Status tab to spot agents who forgot to clock out — a stuck shift keeps accumulating hours until it is closed.',
-  },
-  {
-    id: 'ava',
-    screen: 'AVA Assistant',
-    screenHref: '/help-center',
-    icon: Sparkles,
-    iconColor: 'text-primary',
-    title: 'AVA — Your Assistant on Every Screen',
-    overview: 'AVA is the assistant in the corner of every screen. Ask her how anything works, where a page is in the menu, or for your leads, follow-ups and counts, and she answers from the approved help and your live data. She can open pages, point at things and walk you through any menu category. You can type, tap the microphone, say "Hey AVA", or turn on spoken replies and talk with her.',
-    keyFeatures: [
-      'Ask how any screen works, or "where is…?", and AVA opens the page for you',
-      'Say "walk me through the Outreach menu" for a guided tour, item by item',
-      'Search leads, check follow-ups, get a daily briefing and see lead counts by stage, source or state',
-      'AVA asks for your approval before she creates a follow-up or changes a lead, and only reports it done once it is saved',
-      'Search the menu with the box at the top of the left sidebar to find any page quickly',
-    ],
     nextAction: 'Next: Q&A / Help Center',
     nextActionHref: '/help-center',
-    tip: 'Start with "What can you do?" or "Walk me through the menu". AVA only sees what your role allows, and she never clicks or types for you.',
+    tip: 'Use the Team Status tab to spot agents who forgot to clock out — a stuck shift keeps accumulating hours until it is closed.',
   },
   {
     id: 'help-center',
@@ -278,12 +280,12 @@ const TOUR_STEPS: TourStep[] = [
     icon: HelpIcon,
     iconColor: 'text-teal-500',
     title: 'Q&A / Help Center — Your Ongoing Support Resource',
-    overview: 'The Help Center is your go-to after this tour. Ask questions about your own leads, stats, and how any module works — the AI assistant answers from your actual dashboard data and TRAVLR\'s internal documentation, not from guesses.',
+    overview: 'The Help Center is your go-to after this tour. Ask questions about your own leads, stats, and how any module works — the AI assistant answers from your actual dashboard data and AVYRO AI\'s internal documentation, not from guesses.',
     keyFeatures: [
-      'AI assistant answers from your dashboard data and TRAVLR\'s how-to documentation',
+      'AI assistant answers from your dashboard data and AVYRO AI\'s how-to documentation',
       'Ask about your own leads, stats, commission status, or any module\'s features',
       'Compliance or legal questions route to a human admin — AI will not guess on those',
-      'Search TRAVLR\'s internal documentation for step-by-step module guides',
+      'Search AVYRO AI\'s internal documentation for step-by-step module guides',
       'This is your primary support resource after completing this tour',
     ],
     nextAction: 'You\'re all set! Start working your leads.',
@@ -560,6 +562,8 @@ export default function OnboardingTourEngine({
   // ── Dismiss / complete ────────────────────────────────────────────────────
   const dismiss = useCallback(async (wasCompleted: boolean, wasSkipped = false) => {
     setVisible(false);
+    // However the tour ends, AVA says hello the first time so the person knows where to find her.
+    if (wasCompleted || wasSkipped) requestAvaIntroduction();
 
     if (user?.id) {
       const durationMs = Date.now() - startTimeRef.current;
@@ -629,6 +633,7 @@ export default function OnboardingTourEngine({
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={isMandatory ? undefined : (e) => { if (e.target === overlayRef.current) dismiss(false, true); }}
     >
+      {currentStep.id === 'ava' && <AvaFindMe />}
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">

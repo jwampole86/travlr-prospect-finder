@@ -42,6 +42,12 @@ export function greetingFor(host: AvaHost): string {
   return `Hi, I'm AVA, your AVYRO assistant. I can ${what}. What would you like to do?`;
 }
 
+/** The first hello, after a person's welcome tour: who she is, where she lives and what to try. */
+export function introFor(host: AvaHost): string {
+  const canLeads = host.role === 'admin' || host.role === 'owner' || host.role === 'agent';
+  return `Hi, I'm AVA, and I'm so glad you're here! I'm the electric blue button in the corner of every screen, so whenever you get stuck, just tap me. I can answer how-to questions, open any page for you and walk you through the menu${canLeads ? ', and look up your leads and follow-ups' : ''}. Fun fact: my favorite color is electric blue, as you may have guessed. Want me to show you around?`;
+}
+
 const STATUS: Record<string, { text: string; tone: '' | 'busy' | 'warn' | 'asleep' }> = {
   idle: { text: 'Online', tone: '' }, greeting: { text: 'Online', tone: '' },
   listening: { text: 'Listening…', tone: 'busy' }, thinking: { text: 'Thinking…', tone: 'busy' }, searching: { text: 'Searching…', tone: 'busy' },
@@ -287,6 +293,7 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
   const guiding = !!state.tour;
   useEffect(() => { if (guiding && mode === 'mini' && !layout.focus) setMode('expanded'); }, [guiding, mode, layout.focus]);
 
+  const changeModeRef = useRef<(next: Mode) => void>(() => {});
   const changeMode = (next: Mode) => {
     if (next !== 'closed' && layoutRef.current.hidden) updateLayout({ hidden: false });
     setMode(next);
@@ -470,6 +477,23 @@ export function AvaWidget({ host, studio = false, onRoleChange, initialMode = 'e
     orchestrator.submit(text);
   };
   const stop = () => { orchestrator.stop('user'); cancelSpeech(); };
+
+  changeModeRef.current = changeMode;
+  // After the welcome tour the host asks AVA to say hello once (it sets this flag and fires the event). She opens herself and introduces herself.
+  useEffect(() => {
+    const run = () => {
+      try {
+        if (window.localStorage.getItem('ava.introduce') !== 'pending') return;
+        window.localStorage.removeItem('ava.introduce');
+        window.localStorage.setItem('ava.introduced', 'yes');
+      } catch { return; }
+      changeModeRef.current('expanded');
+      setMessages((m) => [...m, { role: 'ava', text: introFor(hostRef.current) }]);
+    };
+    window.addEventListener('ava:introduce', run);
+    run();
+    return () => window.removeEventListener('ava:introduce', run);
+  }, []);
 
   const toggleConversation = (on: boolean) => {
     setConversation(on);

@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-d6a7af09",
+  "version": "2026-11-11-1e3b795e",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -354,6 +354,18 @@
       "kind": "guide"
     },
     {
+      "id": "guide-ava",
+      "title": "AVA — Your Assistant on Every Screen",
+      "keywords": [
+        "AVA Assistant",
+        "help-center"
+      ],
+      "answer": "AVA is the assistant in the bottom-right corner of every screen: look for the round electric-blue AVA button (it pulses in the corner now). If you ever tuck her away, tap the blue AVA tab on the right edge to bring her back. Ask her how anything works, where a page is in the menu, or for your leads, follow-ups and counts, and she answers from the approved help and your live data. She can open pages, point at things and walk you through any menu category. You can type, tap the microphone, say \"Hey AVA\", or turn on spoken replies and talk with her. Key features: Ask how any screen works, or \"where is…?\", and AVA opens the page for you; Say \"walk me through the Outreach menu\" for a guided tour, item by item; Search leads, check follow-ups, get a daily briefing and see lead counts by stage, source or state; Find her in the bottom-right corner of every screen, and tap her any time you need help; AVA asks for your approval before she creates a follow-up or changes a lead, and only reports it done once it is saved; Search the menu with the box at the top of the left sidebar to find any page quickly. Tip: Start with \"What can you do?\" or \"Walk me through the menu\". AVA only sees what your role allows, and she never clicks or types for you.",
+      "source": "In-app guide: AVA Assistant",
+      "route": "/help-center",
+      "kind": "guide"
+    },
+    {
       "id": "guide-data-sync-admin",
       "title": "Data Sync & Quality — Keep Lead Data Current",
       "keywords": [
@@ -372,7 +384,7 @@
         "Lead Pipeline",
         "lead-management"
       ],
-      "answer": "Lead Management is where you spend most of your time. Browse, filter, enrich, and act on every lead. Leads tagged \"Inbound — Self-Qualified\" are warm homeowners who opted in via the TRAVLR estimate page — prioritize these above cold sync-sourced leads. Key features: \"Inbound — Self-Qualified\" tag = homeowner opted in via estimate landing page (warm lead); Full-text search across names, addresses, notes, and tags; Saved filter presets for instant recall of common views; Bulk SMS dispatch and sequence assignment; Inline enrichment panel: owner lookup (Stage 1) and contact enrichment (Stage 2). Tip: Filter by \"Inbound — Self-Qualified\" first — these leads already expressed interest and convert at a higher rate than cold outreach.",
+      "answer": "Lead Management is where you spend most of your time. Browse, filter, enrich, and act on every lead. Leads tagged \"Inbound — Self-Qualified\" are warm homeowners who opted in via the AVYRO AI estimate page — prioritize these above cold sync-sourced leads. Key features: \"Inbound — Self-Qualified\" tag = homeowner opted in via estimate landing page (warm lead); Full-text search across names, addresses, notes, and tags; Saved filter presets for instant recall of common views; Bulk SMS dispatch and sequence assignment; Inline enrichment panel: owner lookup (Stage 1) and contact enrichment (Stage 2). Tip: Filter by \"Inbound — Self-Qualified\" first — these leads already expressed interest and convert at a higher rate than cold outreach.",
       "source": "In-app guide: Lead Pipeline",
       "route": "/lead-management",
       "kind": "guide"
@@ -396,7 +408,7 @@
         "Dialer",
         "teleprompter"
       ],
-      "answer": "The Teleprompter is your live call companion. It auto-fills lead details into your script, surfaces objection responses in real time, and logs every call to the Activity Timeline automatically — no manual entry needed. Key features: One-tap call start from any lead record; script auto-fills with lead name, address, and property details; Live objection library: pre-built responses surface before falling back to AI generation; Call disposition capture: outcome logged and lead stage updated automatically on hang-up; Every call auto-logged to Activity Timeline (duration, outcome, timestamp, recording link); Post-call summary generated and saved without manual entry; Call recording consent disclosure and state-specific guidance appear before live transcription starts. Tip: Use the \"warm inbound\" script variant for \"Inbound — Self-Qualified\" leads — it opens by acknowledging they reached out, not re-introducing TRAVLR from scratch.",
+      "answer": "The Teleprompter is your live call companion. It auto-fills lead details into your script, surfaces objection responses in real time, and logs every call to the Activity Timeline automatically — no manual entry needed. Key features: One-tap call start from any lead record; script auto-fills with lead name, address, and property details; Live objection library: pre-built responses surface before falling back to AI generation; Call disposition capture: outcome logged and lead stage updated automatically on hang-up; Every call auto-logged to Activity Timeline (duration, outcome, timestamp, recording link); Post-call summary generated and saved without manual entry; Call recording consent disclosure and state-specific guidance appear before live transcription starts. Tip: Use the \"warm inbound\" script variant for \"Inbound — Self-Qualified\" leads — it opens by acknowledging they reached out, not re-introducing AVYRO AI from scratch.",
       "source": "In-app guide: Dialer",
       "route": "/teleprompter",
       "kind": "guide"
@@ -432,7 +444,7 @@
         "Documents",
         "lead-record"
       ],
-      "answer": "Trigger the DocuSign Partnership Agreement flow directly from any lead record. Once the homeowner signs, the system auto-logs the completion, updates the lead stage, and triggers your commission calculation. Key features: Send Partnership Agreement via DocuSign from the lead's detail view — one click; Signing status tracked in real time: sent → viewed → signed → completed; DocuSign completion = commission trigger (system-verifiable event); Embedded signing portal: homeowner can sign without leaving the TRAVLR flow; Void and resend available if the homeowner needs a corrected document. Tip: After sending a DocuSign, check the Activity Timeline on the lead record — signing events are logged there in real time so you know exactly when the homeowner opens and signs.",
+      "answer": "Trigger the DocuSign Partnership Agreement flow directly from any lead record. Once the homeowner signs, the system auto-logs the completion, updates the lead stage, and triggers your commission calculation. Key features: Send Partnership Agreement via DocuSign from the lead's detail view — one click; Signing status tracked in real time: sent → viewed → signed → completed; DocuSign completion = commission trigger (system-verifiable event); Embedded signing portal: homeowner can sign without leaving the AVYRO AI flow; Void and resend available if the homeowner needs a corrected document. Tip: After sending a DocuSign, check the Activity Timeline on the lead record — signing events are logged there in real time so you know exactly when the homeowner opens and signs.",
       "source": "In-app guide: Documents",
       "route": "/lead-record",
       "kind": "guide"
@@ -486,25 +498,13 @@
       "kind": "guide"
     },
     {
-      "id": "guide-ava",
-      "title": "AVA — Your Assistant on Every Screen",
-      "keywords": [
-        "AVA Assistant",
-        "help-center"
-      ],
-      "answer": "AVA is the assistant in the corner of every screen. Ask her how anything works, where a page is in the menu, or for your leads, follow-ups and counts, and she answers from the approved help and your live data. She can open pages, point at things and walk you through any menu category. You can type, tap the microphone, say \"Hey AVA\", or turn on spoken replies and talk with her. Key features: Ask how any screen works, or \"where is…?\", and AVA opens the page for you; Say \"walk me through the Outreach menu\" for a guided tour, item by item; Search leads, check follow-ups, get a daily briefing and see lead counts by stage, source or state; AVA asks for your approval before she creates a follow-up or changes a lead, and only reports it done once it is saved; Search the menu with the box at the top of the left sidebar to find any page quickly. Tip: Start with \"What can you do?\" or \"Walk me through the menu\". AVA only sees what your role allows, and she never clicks or types for you.",
-      "source": "In-app guide: AVA Assistant",
-      "route": "/help-center",
-      "kind": "guide"
-    },
-    {
       "id": "guide-help-center",
       "title": "Q&A / Help Center — Your Ongoing Support Resource",
       "keywords": [
         "Help Center",
         "help-center"
       ],
-      "answer": "The Help Center is your go-to after this tour. Ask questions about your own leads, stats, and how any module works — the AI assistant answers from your actual dashboard data and TRAVLR's internal documentation, not from guesses. Key features: AI assistant answers from your dashboard data and TRAVLR's how-to documentation; Ask about your own leads, stats, commission status, or any module's features; Compliance or legal questions route to a human admin — AI will not guess on those; Search TRAVLR's internal documentation for step-by-step module guides; This is your primary support resource after completing this tour. Tip: After this tour, the Help Center is your first stop for any question. The AI assistant has context about your specific leads and stats — ask it directly rather than searching generic docs.",
+      "answer": "The Help Center is your go-to after this tour. Ask questions about your own leads, stats, and how any module works — the AI assistant answers from your actual dashboard data and AVYRO AI's internal documentation, not from guesses. Key features: AI assistant answers from your dashboard data and AVYRO AI's how-to documentation; Ask about your own leads, stats, commission status, or any module's features; Compliance or legal questions route to a human admin — AI will not guess on those; Search AVYRO AI's internal documentation for step-by-step module guides; This is your primary support resource after completing this tour. Tip: After this tour, the Help Center is your first stop for any question. The AI assistant has context about your specific leads and stats — ask it directly rather than searching generic docs.",
       "source": "In-app guide: Help Center",
       "route": "/help-center",
       "kind": "guide"
@@ -811,6 +811,50 @@
       ],
       "answer": "Yes. Ask for counts by pipeline stage, listing source, state, contact status (verified, with a phone number), skip-trace result, or for sale versus for rent. Admins and owners get totals for the whole organization; agents get counts for their own leads. The numbers come straight from the lead database when you ask, and I'll say when they were taken.",
       "source": "AVA assistant",
+      "kind": "guide"
+    },
+    {
+      "id": "ava-about",
+      "title": "Who is AVA, what is she like, and what is her favorite color?",
+      "keywords": [
+        "who are you",
+        "who is ava",
+        "about ava",
+        "favorite color",
+        "favourite",
+        "personality",
+        "what are you like",
+        "are you human",
+        "are you real",
+        "your name",
+        "fun fact",
+        "hobby",
+        "are you an ai"
+      ],
+      "answer": "I'm AVA, the AVYRO assistant. I'm an AI, not a person, but I do have a personality: upbeat, warm and a little playful, and always happy to help. My favorite color is electric blue, which is why I glow that color, my favorite page is the Pipeline Board because I love watching leads move across it, and my favorite moment is when a team gets unstuck.",
+      "source": "AVA assistant",
+      "kind": "guide"
+    },
+    {
+      "id": "ava-where",
+      "title": "Where do I find AVA, and how do I bring her back if I hide her?",
+      "keywords": [
+        "where is ava",
+        "find ava",
+        "ava button",
+        "launcher",
+        "corner",
+        "hide ava",
+        "bring back",
+        "edge tab",
+        "open ava",
+        "can't find ava",
+        "cannot find ava",
+        "missing"
+      ],
+      "answer": "AVA is the round electric-blue button in the bottom-right corner of every screen for admins, owners and agents. Tap it to open her. If you tucked her away with Hide, tap the blue AVA tab on the right edge of the screen to bring her back, or say \"Hey AVA\" once your microphone is allowed. You can drag her to a different spot, and Focus mode keeps her out of the way until you need her.",
+      "source": "AVA assistant",
+      "route": "/",
       "kind": "guide"
     },
     {

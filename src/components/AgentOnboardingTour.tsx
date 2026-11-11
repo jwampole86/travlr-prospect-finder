@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, List, Phone, CheckCircle2, ChevronRight, ChevronLeft, ArrowRight, Loader2, X, Star, PhoneCall, FileText, CheckSquare, Zap, Home, Clock } from 'lucide-react';
+import AvaFindMe, { requestAvaIntroduction } from '@/components/AvaFindMe';
+import { LayoutDashboard, List, Phone, CheckCircle2, ChevronRight, ChevronLeft, ArrowRight, Loader2, X, Star, PhoneCall, FileText, CheckSquare, Zap, Home, Clock, Sparkles } from 'lucide-react';
 
 // ─── Tour Step Definitions ────────────────────────────────────────────────────
 
@@ -22,11 +23,11 @@ interface AgentTourStep {
 const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'welcome',
-    title: 'Welcome to TRAVLR',
+    title: 'Welcome to AVYRO AI',
     subtitle: 'Your Homeowner Outreach Workspace',
     icon: Home,
     iconColor: 'text-blue-500',
-    content: 'Your workspace is designed to help you quickly work the warm homeowner leads assigned to you. You\'ll use TRAVLR to review your assigned leads, prepare for calls, follow the guided call script, record outcomes, leave notes, and manage your follow-ups.',
+    content: 'Your workspace is designed to help you quickly work the warm homeowner leads assigned to you. You\'ll use AVYRO AI to review your assigned leads, prepare for calls, follow the guided call script, record outcomes, leave notes, and manage your follow-ups.',
     highlights: [
       'Work assigned homeowner leads efficiently',
       'Use the guided call teleprompter during conversations',
@@ -36,12 +37,27 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
     tip: 'Your workspace is intentionally focused — everything here is designed for homeowner outreach.',
   },
   {
+    id: 'ava',
+    title: 'Meet AVA, Your Assistant',
+    subtitle: 'Step 2 of 10 — Help on Every Screen',
+    icon: Sparkles,
+    iconColor: 'text-primary',
+    content: 'AVA is the assistant in the bottom-right corner of every screen: look for the round electric-blue AVA button, which is pulsing in the corner right now. Tap her whenever you are stuck. Ask how something works, ask where a page is and she opens it, or have her walk you through the menu. She can also find your leads and follow-ups, and you can talk with her out loud. If you ever tuck her away, tap the blue AVA tab on the right edge to bring her back.',
+    highlights: [
+      'Find her in the bottom-right corner of every screen',
+      'Ask "where is…?" and she opens the page for you',
+      'Say "walk me through the menu" for a guided tour',
+      'Find your leads and follow-ups, with your approval before anything changes',
+    ],
+    tip: 'Try "What can you do?" when the tour ends. AVA will say hello then.',
+  },
+  {
     id: 'dashboard',
     title: 'Your Agent Dashboard',
-    subtitle: 'Step 2 of 9 — Your Personal Workspace',
+    subtitle: 'Step 3 of 10 — Your Personal Workspace',
     icon: LayoutDashboard,
     iconColor: 'text-blue-500',
-    content: 'This is your personal TRAVLR workspace. It shows the leads assigned to you, the leads that need attention, upcoming follow-ups, and your recent activity. Everything here is scoped to your assigned leads only.',
+    content: 'This is your personal AVYRO AI workspace. It shows the leads assigned to you, the leads that need attention, upcoming follow-ups, and your recent activity. Everything here is scoped to your assigned leads only.',
     highlights: [
       'Assigned Leads — total leads in your queue',
       'Priority Leads — highest-value opportunities to work first',
@@ -54,10 +70,10 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'my-leads',
     title: 'My Leads Queue',
-    subtitle: 'Step 3 of 9 — Your Assigned Opportunities',
+    subtitle: 'Step 4 of 10 — Your Assigned Opportunities',
     icon: List,
     iconColor: 'text-violet-500',
-    content: 'These are homeowner opportunities assigned to you by the TRAVLR team. Focus on the leads in your queue and work them according to priority. Your queue is automatically sorted to surface the most important leads first.',
+    content: 'These are homeowner opportunities assigned to you by the AVYRO AI team. Focus on the leads in your queue and work them according to priority. Your queue is automatically sorted to surface the most important leads first.',
     highlights: [
       'Priority leads appear at the top of your queue',
       'Luxury properties are flagged for special handling',
@@ -69,14 +85,14 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'lead-indicators',
     title: 'Lead Priority Indicators',
-    subtitle: 'Step 4 of 9 — Understanding Lead Badges',
+    subtitle: 'Step 5 of 10 — Understanding Lead Badges',
     icon: Star,
     iconColor: 'text-amber-500',
     content: 'Each lead has indicators that tell you what you need to know before making contact. Understanding these badges helps you prioritize your outreach effectively.',
     highlights: [
       'PRIORITY — This lead has been flagged as a high-value opportunity. Work it first.',
       'LUXURY — The property qualifies as a luxury STR opportunity. Use the premium approach.',
-      'FULLY VERIFIED — Owner, address, and phone have all passed TRAVLR\'s verification workflow.',
+      'FULLY VERIFIED — Owner, address, and phone have all passed AVYRO AI\'s verification workflow.',
       'PHONE AVAILABLE — A usable phone number is available for this lead.',
       'DO NOT CONTACT — This lead must not be contacted. Respect this flag at all times.',
     ],
@@ -85,7 +101,7 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'lead-profile',
     title: 'Lead Profile',
-    subtitle: 'Step 5 of 9 — Reviewing a Lead Before You Call',
+    subtitle: 'Step 6 of 10 — Reviewing a Lead Before You Call',
     icon: FileText,
     iconColor: 'text-emerald-500',
     content: 'Before calling, review the lead profile to understand the homeowner and property. This gives you the context you need for a confident, informed conversation.',
@@ -101,16 +117,16 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'call-workspace',
     title: 'Call Workspace & Teleprompter',
-    subtitle: 'Step 6 of 9 — Your Most Important Tool',
+    subtitle: 'Step 7 of 10 — Your Most Important Tool',
     icon: PhoneCall,
     iconColor: 'text-emerald-500',
-    content: 'When you\'re ready to contact a homeowner, open the Call Workspace. TRAVLR will give you the information and guided script you need for the conversation. The teleprompter guides you through the conversation while keeping the property and homeowner information visible.',
+    content: 'When you\'re ready to contact a homeowner, open the Call Workspace. AVYRO AI will give you the information and guided script you need for the conversation. The teleprompter guides you through the conversation while keeping the property and homeowner information visible.',
     highlights: [
       'INTRODUCTION — Open the conversation naturally',
       'REASON FOR CALL — Explain the STR opportunity',
       'PROPERTY / OPPORTUNITY — Present the revenue potential',
       'DISCOVERY — Learn about their situation',
-      'VALUE PROPOSITION — Explain TRAVLR\'s management approach',
+      'VALUE PROPOSITION — Explain AVYRO AI\'s management approach',
       'OBJECTION HANDLING — Prepared responses for common concerns',
       'NEXT STEP / CLOSE — Schedule the follow-up or appointment',
     ],
@@ -119,10 +135,10 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'call-outcomes',
     title: 'Recording Call Outcomes',
-    subtitle: 'Step 7 of 9 — After Every Call',
+    subtitle: 'Step 8 of 10 — After Every Call',
     icon: CheckSquare,
     iconColor: 'text-blue-500',
-    content: 'After every call, you must record an outcome. This keeps the TRAVLR team informed and ensures leads are followed up correctly. Always add notes with useful context for the next conversation.',
+    content: 'After every call, you must record an outcome. This keeps the AVYRO AI team informed and ensures leads are followed up correctly. Always add notes with useful context for the next conversation.',
     highlights: [
       'No Answer — left no message',
       'Voicemail — left a voicemail message',
@@ -138,10 +154,10 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'time-clock',
     title: 'Clocking In & Tracking Breaks',
-    subtitle: 'Step 8 of 9 — Track Your Shift',
+    subtitle: 'Step 9 of 10 — Track Your Shift',
     icon: Clock,
     iconColor: 'text-primary',
-    content: 'TRAVLR tracks your work shift with a simple Clock In / Clock Out system. A live timer appears in the top bar next to your profile menu the moment you clock in, so you always know how long you\'ve been working.',
+    content: 'AVYRO AI tracks your work shift with a simple Clock In / Clock Out system. A live timer appears in the top bar next to your profile menu the moment you clock in, so you always know how long you\'ve been working.',
     highlights: [
       'Clock In from the top bar or the Time Clock page as soon as you start your shift',
       'Start Break / End Break pauses the visible timer without ending your shift',
@@ -154,7 +170,7 @@ const AGENT_TOUR_STEPS: AgentTourStep[] = [
   {
     id: 'complete',
     title: "You're Ready to Start",
-    subtitle: 'Step 9 of 9 — Your Daily Workflow',
+    subtitle: 'Step 10 of 10 — Your Daily Workflow',
     icon: CheckCircle2,
     iconColor: 'text-emerald-500',
     content: 'You now know everything you need to work your assigned leads effectively. Follow this workflow for every lead in your queue.',
@@ -241,12 +257,14 @@ export default function AgentOnboardingTour({ onComplete, forceShow = false }: A
 
     setVisible(false);
     setCompleting(false);
+    requestAvaIntroduction();
     onComplete?.();
     router.push('/agent-workspace');
   }, [session, onComplete, router]);
 
   const handleSkip = useCallback(() => {
     setVisible(false);
+    requestAvaIntroduction();
     onComplete?.();
   }, [onComplete]);
 
@@ -261,6 +279,7 @@ export default function AgentOnboardingTour({ onComplete, forceShow = false }: A
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      {step.id === 'ava' && <AvaFindMe />}
       <div className="bg-card border border-border rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden">
 
         {/* Progress bar */}
