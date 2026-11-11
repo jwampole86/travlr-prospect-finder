@@ -671,7 +671,7 @@
         "stays lead",
         "permission needed"
       ],
-      "answer": "An owner who fills in the For Owners or Contact form is saved as a NAVEO Stays lead first, so nothing is lost if AVYRO is down, then sent to AVYRO as a rental lead with an open opportunity routed to short-term-rental management, never a sale. A repeat of the same submission returns the same lead. No consent is recorded, so the lead stays at needs permission until a person records it. An owner who was referred by an existing owner did not ask for anything: AVYRO records them as Referred, Permission Needed with email opt-in off and a weak signal, and nobody contacts them until permission is recorded. The Stays forms only ask for a city or area, so a person has to find out the exact location later.",
+      "answer": "An owner who fills in the For Owners or Contact form is saved as a NAVEO Stays lead first, so nothing is lost if AVYRO is down, then sent to AVYRO as a rental lead with an open opportunity routed to short-term-rental management, never a sale. A repeat of the same submission returns the same lead. No consent is logged unless the owner ticked the follow-up box, as on the Earn While You Sell form, which also sends homeowners here; otherwise the lead stays at needs permission until a person adds it. An owner who was referred by an existing owner did not ask for anything: AVYRO records them as Referred, Permission Needed with email opt-in off and a weak signal, and nobody contacts them until permission is recorded. The Stays forms only ask for a city or area, so a person has to find out the exact location later.",
       "source": "NAVEO sites and AVYRO",
       "kind": "guide"
     },

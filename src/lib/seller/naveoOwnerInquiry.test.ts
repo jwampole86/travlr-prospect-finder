@@ -22,6 +22,15 @@ describe('parseOwnerInquiry', () => {
     expect(ownerInquiryIntent(r.value)).toMatchObject({ level: 'possible', score: 35, keepsRental: true });
   });
 
+  it('records follow-up consent only when ticked, and never for a referred owner', () => {
+    const yes = parseOwnerInquiry({ email: 'a@b.co', follow_up_consent: true });
+    const referred = parseOwnerInquiry({ email: 'a@b.co', follow_up_consent: true, referred: true });
+    const no = parseOwnerInquiry({ email: 'a@b.co' });
+    expect(yes.ok && yes.value.followUpConsent).toBe(true);
+    expect(referred.ok && referred.value.followUpConsent).toBe(false);
+    expect(no.ok && no.value.followUpConsent).toBe(false);
+  });
+
   it('keeps the rental and never reads as a sale', () => {
     const r = parseOwnerInquiry({ email: 'a@b.co', phone: '555', current_setup: 'Self-managing' });
     if (!r.ok) throw new Error('expected ok');

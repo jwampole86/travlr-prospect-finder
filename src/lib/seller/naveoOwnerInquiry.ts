@@ -14,6 +14,8 @@ export type NaveoOwnerInquiry = {
   referralCode: string | null;
   /** True when someone else gave us this owner's details, so the owner has not asked for anything or agreed to be contacted. */
   referred: boolean;
+  /** The owner ticked the box agreeing to follow-up about temporary rental options. Never true for a referred owner. */
+  followUpConsent: boolean;
 };
 
 const text = (v: unknown, max: number): string | null => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
@@ -40,6 +42,7 @@ export function parseOwnerInquiry(body: unknown): { ok: true; value: NaveoOwnerI
       source: text(b.source, 80),
       referralCode: text(b.referral_code, 40),
       referred: b.referred === true,
+      followUpConsent: b.referred !== true && b.follow_up_consent === true,
     },
   };
 }

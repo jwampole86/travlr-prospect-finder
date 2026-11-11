@@ -3,12 +3,13 @@ import { naveoSellerAccess } from '@/lib/seller/naveoAccess';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { ownerInquiryIntent, parseOwnerInquiry } from '@/lib/seller/naveoOwnerInquiry';
 import { recordSellerSignal } from '@/lib/seller/sellerPipeline';
+import { recordConsent } from '@/lib/seller/consentLedger';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST: NAVEO Stays sends a property owner's request for a rental-management analysis. It becomes one AVYRO lead and one open opportunity routed to
- * short-term-rental management, never a sale. A referred owner (`referred: true`) did not ask for anything, so that lead is not opted in to contact. No consent is recorded and nothing is sent to the owner. A repeated submission id returns the same lead.
+ * short-term-rental management, never a sale. A referred owner (`referred: true`) did not ask for anything, so that lead is not opted in to contact. Consent is recorded only when the owner ticked the follow-up box (`follow_up_consent`); nothing is sent to the owner. A repeated submission id returns the same lead.
  * Called with the shared key in `x-naveo-key`.
  */
 export async function POST(req: NextRequest) {
@@ -49,6 +50,14 @@ export async function POST(req: NextRequest) {
     }).select('id').single();
     if (error || !data) return NextResponse.json({ error: 'could_not_create_lead' }, { status: 500 });
     leadId = data.id as string;
+  }
+
+  if (inq.followUpConsent) {
+    await recordConsent(db, {
+      leadId, purpose: 'estimate_followup', granted: true, source: 'naveo_stays_owner_form',
+      evidence: `Ticked the follow-up box on the NAVEO Stays form${inq.source ? ` (${inq.source})` : ''}`,
+      email: inq.email, recordedBy: access.userId, organizationId: access.organizationId,
+    }).catch(() => undefined);
   }
 
   const result = await recordSellerSignal(db, {

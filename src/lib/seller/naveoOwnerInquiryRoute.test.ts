@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const inserted: Record<string, unknown>[] = [];
 const recordSellerSignal = vi.fn();
+const recordConsent = vi.fn().mockResolvedValue(undefined);
 
+vi.mock('@/lib/seller/consentLedger', () => ({ recordConsent: (...a: unknown[]) => recordConsent(...a) }));
 vi.mock('@/lib/seller/naveoAccess', () => ({ naveoSellerAccess: () => ({ userId: 'u1', organizationId: 'org1' }) }));
 vi.mock('@/lib/seller/sellerPipeline', () => ({ recordSellerSignal: (...a: unknown[]) => recordSellerSignal(...a) }));
 vi.mock('@/lib/supabaseAdmin', () => ({
@@ -20,7 +22,7 @@ import { POST } from '@/app/api/integration/naveo/owner-inquiries/route';
 const call = (body: unknown) => POST({ method: 'POST', nextUrl: { pathname: '/api/integration/naveo/owner-inquiries' }, headers: new Headers({ 'x-naveo-key': 'k' }), json: async () => body } as never);
 
 describe('owner inquiry intake', () => {
-  beforeEach(() => { inserted.length = 0; recordSellerSignal.mockReset().mockResolvedValue({ opportunity: { id: 'opp-1' }, created: true }); });
+  beforeEach(() => { inserted.length = 0; recordConsent.mockClear(); recordSellerSignal.mockReset().mockResolvedValue({ opportunity: { id: 'opp-1' }, created: true }); });
 
   it('opts an owner in only when they asked for the analysis themselves', async () => {
     await call({ email: 'a@b.co', property_location: 'Las Vegas, NV' });
@@ -34,5 +36,15 @@ describe('owner inquiry intake', () => {
     expect(inserted[0].email_opt_in_at).toBeUndefined();
     expect(inserted[0].owner_email).toBeNull();
     expect(recordSellerSignal.mock.calls[0][1].intent.level).toBe('possible');
+  });
+
+  it('records consent only when the owner ticked the box, and never for a referred owner', async () => {
+    await call({ email: 'a@b.co' });
+    expect(recordConsent).not.toHaveBeenCalled();
+    await call({ email: 'a@b.co', follow_up_consent: true });
+    expect(recordConsent).toHaveBeenCalledTimes(1);
+    expect(recordConsent.mock.calls[0][1]).toMatchObject({ purpose: 'estimate_followup', granted: true, email: 'a@b.co' });
+    await call({ email: 'c@d.co', referred: true, follow_up_consent: true });
+    expect(recordConsent).toHaveBeenCalledTimes(1);
   });
 });
