@@ -89,10 +89,10 @@ export async function POST(req: NextRequest) {
     const { error: emailError } = await getResendClient().emails.send({
       from: getSystemFrom(),
       to: invite.email,
-      subject: `You're invited to join TRAVLR Pro`,
+      subject: `You're invited to join AVYRO AI`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 24px; background: #ffffff;">
-          <h1 style="font-size: 24px; font-weight: 700; color: #111827; margin: 0 0 8px;">Welcome to TRAVLR Pro, ${invite.first_name}!</h1>
+          <h1 style="font-size: 24px; font-weight: 700; color: #111827; margin: 0 0 8px;">Welcome to AVYRO AI, ${invite.first_name}!</h1>
           <p style="color: #6b7280; font-size: 15px; margin: 0 0 20px; line-height: 1.6;">
             You've been invited to join the workspace as <strong>${roleLabel}</strong>.
           </p>

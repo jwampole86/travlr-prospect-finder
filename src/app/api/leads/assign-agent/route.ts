@@ -391,11 +391,11 @@ export async function POST(req: NextRequest) {
               <div style="text-align: center; margin-bottom: 24px;">
                 <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new'}/lead-management?assignmentStatus=assigned&ownerAgentId=${targetUserId}"
                    style="display: inline-block; background: #1e40af; color: white; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-size: 14px; font-weight: 600; letter-spacing: 0.01em;">
-                  View My Leads in TRAVLR →
+                  View My Leads in AVYRO AI →
                 </a>
               </div>
               <p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 0;">
-                TRAVLR Pro · Lead Management Platform · You are receiving this because a lead was assigned to you.
+                AVYRO AI · Lead Management Platform · You are receiving this because a lead was assigned to you.
               </p>
             </div>
           `,

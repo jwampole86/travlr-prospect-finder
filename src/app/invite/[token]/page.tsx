@@ -174,7 +174,7 @@ export default function InviteSetupPage() {
             </div>
             <h1 className="text-lg font-bold text-foreground mb-2">Account Created!</h1>
             <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-              Welcome to TRAVLR Pro, {invite?.first_name}. You're being redirected to the platform now — your onboarding tour will start automatically.
+              Welcome to AVYRO AI, {invite?.first_name}. You're being redirected to the platform now — your onboarding tour will start automatically.
             </p>
             <div className="flex items-center justify-center gap-2 text-xs text-primary">
               <Loader2 className="w-3 h-3 animate-spin" />
@@ -190,7 +190,7 @@ export default function InviteSetupPage() {
             <div className="px-6 pt-6 pb-5 border-b border-border">
               <h1 className="text-xl font-bold text-foreground mb-1">Set Up Your Account</h1>
               <p className="text-sm text-muted-foreground">
-                You've been invited to join TRAVLR Pro as an Agent.
+                You've been invited to join AVYRO AI as an Agent.
               </p>
             </div>
 

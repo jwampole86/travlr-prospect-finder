@@ -22,14 +22,14 @@ export async function POST(req: NextRequest) {
     const { data, error } = await getResendClient().emails.send({
       from: getSystemFrom(),
       to: email,
-      subject: `You've been invited to TRAVLR Pro as ${roleLabel}`,
+      subject: `You've been invited to AVYRO AI as ${roleLabel}`,
       html: `
         <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; background: #ffffff;">
           <h2 style="font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 8px;">
-            Welcome to TRAVLR Pro${name ? `, ${name}` : ''}!
+            Welcome to AVYRO AI${name ? `, ${name}` : ''}!
           </h2>
           <p style="color: #6b7280; font-size: 14px; margin-bottom: 24px;">
-            You've been invited to join the TRAVLR Pro platform as a <strong>${roleLabel}</strong>.
+            You've been invited to join the AVYRO AI platform as a <strong>${roleLabel}</strong>.
             ${portfolioIds?.length > 0 ? `You've been assigned to ${portfolioIds.length} portfolio${portfolioIds.length > 1 ? 's' : ''}.` : ''}
           </p>
           <a href="${inviteLink}" style="display: inline-block; background: #2563eb; color: #ffffff; font-size: 14px; font-weight: 600; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-bottom: 24px;">
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
             This link expires in 24 hours. If you didn't expect this invite, you can safely ignore this email.
           </p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="color: #9ca3af; font-size: 11px;">TRAVLR Pro · Short-Term Rental Prospect Platform</p>
+          <p style="color: #9ca3af; font-size: 11px;">AVYRO AI · Short-Term Rental Prospect Platform</p>
         </div>
       `,
     });

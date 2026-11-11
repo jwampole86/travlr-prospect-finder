@@ -65,10 +65,16 @@ export default function WelcomePage() {
           <div className="min-w-0 text-center lg:text-left">
             <p className="text-xs font-bold tracking-[0.2em] text-primary uppercase mb-4">AVYRO AI</p>
             <h1 className="text-3xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">
-              Find More High-Value Homeowners.<br className="hidden sm:block" /> Turn Them Into Management Contracts.
+              The Operating System for<br className="hidden sm:block" /> Property Acquisition and Management.
             </h1>
             <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              AVYRO AI is the AI-powered growth and operations platform for vacation rental and property management companies — from prospecting and enrichment to outreach, automation, analytics, and hiring.
+              AVYRO AI helps you find high-value homeowners, match them to the right outcome (management, sale, or both), and run the workflows that follow, all in one system of record.
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground max-w-2xl mx-auto lg:mx-0">
+              Powers{' '}
+              <a href="https://naveohomes.com/" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">NAVEO Homes</a>
+              {' '}and{' '}
+              <a href="https://staynaveo.com/" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">NAVEO Stays</a>.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-center lg:justify-start gap-3">
               <Link href="/plans" className="px-6 py-3.5 min-h-[48px] text-center justify-center inline-flex items-center rounded-xl text-sm font-semibold bg-foreground text-background hover:opacity-90 transition-opacity">

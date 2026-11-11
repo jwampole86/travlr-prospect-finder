@@ -34,7 +34,7 @@ export async function notifyUser(db: Db, userId: string, n: UserNote, opts: { fo
     else if (!opts.force && p.email.toLowerCase() === team.email?.toLowerCase()) out.email = 'duplicate_of_team_alert';
     else {
       try {
-        const { error } = await getResendClient().emails.send({ from: getSystemFrom(), to: [p.email], subject: `TRAVLR: ${n.title}`, text: `${n.message}${n.url ? `\n\nOpen: ${n.url}` : ''}`, html: `<p><strong>${esc(n.title)}</strong></p><p>${esc(n.message)}</p>${n.url ? `<p><a href="${esc(n.url)}">Open it</a></p>` : ''}` });
+        const { error } = await getResendClient().emails.send({ from: getSystemFrom(), to: [p.email], subject: `AVYRO AI: ${n.title}`, text: `${n.message}${n.url ? `\n\nOpen: ${n.url}` : ''}`, html: `<p><strong>${esc(n.title)}</strong></p><p>${esc(n.message)}</p>${n.url ? `<p><a href="${esc(n.url)}">Open it</a></p>` : ''}` });
         out.email = error ? 'failed' : 'sent';
       } catch { out.email = 'failed'; }
     }

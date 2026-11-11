@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await getResendClient().emails.send({
       from: getSystemFrom(),
       to: recipientEmails as string[],
-      subject: `[TRAVLR] ${subjectLabel} — ${dateStr}`,
+      subject: `[AVYRO AI] ${subjectLabel} — ${dateStr}`,
       html: htmlBody,
       attachments: [
         {

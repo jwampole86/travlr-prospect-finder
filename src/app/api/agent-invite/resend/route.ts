@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const { error: emailError } = await getResendClient().emails.send({
       from: getSystemFrom(),
       to: invite.email,
-      subject: 'Your TRAVLR Pro invite has been refreshed',
+      subject: 'Your AVYRO AI invite has been refreshed',
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 24px; background: #ffffff;">
           <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 8px;">New invite link, ${invite.first_name}!</h1>
