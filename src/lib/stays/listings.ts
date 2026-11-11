@@ -53,3 +53,13 @@ export function publicSale(row: Record<string, unknown>) {
   const handover = typeof s.handover_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.handover_date) ? s.handover_date : null;
   return { for_sale: true, handover_date: handover };
 }
+
+/** What a go-live review needs to judge a staged home. Same field names the market launch rules already use. */
+export function stagedListing(row: StaysListingRow) {
+  const a = (row.attributes && typeof row.attributes === 'object' ? row.attributes : {}) as Record<string, unknown>;
+  return {
+    id: row.id, title: row.title, description: row.description, images: arr(row.images), amenities: arr(row.amenities),
+    price_per_night: num(row.price_per_night), bedrooms: num(row.bedrooms), max_guests: num(row.max_guests),
+    cancellation_policy: typeof a.cancellation_policy === 'string' ? a.cancellation_policy : null, property_type: row.property_type,
+  };
+}

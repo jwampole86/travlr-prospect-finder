@@ -25,7 +25,7 @@ describe('availabilityWindow', () => {
   });
 });
 
-import { listingIdFilter, publicSale } from './listings';
+import { listingIdFilter, publicSale, stagedListing } from './listings';
 import { performance } from './performance';
 import { bookingFailure, parseBlock, parseBooking, parseReview } from './bookings';
 
@@ -81,5 +81,14 @@ describe('performance', () => {
   it('clips nights to the window and counts revenue by check-in', () => {
     const out = performance([{ check_in: '2026-12-30', check_out: '2027-01-03', total: 400 }, { check_in: '2027-01-10', check_out: '2027-01-12', total: 200 }], '2027-01-01', '2027-01-11');
     expect(out).toMatchObject({ nights_booked: 3, window_nights: 10, occupancy_pct: 30, revenue: 200 });
+  });
+});
+
+describe('stagedListing', () => {
+  it('gives the launch review what it checks and nothing private', () => {
+    const out = stagedListing({ id: 's1', title: 'T', images: ['a'], attributes: { cancellation_policy: 'Flexible' }, private_details: { wifi: 'x' }, lead_id: 'l' });
+    expect(out).toMatchObject({ id: 's1', images: ['a'], cancellation_policy: 'Flexible' });
+    expect(out).not.toHaveProperty('private_details');
+    expect(out).not.toHaveProperty('lead_id');
   });
 });

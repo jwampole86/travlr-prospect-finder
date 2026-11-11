@@ -40,14 +40,20 @@
     { "q": "What does the Operate step of AVYRO cover?", "entry": "how-operate" },
     { "q": "How do I handle hiring and offer letters?", "entry": "guide-hiring-admin" },
     { "q": "Where can I see my own performance and commission status?", "entry": "guide-performance" },
-    { "q": "How do I run the onboarding wizard for my team?", "entry": "article-gs-4" }
+    { "q": "How do I run the onboarding wizard for my team?", "entry": "article-gs-4" },
+    { "q": "How do the three NAVEO sites work together?", "entry": "three-sites-overview" },
+    { "q": "Why do I get a 401 from the NAVEO key?", "entry": "naveo-integration-key" },
+    { "q": "What happens when a homeowner submits their property on naveohomes.com?", "entry": "homes-seller-intake" },
+    { "q": "How does NAVEO Stays prevent a double booking?", "entry": "stays-bookings" },
+    { "q": "Which homes can guests see on NAVEO Stays?", "entry": "stays-listings-gate" },
+    { "q": "What happens to a referred owner on NAVEO Stays?", "entry": "stays-owner-inquiries" }
   ],
   "unsupported": [
     "What is the weather in Denver today?",
     "How do I reset the dishwasher?",
     "Tell me a joke about robots",
     "What is the CEO's home address?",
-    "Can you book me a flight to Denver?",
+    "Can you buy me a plane ticket to Denver?",
     "What is the capital of France?",
     "How do I bake sourdough bread?",
     "What is the stock price of Apple?",

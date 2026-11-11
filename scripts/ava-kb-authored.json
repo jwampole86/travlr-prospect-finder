@@ -582,6 +582,169 @@
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
+    },
+    {
+      "id": "three-sites-overview",
+      "title": "How do avyropro.ai, naveohomes.com and staynaveo.com work together?",
+      "keywords": [
+        "three sites",
+        "avyropro",
+        "naveohomes",
+        "staynaveo",
+        "system of record",
+        "naveo homes",
+        "naveo stays",
+        "connected",
+        "integration"
+      ],
+      "answer": "AVYRO (avyropro.ai) is the intelligence layer and the system of record for leads, owners, partners, consents, referrals, fees, listings, prices, availability and bookings. NAVEO Homes (naveohomes.com) is the sales and referral front end: homeowners submit a sell form, staff work leads and assign licensed partner brokerages, and partners sign in to update referrals. NAVEO Stays (staynaveo.com) is the guest booking and owner front end: guests browse live homes and book, and owners ask for a rental-management analysis. Each site keeps only what it needs to run and calls AVYRO with one shared key. The brand name is always NAVEO Stays and NAVEO Homes, never AVYRO Stays or AVYRO Homes. Partner and referral data stays with NAVEO Homes, the internal intent score never appears on a public site, and nothing about fees or partner agreements goes to NAVEO Stays.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "naveo-integration-key",
+      "title": "How do the NAVEO sites connect to AVYRO, and why would they get a 401?",
+      "keywords": [
+        "integration key",
+        "naveo key",
+        "401",
+        "unauthorized",
+        "x-naveo-key",
+        "environment variables",
+        "naveo_integration_key",
+        "naveo_organization_id",
+        "naveo_actor_user_id",
+        "rotate"
+      ],
+      "answer": "Both NAVEO sites call AVYRO with one shared key sent as x-naveo-key. The key only works on an allowlist of routes (seller intake, owner inquiries, listings, bookings, calendar, reviews and the partner referral routes) and only inside one organization, acting as one dedicated AVYRO user. It cannot reach partner onboarding, agreements, revenue, state activation or backfills. AVYRO needs three settings: NAVEO_INTEGRATION_KEY (24 or more characters), NAVEO_ORGANIZATION_ID and NAVEO_ACTOR_USER_ID. If any is missing, or the key is wrong or short, every call returns 401. To rotate the key, set the same new value in AVYRO, NAVEO Homes and NAVEO Stays and redeploy each, then confirm a call returns 200. Never paste the key into chat or into browser code.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "homes-seller-intake",
+      "title": "What happens when a homeowner submits their property on naveohomes.com?",
+      "keywords": [
+        "naveohomes",
+        "homeowner submission",
+        "naveo homes seller",
+        "lead id",
+        "seller intake",
+        "dual path",
+        "intent score",
+        "repeat submission",
+        "sell only",
+        "sell + earn",
+        "rent while preparing",
+        "investor exit"
+      ],
+      "answer": "The submission creates one AVYRO lead and one open seller opportunity, and the lead id is the Lead ID on both sides; a retry with the same submission id never makes a second lead. Nothing is sent to the owner. If the follow-up box was ticked, AVYRO records that consent. The homeowner sees AVYRO's dual-path recommendation (Sell only, Sell + Earn, Rent while preparing, or Investor exit) with its reasons and cautions, and never sees the internal intent score, which is only for matching and prioritizing. A repeat submission for a property AVYRO already knows gets the on-site estimate instead of an AVYRO recommendation, so one submission never reveals what AVYRO holds about another record. On a repeat, the owner's contact name and phone overwrite the existing ones, so check before relying on the old contact.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "homes-listings-flag",
+      "title": "How does a property appear on the NAVEO Homes listings page?",
+      "keywords": [
+        "naveo homes listings",
+        "naveo_listed_at",
+        "listed",
+        "listing endpoint",
+        "photos",
+        "cleared photos",
+        "read-only listings"
+      ],
+      "answer": "A lead is shown on NAVEO Homes only after a person marks it listed (the naveo_listed_at field); clearing it removes the property at once. The read-only listings route returns property facts, a price and photos a person has cleared for publishing, and never owner contact details, notes or scores. It is limited to the key's own organization. Until a screen exists for the flag, it is set with a database update.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "stays-owner-inquiries",
+      "title": "What happens when an owner asks NAVEO Stays for a rental analysis or is referred?",
+      "keywords": [
+        "owner inquiry",
+        "list your home",
+        "free property analysis",
+        "owner referral",
+        "referred owner",
+        "str management",
+        "rental management",
+        "stays lead",
+        "permission needed"
+      ],
+      "answer": "An owner who fills in the For Owners or Contact form is saved as a NAVEO Stays lead first, so nothing is lost if AVYRO is down, then sent to AVYRO as a rental lead with an open opportunity routed to short-term-rental management, never a sale. A repeat of the same submission returns the same lead. No consent is recorded, so the lead stays at needs permission until a person records it. An owner who was referred by an existing owner did not ask for anything: AVYRO records them as Referred, Permission Needed with email opt-in off and a weak signal, and nobody contacts them until permission is recorded. The Stays forms only ask for a city or area, so a person has to find out the exact location later.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "stays-listings-gate",
+      "title": "Which homes can guests see and reserve on NAVEO Stays?",
+      "keywords": [
+        "naveo stays listings",
+        "listing status",
+        "quality approved",
+        "str eligibility",
+        "permit",
+        "zoning",
+        "hoa",
+        "for sale handover",
+        "draft listing",
+        "paused listing"
+      ],
+      "answer": "AVYRO owns each NAVEO Stays home: its details, photos, nightly price, cleaning fee, minimum nights, status and calendar. A home is shown and open to reservations only when its status is active, it is quality-approved and nothing recorded blocks short-term rental (a denied permit, zoning not cleared, or HOA not allowed). A draft, paused, blocked or maintenance home disappears from the site and cannot be reserved, and its page says it is no longer available. If a home is also for sale, the site shows that and its handover date, and a booking cannot end after the handover. Showing times are calendar holds, and the reasons for any hold are never shown to guests. Links using a home's old NAVEO Stays id still work.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "stays-bookings",
+      "title": "How does a NAVEO Stays booking work, and how are double bookings prevented?",
+      "keywords": [
+        "naveo stays booking",
+        "double booking",
+        "dates taken",
+        "stays availability",
+        "stays reservation",
+        "booking reference",
+        "nightly rate",
+        "cleaning fee"
+      ],
+      "answer": "When a guest books, NAVEO Stays checks the home and dates with AVYRO, then AVYRO works out the total from the listing (nights times the nightly rate plus the cleaning fee; there is no guest service fee) and creates the booking and its calendar block in one step under a lock, so two guests can never hold the same night. The database also refuses overlapping bookings as a backstop. Check-out day can be booked by the next guest. If those nights were just taken, the guest sees that the dates were just booked. NAVEO Stays keeps its own copy of the booking for confirmation emails and Rewards, and if saving that copy fails the AVYRO booking is cancelled so no nights stay held. A booking can be cancelled, which frees its dates, or completed; a cancelled booking cannot be reopened. Payment is arranged after booking.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "stays-holds-reviews-revenue",
+      "title": "How do owner calendar holds, guest reviews and revenue reporting work for NAVEO Stays?",
+      "keywords": [
+        "calendar hold",
+        "owner block",
+        "maintenance hold",
+        "guest review",
+        "stays rating",
+        "stays revenue",
+        "occupancy",
+        "performance",
+        "owner reporting"
+      ],
+      "answer": "Owners and staff can hold dates for owner use, maintenance or other reasons; a hold is refused if any of those nights is already booked, and only owner, maintenance and other holds can be removed that way. Showing holds are set by AVYRO staff. A guest review is tied to a booking reference, one review per booking, and updates the home's public rating and review count. Revenue and occupancy for a home over a date window are computed from AVYRO's own bookings: revenue counts a booking in the window its check-in falls in, and booked nights are clipped to the window. There is no owner portal or review form on NAVEO Stays yet, so these run through AVYRO's routes.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "go-live-checklist",
+      "title": "What are the first steps to prove the NAVEO Homes and NAVEO Stays loops with real data?",
+      "keywords": [
+        "go live",
+        "first partner",
+        "first booking",
+        "go-live checklist",
+        "prove the loops",
+        "real lead",
+        "real listing",
+        "30 days"
+      ],
+      "answer": "Prove two loops with real data before scaling. Homes: a real homeowner submits, the lead appears in AVYRO with its Lead ID, a licensed partner is assigned only after the owner authorizes the introduction, and the partner moves it to Contacted, with status history in AVYRO. Stays: a real home is imported or created in AVYRO, marked active and quality-approved with the correct price and photos, shows on staynaveo.com, its dates check against the calendar, and a booking is written back to AVYRO. Then sign one or two licensed partners in the strongest market, assign the first real leads the day the first partner signs, and watch assigned, contacted, listed, bookings and expected fees weekly. Add a second partner in a market only after the first reports reliably, and open a new market only with a signed partner and live Stays inventory.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
     }
   ]
 }
