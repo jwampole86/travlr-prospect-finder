@@ -5,6 +5,7 @@ import { Handshake, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { REFERRAL_STATUS_LABEL, canMoveTo, type ReferralStatus } from '@/lib/seller/partnerReferrals';
 import { withinProtection } from '@/lib/seller/partnerFees';
+import PartnerComms from '@/components/seller/PartnerComms';
 
 type Referral = { id: string; partner_id: string; status: ReferralStatus; sent_at: string; status_at: string; fee_percent: number | null; protection_ends_at: string | null; payee_name_snapshot: string | null; payment_method_snapshot: string | null; fee_status: string };
 type Match = { state: string | null; stateBlockers: string[]; suggestions: Array<{ id: string; name: string; score: number; reasons: string[] }>; rejected: Array<{ id: string; name: string; why: string[] }>; needsPartner: boolean };
@@ -79,6 +80,7 @@ export default function PartnerMatchPanel({ leadId }: { leadId: string }) {
               <button disabled={busy !== null} onClick={() => record('dead')} className="h-8 rounded-lg border border-border px-2.5 text-xs hover:bg-muted disabled:opacity-50">Dead</button>
             </div>
           )}
+          <PartnerComms referralId={referral.id} status={referral.status} />
           {referral.status === 'closed' && <p className="mt-2 text-xs text-muted-foreground">Fee: {referral.fee_status.replace('_', ' ')}. Record the commission and payment on the Referrals tab.</p>}
           {reopenable && <p className="mt-2 text-xs text-amber-800">Dead, but still inside the protection period. Record it on the Referrals tab if the owner lists or closes with this partner.</p>}
         </div>

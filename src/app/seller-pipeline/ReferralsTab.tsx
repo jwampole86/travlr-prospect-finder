@@ -7,6 +7,7 @@ import { REFERRAL_STATUSES, REFERRAL_STATUS_LABEL, canMoveTo, isFinal, scorePart
 import { FEE_STATUS_LABEL, estimateFee, isOverdue, ledger, withinProtection, type FeeStatus } from '@/lib/seller/partnerFees';
 import { Field, api, btnCls, inputCls, money, primaryBtnCls } from './ui';
 import type { Partner } from './PartnersTab';
+import PartnerComms from '@/components/seller/PartnerComms';
 
 type Referral = {
   id: string; partner_id: string; lead_id: string; property_label: string | null; status: ReferralStatus; sent_at: string; status_at: string;
@@ -218,6 +219,7 @@ function ReferralCard({ r, partnerName, history, onSaved }: { r: Referral; partn
       {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
       {r.protection_ends_at && <p className="mt-2 text-xs text-muted-foreground">{withinProtection(r.protection_ends_at) ? 'Protected' : 'Protection ended'} {new Date(r.protection_ends_at).toLocaleDateString()}{r.fee_percent != null ? ` · fee ${r.fee_percent}%` : ''}{r.payee_name_snapshot ? ` · payee ${r.payee_name_snapshot}` : ''}{r.payment_method_snapshot ? ` by ${r.payment_method_snapshot}` : ''}</p>}
       {reopenable && <p className="mt-1 text-xs text-amber-800">Marked dead, but still inside the protection period: if this owner lists or closes with the partner, the fee is still owed. You can record that above.</p>}
+      <PartnerComms referralId={r.id} status={r.status} />
       {r.status === 'closed' && <FeePanel r={r} onSaved={onSaved} />}
       {history.length > 1 && (
         <ol className="mt-3 border-l border-border pl-4 space-y-1 text-xs text-muted-foreground">

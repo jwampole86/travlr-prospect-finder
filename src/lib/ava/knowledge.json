@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-94dba03b",
+  "version": "2026-11-11-32d0c5e7",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -1091,6 +1091,27 @@
         "which broker"
       ],
       "answer": "On a lead's profile (admins and owners) the Partner broker panel, and on the Referrals tab, choose a lead whose owner has given permission and AVYRO suggests the best partners. A partner is only suggested if it is active, license verified, agreement and legal review done, licensed in the lead's state, not marked do not assign, not at its maximum open leads, not flagged as having stopped reporting, and covers the lead's market, property type and budget band where those are known. The rest are shown with the reason each was ruled out. The suggestions are ranked: a city match counts most, then a county match, a budget in the middle of their band, a good update rate, earlier closes, an exclusive territory and any manual boost. If no partner qualifies, the lead is shown as needing a partner, so recruit one for that state; the owner can still be offered the NAVEO Stays path meanwhile. The state must also be switched on in the States tab before a lead can be sent.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "partner-messages",
+      "title": "How do I email a partner broker about a lead, ask for a status or send the fee details?",
+      "keywords": [
+        "email partner",
+        "message partner",
+        "lead packet",
+        "status request",
+        "nudge",
+        "remind partner",
+        "fee details",
+        "lead reference",
+        "partner communication",
+        "contact broker",
+        "send lead to broker"
+      ],
+      "answer": "Once a lead has been sent to a partner (on the lead's Partner broker panel or the Referrals tab) there are three emails, each sent only when you press its button. Email lead packet sends the partner a lead reference, the property, the owner's name and phone as permitted, the agreed fee and protection period, and how to report. It is refused if the owner's permission to share is no longer recorded or the lead is marked do not contact. Ask for a status update asks the partner for a one-line status, and can only go out once every three days. Email fee details is available when the referral is closed: it reminds the partner of the fee, the payee and the days to pay, and asks for the commission received and its date. Partners reply with the lead reference in the subject, for example Lead AZ-2026-A1B2C3, Contacted. Replies go to your own email, and you record the status on the referral. Every email is logged with its status so you can see what was sent and whether it failed. Text messages to partners are not sent from AVYRO.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"

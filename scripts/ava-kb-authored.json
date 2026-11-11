@@ -536,6 +536,27 @@
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
+    },
+    {
+      "id": "partner-messages",
+      "title": "How do I email a partner broker about a lead, ask for a status or send the fee details?",
+      "keywords": [
+        "email partner",
+        "message partner",
+        "lead packet",
+        "status request",
+        "nudge",
+        "remind partner",
+        "fee details",
+        "lead reference",
+        "partner communication",
+        "contact broker",
+        "send lead to broker"
+      ],
+      "answer": "Once a lead has been sent to a partner (on the lead's Partner broker panel or the Referrals tab) there are three emails, each sent only when you press its button. Email lead packet sends the partner a lead reference, the property, the owner's name and phone as permitted, the agreed fee and protection period, and how to report. It is refused if the owner's permission to share is no longer recorded or the lead is marked do not contact. Ask for a status update asks the partner for a one-line status, and can only go out once every three days. Email fee details is available when the referral is closed: it reminds the partner of the fee, the payee and the days to pay, and asks for the commission received and its date. Partners reply with the lead reference in the subject, for example Lead AZ-2026-A1B2C3, Contacted. Replies go to your own email, and you record the status on the referral. Every email is logged with its status so you can see what was sent and whether it failed. Text messages to partners are not sent from AVYRO.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
     }
   ]
 }
