@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     leadId = existing.id as string;
     // Contact details come from the owner; property facts only fill gaps so a verified record is never overwritten.
     const patch: Record<string, unknown> = {
-      contact_name: lead.name, email: lead.email, ...(lead.phone ? { phone: lead.phone } : {}), contact_info_source: 'self_submitted', updated_at: now,
+      contact_name: lead.name, ...(lead.phone ? { contact_phone: lead.phone } : {}), contact_info_source: 'self_submitted', updated_at: now,
     };
     if (!existing.city && lead.city) patch.city = lead.city;
     if (!existing.state && lead.state) patch.state = lead.state;
@@ -42,13 +42,14 @@ export async function POST(req: NextRequest) {
     const { error } = await db.from('leads').update(patch).eq('id', leadId);
     if (error) return NextResponse.json({ error: 'could_not_update_lead' }, { status: 500 });
   } else {
+    const newId = `lead-naveo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const { data, error } = await db.from('leads').insert({
-      organization_id: access.organizationId,
+      id: newId, organization_id: access.organizationId, price_type: 'sale',
       address: lead.address, city: lead.city, state: lead.state, property_type: lead.propertyType, beds: lead.beds, baths: lead.baths,
-      contact_name: lead.name, email: lead.email, phone: lead.phone,
-      source: 'self_submitted', lead_source_type: 'self_submitted', lead_status_tag: 'Warm — Contact Confirmed', stage: 'nurturing', cadence_step: 0,
+      contact_name: lead.name, contact_phone: lead.phone,
+      source: 'Direct', lead_source_type: 'self_submitted', lead_status_tag: 'Warm — Contact Confirmed', stage: 'nurturing', cadence_step: 0,
       email_opt_in: true, email_opt_in_at: now, sms_opt_in: false, opt_in_source: 'naveo_sell_form', contact_info_source: 'self_submitted',
-      notes: `Submitted the NAVEO sell form${lead.submissionId ? ` (submission ${lead.submissionId})` : ''}.`, created_at: now, updated_at: now,
+      notes: `Submitted the NAVEO sell form${lead.submissionId ? ` (submission ${lead.submissionId})` : ''}. Email: ${lead.email}`, created_at: now, updated_at: now,
     }).select('id').single();
     if (error || !data) return NextResponse.json({ error: 'could_not_create_lead' }, { status: 500 });
     leadId = data.id as string;
