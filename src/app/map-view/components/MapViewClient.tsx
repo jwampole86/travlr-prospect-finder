@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Crosshair, KanbanSquare, List, MapPin, Moon, Satellite, Search, Sun, X } from 'lucide-react';
 import LeadDrawer from '@/app/pipeline/LeadDrawer';
 import { type Card, type StageKey, STAGE_HEX, STAGE_LABEL, STAGE_ORDER, money } from '@/app/pipeline/types';
-import { type BaseLayer, type ColorBy, type MapPoint, REG_HEX, scoreHex } from './types';
+import { type BaseLayer, type ColorBy, type MapPoint, REG_HEX, REG_LEGEND_CORE, scoreHex } from './types';
 
 const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false, loading: () => <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Loading map…</div> });
 const STATES = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
@@ -58,7 +58,7 @@ export default function MapViewClient({ points, total }: { points: MapPoint[]; t
     } catch (e) { toast.error(e instanceof Error ? e.message : 'The move failed.'); }
   }
 
-  const legend: Array<[string, string]> = colorBy === 'stage' ? STAGE_ORDER.filter(s => stageCounts.get(s)).map(s => [STAGE_LABEL[s], STAGE_HEX[s]]) : colorBy === 'score' ? [['Score 80+', scoreHex(90)], ['Score 60-79', scoreHex(70)], ['Under 60', scoreHex(10)]] : Object.entries(REG_HEX);
+  const legend: Array<[string, string]> = colorBy === 'stage' ? STAGE_ORDER.filter(s => stageCounts.get(s)).map(s => [STAGE_LABEL[s], STAGE_HEX[s]]) : colorBy === 'score' ? [['Score 80+', scoreHex(90)], ['Score 60-79', scoreHex(70)], ['Under 60', scoreHex(10)]] : [...REG_LEGEND_CORE, ...['Allowed with Requirements', 'Unknown'].filter(r => base1.some(p => p.regulation === r))].map(r => [r, REG_HEX[r]]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
