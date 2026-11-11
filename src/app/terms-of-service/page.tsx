@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
 
 const EFFECTIVE_DATE = 'August 18, 2026';
-const COMPANY = 'TRAVLR Inc.';
+const COMPANY = 'AVYRO AI Inc.';
 const CONTACT_EMAIL = 'legal@travlr.com';
 const SITE_URL = 'https://travlrpro3047.builtwithrocket.new';
 
@@ -21,7 +21,7 @@ const SECTIONS: Section[] = [
     title: '1. Acceptance of Terms',
     content: (
       <p>
-        By accessing or using the TRAVLR Prospect Finder platform (&quot;Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you are using the Service on behalf of an organization, you represent that you have authority to bind that organization to these Terms. If you do not agree, do not use the Service.
+        By accessing or using the AVYRO AI platform (&quot;Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you are using the Service on behalf of an organization, you represent that you have authority to bind that organization to these Terms. If you do not agree, do not use the Service.
       </p>
     ),
   },
@@ -30,7 +30,7 @@ const SECTIONS: Section[] = [
     title: '2. Description of Service',
     content: (
       <div className="space-y-3">
-        <p>TRAVLR Prospect Finder is a property management lead generation, outreach automation, and CRM platform designed for property managers, leasing agents, and real estate operators. The Service includes:</p>
+        <p>AVYRO AI is a property management lead generation, outreach automation, and CRM platform designed for property managers, leasing agents, and real estate operators. The Service includes:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-400 ml-2">
           <li>Lead sourcing, enrichment, and scoring</li>
           <li>SMS, email, and voice outreach via integrated third-party providers (Twilio, Resend)</li>
@@ -88,7 +88,7 @@ const SECTIONS: Section[] = [
           <li><strong className="text-gray-300">GDPR / CCPA</strong> — data subject rights, lawful basis for processing, and privacy notices</li>
           <li><strong className="text-gray-300">State Do-Not-Call registries</strong> — honoring opt-outs and DNC lists</li>
         </ul>
-        <p>TRAVLR provides compliance tooling as a convenience. We do not guarantee that use of these tools constitutes legal compliance. You should consult qualified legal counsel for compliance advice.</p>
+        <p>AVYRO AI provides compliance tooling as a convenience. We do not guarantee that use of these tools constitutes legal compliance. You should consult qualified legal counsel for compliance advice.</p>
       </div>
     ),
   },
@@ -212,7 +212,7 @@ export default function TermsOfServicePage() {
             Effective date: <span className="text-gray-300">{EFFECTIVE_DATE}</span> &nbsp;·&nbsp; {COMPANY}
           </p>
           <p className="text-gray-400 text-sm leading-relaxed pt-2">
-            Please read these Terms of Service carefully before using the TRAVLR Prospect Finder platform. These Terms constitute a legally binding agreement between you and {COMPANY}.
+            Please read these Terms of Service carefully before using the AVYRO AI platform. These Terms constitute a legally binding agreement between you and {COMPANY}.
           </p>
         </div>
 

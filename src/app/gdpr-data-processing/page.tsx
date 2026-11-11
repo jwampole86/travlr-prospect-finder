@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ChevronDown, ChevronUp, ArrowLeft, Globe, Lock, FileText, Users } from 'lucide-react';
 
 const EFFECTIVE_DATE = 'August 18, 2026';
-const COMPANY = 'TRAVLR Inc.';
+const COMPANY = 'AVYRO AI Inc.';
 const CONTACT_EMAIL = 'dpo@travlr.com';
 
 interface Section {
@@ -21,7 +21,7 @@ const SECTIONS: Section[] = [
     content: (
       <div className="space-y-3">
         <p>
-          This Data Processing Agreement (&quot;DPA&quot;) forms part of the agreement between {COMPANY} (&quot;Processor&quot;) and the customer (&quot;Controller&quot;) and governs the processing of personal data of data subjects in the European Economic Area (EEA), United Kingdom, and Switzerland in connection with the TRAVLR Prospect Finder Service.
+          This Data Processing Agreement (&quot;DPA&quot;) forms part of the agreement between {COMPANY} (&quot;Processor&quot;) and the customer (&quot;Controller&quot;) and governs the processing of personal data of data subjects in the European Economic Area (EEA), United Kingdom, and Switzerland in connection with the AVYRO AI Service.
         </p>
         <p>
           This DPA is intended to comply with the requirements of the EU General Data Protection Regulation (GDPR) (Regulation (EU) 2016/679), the UK GDPR, and the Swiss Federal Act on Data Protection (FADP).
@@ -38,8 +38,8 @@ const SECTIONS: Section[] = [
           { term: 'Personal Data', def: 'Any information relating to an identified or identifiable natural person (data subject).' },
           { term: 'Processing', def: 'Any operation performed on personal data, including collection, storage, use, disclosure, or deletion.' },
           { term: 'Controller', def: 'The customer who determines the purposes and means of processing personal data.' },
-          { term: 'Processor', def: 'TRAVLR Inc., which processes personal data on behalf of the Controller.' },
-          { term: 'Sub-processor', def: 'A third party engaged by TRAVLR to assist in processing personal data.' },
+          { term: 'Processor', def: 'AVYRO AI Inc., which processes personal data on behalf of the Controller.' },
+          { term: 'Sub-processor', def: 'A third party engaged by AVYRO AI to assist in processing personal data.' },
           { term: 'Data Subject', def: 'The natural person whose personal data is being processed.' },
           { term: 'SCCs', def: 'Standard Contractual Clauses approved by the European Commission for international data transfers.' },
         ].map(item => (
@@ -58,7 +58,7 @@ const SECTIONS: Section[] = [
       <div className="space-y-4">
         <div>
           <p className="font-semibold text-gray-300 mb-2 text-xs uppercase tracking-wide">Subject Matter</p>
-          <p className="text-gray-400 text-sm">Processing of personal data of property leads, homeowners, and platform users in connection with the TRAVLR Prospect Finder Service.</p>
+          <p className="text-gray-400 text-sm">Processing of personal data of property leads, homeowners, and platform users in connection with the AVYRO AI Service.</p>
         </div>
         <div>
           <p className="font-semibold text-gray-300 mb-2 text-xs uppercase tracking-wide">Duration</p>
@@ -100,8 +100,8 @@ const SECTIONS: Section[] = [
           <li>Provide data subjects with required privacy notices before collecting their data</li>
           <li>Respond to data subject requests (access, erasure, portability) within required timeframes</li>
           <li>Ensure personal data is accurate and kept up to date</li>
-          <li>Not instruct TRAVLR to process data in a manner that violates GDPR</li>
-          <li>Notify TRAVLR promptly of any data subject requests or regulatory inquiries</li>
+          <li>Not instruct AVYRO AI to process data in a manner that violates GDPR</li>
+          <li>Notify AVYRO AI promptly of any data subject requests or regulatory inquiries</li>
         </ul>
       </div>
     ),
@@ -111,7 +111,7 @@ const SECTIONS: Section[] = [
     title: '5. Processor Obligations',
     content: (
       <div className="space-y-3">
-        <p>As Processor, TRAVLR agrees to:</p>
+        <p>As Processor, AVYRO AI agrees to:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-400 ml-2">
           <li>Process personal data only on documented instructions from the Controller</li>
           <li>Ensure that authorized personnel are bound by confidentiality obligations</li>
@@ -129,7 +129,7 @@ const SECTIONS: Section[] = [
     title: '6. Sub-processors',
     content: (
       <div className="space-y-3">
-        <p>TRAVLR uses the following sub-processors to deliver the Service. By using the Service, you authorize engagement of these sub-processors:</p>
+        <p>AVYRO AI uses the following sub-processors to deliver the Service. By using the Service, you authorize engagement of these sub-processors:</p>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -160,7 +160,7 @@ const SECTIONS: Section[] = [
           </table>
         </div>
         <p className="text-xs text-gray-500">
-          TRAVLR will notify Controllers of any intended changes to sub-processors with at least 30 days&apos; notice, providing an opportunity to object.
+          AVYRO AI will notify Controllers of any intended changes to sub-processors with at least 30 days&apos; notice, providing an opportunity to object.
         </p>
       </div>
     ),
@@ -171,7 +171,7 @@ const SECTIONS: Section[] = [
     content: (
       <div className="space-y-3">
         <p>
-          Personal data processed under this DPA may be transferred to and processed in the United States and other countries outside the EEA. TRAVLR relies on the following transfer mechanisms:
+          Personal data processed under this DPA may be transferred to and processed in the United States and other countries outside the EEA. AVYRO AI relies on the following transfer mechanisms:
         </p>
         <ul className="list-disc list-inside space-y-1 text-gray-400 ml-2">
           <li><strong className="text-gray-300">Standard Contractual Clauses (SCCs)</strong> — EU Commission Decision 2021/914 for Controller-to-Processor transfers</li>
@@ -187,7 +187,7 @@ const SECTIONS: Section[] = [
     title: '8. Technical and Organizational Security Measures',
     content: (
       <div className="space-y-3">
-        <p>TRAVLR implements the following security measures (Article 32 GDPR):</p>
+        <p>AVYRO AI implements the following security measures (Article 32 GDPR):</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
           {[
             { icon: Lock, label: 'Encryption', desc: 'TLS 1.3 in transit; AES-256 at rest' },
@@ -212,7 +212,7 @@ const SECTIONS: Section[] = [
     title: '9. Data Subject Rights Assistance',
     content: (
       <div className="space-y-3">
-        <p>TRAVLR will assist the Controller in fulfilling data subject rights requests under GDPR Articles 15–22:</p>
+        <p>AVYRO AI will assist the Controller in fulfilling data subject rights requests under GDPR Articles 15–22:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-400 ml-2">
           <li><strong className="text-gray-300">Art. 15</strong> — Right of access: export lead and user data on request</li>
           <li><strong className="text-gray-300">Art. 16</strong> — Right to rectification: update inaccurate data</li>
@@ -230,7 +230,7 @@ const SECTIONS: Section[] = [
     title: '10. Personal Data Breach Notification',
     content: (
       <div className="space-y-3">
-        <p>In the event of a personal data breach, TRAVLR will:</p>
+        <p>In the event of a personal data breach, AVYRO AI will:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-400 ml-2">
           <li>Notify the Controller without undue delay and within 72 hours of becoming aware</li>
           <li>Provide information about the nature of the breach, categories and approximate number of data subjects affected, and likely consequences</li>
@@ -256,7 +256,7 @@ const SECTIONS: Section[] = [
     title: '12. Termination and Data Deletion',
     content: (
       <p>
-        Upon termination of the Service agreement, TRAVLR will, at the Controller&apos;s choice, delete or return all personal data and delete existing copies within 90 days, unless applicable law requires retention. A written certification of deletion is available upon request.
+        Upon termination of the Service agreement, AVYRO AI will, at the Controller&apos;s choice, delete or return all personal data and delete existing copies within 90 days, unless applicable law requires retention. A written certification of deletion is available upon request.
       </p>
     ),
   },
@@ -299,7 +299,7 @@ export default function GDPRDataProcessingPage() {
             Effective date: <span className="text-gray-300">{EFFECTIVE_DATE}</span> &nbsp;·&nbsp; {COMPANY}
           </p>
           <p className="text-gray-400 text-sm leading-relaxed pt-2">
-            This Data Processing Agreement (DPA) governs how TRAVLR processes personal data on your behalf in compliance with the EU General Data Protection Regulation (GDPR) and related data protection laws.
+            This Data Processing Agreement (DPA) governs how AVYRO AI processes personal data on your behalf in compliance with the EU General Data Protection Regulation (GDPR) and related data protection laws.
           </p>
         </div>
 

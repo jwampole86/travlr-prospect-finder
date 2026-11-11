@@ -8,7 +8,7 @@ import ProductShowcase from '@/app/welcome/components/ProductShowcase';
 
 export const metadata: Metadata = {
   title: 'AVYRO AI | AI-Powered Growth for Property Managers',
-  description: 'AVYRO AI is the AI-powered growth and operations platform for vacation rental and property management companies. Find more high-value homeowners, turn them into management contracts, and let AVA, your built-in assistant, guide your team through every screen.',
+  description: 'AVYRO AI is the operating system for property acquisition and management. Find high-value homeowners, match them to the right outcome (management, sale, or both), and run the workflows that follow, with AVA, your built-in assistant, guiding your team. Powers NAVEO Homes and NAVEO Stays.',
 };
 
 const MODULES = [
@@ -16,7 +16,7 @@ const MODULES = [
   { icon: Search, name: 'Prospect', outcome: 'Know who to call first.', body: 'Discover homeowner opportunities, verify owner and contact data, and score every lead.', points: ['Property discovery & lead generation', 'Owner/contact intelligence, skip tracing & enrichment', 'Verification, duplicate matching & lead scoring'] },
   { icon: Database, name: 'Intelligence', outcome: 'Walk into every call prepared.', body: 'Revenue estimates, market intelligence, and STR regulations at your fingertips.', points: ['Property & revenue intelligence', 'Market intelligence & opportunity scoring', 'STR regulation lookups by city/state'] },
   { icon: Users, name: 'Pipeline', outcome: 'See every lead move.', body: 'A live board and map built on your real campaign stages, with assignments, notes, and follow-up in one place.', points: ['Drag-and-drop pipeline board & map view', 'Quick views and overview tiles in Lead Management', 'Notes, assignments & activity history'] },
-  { icon: Zap, name: 'Engage', outcome: 'Turn research into conversations.', body: 'Text campaigns, email, and calling with AI-assisted guidance.', points: ['Text campaigns with carrier checks, quiet hours & opt-outs', 'Voice, email & a live call teleprompter', 'Seller & owner services for homeowners who may sell'] },
+  { icon: Zap, name: 'Engage', outcome: 'Turn research into conversations.', body: 'Text campaigns, email, and calling with AI-assisted guidance, plus seller and owner services for homeowners who may sell.', points: ['Text campaigns with carrier checks, quiet hours & opt-outs', 'Voice, email & a live call teleprompter', 'Seller & owner services for homeowners who may sell'] },
   { icon: Home, name: 'Co-Host', outcome: 'Turn listings into owners.', body: 'Match Airbnb and Vrbo listings to verified owners through public license records.', points: ['Owner matching & verification', 'Audit offers by email and text', 'Numbered pages and market filters'] },
   { icon: TrendingUp, name: 'Automate', outcome: 'Reduce manual busywork.', body: 'Workflow automation, lead routing, and alerts that handle the busywork.', points: ['Personal alerts & working hours', 'AI agents & lead routing', 'Automated follow-up & notifications'] },
   { icon: Brain, name: 'Talent', outcome: 'Hire the team that can grow.', body: 'AI voice interviews, scorecards, and a full hiring pipeline for your team.', points: ['AI voice interviews & scheduling', 'Candidate scorecards & role plays', 'Interview calendar & Zoom integration'] },
@@ -50,6 +50,8 @@ const WHO_ITS_FOR = [
   'Multi-Market Property Managers',
   'Homeowner Acquisition Teams',
   'Business Development Teams',
+  'Broker Referral Partners',
+  'Operators Running Both Sales and Stays',
 ];
 
 export default function WelcomePage() {
@@ -124,8 +126,8 @@ export default function WelcomePage() {
       {/* Product Showcase */}
       <section id="how-it-works" className="max-w-6xl mx-auto px-5 sm:px-6 pb-16">
         <div className="text-center mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">One Platform. Your Entire Growth Operation.</h2>
-          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">From discovering high-value homeowner opportunities to outreach, automation, team operations, and performance intelligence, AVYRO AI brings your growth workflow together in one platform.</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">One Platform. From Owner Discovery to Sales and Stays.</h2>
+          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">From discovering high-value homeowner opportunities to outreach, broker referrals, vacation rental operations and performance intelligence, AVYRO AI brings the whole workflow together in one platform.</p>
         </div>
         <ProductShowcase />
       </section>
@@ -164,7 +166,7 @@ export default function WelcomePage() {
       <section className="max-w-5xl mx-auto px-5 sm:px-6 pb-16">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">The Homeowner Acquisition Workflow</h2>
-          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">AVYRO AI connects the entire homeowner acquisition workflow so information doesn&apos;t disappear between disconnected tools.</p>
+          <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">AVYRO AI connects the entire homeowner workflow so information doesn&apos;t disappear between disconnected tools.</p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
           {[
@@ -183,6 +185,9 @@ export default function WelcomePage() {
             </div>
           ))}
         </div>
+        <p className="mt-5 text-sm text-muted-foreground text-center max-w-2xl mx-auto leading-relaxed">
+          Then route each opportunity to the right outcome: management, a broker referral through NAVEO Homes, or a listing on NAVEO Stays. All of it stays on the same property record.
+        </p>
       </section>
 
       {/* Talent Workflow */}
@@ -239,7 +244,7 @@ export default function WelcomePage() {
       {/* Who it's for */}
       <section className="max-w-5xl mx-auto px-5 sm:px-6 pb-16">
         <div className="text-center mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Built for Growing Vacation Rental Teams</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Built for Property Teams, Brokers and Operators</h2>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
           {WHO_ITS_FOR.map((label) => (
@@ -261,6 +266,7 @@ export default function WelcomePage() {
               'Watch every lead move on a live pipeline board and map, from first text to signed contract',
               'Ask AVA for help on any screen: she answers, opens the page and walks your team through it',
               'Partner with hosts through the Co-Host program, matched to verified owners',
+              'Power NAVEO Homes referrals and NAVEO Stays listings from the same property record',
               'Automate outreach and follow-up without losing the personal touch',
               'AI-assisted hiring tools to help you build your team',
               'Analytics that show what is actually converting',

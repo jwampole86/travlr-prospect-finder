@@ -13,6 +13,10 @@ const FAQS: Array<{ q: string; a: string }> = [
     a: 'AVYRO AI is the AI-powered growth and operations platform for vacation rental operators and property management teams — covering lead discovery, enrichment, a live pipeline board and map, text campaigns, the Co-Host program, team tools, and (on higher plans) AI-assisted interview tools for hiring.',
   },
   {
+    q: 'How does AVYRO AI work with NAVEO Homes and NAVEO Stays?',
+    a: 'AVYRO AI is the system of record behind both. NAVEO Homes uses it for owner submissions and referrals to licensed brokers. NAVEO Stays uses it for listings, pricing, calendars and bookings. The same property record can support a sale referral, a rental listing, or both.',
+  },
+  {
     q: 'Can I change plans later?',
     a: 'Yes. You can upgrade or downgrade your AVYRO AI plan at any time from your account billing settings. Changes apply to your next billing cycle.',
   },

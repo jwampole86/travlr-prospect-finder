@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
 
 const EFFECTIVE_DATE = 'August 18, 2026';
-const COMPANY = 'TRAVLR Inc.';
+const COMPANY = 'AVYRO AI Inc.';
 const CONTACT_EMAIL = 'privacy@travlr.com';
 
 interface Section {
@@ -20,7 +20,7 @@ const SECTIONS: Section[] = [
     title: '1. Overview',
     content: (
       <p>
-        {COMPANY} (&quot;TRAVLR&quot;, &quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) operates the TRAVLR Prospect Finder platform. This Privacy Policy explains how we collect, use, disclose, and protect information about you when you use our Service. It also describes your rights regarding your personal data.
+        {COMPANY} (&quot;AVYRO AI&quot;, &quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) operates the AVYRO AI platform. This Privacy Policy explains how we collect, use, disclose, and protect information about you when you use our Service. It also describes your rights regarding your personal data.
       </p>
     ),
   },

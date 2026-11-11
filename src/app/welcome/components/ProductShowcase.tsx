@@ -15,8 +15,8 @@ import OperateShowcase from '../preview/_shared/OperateShowcase';
 const TABS = [
   {
     id: 'prospect', label: 'Prospect', icon: Search, body: ProspectShowcase,
-    headline: 'Discover Your Next Management Opportunity',
-    copy: 'Find, organize, and prioritize homeowner properties that match your acquisition strategy.', featured: false,
+    headline: 'Discover Your Next Property Opportunity',
+    copy: 'Find, organize, and prioritize homeowner properties, then match each to the right outcome: manage, sell, or both.', featured: false,
   },
   {
     id: 'intelligence', label: 'Intelligence', icon: Database, body: IntelligenceShowcase,

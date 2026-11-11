@@ -13,6 +13,8 @@ export default function MarketingFooter() {
           <Link href="/request-demo" className="py-2 hover:text-foreground transition-colors">Request a demo</Link>
           <Link href="/prospect-finder/contact-sales" className="py-2 hover:text-foreground transition-colors">Contact Sales</Link>
           <Link href="/login" className="py-2 hover:text-foreground transition-colors">Sign In</Link>
+          <a href="https://naveohomes.com/" target="_blank" rel="noopener noreferrer" className="py-2 hover:text-foreground transition-colors">NAVEO Homes</a>
+          <a href="https://staynaveo.com/" target="_blank" rel="noopener noreferrer" className="py-2 hover:text-foreground transition-colors">NAVEO Stays</a>
         </div>
       </div>
     </footer>

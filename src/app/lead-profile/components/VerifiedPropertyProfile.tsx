@@ -480,18 +480,18 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
             {lead.rent_source && <p className="text-[10px] text-muted-foreground">{lead.rent_source}</p>}
           </div>
           <div className="bg-muted/30 rounded-lg p-3">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">TRAVLR Annual Gross</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">AVYRO Annual Gross</p>
             <p className="text-sm font-bold text-emerald-600">
               {lead.estimated_gross_monthly ? formatCurrency(lead.estimated_gross_monthly * 12) + '/yr' : '—'}
             </p>
-            <p className="text-[10px] text-muted-foreground">TRAVLR Estimate</p>
+            <p className="text-[10px] text-muted-foreground">AVYRO Estimate</p>
           </div>
           <div className="bg-muted/30 rounded-lg p-3">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Owner Net</p>
             <p className="text-sm font-bold text-foreground">
               {lead.estimated_net_monthly ? formatCurrency(lead.estimated_net_monthly * 12) + '/yr' : '—'}
             </p>
-            <p className="text-[10px] text-muted-foreground">TRAVLR Estimate</p>
+            <p className="text-[10px] text-muted-foreground">AVYRO Estimate</p>
           </div>
           <div className="bg-muted/30 rounded-lg p-3">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Prospect Score</p>
@@ -610,7 +610,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
           <div className="space-y-4">
             <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-700 dark:text-amber-400">
               <p className="font-semibold mb-1">Revenue Transparency</p>
-              <p>Values labeled <strong>TRAVLR Estimate</strong> are calculated by the TRAVLR revenue model, not sourced from a listing. Values labeled with a source (e.g., Manual Research, Zillow) are from that source.</p>
+              <p>Values labeled <strong>AVYRO Estimate</strong> are calculated by the AVYRO revenue model, not sourced from a listing. Values labeled with a source (e.g., Manual Research, Zillow) are from that source.</p>
               {lead._fillNote && <p className="mt-1">Blank values on this lead were filled from the model: {lead._fillNote} They are not saved to the lead.</p>}
             </div>
 
@@ -626,7 +626,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
                 <DataRow
                   label="Estimated Market Rent"
                   value={lead.estimated_market_rent ? formatCurrency(lead.estimated_market_rent) + '/mo' : '—'}
-                  sourceLabel="TRAVLR Estimate"
+                  sourceLabel="AVYRO Estimate"
                 />
                 <DataRow
                   label="Annualized Current Rent"
@@ -642,16 +642,16 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
                 />
               </div>
 
-              {/* TRAVLR Projections */}
+              {/* AVYRO Projections */}
               <div className="bg-card border border-border rounded-xl p-4">
-                <h3 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5"><TrendingUp size={12} />TRAVLR Revenue Opportunity</h3>
-                <DataRow label="Projected ADR" value={lead.estimated_adr ? formatCurrency(lead.estimated_adr) + '/night' : '—'} sourceLabel="TRAVLR Estimate" />
-                <DataRow label="Projected Occupancy" value={lead.estimated_occupancy ? `${lead.estimated_occupancy}%` : '—'} sourceLabel="TRAVLR Estimate" />
-                <DataRow label="Monthly Gross Revenue" value={lead.estimated_gross_monthly ? formatCurrency(lead.estimated_gross_monthly) + '/mo' : '—'} sourceLabel="TRAVLR Estimate" />
-                <DataRow label="Annual Gross Revenue" value={lead.estimated_gross_monthly ? formatCurrency(lead.estimated_gross_monthly * 12) + '/yr' : '—'} sourceLabel="TRAVLR Estimate" />
-                <DataRow label="TRAVLR Mgmt Fee (20%)" value={lead.estimated_gross_monthly ? formatCurrency(lead.estimated_gross_monthly * 12 * 0.20) + '/yr' : '—'} sourceLabel="TRAVLR Estimate" />
-                <DataRow label="Owner Gross Revenue" value={lead.estimated_gross_monthly ? formatCurrency(lead.estimated_gross_monthly * 12 * 0.80) + '/yr' : '—'} sourceLabel="TRAVLR Estimate" />
-                <DataRow label="Owner Net Revenue" value={lead.estimated_net_monthly ? formatCurrency(lead.estimated_net_monthly * 12) + '/yr' : '—'} sourceLabel="TRAVLR Estimate" />
+                <h3 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5"><TrendingUp size={12} />AVYRO Revenue Opportunity</h3>
+                <DataRow label="Projected ADR" value={lead.estimated_adr ? formatCurrency(lead.estimated_adr) + '/night' : '—'} sourceLabel="AVYRO Estimate" />
+                <DataRow label="Projected Occupancy" value={lead.estimated_occupancy ? `${lead.estimated_occupancy}%` : '—'} sourceLabel="AVYRO Estimate" />
+                <DataRow label="Monthly Gross Revenue" value={lead.estimated_gross_monthly ? formatCurrency(lead.estimated_gross_monthly) + '/mo' : '—'} sourceLabel="AVYRO Estimate" />
+                <DataRow label="Annual Gross Revenue" value={lead.estimated_gross_monthly ? formatCurrency(lead.estimated_gross_monthly * 12) + '/yr' : '—'} sourceLabel="AVYRO Estimate" />
+                <DataRow label="AVYRO Mgmt Fee (20%)" value={lead.estimated_gross_monthly ? formatCurrency(lead.estimated_gross_monthly * 12 * 0.20) + '/yr' : '—'} sourceLabel="AVYRO Estimate" />
+                <DataRow label="Owner Gross Revenue" value={lead.estimated_gross_monthly ? formatCurrency(lead.estimated_gross_monthly * 12 * 0.80) + '/yr' : '—'} sourceLabel="AVYRO Estimate" />
+                <DataRow label="Owner Net Revenue" value={lead.estimated_net_monthly ? formatCurrency(lead.estimated_net_monthly * 12) + '/yr' : '—'} sourceLabel="AVYRO Estimate" />
               </div>
             </div>
 
@@ -666,7 +666,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
                     <p className="text-xs text-muted-foreground">{formatCurrency(lead.current_asking_rent * 12)}/yr</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground mb-1">TRAVLR Projected Gross</p>
+                    <p className="text-[10px] text-muted-foreground mb-1">AVYRO Projected Gross</p>
                     <p className="text-base font-bold text-emerald-600">{formatCurrency(lead.estimated_gross_monthly)}/mo</p>
                     <p className="text-xs text-muted-foreground">{formatCurrency(lead.estimated_gross_monthly * 12)}/yr</p>
                   </div>
@@ -681,7 +681,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
                   </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-3 text-center">
-                  TRAVLR Estimate — not a guarantee. Actual results depend on property condition, market, and management.
+                  AVYRO Estimate — not a guarantee. Actual results depend on property condition, market, and management.
                 </p>
               </div>
             )}
@@ -985,7 +985,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
 
             <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-400">
               <p className="font-semibold mb-1">Source Integrity</p>
-              <p>All data values retain their origin. Automated enrichment will not overwrite Admin Override fields. TRAVLR Estimates are clearly distinguished from source data.</p>
+              <p>All data values retain their origin. Automated enrichment will not overwrite Admin Override fields. AVYRO Estimates are clearly distinguished from source data.</p>
             </div>
           </div>
         )}
@@ -1418,7 +1418,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
                           <div>
                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Property Evidence</p>
                             <div className="space-y-1 text-[11px]">
-                              <div className="flex justify-between"><span className="text-muted-foreground">TRAVLR Property ID</span><span className="font-mono text-foreground">{leadId.slice(0, 8)}...</span></div>
+                              <div className="flex justify-between"><span className="text-muted-foreground">AVYRO Property ID</span><span className="font-mono text-foreground">{leadId.slice(0, 8)}...</span></div>
                               <div className="flex justify-between"><span className="text-muted-foreground">Canonical Address</span><span className="text-foreground">{String(bestMatch.canonical_address || lead?.address || '—')}</span></div>
                               <div className="flex justify-between"><span className="text-muted-foreground">PropertyReach ID</span><span className="font-mono text-foreground">{String(bestMatch.property_reach_id || '—')}</span></div>
                               <div className="flex justify-between"><span className="text-muted-foreground">APN</span><span className="text-foreground">{String(bestMatch.apn || '—')}</span></div>
@@ -1460,7 +1460,7 @@ export default function VerifiedPropertyProfile({ leadId, onClose }: VerifiedPro
                           <div>
                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Match Decision</p>
                             <div className="space-y-1 text-[11px]">
-                              <div className="flex justify-between"><span className="text-muted-foreground">TRAVLR Confidence Score</span><span className="font-semibold text-foreground">{bestMatch.match_confidence_score ? `${bestMatch.match_confidence_score}/100` : '—'}</span></div>
+                              <div className="flex justify-between"><span className="text-muted-foreground">AVYRO Confidence Score</span><span className="font-semibold text-foreground">{bestMatch.match_confidence_score ? `${bestMatch.match_confidence_score}/100` : '—'}</span></div>
                               <div className="flex justify-between"><span className="text-muted-foreground">Decision</span><span className={`font-semibold ${bestMatch.match_decision === 'AUTO_ACCEPTED' ? 'text-emerald-600' : bestMatch.match_decision === 'CONFLICT' ? 'text-red-600' : 'text-amber-600'}`}>{String(bestMatch.match_decision || '—').replace(/_/g, ' ')}</span></div>
                             </div>
                             {/* Match signals */}
