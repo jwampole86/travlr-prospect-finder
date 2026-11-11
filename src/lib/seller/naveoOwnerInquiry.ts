@@ -12,6 +12,8 @@ export type NaveoOwnerInquiry = {
   message: string | null;
   source: string | null;
   referralCode: string | null;
+  /** True when someone else gave us this owner's details, so the owner has not asked for anything or agreed to be contacted. */
+  referred: boolean;
 };
 
 const text = (v: unknown, max: number): string | null => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
@@ -37,12 +39,14 @@ export function parseOwnerInquiry(body: unknown): { ok: true; value: NaveoOwnerI
       message: text(b.message, 1000),
       source: text(b.source, 80),
       referralCode: text(b.referral_code, 40),
+      referred: b.referred === true,
     },
   };
 }
 
 /** An owner who asked for a rental analysis made an explicit request for management, not a sale, so the intent keeps the rental. */
 export function ownerInquiryIntent(i: NaveoOwnerInquiry) {
+  if (i.referred) return { level: 'possible' as const, score: 35, timeline: null, keepsRental: true, signals: ['Referred to NAVEO Stays by an existing owner; has not contacted us'] };
   const signals = ['Asked NAVEO Stays for a rental-management analysis'];
   let score = 60;
   if (i.phone) { score += 5; signals.push('Gave a phone number'); }

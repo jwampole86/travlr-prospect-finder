@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * POST: NAVEO Stays sends a property owner's request for a rental-management analysis. It becomes one AVYRO lead and one open opportunity routed to
- * short-term-rental management, never a sale. No consent is recorded and nothing is sent to the owner. A repeated submission id returns the same lead.
+ * short-term-rental management, never a sale. A referred owner (`referred: true`) did not ask for anything, so that lead is not opted in to contact. No consent is recorded and nothing is sent to the owner. A repeated submission id returns the same lead.
  * Called with the shared key in `x-naveo-key`.
  */
 export async function POST(req: NextRequest) {
@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
   if (!leadId) {
     const newId = `lead-stays-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const notes = [
-      `Asked NAVEO Stays for a rental-management analysis${inq.source ? ` (${inq.source})` : ''}. Email: ${inq.email}`,
+      inq.referred ? `Referred to NAVEO Stays by an existing owner${inq.source ? ` (${inq.source})` : ''}. The owner has not contacted us. Email: ${inq.email}`
+        : `Asked NAVEO Stays for a rental-management analysis${inq.source ? ` (${inq.source})` : ''}. Email: ${inq.email}`,
       inq.portfolioSize ? `Portfolio: ${inq.portfolioSize}` : '', inq.currentSetup ? `Current setup: ${inq.currentSetup}` : '',
       inq.referralCode ? `Referral code: ${inq.referralCode}` : '', inq.message ? `Message: ${inq.message}` : '', marker ?? '',
     ].filter(Boolean).join('\n');
@@ -40,8 +41,10 @@ export async function POST(req: NextRequest) {
       address: inq.address ?? `Street address not provided${inq.location ? ` — ${inq.location}` : ''}`,
       city: inq.address ? null : inq.location, property_type: inq.propertyType,
       contact_name: inq.name, contact_phone: inq.phone,
-      source: 'Direct', lead_source_type: 'self_submitted', lead_status_tag: 'Warm — Contact Confirmed', stage: 'nurturing', cadence_step: 0,
-      email_opt_in: true, email_opt_in_at: now, sms_opt_in: false, opt_in_source: 'naveo_stays_owner_form', contact_info_source: 'self_submitted',
+      source: 'Direct', cadence_step: 0, sms_opt_in: false,
+      ...(inq.referred
+        ? { lead_source_type: 'sync_imported', lead_status_tag: 'Referred — Permission Needed', email_opt_in: false, opt_in_source: 'naveo_stays_owner_referral', contact_info_source: 'referral' }
+        : { lead_source_type: 'self_submitted', lead_status_tag: 'Warm — Contact Confirmed', stage: 'nurturing', email_opt_in: true, email_opt_in_at: now, opt_in_source: 'naveo_stays_owner_form', contact_info_source: 'self_submitted' }),
       notes, created_at: now, updated_at: now,
     }).select('id').single();
     if (error || !data) return NextResponse.json({ error: 'could_not_create_lead' }, { status: 500 });
@@ -49,7 +52,8 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await recordSellerSignal(db, {
-    leadId, source: 'naveo_stays_owner_form', text: `Asked NAVEO Stays for a rental-management analysis. ${inq.message ?? ''}`.trim(),
+    leadId, source: inq.referred ? 'naveo_stays_owner_referral' : 'naveo_stays_owner_form',
+    text: `${inq.referred ? 'Referred to NAVEO Stays by an existing owner.' : 'Asked NAVEO Stays for a rental-management analysis.'} ${inq.message ?? ''}`.trim(),
     intent: ownerInquiryIntent(inq), organizationId: access.organizationId,
   }).catch(() => null);
   if (!result) return NextResponse.json({ error: 'could_not_record_opportunity', lead_id: leadId }, { status: 502 });
