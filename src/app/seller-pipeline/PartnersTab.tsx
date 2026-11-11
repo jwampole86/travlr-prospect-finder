@@ -7,6 +7,7 @@ import { SERVICE_LINES, SERVICE_LINE_LABEL } from '@/lib/seller/types';
 import { Field, api, btnCls, inputCls, primaryBtnCls } from './ui';
 import PartnerPlaybook from './PartnerPlaybook';
 import { isAutomatic } from '@/lib/seller/licenseVerify';
+import { nextTouch } from '@/lib/seller/partnerOutreach';
 import { settlementTermsWarning } from '@/lib/seller/settlementPolicy';
 import { LICENSE_RECHECK_DAYS, licenseCheckAgeDays, licenseLookupFor, scorePartner, type PartnerScore, type ReferralRow } from '@/lib/seller/partnerReferrals';
 
@@ -41,7 +42,7 @@ export type Partner = {
   id: string; name: string; contact_name: string | null; contact_email: string | null; contact_phone: string | null; services: string[];
   license_type: string | null; license_number: string | null; license_state: string | null; license_status: string; states: string[];
   relationship_status: string; compensation_terms: string | null; legal_reviewed: boolean; agreement_on_file: boolean; notes: string | null;
-  license_verified_at?: string | null; partner_role?: string | null; brokerage?: string | null; niche?: string | null; accepts_referrals?: string; will_report?: string;
+  outreach_started_at?: string | null; outreach_step?: number; license_verified_at?: string | null; partner_role?: string | null; brokerage?: string | null; niche?: string | null; accepts_referrals?: string; will_report?: string;
   markets?: string[]; property_types?: string[]; price_min?: number | null; price_max?: number | null; max_open_leads?: number | null; do_not_assign?: boolean;
   payment_method?: string | null; payee_name?: string | null; preferred_invoice_email?: string | null; w9_on_file?: boolean; license_check?: LicenseCheck | null;
   responsible_broker?: string | null; referral_fee_percent?: number | null; protection_days?: number | null; payment_due_days?: number | null; exclusive_territory?: string | null; agreement_signed_on?: string | null;
@@ -80,6 +81,11 @@ export default function PartnersTab() {
     setChecking(id); setError(null);
     try { await api('/api/seller/partners/verify', { method: 'POST', body: { id } }); await load(); } catch (e) { setError((e as Error).message); } finally { setChecking(null); }
   }
+  /** Records that the next email in the sequence went out. The first one starts the clock for the day-3 and day-7 emails. */
+  function logOutreach(p: Partner) {
+    const step = (p.outreach_step ?? 0) + 1;
+    return patch(p.id, { outreach_step: step, ...(step === 1 ? { outreach_started_at: new Date().toISOString() } : {}), recruit_status: p.recruit_status === 'to_contact' || !p.recruit_status ? 'emailed' : p.recruit_status, last_contacted_at: new Date().toISOString() });
+  }
   async function patch(id: string, body: Record<string, unknown>) {
     try { await api('/api/seller/partners', { method: 'PATCH', body: { id, ...body } }); await load(); } catch (e) { setError((e as Error).message); }
   }
@@ -87,17 +93,19 @@ export default function PartnersTab() {
   const scores = new Map<string, PartnerScore>();
   for (const p of items ?? []) scores.set(p.id, scorePartner(referrals.filter((r) => r.partner_id === p.id)));
   const flagged = (items ?? []).filter((p) => scores.get(p.id)?.flag === 'stopped');
-  const shown = (items ?? []).filter((p) => filter === 'all' || (filter === 'flagged' ? scores.get(p.id)?.flag !== 'ok' : (p.recruit_status ?? 'to_contact') === filter));
+  const shown = (items ?? []).filter((p) => filter === 'all' || (filter === 'due' ? p.recruit_status === 'emailed' && nextTouch(p.outreach_started_at, p.outreach_step ?? 0).overdue : filter === 'flagged' ? scores.get(p.id)?.flag !== 'ok' : (p.recruit_status ?? 'to_contact') === filter));
+  const dueCount = (items ?? []).filter((p) => (p.recruit_status === 'emailed') && nextTouch(p.outreach_started_at, p.outreach_step ?? 0).overdue).length;
   const countBy = (st: string) => (items ?? []).filter((p) => (p.recruit_status ?? 'to_contact') === st).length;
 
   return (
     <div className="space-y-4">
-      <PartnerPlaybook />
+      <PartnerPlaybook prospects={(items ?? []).filter((p) => p.recruit_status !== 'partner' && p.recruit_status !== 'pass')} />
       {items && items.length > 0 && (
         <Card className="p-4">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <button className={`${btnCls} !h-8 ${filter === 'all' ? '!bg-muted' : ''}`} onClick={() => setFilter('all')}>All {items.length}</button>
             {RECRUIT.map(([v, l]) => <button key={v} className={`${btnCls} !h-8 ${filter === v ? '!bg-muted' : ''}`} onClick={() => setFilter(v)}>{l} {countBy(v)}</button>)}
+            <button className={`${btnCls} !h-8 ${filter === 'due' ? '!bg-muted' : ''}`} onClick={() => setFilter('due')}>Follow-up due {dueCount}</button>
             <button className={`${btnCls} !h-8 ${filter === 'flagged' ? '!bg-muted' : ''}`} onClick={() => setFilter('flagged')}>Needs attention {(items ?? []).filter((p) => scores.get(p.id)?.flag !== 'ok').length}</button>
           </div>
           {flagged.length > 0 && <p className="mt-3 text-xs text-red-700">Not reporting: {flagged.map((p) => p.name).join(', ')}. Consider pausing them until they update their referrals.</p>}
@@ -185,6 +193,15 @@ export default function PartnersTab() {
               <p className="mt-1 text-xs">
                 {sc.total === 0 ? 'No referrals sent yet.' : `${sc.total} referral${sc.total === 1 ? '' : 's'} · ${sc.open} open · ${sc.listed} listed · ${sc.underContract} under contract · ${sc.closed} closed · ${sc.dead} dead · Update rate: ${sc.rate === null ? 'too early' : `${Math.round(sc.rate * 100)}% (${sc.reported} of ${sc.due})`}`}
               </p>
+              {(p.recruit_status ?? 'to_contact') !== 'partner' && p.recruit_status !== 'pass' && (() => {
+                const t = nextTouch(p.outreach_started_at, p.outreach_step ?? 0);
+                return (
+                  <p className="mt-1 text-xs">
+                    <span className={t.overdue ? 'text-amber-800 font-medium' : 'text-muted-foreground'}>Outreach: {p.outreach_step ?? 0} of 3 emails sent · {t.label}{t.dueOn ? ` (${t.overdue ? 'was due' : 'due'} ${new Date(t.dueOn + 'T00:00:00').toLocaleDateString()})` : ''}</span>
+                    {t.step !== 'done' && <button className="ml-2 underline text-primary" onClick={() => logOutreach(p)}>Log it as sent</button>}
+                  </p>
+                );
+              })()}
               {sc.reason && <p className={`text-xs ${sc.flag === 'stopped' ? 'text-red-700' : 'text-amber-800'}`}>{sc.reason}</p>}
               {(p.referral_fee_percent != null || p.protection_days != null || p.payment_due_days != null || p.agreement_signed_on || p.responsible_broker || p.exclusive_territory) && (
                 <p className="mt-1 text-xs text-muted-foreground">

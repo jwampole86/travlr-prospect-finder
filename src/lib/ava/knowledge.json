@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-32d0c5e7",
+  "version": "2026-11-11-b25a6ffe",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -876,7 +876,7 @@
         "pass criteria",
         "brokers"
       ],
-      "answer": "Use the Partners tab in Seller & owner services. Add each broker or team lead with their role, brokerage, niche, license number and state, whether they accept referrals, whether they will report outcomes, their typical referral fee and how they like to send updates. Move them through To contact, Emailed, Call booked, Partner or Pass. Each partner shows a link to the state's official license lookup and the date you last checked the license; a check older than 90 days is marked for another look. A partner meets the pass criteria when they accept referrals, agree to report outcomes and have a verified license. The Recruiting playbook at the top has the first email and the five qualifying questions. Admins and owners only.",
+      "answer": "Use the Partners tab in Seller & owner services. Add each broker or team lead with their role, brokerage, niche, license number and state, whether they accept referrals, whether they will report outcomes, their typical referral fee and how they like to send updates. Move them through To contact, Emailed, Call booked, Partner or Pass. Each partner shows a link to the state's official license lookup and the date you last checked the license; a check older than 90 days is marked for another look. A partner meets the pass criteria when they accept referrals, agree to report outcomes and have a verified license. The Recruiting playbook at the top has the whole email sequence, the call script and the one-page partner summary. Admins and owners only.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
@@ -1112,6 +1112,31 @@
         "send lead to broker"
       ],
       "answer": "Once a lead has been sent to a partner (on the lead's Partner broker panel or the Referrals tab) there are three emails, each sent only when you press its button. Email lead packet sends the partner a lead reference, the property, the owner's name and phone as permitted, the agreed fee and protection period, and how to report. It is refused if the owner's permission to share is no longer recorded or the lead is marked do not contact. Ask for a status update asks the partner for a one-line status, and can only go out once every three days. Email fee details is available when the referral is closed: it reminds the partner of the fee, the payee and the days to pay, and asks for the commission received and its date. Partners reply with the lead reference in the subject, for example Lead AZ-2026-A1B2C3, Contacted. Replies go to your own email, and you record the status on the referral. Every email is logged with its status so you can see what was sent and whether it failed. Text messages to partners are not sent from AVYRO.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
+    },
+    {
+      "id": "partner-outreach-sequence",
+      "title": "What emails do I send to recruit a broker partner, and when?",
+      "keywords": [
+        "recruit",
+        "recruiting emails",
+        "broker outreach",
+        "outreach sequence",
+        "bump",
+        "follow up",
+        "day 3",
+        "day 7",
+        "first email",
+        "cold email",
+        "partner summary",
+        "call script",
+        "10 minute call",
+        "follow-up due",
+        "prospect"
+      ],
+      "answer": "The Recruiting playbook on the Partners tab has the sequence ready to use. Send the first email on day 0, a short bump on day 3 and a last note on day 7, only if there has been no reply. When a broker shows interest, send the terms email with the one-page summary and the agreement, then hold a 10-minute call covering how leads are sourced, the fee (typically 25 to 30 percent of their side, paid only after they are paid at closing), status reporting and the 180-day protection period. After the call, send the agreement email; test leads go out only once the agreement is signed and their license is confirmed active in the lead's state. Pick a prospect in the playbook to fill in their name and market, add your details once, then copy the email or open it in your email app. Press Log it as sent on the prospect's card and AVYRO tracks the next step: the day-3 bump and day-7 note show when they are due, and the Follow-up due filter lists the prospects waiting on you. Nothing is sent automatically.",
       "source": "Seller & owner services",
       "route": "/seller-pipeline",
       "kind": "guide"
