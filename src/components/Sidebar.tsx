@@ -740,7 +740,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         {/* Help Tab Button */}
         <button
           onClick={() => { if (collapsed) setCollapsed(false); setHelpOpen(v => !v); }}
-          title="AI Help Assistant"
+          title="AVA, AVYRO's assistant"
           className={`w-full flex items-center gap-2 px-2 py-2 rounded-md text-xs font-medium transition-all duration-150 min-h-[40px] ${
             helpOpen ? 'bg-emerald-500/10 text-emerald-700' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
@@ -748,7 +748,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <MessageCircle size={15} className={`shrink-0 ${helpOpen ? 'text-emerald-600' : ''}`} />
           {!collapsed && (
             <>
-              <span className="truncate flex-1 text-left">Help (AI)</span>
+              <span className="truncate flex-1 text-left">AVA</span>
               {helpOpen && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 font-semibold">Live</span>}
             </>
           )}

@@ -184,8 +184,8 @@ export default function HelpChatPanel({ onClose, embedded = false }: HelpChatPan
             <Bot size={14} className="text-emerald-600" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-foreground">AVYRO AI Assistant</p>
-            <p className="text-[10px] text-muted-foreground">Powered by Claude</p>
+            <p className="text-xs font-semibold text-foreground">AVA</p>
+            <p className="text-[10px] text-muted-foreground">AVYRO's assistant</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
