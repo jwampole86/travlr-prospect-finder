@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
   if (messages.filter(m => m.role === 'user').length > 10) {
-    return NextResponse.json({ reply: 'We have covered a lot here. A TRAVLR specialist can take it from here and answer the rest on a quick call.', handoff: true });
+    return NextResponse.json({ reply: 'We have covered a lot here. A NAVEO Stays specialist can take it from here and answer the rest on a quick call.', handoff: true });
   }
   // The API needs a conversation that starts with a user turn and alternates.
   while (messages.length && messages[0].role !== 'user') messages.shift();
@@ -41,6 +41,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ reply: text, handoff });
   } catch (err) {
     console.error('[estimate/chat]', err);
-    return NextResponse.json({ error: 'I could not answer that just now. A TRAVLR specialist can help.', handoff: true }, { status: 502 });
+    return NextResponse.json({ error: 'I could not answer that just now. A NAVEO Stays specialist can help.', handoff: true }, { status: 502 });
   }
 }

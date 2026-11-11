@@ -1,5 +1,5 @@
 /**
- * TRAVLR — Provider-Agnostic Owner & Phone Enrichment Service
+ * AVYRO AI — Provider-Agnostic Owner & Phone Enrichment Service
  *
  * Architecture:
  *   OwnerEnrichmentProvider interface → concrete provider adapters

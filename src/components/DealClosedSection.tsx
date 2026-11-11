@@ -191,7 +191,7 @@ function PropertyOnboardingChecklist() {
           <div className="flex items-start gap-2 mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
             <Zap size={13} className="text-indigo-600 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-indigo-700">
-              <span className="font-semibold">TRAVLR Onboarding / Operations Coordinator</span> manages this entire process from signed agreement to STR-ready listing.
+              <span className="font-semibold">NAVEO Stays Onboarding / Operations Coordinator</span> manages this entire process from signed agreement to STR-ready listing.
             </p>
           </div>
 

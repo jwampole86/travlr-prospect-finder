@@ -382,7 +382,7 @@ export default function SigningPortal({ lead, onClose, onEnvelopeCreated }: Sign
                 <Shield size={14} className="text-emerald-600 mt-0.5 shrink-0" />
                 <p className="text-xs text-emerald-700">
                   DocuSign handles the legal e-signature: consent capture, tamper-evident sealing, audit trail and a certificate of completion.
-                  After the homeowner signs, TRAVLR&apos;s representative counter-signs by email and the lead moves to Under Contract.
+                  After the homeowner signs, NAVEO Stays&apos;s representative counter-signs by email and the lead moves to Under Contract.
                 </p>
               </div>
 

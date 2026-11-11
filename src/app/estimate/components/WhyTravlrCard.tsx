@@ -20,7 +20,7 @@ export default function WhyTravlrCard({ className = '' }: { className?: string }
             <li key={i.key} className="break-inside-avoid rounded-xl border border-slate-200 p-4">
               <p className="flex items-center gap-2 text-sm font-semibold"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><Icon size={15} /></span>{i.title}</p>
               <p className="mt-2.5 flex items-start gap-2 text-[13px] leading-relaxed text-slate-500"><X size={14} className="mt-0.5 shrink-0 text-rose-400" /><span><span className="sr-only">On your own: </span>{i.alone}</span></p>
-              <p className="mt-1.5 flex items-start gap-2 text-[13px] leading-relaxed text-slate-800"><Check size={14} className="mt-0.5 shrink-0 text-emerald-600" /><span><span className="sr-only">With TRAVLR: </span>{i.withUs}</span></p>
+              <p className="mt-1.5 flex items-start gap-2 text-[13px] leading-relaxed text-slate-800"><Check size={14} className="mt-0.5 shrink-0 text-emerald-600" /><span><span className="sr-only">With NAVEO Stays: </span>{i.withUs}</span></p>
             </li>
           );
         })}

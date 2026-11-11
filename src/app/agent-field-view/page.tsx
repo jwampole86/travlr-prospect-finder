@@ -667,8 +667,8 @@ const FIELD_CATEGORY_META: Record<TemplateCategory, { label: string; color: stri
 };
 
 const FIELD_PRESET_TEMPLATES: FieldTemplate[] = [
-  { id: 'f-io-1', category: 'initial_outreach', type: 'sms', name: 'Friendly Intro', content: 'Hi {{contact_name}}, this is {{agent_name}} from TRAVLR. I noticed your property at {{address}} and would love to chat. Would you have 10 minutes this week?' },
-  { id: 'f-io-2', category: 'initial_outreach', type: 'call', name: 'Cold Call Opener', content: 'Hello, may I speak with {{contact_name}}? Hi, this is {{agent_name}} from TRAVLR calling about {{address}}. Is now a good time?' },
+  { id: 'f-io-1', category: 'initial_outreach', type: 'sms', name: 'Friendly Intro', content: 'Hi {{contact_name}}, this is {{agent_name}} from NAVEO Stays. I noticed your property at {{address}} and would love to chat. Would you have 10 minutes this week?' },
+  { id: 'f-io-2', category: 'initial_outreach', type: 'call', name: 'Cold Call Opener', content: 'Hello, may I speak with {{contact_name}}? Hi, this is {{agent_name}} from NAVEO Stays calling about {{address}}. Is now a good time?' },
   { id: 'f-fu-1', category: 'follow_up', type: 'sms', name: '48h No-Reply', content: 'Hi {{contact_name}}, just circling back about {{address}}. Happy to answer any questions. Reply STOP to opt out.' },
   { id: 'f-fu-2', category: 'follow_up', type: 'call', name: 'Post-Proposal Check-In', content: 'Hi {{contact_name}}, {{agent_name}} here. Following up on the proposal for {{address}} — do you have any questions or are you ready to move forward?' },
   { id: 'f-oh-1', category: 'objection_handling', type: 'sms', name: 'Not Interested — Reframe', content: 'Totally understand, {{contact_name}}! We\'ve helped similar properties in {{city}} increase net income by 20–35%. Would a quick 5-min call change your mind?' },

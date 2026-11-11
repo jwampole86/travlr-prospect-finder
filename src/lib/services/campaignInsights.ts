@@ -152,7 +152,7 @@ export async function generateInsights(overview: Overview): Promise<{ insights: 
   const client = new Anthropic({ apiKey: key, maxRetries: 1, timeout: 100_000 });
   const res = await client.messages.create({
     model: INSIGHT_MODEL, max_tokens: 3500, temperature: 0.3,
-    system: `You are a direct-response marketing analyst for TRAVLR Vacation Homes, a vacation-rental management company. It texted homeowners a short message with a personalized revenue estimate and a link to a free estimate page. Analyze the campaign results and tell the team how to improve the next text and email campaigns and how to use the data in their CRM.
+    system: `You are a direct-response marketing analyst for AVYRO AI, a vacation-rental management company. It texted homeowners a short message with a personalized revenue estimate and a link to a free estimate page. Analyze the campaign results and tell the team how to improve the next text and email campaigns and how to use the data in their CRM.
 Rules:
 - Ground every statement in the numbers provided. Quote the figures. Never invent data.
 - Sample sizes are small. When a difference rests on few messages, say so, and call it a hypothesis to test, not a finding.

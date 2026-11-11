@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (cleaner?.email) {
     const where = [property?.address, property?.city].filter(Boolean).join(', ');
     const { error } = await getResendClient().emails.send({
-      from: getResendFrom(), to: [cleaner.email], subject: `Cleaning job ${job.scheduled_date}: ${where || 'property'}`,
+      from: getResendFrom('NAVEO Stays'), to: [cleaner.email], subject: `Cleaning job ${job.scheduled_date}: ${where || 'property'}`,
       html: `<div style="font-family:sans-serif;max-width:560px"><p>Hi ${esc(cleaner.full_name)},</p><p>You have a cleaning job on <strong>${esc(job.scheduled_date)}</strong>, ${esc(job.time_window ?? '')}, at <strong>${esc(where)}</strong>.</p>${job.special_instructions ? `<p>Notes: ${esc(job.special_instructions)}</p>` : ''}<p><a href="${link}" style="background:#2563eb;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600">Open your job</a></p><p style="color:#6b7280;font-size:12px">Use the link to check in, tick off the checklist, add photos and check out. It only works for this job.</p></div>`,
     });
     if (error) return fail(`Email failed: ${error.message}`, 502);

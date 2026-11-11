@@ -17,7 +17,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
  * 5. Auto-escalates on engagement signals
  */
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
 
 export async function POST(req: NextRequest) {
   const auth = await verifyJobRequest(req);

@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     whisperForm.append('file', audioFile, isWav ? 'audio.wav' : 'audio.webm');
     whisperForm.append('temperature', '0');
     // Words that come up on these calls and are easy to mishear.
-    whisperForm.append('prompt', 'A phone call about vacation rental management. Terms: TRAVLR, Airbnb, Vrbo, HOA, short-term rental, property manager, permit, mortgage, Kihei, Aspen.');
+    whisperForm.append('prompt', 'A phone call about vacation rental management. Terms: NAVEO Stays, Airbnb, Vrbo, HOA, short-term rental, property manager, permit, mortgage, Kihei, Aspen.');
     whisperForm.append('model', 'whisper-1');
     whisperForm.append('language', 'en');
     whisperForm.append('response_format', 'json');

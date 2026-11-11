@@ -27,7 +27,7 @@ const STOPWORDS = new Set(['the', 'a', 'an', 'to', 'of', 'and', 'or', 'is', 'it'
 const NUMBER_WORDS: Record<string, string> = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine', '10': 'ten', '11': 'eleven', '12': 'twelve' };
 
 // Recognition hears our name as an ordinary word.
-const BRAND_FORMS = new Set(['travel', 'traveler', 'traveller', 'travler', 'travlr', 'travelr']);
+const BRAND_FORMS = new Set(['naveo', 'navio', 'neveo', 'nevio', 'navayo', 'naveau']);
 
 export function tokenize(text: string): string[] {
   return text
@@ -35,7 +35,7 @@ export function tokenize(text: string): string[] {
     .replace(/[\u2018\u2019']/g, '')
     .split(/[^a-z0-9]+/)
     .filter(Boolean)
-    .map(t => NUMBER_WORDS[t] ?? (BRAND_FORMS.has(t) ? 'travlr' : t));
+    .map(t => NUMBER_WORDS[t] ?? (BRAND_FORMS.has(t) ? 'naveo' : t));
 }
 
 /** The words of a script line as shown on screen, each with the form recognition would produce for it. */

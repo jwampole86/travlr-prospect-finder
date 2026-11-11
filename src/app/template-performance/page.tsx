@@ -65,7 +65,7 @@ export default function TemplatePerformancePage() {
             { id: 'tpl-1', name: 'Initial Outreach — Denver', subject: 'Maximize Your Denver Property Revenue', body: '', category: 'outreach', created_at: '2026-07-01' },
             { id: 'tpl-2', name: 'Follow-Up #1', subject: 'Quick Follow-Up on Your Property', body: '', category: 'follow_up', created_at: '2026-07-05' },
             { id: 'tpl-3', name: 'Check-In — Luxury Markets', subject: 'Your Aspen Property Could Earn More', body: '', category: 'follow_up', created_at: '2026-07-10' },
-            { id: 'tpl-4', name: 'Proposal Email', subject: 'TRAVLR Partnership Proposal for Your Property', body: '', category: 'proposal', created_at: '2026-07-15' },
+            { id: 'tpl-4', name: 'Proposal Email', subject: 'NAVEO Stays Partnership Proposal for Your Property', body: '', category: 'proposal', created_at: '2026-07-15' },
           ]);
         }
       } catch {

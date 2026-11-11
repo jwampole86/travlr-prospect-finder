@@ -1,13 +1,13 @@
 /**
- * TRAVLR — PropertyReach Provider Module
+ * AVYRO AI — PropertyReach Provider Module
  *
  * SECURITY: PROPERTYREACH_API_KEY is SERVER-SIDE ONLY.
  * This file must NEVER be imported by browser/client code.
- * All calls go: Browser → TRAVLR API → PropertyReach
+ * All calls go: Browser → AVYRO AI API → PropertyReach
  *
  * ARCHITECTURE:
  *   PropertyReach is a DATA SOURCE.
- *   TRAVLR remains the canonical system of record.
+ *   AVYRO AI remains the canonical system of record.
  *   Results flow into existing verifiedOwner / verifiedNumber /
  *   verifiedAddress / fullyVerified / phoneAvailable fields.
  *
@@ -565,7 +565,7 @@ export async function runPropertyReachEnrichment(input: {
   };
 }
 
-// ─── TRAVLR Matching Engine integration ──────────────────────────────────────
+// ─── AVYRO AI Matching Engine integration ──────────────────────────────────────
 
 export function scorePropertyReachMatch(
   property: PropertyReachPropertyResult,

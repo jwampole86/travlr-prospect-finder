@@ -106,7 +106,7 @@ function generateMockWebhooks(): WebhookEvent[] {
         created_at: new Date(now - 8 * 60000).toISOString(),
         data: {
           email_id: 're_abc123xyz',
-          from: 'outreach@travlrpro.com',
+          from: 'outreach@avyropro.ai',
           to: ['sandra.okafor@example.com'],
           subject: 'Your property listing opportunity',
           bounce: { type: 'hard', subtype: 'NoEmail', message: 'The email account does not exist.' },
@@ -182,7 +182,7 @@ function generateMockWebhooks(): WebhookEvent[] {
         created_at: new Date(now - 35 * 60000).toISOString(),
         data: {
           email_id: 're_def456uvw',
-          from: 'outreach@travlrpro.com',
+          from: 'outreach@avyropro.ai',
           to: ['david.park@example.com'],
           subject: 'Revenue estimate for your Austin property',
         },
@@ -270,7 +270,7 @@ function generateMockWebhooks(): WebhookEvent[] {
         created_at: new Date(now - 5 * 3600000).toISOString(),
         data: {
           email_id: 're_ghi789rst',
-          from: 'outreach@travlrpro.com',
+          from: 'outreach@avyropro.ai',
           to: ['priya.sharma@example.com'],
           subject: 'Follow-up on your property',
         },
@@ -300,7 +300,7 @@ function generateMockWebhooks(): WebhookEvent[] {
         created_at: new Date(now - 120 * 60000).toISOString(),
         data: {
           email_id: 're_ghi789rst',
-          from: 'outreach@travlrpro.com',
+          from: 'outreach@avyropro.ai',
           to: ['priya.sharma@example.com'],
           subject: 'Follow-up on your property',
           delay: { reason: 'ISP throttling', retry_after: new Date(now + 30 * 60000).toISOString() },

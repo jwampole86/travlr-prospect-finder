@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { completion } from '@rocketnew/llm-sdk';
 import { requireApiActor } from '@/lib/auth/apiAuthorization';
 
-const ENRICHMENT_SYSTEM_PROMPT = `You are TRAVLR's AI Call Preparation Engine. Given a prospect's profile, generate highly personalized call preparation content for a luxury short-term rental outreach agent.
+const ENRICHMENT_SYSTEM_PROMPT = `You are AVYRO AI's AI Call Preparation Engine. Given a prospect's profile, generate highly personalized call preparation content for a luxury short-term rental outreach agent.
 
 Your output must be a JSON object with these exact keys:
 {

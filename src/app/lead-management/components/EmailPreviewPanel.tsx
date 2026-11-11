@@ -296,7 +296,7 @@ export default function EmailPreviewPanel({ subject, body, sampleLead, mode, onC
                   <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] text-gray-500 w-12">From:</span>
-                      <span className="text-xs text-gray-700">{senderName || 'Unknown Sender'} &lt;{user?.email || 'agent@travlr.com'}&gt;</span>
+                      <span className="text-xs text-gray-700">{senderName || 'Unknown Sender'} &lt;{user?.email || 'agent@avyropro.ai'}&gt;</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-gray-500 w-12">Subject:</span>

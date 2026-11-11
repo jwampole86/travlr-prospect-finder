@@ -103,7 +103,7 @@ function normalizePhone(phone: string): string | null {
   return null;
 }
 
-// ─── Revenue calculation (TRAVLR model) ──────────────────────────────────────
+// ─── Revenue calculation (AVYRO AI model) ──────────────────────────────────────
 function calculateTravlrRevenue(beds: number, baths: number, state: string, currentRent: number | null) {
   const baseADR: Record<number, number> = { 1: 120, 2: 175, 3: 225, 4: 295, 5: 380, 6: 450 };
   const adr = baseADR[Math.min(beds || 3, 6)] || 225;
@@ -382,7 +382,7 @@ export async function POST(req: NextRequest) {
       //
       // LISTING STATUS != PIPELINE STATUS:
       //   A property's external listing status (Active, Pending, Under Contract, Rented)
-      //   must NEVER be mapped to TRAVLR's lead stage. These are separate concepts.
+      //   must NEVER be mapped to AVYRO AI's lead stage. These are separate concepts.
       const ACTIVE_PIPELINE_STAGES_CSV = ['Contacted', 'Interested', 'Proposal Sent', 'Under Contract'];
       const csvRawStage = String(row.stage || row.Stage || 'New Lead').trim();
       // If CSV stage is an active pipeline stage, override to 'New Lead'.

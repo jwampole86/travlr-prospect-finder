@@ -41,7 +41,7 @@ export async function sendInterviewNotification(input: InterviewNotificationInpu
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
       <div style="background:#111827;padding:24px;border-radius:12px;margin-bottom:24px">
         <h1 style="color:white;margin:0;font-size:20px">${heading}</h1>
-        <p style="color:#9CA3AF;margin:8px 0 0">TRAVLR Hiring Team</p>
+        <p style="color:#9CA3AF;margin:8px 0 0">NAVEO Stays Hiring Team</p>
       </div>
       <p style="color:#374151">${intro}</p>
       <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:20px;margin:20px 0">
@@ -50,7 +50,7 @@ export async function sendInterviewNotification(input: InterviewNotificationInpu
           <tr><td style="padding:8px 0;color:#6B7280">Position</td><td style="padding:8px 0;color:#111827;font-weight:600">${escapeHtml(input.roleTitle)}</td></tr>
           <tr><td style="padding:8px 0;color:#6B7280">Date</td><td style="padding:8px 0;color:#111827;font-weight:600">${date}</td></tr>
           <tr><td style="padding:8px 0;color:#6B7280">Time</td><td style="padding:8px 0;color:#111827;font-weight:600">${time}</td></tr>
-          <tr><td style="padding:8px 0;color:#6B7280">Interviewer</td><td style="padding:8px 0;color:#111827;font-weight:600">${escapeHtml(input.interviewerName || 'TRAVLR Hiring Team')}</td></tr>
+          <tr><td style="padding:8px 0;color:#6B7280">Interviewer</td><td style="padding:8px 0;color:#111827;font-weight:600">${escapeHtml(input.interviewerName || 'NAVEO Stays Hiring Team')}</td></tr>
           ${meetingRow}
         </table>
       </div>
@@ -63,7 +63,7 @@ export async function sendInterviewNotification(input: InterviewNotificationInpu
     subject: `${heading}: ${input.candidateName} - ${date} at ${time}`,
     html,
     attachments: [{
-      filename: `TRAVLR-follow-up-${input.candidateName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`,
+      filename: `NAVEO Stays-follow-up-${input.candidateName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`,
       content: Buffer.from(createInterviewIcs(input)).toString('base64'),
       contentType: 'text/calendar; charset=utf-8; method=REQUEST',
     }],

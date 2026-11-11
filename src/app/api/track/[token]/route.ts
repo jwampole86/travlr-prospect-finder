@@ -14,7 +14,7 @@ export async function GET(
   const { token } = await params;
 
   if (!token) {
-    return NextResponse.redirect(process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new');
+    return NextResponse.redirect(process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai');
   }
 
   const supabase = getSupabaseAdmin();
@@ -29,7 +29,7 @@ export async function GET(
 
     if (error || !click) {
       // Token not found — redirect to site root
-      return NextResponse.redirect(process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new');
+      return NextResponse.redirect(process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai');
     }
 
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
@@ -76,6 +76,6 @@ export async function GET(
     return NextResponse.redirect(click.original_url);
   } catch (err) {
     console.error('[Link Track]', err);
-    return NextResponse.redirect(process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new');
+    return NextResponse.redirect(process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai');
   }
 }

@@ -218,7 +218,7 @@ async function provisionHomeowner(db: SupabaseClient, session: Session, email: s
 
   const address = escapeHtml(session.lead_address ?? 'your property');
   const { error } = await getResendClient().emails.send({
-    from: getResendFrom(),
+    from: getResendFrom('NAVEO Stays'),
     to: [email],
     subject: `Your homeowner portal is ready — ${session.lead_address ?? 'your property'}`,
     html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a">

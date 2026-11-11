@@ -1011,7 +1011,7 @@ export default function ContactEnrichmentPage() {
         <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2"><Layers size={14} className="text-muted-foreground" /> Future Provider Waterfall</h3>
         <div className="space-y-2 text-xs text-muted-foreground">
           {[
-            { name: 'PROPERTYREACH', status: 'PRIMARY · ACTIVE', note: 'Confident result? YES → TRAVLR Validation' },
+            { name: 'PROPERTYREACH', status: 'PRIMARY · ACTIVE', note: 'Confident result? YES → AVYRO AI Validation' },
             { name: 'ATTOM / REGRID', status: 'NOT CONFIGURED', note: 'Secondary property/owner provider' },
             { name: 'MELISSA', status: 'NOT CONFIGURED', note: 'Still missing phone?' },
             { name: 'MANUAL REVIEW', status: 'ALWAYS AVAILABLE', note: 'Still ambiguous?' },

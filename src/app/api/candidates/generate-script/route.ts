@@ -25,7 +25,7 @@ const CORE_COMPETENCIES = [
   'Operational Understanding', 'Business Development', 'Judgment', 'Organization', 'Culture / Role Fit',
 ];
 
-const TRAVLR_COMPANY_POSITIONING = `TRAVLR Vacation Homes has spent the past 10 years as a premier partner for homeowners of ultra-luxury properties in California, managing multi-million-dollar vacation homes with high-touch care. The California desert portfolio has shown that TRAVLR can protect and elevate property value while producing substantial passive income for owners. TRAVLR is now bringing that approach to Aspen, Vail, Las Vegas, Miami, and Seattle. The operating model combines full-service property management, 5-star guest hospitality, dynamic revenue optimization, smart-home technology, compliance and permit support, robust marketing, weekly inspections, and transparent owner-portal reporting.`;
+const TRAVLR_COMPANY_POSITIONING = `NAVEO Stays has spent the past 10 years as a premier partner for homeowners of ultra-luxury properties in California, managing multi-million-dollar vacation homes with high-touch care. The California desert portfolio has shown that NAVEO Stays can protect and elevate property value while producing substantial passive income for owners. NAVEO Stays is now bringing that approach to Aspen, Vail, Las Vegas, Miami, and Seattle. The operating model combines full-service property management, 5-star guest hospitality, dynamic revenue optimization, smart-home technology, compliance and permit support, robust marketing, weekly inspections, and transparent owner-portal reporting.`;
 
 // ─── Candidate-specific resume intelligence (source of truth from actual resumes) ───
 
@@ -122,7 +122,7 @@ const CANDIDATE_RESUME_INTELLIGENCE: Record<string, {
       'How she would establish credibility with a luxury homeowner given limited direct STR experience',
     ],
     personalizedDeepDiveRationale: `Margo's resume documents exceptional outbound volume, full-cycle B2B sales, and real estate industry exposure — but in a SaaS/tech context, not luxury homeowner/STR management. 
-    The personalized 30% should go in a completely different direction from Karissa: probe the mechanics of her high-volume outbound operation, her real estate SaaS experience, and specifically test her ability to translate pure sales skill into the relationship-based, luxury homeowner context TRAVLR requires. 
+    The personalized 30% should go in a completely different direction from Karissa: probe the mechanics of her high-volume outbound operation, her real estate SaaS experience, and specifically test her ability to translate pure sales skill into the relationship-based, luxury homeowner context NAVEO Stays requires. 
     Do NOT ask whether she can make calls — she clearly can. Ask how she would adapt her approach.`,
     primaryConcern: 'Less luxury vacation-rental and homeowner-specific experience — validate ability to establish credibility with high-value homeowners and learn the STR/property management value proposition',
     concernProbeAreas: [
@@ -269,18 +269,18 @@ export async function POST(req: NextRequest) {
     const fullName = String(candidate.full_name || '');
     const intelligence = getCandidateIntelligence(fullName);
 
-    const systemPrompt = `You are an expert interview coach for TRAVLR Vacation Homes, a boutique luxury vacation-rental brand.
+    const systemPrompt = `You are an expert interview coach for NAVEO Stays, a boutique luxury vacation-rental brand.
 You generate highly personalized, evidence-based interview teleprompter scripts for the following role:
 
 ${TARGET_ROLE}
 
-TRAVLR COMPANY POSITIONING FOR INTERVIEW CONTEXT:
+NAVEO STAYS COMPANY POSITIONING FOR INTERVIEW CONTEXT:
 ${TRAVLR_COMPANY_POSITIONING}
 
 CRITICAL RULES:
 1. Use ONLY information from the candidate's actual resume/profile. NEVER fabricate employers, metrics, or experience.
 2. If something is not stated, use "Not specified" or "Needs validation during interview".
-3. STRUCTURE: Exactly 70% STANDARD TRAVLR questions (isCore: true, same for all candidates) and 30% CANDIDATE-SPECIFIC questions (isCore: false, based on actual resume evidence).
+3. STRUCTURE: Exactly 70% STANDARD NAVEO Stays questions (isCore: true, same for all candidates) and 30% CANDIDATE-SPECIFIC questions (isCore: false, based on actual resume evidence).
 4. Do NOT infer protected characteristics (age, race, gender, religion, disability, etc.).
 5. Do NOT use resume photos for any evaluation.
 6. Return ONLY valid JSON matching the schema below.
@@ -289,7 +289,7 @@ CRITICAL RULES:
 9. Sections with sectionType "SCRIPT" contain the actual teleprompter text the interviewer reads aloud.
 10. The Candidate Intelligence section (CONTEXT type) must be visually and structurally separate from the teleprompter script.
 11. Since leads are warm and pre-qualified (not cold-outbound), do not penalize candidates for lacking cold-prospecting experience — instead weight consultative phone communication, relationship building with high-net-worth homeowners, and follow-up/CRM discipline.
-12. Include the company positioning above in a private CONTEXT section and use it to frame at least one role-fit question about explaining TRAVLR's value to an ultra-luxury homeowner.
+12. Include the company positioning above in a private CONTEXT section and use it to frame at least one role-fit question about explaining NAVEO Stays's value to an ultra-luxury homeowner.
 
 CORE COMPETENCIES TO EVALUATE: ${CORE_COMPETENCIES.join(', ')}
 
@@ -367,7 +367,7 @@ ${candidateProfile}
 
 ${personalizedInstructions}
 
-The script must follow the 18-section TRAVLR structure:
+The script must follow the 18-section NAVEO Stays structure:
 
 A. CANDIDATE INTELLIGENCE (sectionType: "CONTEXT") — Private interviewer-only context. Include:
    - Resume highlights and key evidence
@@ -379,13 +379,13 @@ A. CANDIDATE INTELLIGENCE (sectionType: "CONTEXT") — Private interviewer-only 
 
 B. INTERVIEW STRATEGY (sectionType: "CONTEXT") — Private strategic notes for the interviewer
 
-C. TRAVLR COMPANY POSITIONING (sectionType: "CONTEXT") — Private interviewer-only context. Include the 10-year California ultra-luxury proof story, expansion markets, and the TRAVLR Difference. This section is NEVER read aloud verbatim.
+C. NAVEO STAYS COMPANY POSITIONING (sectionType: "CONTEXT") — Private interviewer-only context. Include the 10-year California ultra-luxury proof story, expansion markets, and the NAVEO Stays Difference. This section is NEVER read aloud verbatim.
 
-D. OPENING (sectionType: "SCRIPT", isCore: true) — Standard TRAVLR opening
+D. OPENING (sectionType: "SCRIPT", isCore: true) — Standard NAVEO Stays opening
 
 E. CAREER OVERVIEW (sectionType: "SCRIPT", isCore: true) — Standard career question, lightly personalized
 
-F. TRAVLR ROLE FIT (sectionType: "SCRIPT", isCore: true) — Standard role fit questions. Include one question that asks how the candidate would explain TRAVLR's decade of California ultra-luxury credibility and expansion into Aspen, Vail, Las Vegas, Miami, and Seattle to a homeowner.
+F. NAVEO STAYS ROLE FIT (sectionType: "SCRIPT", isCore: true) — Standard role fit questions. Include one question that asks how the candidate would explain NAVEO Stays's decade of California ultra-luxury credibility and expansion into Aspen, Vail, Las Vegas, Miami, and Seattle to a homeowner.
 
 G. CANDIDATE-SPECIFIC DEEP DIVE (sectionType: "SCRIPT", isCore: false) — 30% personalized questions based on ACTUAL resume evidence. These must be meaningfully different for each candidate based on their specific work history.
 
@@ -414,7 +414,7 @@ R. INTERVIEWER SCORECARD NOTES (sectionType: "CONTEXT") — Private post-intervi
 For section F (Candidate-Specific Deep Dive), generate questions DIRECTLY tied to this candidate's actual resume evidence. These must be meaningfully different from what you would generate for a different candidate.
 For section N, generate at least 2 questions specifically designed to test each identified concern.
 Every role-play must include INTERVIEWER WATCH-FOR items, not scripted answers.
-Mark isCore: true for standard TRAVLR questions that must not be removed.
+Mark isCore: true for standard NAVEO Stays questions that must not be removed.
 Mark isLocked: true for questions that should not be substantially rewritten.`;
 
     const message = await anthropic.messages.create({

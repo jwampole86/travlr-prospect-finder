@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(sourceUrl, {
       cache: 'no-store',
       signal: AbortSignal.timeout(30_000),
-      headers: { 'User-Agent': 'TRAVLR Zillow Sitemap Importer/1.0' },
+      headers: { 'User-Agent': 'AVYRO AI Zillow Sitemap Importer/1.0' },
     });
     if (!response.ok) {
       return NextResponse.json({ error: `Zillow sitemap returned HTTP ${response.status}.` }, { status: 502 });

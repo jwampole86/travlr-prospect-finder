@@ -1,6 +1,6 @@
 import { AI_INTERVIEW_CONFIG } from '@/lib/interviewConfig';
 
-// ─── TRAVLR Interview Scripts ─────────────────────────────────────────────────
+// ─── NAVEO Stays Interview Scripts ─────────────────────────────────────────────────
 // Structured interview scripts for Jen Wampole to use during Zoom interviews
 
 export interface InterviewQuestion {
@@ -109,10 +109,10 @@ export const SHARED_COMPENSATION_LANGUAGE =
   `uncapped, and every lead you call is warm and pre-qualified — no cold prospecting.`;
 
 export const SHARED_TRAVLR_COMPANY_POSITIONING =
-  `TRAVLR Vacation Homes has spent the past 10 years as a premier partner for homeowners of ultra-luxury ` +
+  `NAVEO Stays has spent the past 10 years as a premier partner for homeowners of ultra-luxury ` +
   `California properties, managing multi-million-dollar vacation homes with high-touch care. The California ` +
-  `desert portfolio has shown that TRAVLR can protect and elevate property value while producing substantial ` +
-  `passive income for owners. TRAVLR is now bringing that approach to Aspen, Vail, Las Vegas, Miami, and Seattle. ` +
+  `desert portfolio has shown that NAVEO Stays can protect and elevate property value while producing substantial ` +
+  `passive income for owners. NAVEO Stays is now bringing that approach to Aspen, Vail, Las Vegas, Miami, and Seattle. ` +
   `The operating model combines full-service property management, 5-star guest hospitality, dynamic revenue ` +
   `optimization, smart-home technology, compliance and permit support, robust marketing, weekly inspections, ` +
   `and transparent owner-portal reporting.`;
@@ -127,14 +127,14 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
     sections: [
       {
         id: 'company-positioning',
-        title: 'TRAVLR Company Positioning',
+        title: 'NAVEO Stays Company Positioning',
         duration: 'Reference',
         questions: [
           {
             id: 'company-positioning-1',
             category: 'Company Context',
             question: SHARED_TRAVLR_COMPANY_POSITIONING,
-            notes: 'Use this as interviewer context when asking candidates how they would explain TRAVLR to ultra-luxury homeowners.',
+            notes: 'Use this as interviewer context when asking candidates how they would explain NAVEO Stays to ultra-luxury homeowners.',
           },
         ],
       },
@@ -146,8 +146,8 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'intro-1',
             category: 'Opening',
-            question: "Thanks for joining today — I'm Jen, and I lead the team here at TRAVLR. Can you start by walking me through your background and what drew you to this role?",
-            followUps: ['What specifically about TRAVLR caught your attention?', 'How did you hear about us?'],
+            question: "Thanks for joining today — I'm Jen, and I lead the team here at NAVEO Stays. Can you start by walking me through your background and what drew you to this role?",
+            followUps: ['What specifically about NAVEO Stays caught your attention?', 'How did you hear about us?'],
           },
           {
             id: 'intro-2',
@@ -176,7 +176,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'out-3',
             category: 'Phone Skills',
-            question: "How comfortable are you with high-volume phone outreach? Describe your approach to a cold call to a homeowner who has never heard of TRAVLR.",
+            question: "How comfortable are you with high-volume phone outreach? Describe your approach to a cold call to a homeowner who has never heard of NAVEO Stays.",
             notes: 'Look for: confidence, warmth, ability to handle rejection, natural conversational style',
           },
           {
@@ -199,7 +199,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 're-2',
             category: 'Value Proposition',
-            question: 'If a homeowner asked you "Why should I partner with TRAVLR instead of just listing on Airbnb myself?" — what would you say?',
+            question: 'If a homeowner asked you "Why should I partner with NAVEO Stays instead of just listing on Airbnb myself?" — what would you say?',
             notes: 'Look for: understanding of management value, revenue optimization, guest experience, hands-off ownership',
           },
           {
@@ -256,7 +256,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'close-1',
             category: 'Candidate Questions',
-            question: 'What questions do you have for me about the role, the team, or TRAVLR?',
+            question: 'What questions do you have for me about the role, the team, or NAVEO Stays?',
           },
           {
             id: 'close-2',
@@ -385,7 +385,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'close-1',
             category: 'Candidate Questions',
-            question: 'What questions do you have for me about TRAVLR or this role?',
+            question: 'What questions do you have for me about NAVEO Stays or this role?',
           },
           {
             id: 'close-2',
@@ -514,7 +514,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'close-1',
             category: 'Candidate Questions',
-            question: 'What questions do you have for me about the role or TRAVLR?',
+            question: 'What questions do you have for me about the role or NAVEO Stays?',
           },
           {
             id: 'close-2',
@@ -631,7 +631,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'strat-1',
             category: 'Vision',
-            question: 'If you joined TRAVLR as Head of Property Operations, what would your first 90 days look like?',
+            question: 'If you joined NAVEO Stays as Head of Property Operations, what would your first 90 days look like?',
           },
           {
             id: 'strat-2',
@@ -648,7 +648,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'close-1',
             category: 'Candidate Questions',
-            question: 'What questions do you have for me about TRAVLR, the team, or this role?',
+            question: 'What questions do you have for me about NAVEO Stays, the team, or this role?',
           },
           {
             id: 'close-2',
@@ -743,7 +743,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'close-1',
             category: 'Candidate Questions',
-            question: 'What questions do you have for me about TRAVLR or this role?',
+            question: 'What questions do you have for me about NAVEO Stays or this role?',
           },
         ],
       },
@@ -844,7 +844,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'close-1',
             category: 'Candidate Questions',
-            question: 'What questions do you have for me about TRAVLR or this role?',
+            question: 'What questions do you have for me about NAVEO Stays or this role?',
           },
           {
             id: 'close-2',
@@ -939,7 +939,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'kw-close-1',
             category: 'Closing',
-            question: "Given everything we've talked through, what questions do you have for me about TRAVLR, the properties, or the day-to-day of this role?",
+            question: "Given everything we've talked through, what questions do you have for me about NAVEO Stays, the properties, or the day-to-day of this role?",
           },
         ],
       },
@@ -1209,7 +1209,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'kc-close-1',
             category: 'Closing',
-            question: "What would you want to know about TRAVLR specifically, or about the homeowners we currently manage properties for?",
+            question: "What would you want to know about NAVEO Stays specifically, or about the homeowners we currently manage properties for?",
           },
         ],
       },
@@ -1299,7 +1299,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'cs-close-1',
             category: 'Closing',
-            question: "What questions do you have about the day-to-day structure of this role, or about TRAVLR's current homeowner portfolio?",
+            question: "What questions do you have about the day-to-day structure of this role, or about NAVEO Stays's current homeowner portfolio?",
           },
         ],
       },
@@ -1389,7 +1389,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'mj-close-1',
             category: 'Closing',
-            question: "What would you want to know about TRAVLR's properties, the homeowners we work with, or how leads get to you already pre-qualified?",
+            question: "What would you want to know about NAVEO Stays's properties, the homeowners we work with, or how leads get to you already pre-qualified?",
           },
         ],
       },
@@ -1479,7 +1479,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'jt-close-1',
             category: 'Closing',
-            question: "What questions do you have about the role, the properties, or how TRAVLR's homeowner program actually works?",
+            question: "What questions do you have about the role, the properties, or how NAVEO Stays's homeowner program actually works?",
           },
         ],
       },
@@ -1569,7 +1569,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
           {
             id: 'dc-close-1',
             category: 'Closing',
-            question: "What would you want to know about TRAVLR, the properties we manage, or how this role actually works day to day?",
+            question: "What would you want to know about NAVEO Stays, the properties we manage, or how this role actually works day to day?",
           },
         ],
       },

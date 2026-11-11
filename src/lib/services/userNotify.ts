@@ -45,7 +45,7 @@ export async function notifyUser(db: Db, userId: string, n: UserNote, opts: { fo
     else if (!p.sms_opt_in) out.sms = 'no_consent';
     else if (!inHours) out.sms = 'outside_hours';
     else if (!opts.force && to === team.phone) out.sms = 'duplicate_of_team_alert';
-    else { try { const r = await dispatchSMS({ to, leadId: 'internal-user-alert', body: `TRAVLR: ${n.title}. ${n.message}`.slice(0, 300) }); out.sms = r.success ? 'sent' : 'failed'; } catch { out.sms = 'failed'; } }
+    else { try { const r = await dispatchSMS({ to, leadId: 'internal-user-alert', body: `AVYRO AI: ${n.title}. ${n.message}`.slice(0, 300) }); out.sms = r.success ? 'sent' : 'failed'; } catch { out.sms = 'failed'; } }
   }
   return out;
 }

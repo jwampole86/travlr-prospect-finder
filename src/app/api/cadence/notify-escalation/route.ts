@@ -9,7 +9,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
  * when a lead hits human_outreach stage.
  */
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
 
 export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
           </div>
 
           <hr style="border:none;border-top:1px solid #e5e7eb;margin-bottom:16px">
-          <p style="font-size:11px;color:#9ca3af">This notification was sent by TRAVLR because a lead in your pipeline escalated to Human Outreach stage.</p>
+          <p style="font-size:11px;color:#9ca3af">This notification was sent by AVYRO AI because a lead in your pipeline escalated to Human Outreach stage.</p>
         </body>
         </html>
       `;

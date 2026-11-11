@@ -142,9 +142,9 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
   const html = `
 <div style="font-family: Georgia, 'Times New Roman', serif; max-width: 720px; margin: 0 auto; padding: 48px; color: #172033; line-height: 1.7; background: #ffffff;">
   <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e5e7eb;">
-    <img src="${logoUrl}" alt="TRAVLR Vacation Homes" style="width: 58px; height: 58px; object-fit: contain; border-radius: 14px;" />
+    <img src="${logoUrl}" alt="NAVEO Stays" style="width: 58px; height: 58px; object-fit: contain; border-radius: 14px;" />
     <div>
-      <div style="font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.4px;">TRAVLR Vacation Homes</div>
+      <div style="font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.4px;">NAVEO Stays</div>
       <div style="font-size: 13px; color: #6b7280;">Ultra-Luxury Vacation Rental Management</div>
     </div>
   </div>
@@ -153,7 +153,7 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
 
   <p style="font-size: 16px; margin-bottom: 8px;">Dear <strong>${safe(form.candidateName) || '[Candidate Name]'}</strong>,</p>
 
-  <p style="margin-bottom: 20px;">We are pleased to extend this offer of employment to you for the position of <strong>${safe(form.roleTitle) || '[Role Title]'}</strong>${form.department ? ` within our <strong>${safe(form.department)}</strong> team` : ''}. After a thorough interview process, we are confident that your skills, judgment, and experience make you an excellent fit for TRAVLR.</p>
+  <p style="margin-bottom: 20px;">We are pleased to extend this offer of employment to you for the position of <strong>${safe(form.roleTitle) || '[Role Title]'}</strong>${form.department ? ` within our <strong>${safe(form.department)}</strong> team` : ''}. After a thorough interview process, we are confident that your skills, judgment, and experience make you an excellent fit for NAVEO Stays.</p>
 
   <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 28px 0;">
     <h3 style="font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #374151; margin: 0 0 16px 0;">Offer Details</h3>
@@ -177,25 +177,25 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
 
   ${includedBenefits.length > 0 ? `
   <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin: 28px 0 12px 0;">Benefits Package</h3>
-  <p style="margin-bottom: 12px; color: #374151;">As a full-time member of the TRAVLR team, you will be eligible for the following benefits:</p>
+  <p style="margin-bottom: 12px; color: #374151;">As a full-time member of the NAVEO Stays team, you will be eligible for the following benefits:</p>
   <ul style="margin: 0 0 20px 0; padding-left: 20px; color: #374151;">
     ${includedBenefits.map(b => `<li style="margin-bottom: 6px; font-size: 14px;">${safe(b.label)}</li>`).join('')}
   </ul>
   ` : ''}
 
   <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin: 28px 0 12px 0;">Important Terms</h3>
-  <p style="margin-bottom: 12px;">This offer is contingent upon successful completion of any required background check, reference checks, employment eligibility verification, and your execution of TRAVLR's standard confidentiality, intellectual property, and policy acknowledgements.</p>
-  <p style="margin-bottom: 16px;">Employment with TRAVLR is at-will. Either you or TRAVLR may end the employment relationship at any time, with or without cause or notice, subject to applicable law.</p>
+  <p style="margin-bottom: 12px;">This offer is contingent upon successful completion of any required background check, reference checks, employment eligibility verification, and your execution of NAVEO Stays's standard confidentiality, intellectual property, and policy acknowledgements.</p>
+  <p style="margin-bottom: 16px;">Employment with NAVEO Stays is at-will. Either you or NAVEO Stays may end the employment relationship at any time, with or without cause or notice, subject to applicable law.</p>
 
   ${form.additionalNotes ? `<p style="margin-bottom: 16px; padding: 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 14px; color: #92400e;">${safe(form.additionalNotes)}</p>` : ''}
 
   <p style="margin-bottom: 8px;">Please indicate your acceptance of this offer by signing and returning this letter by <strong>${expiryFormatted}</strong>.</p>
 
-  <p style="margin-bottom: 32px;">We look forward to welcoming you to the TRAVLR family. If you have any questions, please don't hesitate to reach out.</p>
+  <p style="margin-bottom: 32px;">We look forward to welcoming you to the NAVEO Stays family. If you have any questions, please don't hesitate to reach out.</p>
 
   <p style="margin-bottom: 4px;">Warm regards,</p>
   <p style="font-weight: 700; margin-bottom: 2px;">Jennifer Wampole</p>
-  <p style="color: #6b7280; font-size: 14px; margin-bottom: 40px;">Head of People Operations · TRAVLR Inc.</p>
+  <p style="color: #6b7280; font-size: 14px; margin-bottom: 40px;">Head of People Operations · AVYRO AI Inc.</p>
 
   <div style="border-top: 1px solid #e5e7eb; padding-top: 32px; margin-top: 32px;">
     <p style="font-size: 13px; color: #6b7280; margin-bottom: 24px;">By signing below, I, <strong>${safe(form.candidateName) || '[Candidate Name]'}</strong>, accept the terms of this offer of employment.</p>
@@ -213,7 +213,7 @@ function generateOfferLetterHTML(form: OfferLetterForm, benefits: BenefitItem[])
 </div>
   `.trim();
 
-  const plain = `OFFER OF EMPLOYMENT — TRAVLR Vacation Homes\n${today}\n\nDear ${form.candidateName || '[Candidate Name]'},\n\nWe are pleased to extend this offer for the position of ${form.roleTitle || '[Role Title]'}${form.department ? ` in our ${form.department} team` : ''}.\n\nOFFER DETAILS\nPosition: ${form.roleTitle || '—'}\nEmployment Type: ${form.employmentType}\nCompensation: ${salaryDisplay}\nStart Date: ${startFormatted}${isCommission ? '' : `\nProjected First Payroll: ${firstPayrollDate}`}\n${form.reportingTo ? `Reports To: ${form.reportingTo}\n` : ''}${form.workLocation ? `Work Location: ${form.workLocation}\n` : ''}\n${isCommission ? `COMMISSION TERMS\n${commissionTerms}\nThis position does not include a salary or employee benefits.\n\n` : ''}${includedBenefits.length > 0 ? `BENEFITS\n${includedBenefits.map(b => `- ${b.label}`).join('\n')}\n\n` : ''}Please accept by ${expiryFormatted}.\n\nWarm regards,\nJennifer Wampole\nHead of People Operations · TRAVLR Inc.`;
+  const plain = `OFFER OF EMPLOYMENT — NAVEO Stays\n${today}\n\nDear ${form.candidateName || '[Candidate Name]'},\n\nWe are pleased to extend this offer for the position of ${form.roleTitle || '[Role Title]'}${form.department ? ` in our ${form.department} team` : ''}.\n\nOFFER DETAILS\nPosition: ${form.roleTitle || '—'}\nEmployment Type: ${form.employmentType}\nCompensation: ${salaryDisplay}\nStart Date: ${startFormatted}${isCommission ? '' : `\nProjected First Payroll: ${firstPayrollDate}`}\n${form.reportingTo ? `Reports To: ${form.reportingTo}\n` : ''}${form.workLocation ? `Work Location: ${form.workLocation}\n` : ''}\n${isCommission ? `COMMISSION TERMS\n${commissionTerms}\nThis position does not include a salary or employee benefits.\n\n` : ''}${includedBenefits.length > 0 ? `BENEFITS\n${includedBenefits.map(b => `- ${b.label}`).join('\n')}\n\n` : ''}Please accept by ${expiryFormatted}.\n\nWarm regards,\nJennifer Wampole\nHead of People Operations · AVYRO AI Inc.`;
 
   return { html, plain };
 }

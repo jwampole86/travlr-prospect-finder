@@ -80,9 +80,9 @@ const MOCK_LEADS: Lead[] = [
 ];
 
 const MOCK_AGENTS: Agent[] = [
-  { id: 'a1', full_name: 'James Carter', email: 'james@travlrpro.com' },
-  { id: 'a2', full_name: 'Maria Lopez', email: 'maria@travlrpro.com' },
-  { id: 'a3', full_name: 'Kevin Park', email: 'kevin@travlrpro.com' },
+  { id: 'a1', full_name: 'James Carter', email: 'james@avyropro.ai' },
+  { id: 'a2', full_name: 'Maria Lopez', email: 'maria@avyropro.ai' },
+  { id: 'a3', full_name: 'Kevin Park', email: 'kevin@avyropro.ai' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

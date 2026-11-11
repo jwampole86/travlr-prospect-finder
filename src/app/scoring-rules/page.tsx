@@ -148,7 +148,7 @@ const INITIAL_AUDIT: AuditEntry[] = [
   {
     id: 'audit-1',
     timestamp: '2026-08-14 16:42:00',
-    actor: 'admin@travlr.com',
+    actor: 'admin@avyropro.ai',
     action: 'weight_change',
     ruleId: 'rule-contact-confidence',
     ruleName: 'Contact Confidence Score',
@@ -160,7 +160,7 @@ const INITIAL_AUDIT: AuditEntry[] = [
   {
     id: 'audit-2',
     timestamp: '2026-08-13 11:15:00',
-    actor: 'admin@travlr.com',
+    actor: 'admin@avyropro.ai',
     action: 'rule_disabled',
     ruleId: 'rule-profile-social',
     ruleName: 'Social Profile Match',
@@ -172,7 +172,7 @@ const INITIAL_AUDIT: AuditEntry[] = [
   {
     id: 'audit-3',
     timestamp: '2026-08-12 09:30:00',
-    actor: 'ops@travlr.com',
+    actor: 'ops@avyropro.ai',
     action: 'weight_change',
     ruleId: 'rule-phone-dnc',
     ruleName: 'DNC Registry Check',
@@ -686,7 +686,7 @@ export default function ScoringRulesPage() {
     setAudit(prev => [{
       id: `audit-${Date.now()}`,
       timestamp: now,
-      actor: 'admin@travlr.com',
+      actor: 'admin@avyropro.ai',
       action: newEnabled ? 'rule_enabled' : 'rule_disabled',
       ruleId: togglingRule.id,
       ruleName: togglingRule.name,
@@ -708,7 +708,7 @@ export default function ScoringRulesPage() {
     setAudit(prev => [{
       id: `audit-${Date.now()}`,
       timestamp: now,
-      actor: 'admin@travlr.com',
+      actor: 'admin@avyropro.ai',
       action: changes.some(c => c.includes('weight')) ? 'weight_change' : 'condition_change',
       ruleId: updated.id,
       ruleName: updated.name,

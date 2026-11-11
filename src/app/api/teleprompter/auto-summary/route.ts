@@ -3,8 +3,8 @@ import { completion } from '@rocketnew/llm-sdk';
 import { createClient } from '@/lib/supabase/server';
 import { activityService } from '@/lib/services/activityService';
 
-const SUMMARY_SYSTEM_PROMPT = `You are a call summarizer for TRAVLR, a vacation rental property management company. 
-Given a call transcript between a TRAVLR agent and a homeowner prospect, produce a concise, structured summary.
+const SUMMARY_SYSTEM_PROMPT = `You are a call summarizer for NAVEO Stays, a vacation rental property management company. 
+Given a call transcript between a NAVEO Stays agent and a homeowner prospect, produce a concise, structured summary.
 
 Output format (strict JSON):
 {

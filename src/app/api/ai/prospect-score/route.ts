@@ -5,7 +5,7 @@ import { calculateProspectScore, type ProspectScoringInput } from '@/lib/scoring
 
 /**
  * POST /api/ai/prospect-score
- * Uses a deterministic TRAVLR scoring baseline, then optionally asks Claude to refine
+ * Uses a deterministic AVYRO AI scoring baseline, then optionally asks Claude to refine
  * reasoning and next action around the same factor model.
  */
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         leadId: lead.leadId,
         aiScore: baseline.score,
         confidence: baseline.blockers.length > 0 ? 0.9 : 0.72,
-        reasoning: baseline.blockers[0] || `Baseline ${baseline.band} priority from TRAVLR scoring factors.`,
+        reasoning: baseline.blockers[0] || `Baseline ${baseline.band} priority from AVYRO AI scoring factors.`,
         prioritySignal: baseline.band === 'nurture' ? 'warm' : baseline.band === 'blocked' ? 'dead' : baseline.band,
       };
     });
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: `You are a real estate outreach scoring expert for TRAVLR, a short-term rental management company. 
+            content: `You are a real estate outreach scoring expert for AVYRO AI, a short-term rental management company. 
 You analyze leads and produce refined prospect scores (0-100) that account for property potential, regulatory environment, and engagement signals.
 Always respond with valid JSON only — no markdown, no explanation outside the JSON.`,
           },
@@ -136,7 +136,7 @@ Always respond with valid JSON only — no markdown, no explanation outside the 
       leadId: body.leadId,
       aiScore: baseline.score,
       confidence: baseline.blockers.length > 0 ? 0.9 : 0.72,
-      reasoning: baseline.blockers[0] || `Deterministic ${baseline.band} score from TRAVLR scoring factors.`,
+      reasoning: baseline.blockers[0] || `Deterministic ${baseline.band} score from AVYRO AI scoring factors.`,
       scoreBreakdown: Object.fromEntries(baseline.factors.map((factor) => [factor.key, factor.weightedPoints])),
       prioritySignal: baseline.band === 'nurture' ? 'warm' : baseline.band === 'blocked' ? 'dead' : baseline.band,
       recommendedAction: baseline.blockers.length > 0 ? 'Resolve compliance or DNC blockers before outreach.' : 'Prioritize according to the highest weighted factor gaps.',
@@ -160,10 +160,10 @@ Always respond with valid JSON only — no markdown, no explanation outside the 
       messages: [
         {
           role: 'system',
-          content: `You are a real estate outreach scoring expert for TRAVLR, a short-term rental management company.
+          content: `You are a real estate outreach scoring expert for AVYRO AI, a short-term rental management company.
 You analyze individual leads and produce a refined prospect score (0-100) calibrated against real STR market conversion data.
 
-TRAVLR SCORING MODEL:
+AVYRO AI SCORING MODEL:
 - Revenue Potential (25): estimated net/gross monthly opportunity, ADR, and luxury opportunity
 - Property Fit (25): 3-5 bedroom private homes with 2+ baths fit best for luxury STR demand
 - Regulatory Feasibility (25): Allowed > Restricted > Pending/Unknown; Banned/Prohibited is a blocker
@@ -231,7 +231,7 @@ Always respond with valid JSON only — no markdown, no explanation outside the 
 
 export async function GET() {
   return NextResponse.json({
-    description: 'Deterministic TRAVLR prospect score with optional Claude refinement',
+    description: 'Deterministic AVYRO AI prospect score with optional Claude refinement',
     factors: ['revenuePotential', 'propertyFit', 'regulatoryFeasibility', 'leadQuality', 'engagement'],
     usage: 'POST /api/ai/prospect-score with propertyDetails, regulatoryContext, contactHistory',
     batchUsage: 'POST with batchLeads array for bulk scoring',
@@ -306,8 +306,8 @@ function buildSingleScoringPrompt(data: {
   currentScore?: number;
   stage?: string;
 }): string {
-  return `Score this TRAVLR short-term rental management prospect.
-Deterministic TRAVLR baseline score: ${data.currentScore ?? 'unknown'}, Stage: ${data.stage ?? 'unknown'}.
+  return `Score this AVYRO AI short-term rental management prospect.
+Deterministic AVYRO AI baseline score: ${data.currentScore ?? 'unknown'}, Stage: ${data.stage ?? 'unknown'}.
 Use the baseline as the anchor. Refine only when the supplied details clearly support a higher or lower score.
 
 PROPERTY DETAILS:
@@ -348,7 +348,7 @@ Freshness: recent listings/activity are better; very stale listings should not a
 }
 
 function buildBatchScoringPrompt(leads: Array<Record<string, unknown>>): string {
-  return `Score these ${leads.length} TRAVLR short-term rental management prospects for outreach priority.
+  return `Score these ${leads.length} AVYRO AI short-term rental management prospects for outreach priority.
 Use the same factor model as the deterministic baseline: revenue potential, property fit, regulatory feasibility, lead quality, and engagement/freshness.
 
 LEADS:

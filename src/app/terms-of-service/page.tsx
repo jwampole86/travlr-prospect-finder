@@ -6,8 +6,8 @@ import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
 
 const EFFECTIVE_DATE = 'August 18, 2026';
 const COMPANY = 'AVYRO AI Inc.';
-const CONTACT_EMAIL = 'legal@travlr.com';
-const SITE_URL = 'https://travlrpro3047.builtwithrocket.new';
+const CONTACT_EMAIL = 'legal@avyropro.ai';
+const SITE_URL = 'https://avyropro.ai';
 
 interface Section {
   id: string;
@@ -167,7 +167,7 @@ const SECTIONS: Section[] = [
       <p>
         Questions about these Terms? Contact us at{' '}
         <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-400 hover:text-blue-300 underline">{CONTACT_EMAIL}</a>{' '}
-        or write to {COMPANY}, 123 TRAVLR Way, Suite 100, Austin, TX 78701.
+        or write to {COMPANY}, 123 AVYRO AI Way, Suite 100, Austin, TX 78701.
       </p>
     ),
   },

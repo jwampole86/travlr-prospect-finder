@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     const html = templateBodies[type] ?? '<p>Test notification</p>';
 
     const { data, error } = await getResendClient().emails.send({
-      from: getResendFrom(),
+      from: getResendFrom('NAVEO Stays'),
       to: [email],
       subject,
       html,

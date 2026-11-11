@@ -3,7 +3,7 @@ import { completion } from '@rocketnew/llm-sdk';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 
-const SUMMARY_SYSTEM_PROMPT = `You are an expert call analyst for TRAVLR, a luxury short-term rental property management company. 
+const SUMMARY_SYSTEM_PROMPT = `You are an expert call analyst for NAVEO Stays, a luxury short-term rental property management company. 
 Analyze the provided call transcript and return a structured JSON summary.
 
 Return ONLY valid JSON with this exact structure:

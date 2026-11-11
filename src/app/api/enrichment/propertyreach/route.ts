@@ -12,7 +12,7 @@ import {
 /**
  * POST /api/enrichment/propertyreach
  *
- * Starts a PropertyReach enrichment job for an existing canonical TRAVLR property.
+ * Starts a PropertyReach enrichment job for an existing canonical AVYRO AI property.
  * The property ID is the anchor — enrichment never attaches based on name alone.
  *
  * Body: { leadId, address, city, state, zip, apn?, forceRefresh? }

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       email: candidate.email,
       status: candidate.candidate_status,
     },
-    roleTitle: latestInterview?.role_title || 'TRAVLR Outreach & Business Development Agent',
+    roleTitle: latestInterview?.role_title || 'NAVEO Stays Outreach & Business Development Agent',
     interviewSummary: latestInterview?.summary || null,
     overallFit: latestScorecard?.overall_fit ?? null,
     hireRecommendation: latestScorecard?.hire_recommendation ?? null,

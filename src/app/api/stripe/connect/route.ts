@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createConnectAccount, createAccountLink, getAccountStatus } from '@/lib/services/stripeConnectService';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://travlrpro3047.builtwithrocket.new';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://avyropro.ai';
 
 /**
  * POST /api/stripe/connect

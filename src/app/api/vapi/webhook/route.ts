@@ -107,13 +107,13 @@ async function generateRoleScorecard(input: { candidateName: string; roleTitle: 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1500,
-    system: 'You are an expert interview evaluator for TRAVLR Vacation Homes. Score strictly against the provided role requirements using only evidence present in the transcript. Never fabricate evidence. Never infer protected characteristics. This is advisory only — a human always makes the final hire decision.',
+    system: 'You are an expert interview evaluator for NAVEO Stays. Score strictly against the provided role requirements using only evidence present in the transcript. Never fabricate evidence. Never infer protected characteristics. This is advisory only — a human always makes the final hire decision.',
     messages: [{
       role: 'user',
       content: `Evaluate this AI-conducted phone interview transcript for ${input.candidateName} against the role requirements below. Score each competency 1-10 based only on evidence in the transcript. If a competency was not addressed, score conservatively (use 5) rather than fabricate evidence.
 
 ROLE REQUIREMENTS:
-${input.roleTitle === 'TRAVLR Outreach & Business Development Agent' ? OUTREACH_BIZDEV_JOB_DESCRIPTION : `Role: ${input.roleTitle}`}
+${/Outreach & Business Development Agent$/.test(input.roleTitle ?? '') ? OUTREACH_BIZDEV_JOB_DESCRIPTION : `Role: ${input.roleTitle}`}
 
 CANDIDATE RESUME SUMMARY:
 ${input.resumeSummary}
@@ -232,7 +232,7 @@ async function generateSummary(input: { candidateName: string; roleTitle: string
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1800,
-    system: 'You are a recruiting interviewer analyst for TRAVLR Vacation Homes. Use only evidence in the resume context and transcript. Never invent evidence, protected characteristics, or hiring decisions. The result is advisory and requires human review.',
+    system: 'You are a recruiting interviewer analyst for NAVEO Stays. Use only evidence in the resume context and transcript. Never invent evidence, protected characteristics, or hiring decisions. The result is advisory and requires human review.',
     messages: [{
       role: 'user',
       content: `Create a concise, evidence-based admin interview summary for ${input.candidateName} interviewing for ${input.roleTitle}.

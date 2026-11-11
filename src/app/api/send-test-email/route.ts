@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     }
     const { to, subject, html } = await req.json();
     const resend = getResendClient();
-    const from = getResendFrom();
+    const from = getResendFrom('NAVEO Stays');
 
     if (!to || !subject || !html) {
       return NextResponse.json({ success: false, error: 'Missing required fields: to, subject, html' }, { status: 400 });

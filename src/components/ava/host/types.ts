@@ -1,5 +1,5 @@
 // Synced from ava-assistant. Do not edit here: change it there and run tools/sync-to-travlr.mjs.
-/** What an app (AVYRO/TRAVLR, or the sandbox) provides so AVA can live inside it. */
+/** What an app (AVYRO/AVYRO AI, or the sandbox) provides so AVA can live inside it. */
 export type AvaRole = 'admin' | 'owner' | 'agent' | 'homeowner';
 
 export interface TourStep {

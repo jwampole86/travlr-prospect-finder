@@ -342,7 +342,7 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
     '{{company_name}}': 'NAVEO Stays',
     '{{prospect_score}}': '82',
     '{{estimated_revenue}}': '$4,200',
-    '{{unsubscribe_link}}': 'https://staytravlr.com/unsubscribe',
+    '{{unsubscribe_link}}': 'https://staynaveo.com/unsubscribe',
     '{{opt_out}}': 'Reply STOP to opt out',
     // SMS-specific
     '{{senderName}}': 'Jen',

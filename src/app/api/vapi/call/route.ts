@@ -78,13 +78,13 @@ export async function POST(request: NextRequest) {
         ...(body.interviewId ? { interviewId: body.interviewId } : {}),
         candidateId: candidate.id,
         candidateName: candidate.full_name,
-        roleTitle: 'TRAVLR Outreach & Business Development Agent',
+        roleTitle: 'NAVEO Stays Outreach & Business Development Agent',
         resumeSummary: asInterviewText(candidate.professional_summary, 'No resume summary is available.'),
         relevantExperience: asInterviewText(candidate.work_experience, 'No additional relevant experience is available.'),
         candidateStrengths: asInterviewText(candidate.strengths, 'No specific strengths have been identified.'),
         riskAreas: asInterviewText(candidate.concerns, 'No specific risk areas have been identified.'),
         claimsToValidate: asInterviewText(candidate.resume_highlights, 'No specific resume claims have been flagged.'),
-        recommendedInterviewFocus: asInterviewText(candidate.concerns, 'Conduct the standard TRAVLR structured interview.'),
+        recommendedInterviewFocus: asInterviewText(candidate.concerns, 'Conduct the standard NAVEO Stays structured interview.'),
       };
     }
 

@@ -191,7 +191,7 @@ export default function BuilderTab({ form, setForm, banner, onClearBanner, onVie
       {step === 1 && (
         <div className="space-y-5">
           <Card className="p-5">
-            <SectionTitle icon={<MessageSquareText size={15} className="text-primary" />} title="Tone" hint="The wording itself is written for each homeowner from their own estimate and checked automatically: no guarantees, TRAVLR named, and a reply YES or NO opt-out. You choose the tone." />
+            <SectionTitle icon={<MessageSquareText size={15} className="text-primary" />} title="Tone" hint="The wording itself is written for each homeowner from their own estimate and checked automatically: no guarantees, NAVEO Stays named, and a reply YES or NO opt-out. You choose the tone." />
             <div className="grid sm:grid-cols-3 gap-3">{TONES.map(t => (
               <button key={t.id} onClick={() => set('tone', t.id)} className={cx('text-left rounded-xl border p-4 transition-all flex flex-col justify-start', form.tone === t.id ? 'border-primary ring-2 ring-primary/30 bg-primary/5' : 'border-border hover:border-primary/50')}>
                 <p className="font-medium text-sm">{t.title}</p><p className="text-xs text-muted-foreground mt-1">{t.blurb}</p></button>))}</div>

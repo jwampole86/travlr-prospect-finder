@@ -75,11 +75,11 @@ const PLANS: Plan[] = PLAN_ORDER.map((id) => {
 });
 
 const mockSeats: Seat[] = [
-  { id: 's1', name: 'Sarah Mitchell', email: 'sarah@travlrpro.com', role: 'admin', status: 'active', joinedAt: '2026-07-01' },
-  { id: 's2', name: 'James Torres', email: 'james@travlrpro.com', role: 'agent', status: 'active', joinedAt: '2026-07-05' },
-  { id: 's3', name: 'Priya Nair', email: 'priya@travlrpro.com', role: 'agent', status: 'active', joinedAt: '2026-07-10' },
-  { id: 's4', name: 'Marcus Webb', email: 'marcus@travlrpro.com', role: 'agent', status: 'active', joinedAt: '2026-07-15' },
-  { id: 's5', name: 'Lisa Monroe', email: 'lisa@travlrpro.com', role: 'viewer', status: 'invited', joinedAt: '2026-08-10' },
+  { id: 's1', name: 'Sarah Mitchell', email: 'sarah@avyropro.ai', role: 'admin', status: 'active', joinedAt: '2026-07-01' },
+  { id: 's2', name: 'James Torres', email: 'james@avyropro.ai', role: 'agent', status: 'active', joinedAt: '2026-07-05' },
+  { id: 's3', name: 'Priya Nair', email: 'priya@avyropro.ai', role: 'agent', status: 'active', joinedAt: '2026-07-10' },
+  { id: 's4', name: 'Marcus Webb', email: 'marcus@avyropro.ai', role: 'agent', status: 'active', joinedAt: '2026-07-15' },
+  { id: 's5', name: 'Lisa Monroe', email: 'lisa@avyropro.ai', role: 'viewer', status: 'invited', joinedAt: '2026-08-10' },
 ];
 
 const mockInvoices: Invoice[] = [

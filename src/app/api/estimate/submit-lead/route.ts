@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     try {
       const res = await Promise.race([
         getServerChatCompletion('ANTHROPIC', 'claude-haiku-4-5-20251001', [
-          { role: 'system', content: 'You are a CRM assistant for TRAVLR Vacation Homes. Write a concise, factual 2-3 sentence summary of a homeowner self-submission for an agent to read.' },
+          { role: 'system', content: 'You are a CRM assistant for NAVEO Stays. Write a concise, factual 2-3 sentence summary of a homeowner self-submission for an agent to read.' },
           { role: 'user', content: `Homeowner self-submitted via the estimate page.\nAddress: ${address}\nName: ${contact.firstName} ${contact.lastName}\nProperty type: ${qualification.propertyType || 'not specified'}\nCurrent rental status: ${qualification.rentalStatus || 'not specified'}\nTimeline: ${qualification.timelineInterest || 'not specified'}\nExisting equipment: ${equipmentLine}\nEstimate shown: $${expected.netMonthly.toLocaleString()}/mo net, $${expected.annualNet.toLocaleString()}/yr. Local rules: ${report.regulation.headline}.` },
         ], { max_tokens: 200, temperature: 0.3 }),
         new Promise<null>(resolve => setTimeout(() => resolve(null), 8000)),

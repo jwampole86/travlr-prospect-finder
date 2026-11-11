@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const { envelopeId, status } = await createOfferLetterEnvelope(
       [signer],
       body.letterHtml,
-      `TRAVLR Offer Letter — ${body.roleTitle}`
+      `NAVEO Stays Offer Letter — ${body.roleTitle}`
     );
 
     const supabase = getSupabaseAdmin();

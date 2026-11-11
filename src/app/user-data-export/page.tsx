@@ -70,23 +70,23 @@ const LEADS: LeadRecord[] = [
 ];
 
 const EXPORT_JOBS: ExportJob[] = [
-  { id: 'exp-001', leadId: 'l-004', leadName: 'Jennifer Park', requestedBy: 'admin@travlr.com', requestedAt: new Date(Date.now() - 2 * 3600000).toISOString(), status: 'ready', includes: ['Lead Record', 'Interactions', 'Enrichment Logs', 'SMS History', 'Email History'], size: '48 KB', completedAt: new Date(Date.now() - 1.5 * 3600000).toISOString() },
-  { id: 'exp-002', leadId: 'l-005', leadName: 'David Torres', requestedBy: 'admin@travlr.com', requestedAt: new Date(Date.now() - 5 * 86400000).toISOString(), status: 'downloaded', includes: ['Lead Record', 'Interactions', 'Enrichment Logs'], size: '62 KB', completedAt: new Date(Date.now() - 5 * 86400000 + 3600000).toISOString() },
+  { id: 'exp-001', leadId: 'l-004', leadName: 'Jennifer Park', requestedBy: 'admin@avyropro.ai', requestedAt: new Date(Date.now() - 2 * 3600000).toISOString(), status: 'ready', includes: ['Lead Record', 'Interactions', 'Enrichment Logs', 'SMS History', 'Email History'], size: '48 KB', completedAt: new Date(Date.now() - 1.5 * 3600000).toISOString() },
+  { id: 'exp-002', leadId: 'l-005', leadName: 'David Torres', requestedBy: 'admin@avyropro.ai', requestedAt: new Date(Date.now() - 5 * 86400000).toISOString(), status: 'downloaded', includes: ['Lead Record', 'Interactions', 'Enrichment Logs'], size: '62 KB', completedAt: new Date(Date.now() - 5 * 86400000 + 3600000).toISOString() },
 ];
 
 const DELETIONS: DeletionRecord[] = [
-  { id: 'del-001', leadId: 'l-003', leadName: 'Robert Williams', email: 'rwilliams@outlook.com', requestedBy: 'admin@travlr.com', requestedAt: new Date(Date.now() - 3 * 86400000).toISOString(), status: 'pending_review', auditRef: 'AUD-2026-0814-001' },
-  { id: 'del-002', leadId: 'l-xxx', leadName: 'Alice Nguyen', email: 'anguyen@email.com', requestedBy: 'admin@travlr.com', requestedAt: new Date(Date.now() - 10 * 86400000).toISOString(), status: 'retained', retentionOverride: 'Legal Hold', retentionReason: 'Active litigation — data must be preserved per counsel instruction', auditRef: 'AUD-2026-0808-003' },
-  { id: 'del-003', leadId: 'l-yyy', leadName: 'Tom Bradley', email: 'tbradley@email.com', requestedBy: 'admin@travlr.com', requestedAt: new Date(Date.now() - 20 * 86400000).toISOString(), status: 'deleted', completedAt: new Date(Date.now() - 19 * 86400000).toISOString(), auditRef: 'AUD-2026-0729-007' },
+  { id: 'del-001', leadId: 'l-003', leadName: 'Robert Williams', email: 'rwilliams@outlook.com', requestedBy: 'admin@avyropro.ai', requestedAt: new Date(Date.now() - 3 * 86400000).toISOString(), status: 'pending_review', auditRef: 'AUD-2026-0814-001' },
+  { id: 'del-002', leadId: 'l-xxx', leadName: 'Alice Nguyen', email: 'anguyen@email.com', requestedBy: 'admin@avyropro.ai', requestedAt: new Date(Date.now() - 10 * 86400000).toISOString(), status: 'retained', retentionOverride: 'Legal Hold', retentionReason: 'Active litigation — data must be preserved per counsel instruction', auditRef: 'AUD-2026-0808-003' },
+  { id: 'del-003', leadId: 'l-yyy', leadName: 'Tom Bradley', email: 'tbradley@email.com', requestedBy: 'admin@avyropro.ai', requestedAt: new Date(Date.now() - 20 * 86400000).toISOString(), status: 'deleted', completedAt: new Date(Date.now() - 19 * 86400000).toISOString(), auditRef: 'AUD-2026-0729-007' },
 ];
 
 const AUDIT_ENTRIES: AuditEntry[] = [
-  { id: 'a1', timestamp: new Date(Date.now() - 2 * 3600000).toISOString(), action: 'DATA_EXPORT_REQUESTED', actor: 'admin@travlr.com', target: 'Jennifer Park (l-004)', details: 'Full lead record export requested — includes interactions, enrichment logs, SMS/email history', severity: 'medium' },
+  { id: 'a1', timestamp: new Date(Date.now() - 2 * 3600000).toISOString(), action: 'DATA_EXPORT_REQUESTED', actor: 'admin@avyropro.ai', target: 'Jennifer Park (l-004)', details: 'Full lead record export requested — includes interactions, enrichment logs, SMS/email history', severity: 'medium' },
   { id: 'a2', timestamp: new Date(Date.now() - 2 * 3600000 + 1800000).toISOString(), action: 'DATA_EXPORT_READY', actor: 'system', target: 'Jennifer Park (l-004)', details: 'Export package generated (48 KB). Available for download.', severity: 'low' },
-  { id: 'a3', timestamp: new Date(Date.now() - 3 * 86400000).toISOString(), action: 'DELETION_REQUESTED', actor: 'admin@travlr.com', target: 'Robert Williams (l-003)', details: 'Account deletion requested. Pending compliance review.', severity: 'high' },
-  { id: 'a4', timestamp: new Date(Date.now() - 10 * 86400000).toISOString(), action: 'DELETION_RETAINED', actor: 'admin@travlr.com', target: 'Alice Nguyen (l-xxx)', details: 'Deletion overridden — Legal Hold applied. Reason: Active litigation.', severity: 'high' },
-  { id: 'a5', timestamp: new Date(Date.now() - 19 * 86400000).toISOString(), action: 'ACCOUNT_DELETED', actor: 'admin@travlr.com', target: 'Tom Bradley (l-yyy)', details: 'All lead data permanently deleted. Audit ref: AUD-2026-0729-007.', severity: 'high' },
-  { id: 'a6', timestamp: new Date(Date.now() - 5 * 86400000).toISOString(), action: 'DATA_EXPORT_DOWNLOADED', actor: 'admin@travlr.com', target: 'David Torres (l-005)', details: 'Export package downloaded by admin@travlr.com', severity: 'medium' },
+  { id: 'a3', timestamp: new Date(Date.now() - 3 * 86400000).toISOString(), action: 'DELETION_REQUESTED', actor: 'admin@avyropro.ai', target: 'Robert Williams (l-003)', details: 'Account deletion requested. Pending compliance review.', severity: 'high' },
+  { id: 'a4', timestamp: new Date(Date.now() - 10 * 86400000).toISOString(), action: 'DELETION_RETAINED', actor: 'admin@avyropro.ai', target: 'Alice Nguyen (l-xxx)', details: 'Deletion overridden — Legal Hold applied. Reason: Active litigation.', severity: 'high' },
+  { id: 'a5', timestamp: new Date(Date.now() - 19 * 86400000).toISOString(), action: 'ACCOUNT_DELETED', actor: 'admin@avyropro.ai', target: 'Tom Bradley (l-yyy)', details: 'All lead data permanently deleted. Audit ref: AUD-2026-0729-007.', severity: 'high' },
+  { id: 'a6', timestamp: new Date(Date.now() - 5 * 86400000).toISOString(), action: 'DATA_EXPORT_DOWNLOADED', actor: 'admin@avyropro.ai', target: 'David Torres (l-005)', details: 'Export package downloaded by admin@avyropro.ai', severity: 'medium' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -303,14 +303,14 @@ export default function UserDataExportPage() {
     if (!exportLead) return;
     const job: ExportJob = {
       id: `exp-${Date.now()}`, leadId: exportLead.id, leadName: exportLead.name,
-      requestedBy: 'admin@travlr.com', requestedAt: new Date().toISOString(),
+      requestedBy: 'admin@avyropro.ai', requestedAt: new Date().toISOString(),
       status: 'ready', includes: ['Lead Record', 'Interactions', 'Enrichment Logs', 'SMS History', 'Email History'],
       size: '52 KB', completedAt: new Date().toISOString(),
     };
     setExportJobs(prev => [job, ...prev]);
     const entry: AuditEntry = {
       id: `a-${Date.now()}`, timestamp: new Date().toISOString(),
-      action: 'DATA_EXPORT_REQUESTED', actor: 'admin@travlr.com',
+      action: 'DATA_EXPORT_REQUESTED', actor: 'admin@avyropro.ai',
       target: `${exportLead.name} (${exportLead.id})`,
       details: 'Full lead record export requested — includes interactions, enrichment logs, SMS/email history',
       severity: 'medium',
@@ -322,7 +322,7 @@ export default function UserDataExportPage() {
     if (!deleteLead) return;
     const record: DeletionRecord = {
       id: `del-${Date.now()}`, leadId: deleteLead.id, leadName: deleteLead.name,
-      email: deleteLead.email, requestedBy: 'admin@travlr.com',
+      email: deleteLead.email, requestedBy: 'admin@avyropro.ai',
       requestedAt: new Date().toISOString(),
       status: override ? 'retained' : 'pending_review',
       retentionOverride: override, retentionReason: reason,
@@ -332,7 +332,7 @@ export default function UserDataExportPage() {
     const entry: AuditEntry = {
       id: `a-${Date.now()}`, timestamp: new Date().toISOString(),
       action: override ? 'DELETION_RETAINED' : 'DELETION_REQUESTED',
-      actor: 'admin@travlr.com',
+      actor: 'admin@avyropro.ai',
       target: `${deleteLead.name} (${deleteLead.id})`,
       details: override ? `Deletion overridden — ${override} applied. Reason: ${reason}` : 'Account deletion requested. Pending compliance review.',
       severity: 'high',

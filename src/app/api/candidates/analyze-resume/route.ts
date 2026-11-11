@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Candidate or resume text not found' }, { status: 404 });
     }
 
-    const systemPrompt = `You are an expert resume analyst for TRAVLR Vacation Homes, a boutique luxury vacation-rental brand.
+    const systemPrompt = `You are an expert resume analyst for NAVEO Stays, a boutique luxury vacation-rental brand.
 Analyze resumes for the following role:
 
 ${OUTREACH_BIZDEV_JOB_DESCRIPTION}

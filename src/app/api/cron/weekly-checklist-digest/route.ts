@@ -74,7 +74,7 @@ function buildDigestHtml(params: {
     
     <!-- Header -->
     <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 32px 32px 28px;">
-      <p style="margin: 0 0 4px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.7); letter-spacing: 0.08em; text-transform: uppercase;">TRAVLR Vacation Homes</p>
+      <p style="margin: 0 0 4px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.7); letter-spacing: 0.08em; text-transform: uppercase;">AVYRO AI</p>
       <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff;">Weekly Onboarding Update</h1>
       <p style="margin: 8px 0 0; font-size: 14px; color: rgba(255,255,255,0.8);">${propertyAddress}</p>
     </div>
@@ -126,7 +126,7 @@ function buildDigestHtml(params: {
     <!-- Footer -->
     <div style="padding: 20px 32px; background: #f9fafb; border-top: 1px solid #e5e7eb;">
       <p style="margin: 0; font-size: 12px; color: #9ca3af; text-align: center;">
-        TRAVLR Vacation Homes · <a href="https://avyropro.ai" style="color: #6b7280;">avyropro.ai</a><br />
+        AVYRO AI · <a href="https://avyropro.ai" style="color: #6b7280;">avyropro.ai</a><br />
         You're receiving this because you have an active onboarding checklist.
       </p>
     </div>

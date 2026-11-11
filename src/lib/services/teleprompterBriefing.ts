@@ -78,7 +78,7 @@ export async function buildLeadBriefing(db: Db, leadId: string): Promise<string>
   const internal = [l.prospect_score ? `score ${l.prospect_score}/100` : null, l.luxury ? 'luxury tier' : null, money(l.estimated_net_monthly) ? `internal modelled net ${money(l.estimated_net_monthly)}/mo` : null].filter(Boolean).join(', ');
 
   return [
-    'LEAD PROFILE (from the TRAVLR CRM)', ...profile,
+    'LEAD PROFILE (from the AVYRO AI CRM)', ...profile,
     seen.length ? '\nWHAT THIS HOMEOWNER HAS SEEN FROM US' : null, ...seen,
     calls.length ? '\nPRIOR CALLS' : null, ...calls,
     internal ? `\nINTERNAL ONLY, never read these out or quote them: ${internal}.` : null,

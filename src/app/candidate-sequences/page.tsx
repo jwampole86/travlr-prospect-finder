@@ -116,7 +116,7 @@ function buildPreview(cohort: CohortKey, candidate: CandidateSequenceRow | null)
         description: COHORT_CONFIG[cohort].description,
         note: 'This is a local preview only. The page never calls a send API while candidate enrollment storage is unavailable.',
         subject: `Interview invitation for ${role}`,
-        body: `Hi ${name},\n\nThanks for your interest in TRAVLR. We'd love to schedule an interview to learn more about your background and talk through ${role}.\n\nReply with a few windows that work for you this week and we will coordinate the next step.\n\nBest,\nTRAVLR recruiting`,
+        body: `Hi ${name},\n\nThanks for your interest in NAVEO Stays. We'd love to schedule an interview to learn more about your background and talk through ${role}.\n\nReply with a few windows that work for you this week and we will coordinate the next step.\n\nBest,\nNAVEO Stays recruiting`,
       };
     case 'follow_up':
       return {
@@ -124,7 +124,7 @@ function buildPreview(cohort: CohortKey, candidate: CandidateSequenceRow | null)
         description: COHORT_CONFIG[cohort].description,
         note: 'Use after a completed interview when you need to keep the candidate warm without promising a decision.',
         subject: `Update on your ${role} interview`,
-        body: `Hi ${name},\n\nThank you again for taking time to speak with us about ${role}. Our team is reviewing feedback now and we wanted to let you know you're still in process.\n\nWe'll share the next update as soon as we have it. Please reach out if any new timing constraints come up on your side.\n\nBest,\nTRAVLR recruiting`,
+        body: `Hi ${name},\n\nThank you again for taking time to speak with us about ${role}. Our team is reviewing feedback now and we wanted to let you know you're still in process.\n\nWe'll share the next update as soon as we have it. Please reach out if any new timing constraints come up on your side.\n\nBest,\nNAVEO Stays recruiting`,
       };
     case 'second_interview':
       return {
@@ -132,7 +132,7 @@ function buildPreview(cohort: CohortKey, candidate: CandidateSequenceRow | null)
         description: COHORT_CONFIG[cohort].description,
         note: 'Best for candidates explicitly tagged for the second round or move-forward stages.',
         subject: `Next-round interview for ${role}`,
-        body: `Hi ${name},\n\nWe'd like to invite you to the next interview round for ${role}. The conversation will focus on how you approach the role in practice and give you time to meet more of the team.\n\nSend over your availability for the next few days and we'll lock something in.\n\nBest,\nTRAVLR recruiting`,
+        body: `Hi ${name},\n\nWe'd like to invite you to the next interview round for ${role}. The conversation will focus on how you approach the role in practice and give you time to meet more of the team.\n\nSend over your availability for the next few days and we'll lock something in.\n\nBest,\nNAVEO Stays recruiting`,
       };
     case 'rejection':
       return {
@@ -140,15 +140,15 @@ function buildPreview(cohort: CohortKey, candidate: CandidateSequenceRow | null)
         description: COHORT_CONFIG[cohort].description,
         note: 'This page only previews copy and never sends. Review the message before using it elsewhere.',
         subject: `Update on your application for ${role}`,
-        body: `Hi ${name},\n\nThank you for spending time with our team. After reviewing the process, we have decided not to move forward for ${role}.\n\nWe appreciate your interest in TRAVLR and wish you the best in your search.\n\nBest,\nTRAVLR recruiting`,
+        body: `Hi ${name},\n\nThank you for spending time with our team. After reviewing the process, we have decided not to move forward for ${role}.\n\nWe appreciate your interest in NAVEO Stays and wish you the best in your search.\n\nBest,\nNAVEO Stays recruiting`,
       };
     case 'congratulations':
       return {
         label: COHORT_CONFIG[cohort].label,
         description: COHORT_CONFIG[cohort].description,
         note: 'Ideal once onboarding tasks are confirmed elsewhere in the hiring stack.',
-        subject: `Welcome to TRAVLR, ${name}`,
-        body: `Hi ${name},\n\nCongratulations and welcome to TRAVLR. We're excited to have you joining us for ${role}.\n\nWe'll follow up shortly with onboarding details, first-day logistics, and anything you need before you start.\n\nBest,\nTRAVLR recruiting`,
+        subject: `Welcome to NAVEO Stays, ${name}`,
+        body: `Hi ${name},\n\nCongratulations and welcome to NAVEO Stays. We're excited to have you joining us for ${role}.\n\nWe'll follow up shortly with onboarding details, first-day logistics, and anything you need before you start.\n\nBest,\nNAVEO Stays recruiting`,
       };
   }
 }

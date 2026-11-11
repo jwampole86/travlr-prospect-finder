@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       .eq('id', candidateId)
       .single();
 
-    const prompt = `You are an expert interview coach for TRAVLR Vacation Homes.
+    const prompt = `You are an expert interview coach for NAVEO Stays.
 Generate ONE concise, targeted follow-up question for a live interview.
 
 CANDIDATE: ${candidate?.full_name || 'Unknown'}

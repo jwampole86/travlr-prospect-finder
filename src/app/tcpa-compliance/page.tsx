@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { ChevronDown, ChevronUp, ArrowLeft, AlertTriangle, CheckCircle, Phone, MessageSquare, Shield } from 'lucide-react';
 
 const EFFECTIVE_DATE = 'August 18, 2026';
-const COMPANY = 'TRAVLR Inc.';
-const CONTACT_EMAIL = 'compliance@travlr.com';
+const COMPANY = 'AVYRO AI Inc.';
+const CONTACT_EMAIL = 'compliance@avyropro.ai';
 
 interface Section {
   id: string;
@@ -42,7 +42,7 @@ const SECTIONS: Section[] = [
           <li>Calls to numbers on the National Do-Not-Call (DNC) Registry</li>
         </ul>
         <p className="mt-2">
-          The TRAVLR platform&apos;s SMS and voice features use Twilio, which constitutes an Automatic Telephone Dialing System (ATDS) under many interpretations. Users must obtain proper consent before using these features.
+          The AVYRO AI platform&apos;s SMS and voice features use Twilio, which constitutes an Automatic Telephone Dialing System (ATDS) under many interpretations. Users must obtain proper consent before using these features.
         </p>
       </div>
     ),
@@ -86,7 +86,7 @@ const SECTIONS: Section[] = [
     content: (
       <div className="space-y-3">
         <p>
-          You must honor opt-out requests immediately and permanently. The TRAVLR platform automatically handles the following opt-out keywords per CTIA guidelines:
+          You must honor opt-out requests immediately and permanently. The AVYRO AI platform automatically handles the following opt-out keywords per CTIA guidelines:
         </p>
         <div className="flex flex-wrap gap-2 my-3">
           {['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'].map(kw => (
@@ -116,7 +116,7 @@ const SECTIONS: Section[] = [
           <p className="text-blue-300 font-semibold text-lg">8:00 AM – 9:00 PM</p>
           <p className="text-gray-500 text-xs mt-1">Local time of the called party</p>
         </div>
-        <p>The TRAVLR platform enforces quiet hours based on the lead&apos;s local time zone. Outreach scheduled outside these hours will be queued and sent at the next permitted time.</p>
+        <p>The AVYRO AI platform enforces quiet hours based on the lead&apos;s local time zone. Outreach scheduled outside these hours will be queued and sent at the next permitted time.</p>
         <p>Some states have stricter requirements (e.g., Florida: 8 AM – 8 PM). Always check state-specific rules for your target market.</p>
       </div>
     ),
@@ -133,16 +133,16 @@ const SECTIONS: Section[] = [
           <li>Registering with the FTC if you make more than a de minimis number of telemarketing calls</li>
           <li>Complying with state DNC registries (many states have their own)</li>
         </ul>
-        <p>The TRAVLR platform provides DNC flagging and opt-out management tools, but does not automatically scrub against the National DNC Registry. You must perform this scrubbing independently or through a compliant third-party service.</p>
+        <p>The AVYRO AI platform provides DNC flagging and opt-out management tools, but does not automatically scrub against the National DNC Registry. You must perform this scrubbing independently or through a compliant third-party service.</p>
       </div>
     ),
   },
   {
     id: 'platform-tools',
-    title: '7. TRAVLR Compliance Tools',
+    title: '7. AVYRO AI Compliance Tools',
     content: (
       <div className="space-y-3">
-        <p>The TRAVLR platform provides the following compliance features:</p>
+        <p>The AVYRO AI platform provides the following compliance features:</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
           {[
             { icon: MessageSquare, label: 'STOP keyword auto-handling', desc: 'Automatic opt-out processing for all standard keywords' },
@@ -174,11 +174,11 @@ const SECTIONS: Section[] = [
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
             <p className="text-red-300 text-sm">
-              <strong>TRAVLR is a technology platform, not a legal compliance service.</strong> You are solely responsible for ensuring your use of the platform complies with TCPA and all applicable laws.
+              <strong>AVYRO AI is a technology platform, not a legal compliance service.</strong> You are solely responsible for ensuring your use of the platform complies with TCPA and all applicable laws.
             </p>
           </div>
         </div>
-        <p>By using TRAVLR&apos;s outreach features, you represent and warrant that:</p>
+        <p>By using AVYRO AI&apos;s outreach features, you represent and warrant that:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-400 ml-2">
           <li>You have obtained all required consents before sending messages</li>
           <li>You maintain records of consent that can be produced in litigation</li>
@@ -239,7 +239,7 @@ export default function TCPACompliancePage() {
             Effective date: <span className="text-gray-300">{EFFECTIVE_DATE}</span> &nbsp;·&nbsp; {COMPANY}
           </p>
           <p className="text-gray-400 text-sm leading-relaxed pt-2">
-            The Telephone Consumer Protection Act (TCPA) governs how you may use TRAVLR&apos;s SMS and voice outreach features. This page explains your obligations and how the platform helps you stay compliant.
+            The Telephone Consumer Protection Act (TCPA) governs how you may use AVYRO AI&apos;s SMS and voice outreach features. This page explains your obligations and how the platform helps you stay compliant.
           </p>
         </div>
 

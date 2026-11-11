@@ -81,7 +81,7 @@ function buildEmailHtml(payload: NotifyPayload): string {
     </div>
     <div style="padding: 16px 28px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
       <p style="margin: 0; font-size: 11px; color: #9ca3af;">
-        This is an automated notification from AVYRO AI. Reply to <a href="mailto:support@travlr.com" style="color: #4f46e5;">support@travlr.com</a> for assistance.
+        This is an automated notification from AVYRO AI. Reply to <a href="mailto:support@avyropro.ai" style="color: #4f46e5;">support@avyropro.ai</a> for assistance.
       </p>
     </div>
   </div>

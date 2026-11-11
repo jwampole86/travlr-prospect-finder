@@ -12,7 +12,7 @@ import { randomUUID } from 'crypto';
  *   auth/v1/user, adding 200-4000ms latency that caused the 5000ms timeout.
  *   No service-role key required.
  *
- * LIVE REVENUE BUSINESS RULE (canonical TRAVLR definition):
+ * LIVE REVENUE BUSINESS RULE (canonical AVYRO AI definition):
  *   deal_closed = true AND is_synthetic IS DISTINCT FROM true
  *   Revenue priority: contract_monthly_revenue > deal_revenue > estimated_net_monthly
  *

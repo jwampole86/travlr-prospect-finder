@@ -27,6 +27,6 @@ export function getPlanLimits(planId: PlanId) {
   return PROSPECT_FINDER_PLANS[planId].limits;
 }
 
-// Internal TRAVLR Vacation Homes org keeps full platform access regardless of the
+// Internal AVYRO AI org keeps full platform access regardless of the
 // public plan tiers above — surfaced in the UI as "Internal" / "Full Platform Access".
 export const AVYRO_INTERNAL_PLAN_ID = 'enterprise' satisfies PlanId;

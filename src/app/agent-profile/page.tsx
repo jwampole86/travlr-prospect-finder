@@ -176,7 +176,7 @@ export default function AgentProfilePage() {
                 {channelCard('sms', 'Text message', Smartphone, form.phone ? `Sent to ${form.phone}` : 'Add your mobile number on the Profile tab', snap.channels.sms ? undefined : 'Text messaging is not set up on this system.')}
               </div>
               {prefs.notif.sms && (
-                <label className="flex items-start gap-2 text-xs text-foreground bg-muted/40 rounded-lg p-3 cursor-pointer"><input type="checkbox" checked={form.smsOptIn} onChange={e => set('smsOptIn', e.target.checked)} className="mt-0.5" /><span>I agree to receive TRAVLR alerts by text message at {form.phone || 'my mobile number'}. Message and data rates may apply. I can turn this off any time.</span></label>
+                <label className="flex items-start gap-2 text-xs text-foreground bg-muted/40 rounded-lg p-3 cursor-pointer"><input type="checkbox" checked={form.smsOptIn} onChange={e => set('smsOptIn', e.target.checked)} className="mt-0.5" /><span>I agree to receive AVYRO AI alerts by text message at {form.phone || 'my mobile number'}. Message and data rates may apply. I can turn this off any time.</span></label>
               )}
             </div>
             <div className="bg-card border border-border rounded-xl p-5">

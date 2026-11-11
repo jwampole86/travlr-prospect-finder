@@ -36,15 +36,15 @@ function foldIcsLine(line: string) {
 
 export function calendarEventTitle(event: InterviewCalendarEvent) {
   return event.eventType === 'initial_interview'
-    ? `TRAVLR interview with ${event.candidateName}`
-    : `TRAVLR follow-up call with ${event.candidateName}`;
+    ? `NAVEO Stays interview with ${event.candidateName}`
+    : `NAVEO Stays follow-up call with ${event.candidateName}`;
 }
 
 export function calendarEventDescription(event: InterviewCalendarEvent) {
   if (event.description) return event.description;
   return event.eventType === 'initial_interview'
     ? `Interview for ${event.roleTitle}.`
-    : `Follow-up interview for ${event.roleTitle}. Open TRAVLR Interview Calendar at the scheduled time to launch the candidate follow-up teleprompter.`;
+    : `Follow-up interview for ${event.roleTitle}. Open NAVEO Stays Interview Calendar at the scheduled time to launch the candidate follow-up teleprompter.`;
 }
 
 export function createGoogleCalendarUrl(event: InterviewCalendarEvent) {
@@ -79,11 +79,11 @@ export function createInterviewIcs(event: InterviewCalendarEvent) {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//TRAVLR//Candidate Follow-Up//EN',
+    'PRODID:-//NAVEO Stays//Candidate Follow-Up//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:REQUEST',
     'BEGIN:VEVENT',
-    `UID:${escapeIcs(event.id)}@travlr`,
+    `UID:${escapeIcs(event.id)}@avyropro.ai`,
     `DTSTAMP:${compactUtc(new Date().toISOString())}`,
     `DTSTART:${compactUtc(start.toISOString())}`,
     `DTEND:${compactUtc(end.toISOString())}`,
@@ -94,12 +94,12 @@ export function createInterviewIcs(event: InterviewCalendarEvent) {
     'BEGIN:VALARM',
     'TRIGGER:-PT24H',
     'ACTION:DISPLAY',
-    `DESCRIPTION:${event.eventType === 'initial_interview' ? 'TRAVLR interview' : 'TRAVLR follow-up call'} tomorrow`,
+    `DESCRIPTION:${event.eventType === 'initial_interview' ? 'NAVEO Stays interview' : 'NAVEO Stays follow-up call'} tomorrow`,
     'END:VALARM',
     'BEGIN:VALARM',
     'TRIGGER:-PT30M',
     'ACTION:DISPLAY',
-    `DESCRIPTION:${event.eventType === 'initial_interview' ? 'TRAVLR interview' : 'TRAVLR follow-up call'} in 30 minutes`,
+    `DESCRIPTION:${event.eventType === 'initial_interview' ? 'NAVEO Stays interview' : 'NAVEO Stays follow-up call'} in 30 minutes`,
     'END:VALARM',
     'END:VEVENT',
     'END:VCALENDAR',

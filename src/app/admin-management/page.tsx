@@ -225,7 +225,7 @@ function SMSTemplatesTab() {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground">Body *</label>
-            <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} rows={4} className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" placeholder="Hi {{contactName}}, I'm {{senderName}} with TRAVLR..." />
+            <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} rows={4} className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" placeholder="Hi {{contactName}}, I'm {{senderName}} with NAVEO Stays..." />
             <p className="text-[10px] text-muted-foreground">Variables: {'{{senderName}}'} {'{{contactName}}'} {'{{address}}'} {'{{localBlurb}}'} {'{{opt_out}}'}</p>
           </div>
           <div className="flex gap-2">
@@ -510,7 +510,7 @@ function CallRecordingTab() {
           <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-xs font-semibold text-amber-700">Compliance Notice</p>
-            <p className="text-xs text-amber-600 mt-0.5">All-party consent laws vary by state. Ensure your call recording disclosure is active before enabling recording. TRAVLR's consent acknowledgment screen covers this for calls initiated through the teleprompter.</p>
+            <p className="text-xs text-amber-600 mt-0.5">All-party consent laws vary by state. Ensure your call recording disclosure is active before enabling recording. NAVEO Stays's consent acknowledgment screen covers this for calls initiated through the teleprompter.</p>
           </div>
         </div>
       </div>

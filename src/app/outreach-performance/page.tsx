@@ -109,7 +109,7 @@ const MOCK_STATS: AgentStats = {
 const MOCK_TEMPLATES: TemplatePerf[] = [
   { id: 'tpl-3', name: 'Check-In — Luxury Markets', subject: 'Your Aspen Property Could Earn More', category: 'follow_up', sends: 67, opens: 31, replies: 14, openRate: 46, replyRate: 21, engagementScore: 31 },
   { id: 'tpl-1', name: 'Initial Outreach — Denver', subject: 'Maximize Your Denver Property Revenue', category: 'outreach', sends: 140, opens: 45, replies: 11, openRate: 32, replyRate: 8, engagementScore: 17 },
-  { id: 'tpl-4', name: 'Proposal Email', subject: 'TRAVLR Partnership Proposal for Your Property', category: 'proposal', sends: 45, opens: 18, replies: 3, openRate: 40, replyRate: 7, engagementScore: 14 },
+  { id: 'tpl-4', name: 'Proposal Email', subject: 'NAVEO Stays Partnership Proposal for Your Property', category: 'proposal', sends: 45, opens: 18, replies: 3, openRate: 40, replyRate: 7, engagementScore: 14 },
   { id: 'tpl-2', name: 'Follow-Up #1', subject: 'Quick Follow-Up on Your Property', category: 'follow_up', sends: 98, opens: 28, replies: 6, openRate: 29, replyRate: 6, engagementScore: 12 },
   { id: 'tpl-5', name: 'Revenue Estimate Offer', subject: 'Free Revenue Projection for Your Property', category: 'outreach', sends: 32, opens: 10, replies: 2, openRate: 31, replyRate: 6, engagementScore: 11 },
 ];

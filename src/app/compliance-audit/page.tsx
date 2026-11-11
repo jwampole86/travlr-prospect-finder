@@ -93,7 +93,7 @@ function generateMockEntries(): AuditEntry[] {
       unsubscribe_event: unsub,
       unsubscribe_at: unsub ? new Date(Date.now() - (daysAgo - 1) * 86400000).toISOString() : null,
       message_preview: ch === 'email' ? `Hi ${name.split(' ')[0]}, we wanted to follow up on your property listing...` :
-        ch === 'sms' ? `Hi ${name.split(' ')[0]}, this is TRAVLR. Reply STOP to opt out.` : null,
+        ch === 'sms' ? `Hi ${name.split(' ')[0]}, this is NAVEO Stays. Reply STOP to opt out.` : null,
       lead_id: `lead-${i + 1}`,
       agent_name: agents[i % agents.length],
       template_name: ch !== 'call' ? templates[i % templates.length] : null,

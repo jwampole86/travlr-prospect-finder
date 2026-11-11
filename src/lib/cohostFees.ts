@@ -6,7 +6,7 @@ export const EXPECTED_GAP_SHARE = 0.4;
 /** Sliding co-host fee on the home's yearly revenue: each slice is charged at its own rate, so the effective rate falls as the home earns more. */
 export const FEE_TIERS: Array<{ upTo: number; rate: number }> = [{ upTo: 100_000, rate: 0.20 }, { upTo: 200_000, rate: 0.16 }, { upTo: Infinity, rate: 0.12 }];
 
-/** Share of the fee TRAVLR keeps; the rest goes to the other co-host. */
+/** Share of the fee AVYRO AI keeps; the rest goes to the other co-host. */
 export const OUR_SHARE_OF_FEE = 0.5;
 
 export interface CommissionEstimate { expectedRevenue: number; totalFee: number; effectivePct: number; ours: number; theirs: number }

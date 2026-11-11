@@ -56,10 +56,10 @@ function fmtTs(ts: string) {
 
 function generateDemoEntries(): ChangeLogEntry[] {
   const agents = [
-    { name: 'Sarah Mitchell', email: 'sarah@travlr.com' },
-    { name: 'James Okafor', email: 'james@travlr.com' },
-    { name: 'Priya Sharma', email: 'priya@travlr.com' },
-    { name: 'System', email: 'system@travlr.com' },
+    { name: 'Sarah Mitchell', email: 'sarah@avyropro.ai' },
+    { name: 'James Okafor', email: 'james@avyropro.ai' },
+    { name: 'Priya Sharma', email: 'priya@avyropro.ai' },
+    { name: 'System', email: 'system@avyropro.ai' },
   ];
   const addresses = [
     '1842 Sunset Blvd, Los Angeles, CA',

@@ -5,7 +5,7 @@
  * CRITICAL RULES:
  * 1. SOURCE_ACCESS_UNAVAILABLE must be reported, not silenced as 0 results
  * 2. Never generate fake/synthetic properties
- * 3. Source sync NEVER advances TRAVLR pipeline stage
+ * 3. Source sync NEVER advances AVYRO AI pipeline stage
  * 4. Manual CSV phone/owner data must be preserved
  * 5. Dedup before insert (cross-source, cross-tier)
  * 6. Every counter must be a real number, never undefined/NaN
@@ -753,7 +753,7 @@ interface ImportRow {
  * Parse → normalize → validate (state, rent, property type) → hand accepted rows
  * to /api/leads/csv-import, the same dedup/enrichment/scoring path every other
  * source uses. New rows are always created at stage "New Lead" and existing
- * leads keep their stage, so source sync can never move the TRAVLR pipeline.
+ * leads keep their stage, so source sync can never move the AVYRO AI pipeline.
  */
 async function runIngestionPipeline(
   supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,

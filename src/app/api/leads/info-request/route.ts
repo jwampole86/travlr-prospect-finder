@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     // Generate unique token
     const linkToken = crypto.randomUUID();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
     const infoRequestUrl = `${siteUrl}/info-request/${linkToken}`;
 
     // Store the info request record

@@ -48,7 +48,7 @@ const STOP_HANDLING_NOTES = [
   { keyword: 'CANCEL', action: 'Treated identically to STOP. Carrier-level opt-out honored.' },
   { keyword: 'UNSUBSCRIBE', action: 'Treated identically to STOP. Lead record is flagged with sms_opted_out = true.' },
   { keyword: 'END', action: 'Treated identically to STOP.' },
-  { keyword: 'HELP', action: 'Auto-replies with: "For help, contact support@travlr.com. Reply STOP to unsubscribe."' },
+  { keyword: 'HELP', action: 'Auto-replies with: "For help, contact support@avyropro.ai. Reply STOP to unsubscribe."' },
   { keyword: 'INFO', action: 'Auto-replies with business name, contact info, and opt-out instructions.' },
 ];
 

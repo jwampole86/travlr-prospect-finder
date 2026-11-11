@@ -125,7 +125,7 @@ function downloadCalendarEvent(session: InterviewSession) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `TRAVLR-follow-up-${session.candidate_name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`;
+  anchor.download = `NAVEO Stays-follow-up-${session.candidate_name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
@@ -238,7 +238,7 @@ function ScheduleModal({
           <div>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Zoom Meeting</label>
             <input type="url" value={form.zoom_link} onChange={e => setForm(f => ({ ...f, zoom_link: e.target.value }))} placeholder="Leave blank to create automatically" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-300" />
-            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">Paste an existing Zoom link, or leave this blank and TRAVLR will create one when you save.</p>
+            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">Paste an existing Zoom link, or leave this blank and NAVEO Stays will create one when you save.</p>
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Notes</label>

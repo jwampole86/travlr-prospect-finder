@@ -1,6 +1,6 @@
 // Synced from ava-assistant. Do not edit here: change it there and run tools/sync-to-travlr.mjs.
 // Pending confirmations for mutating tools. The memory store is for one process (dev, tests); a hosted
-// deployment passes its own store (see TRAVLR's signed-token store) because requests may hit different instances.
+// deployment passes its own store (see AVYRO AI's signed-token store) because requests may hit different instances.
 import { randomUUID } from 'node:crypto';
 
 export const CONFIRM_TTL_MS = 5 * 60 * 1000;

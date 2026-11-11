@@ -370,10 +370,10 @@ export default function CommissionRulesPage() {
         <Section title="Payout Schedule" icon={<Clock size={16} />}>
           <div className="space-y-3">
             {[
-              { value: 'immediate', label: 'Immediate on Close', desc: 'Commission paid as soon as deal closes — fastest for agents, higher risk for TRAVLR' },
+              { value: 'immediate', label: 'Immediate on Close', desc: 'Commission paid as soon as deal closes — fastest for agents, higher risk for AVYRO AI' },
               { value: 'biweekly', label: 'Bi-Weekly', desc: 'Commissions batch-paid every two weeks on a fixed schedule' },
               { value: 'monthly', label: 'Monthly', desc: 'Commissions paid once per month on a fixed date' },
-              { value: 'after_clawback', label: 'After Clawback Window', desc: 'Safest for TRAVLR — commission held until clawback window expires' },
+              { value: 'after_clawback', label: 'After Clawback Window', desc: 'Safest for AVYRO AI — commission held until clawback window expires' },
             ].map(opt => (
               <label key={opt.value} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
                 payoutSchedule.type === opt.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'

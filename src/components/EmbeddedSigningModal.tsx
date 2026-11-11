@@ -87,7 +87,7 @@ export default function EmbeddedSigningModal({
               <Shield size={15} className="text-primary" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">TRAVLR Partnership Agreement</p>
+              <p className="text-sm font-semibold text-foreground">NAVEO Stays Partnership Agreement</p>
               <p className="text-xs text-muted-foreground">Signing as: {signer.name} · {signer.email}</p>
             </div>
           </div>
@@ -155,7 +155,7 @@ export default function EmbeddedSigningModal({
               <div className="text-center">
                 <p className="text-lg font-semibold text-foreground mb-1">Signing Declined</p>
                 <p className="text-sm text-muted-foreground">
-                  You have declined to sign. Please contact your TRAVLR agent if you have questions.
+                  You have declined to sign. Please contact your NAVEO Stays agent if you have questions.
                 </p>
               </div>
             </div>
@@ -167,7 +167,7 @@ export default function EmbeddedSigningModal({
               ref={iframeRef}
               src={signingUrl}
               className="w-full h-full border-0"
-              title="TRAVLR Partnership Agreement — DocuSign Signing"
+              title="NAVEO Stays Partnership Agreement — DocuSign Signing"
               allow="camera; microphone"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads"
             />

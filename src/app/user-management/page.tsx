@@ -144,7 +144,7 @@ const GRANULAR_ROLE_CONFIG: Record<GranularRole, {
 
 const MOCK_USERS: UserRecord[] = [
   {
-    id: 'u1', email: 'admin@travlr.com', full_name: 'Admin User', app_role: 'admin', granular_role: 'owner',
+    id: 'u1', email: 'admin@avyropro.ai', full_name: 'Admin User', app_role: 'admin', granular_role: 'owner',
     status: 'active', created_at: new Date(Date.now() - 86400000 * 180).toISOString(),
     perm_dashboard_view: true, perm_lead_access: true, perm_bulk_actions: true, perm_integrations: true,
     perm_billing: true, perm_reports: true, perm_admin: true, perm_export: true, perm_sync: true,
@@ -153,7 +153,7 @@ const MOCK_USERS: UserRecord[] = [
     assigned_lead_count: 0, agent_territory: null,
   },
   {
-    id: 'u2', email: 'james@travlr.com', full_name: 'James Torres', app_role: 'agent', granular_role: 'team_lead',
+    id: 'u2', email: 'james@avyropro.ai', full_name: 'James Torres', app_role: 'agent', granular_role: 'team_lead',
     status: 'active', created_at: new Date(Date.now() - 86400000 * 60).toISOString(),
     perm_dashboard_view: true, perm_lead_access: true, perm_bulk_actions: true, perm_integrations: false,
     perm_billing: false, perm_reports: true, perm_admin: false, perm_export: true, perm_sync: false,
@@ -162,7 +162,7 @@ const MOCK_USERS: UserRecord[] = [
     assigned_lead_count: 31, agent_territory: 'Denver, CO',
   },
   {
-    id: 'u3', email: 'sarah@travlr.com', full_name: 'Sarah Mitchell', app_role: 'agent', granular_role: 'agent',
+    id: 'u3', email: 'sarah@avyropro.ai', full_name: 'Sarah Mitchell', app_role: 'agent', granular_role: 'agent',
     status: 'active', created_at: new Date(Date.now() - 86400000 * 90).toISOString(),
     perm_dashboard_view: true, perm_lead_access: true, perm_bulk_actions: false, perm_integrations: false,
     perm_billing: false, perm_reports: false, perm_admin: false, perm_export: false, perm_sync: false,
@@ -171,7 +171,7 @@ const MOCK_USERS: UserRecord[] = [
     assigned_lead_count: 47, agent_territory: 'Austin, TX',
   },
   {
-    id: 'u4', email: 'priya@travlr.com', full_name: 'Priya Nair', app_role: 'agent', granular_role: 'analyst',
+    id: 'u4', email: 'priya@avyropro.ai', full_name: 'Priya Nair', app_role: 'agent', granular_role: 'analyst',
     status: 'active', created_at: new Date(Date.now() - 86400000 * 45).toISOString(),
     perm_dashboard_view: true, perm_lead_access: false, perm_bulk_actions: false, perm_integrations: false,
     perm_billing: false, perm_reports: true, perm_admin: false, perm_export: true, perm_sync: false,

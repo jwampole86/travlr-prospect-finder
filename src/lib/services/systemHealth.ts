@@ -11,7 +11,7 @@ export type HealthStatus = 'operational' | 'degraded' | 'outage' | 'maintenance'
 export interface ServiceDef { id: string; name: string; description: string; group: 'core' | 'messaging' | 'data' | 'jobs'; slaTarget: number; checks: string; impact: string; fix: string }
 
 export const SERVICES: ServiceDef[] = [
-  { id: 'api', name: 'Application', description: 'The TRAVLR web app and its API', group: 'core', slaTarget: 99.9,
+  { id: 'api', name: 'Application', description: 'The AVYRO AI web app and its API', group: 'core', slaTarget: 99.9,
     checks: 'Recorded by the health job itself every 5 minutes. A gap in checks means the app or its scheduler stopped.', impact: 'If this is down nobody can sign in and no texts or reports can be processed.', fix: 'Check the latest Vercel deployment and function logs for errors, then redeploy or roll back.' },
   { id: 'database', name: 'Database', description: 'Supabase Postgres reads', group: 'core', slaTarget: 99.9,
     checks: 'Reads one lead row. Degraded above 1.5 seconds, outage if the query fails.', impact: 'Every page, campaign and report depends on the database.', fix: 'Open the Supabase dashboard: check project status, connection count and slow queries. Heavy scripts running at the same time can cause slowness.' },

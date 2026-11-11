@@ -42,7 +42,7 @@ const MOCK_QUEUE: ScheduledBatch[] = [
     sequence_id: null,
     sequence_name: 'Initial Outreach',
     template_id: 'intro',
-    message_body: 'Hi {{contactName}}, this is your TRAVLR agent…',
+    message_body: 'Hi {{contactName}}, this is your NAVEO Stays agent…',
     send_mode: 'scheduled',
     batch_frequency: 'daily',
     scheduled_at: new Date(Date.now() + 3600000 * 2).toISOString(),

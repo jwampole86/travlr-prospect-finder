@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          topic: `TRAVLR Interview - ${candidateName}`,
+          topic: `NAVEO Stays Interview - ${candidateName}`,
           agenda: `Interview for ${roleTitle}`,
           type: 2,
           start_time: scheduledAt.toISOString(),

@@ -1,5 +1,5 @@
 /**
- * Local Blurb Lookup Table — exact text from TRAVLR spec
+ * Local Blurb Lookup Table — exact text from NAVEO Stays spec
  * Resolution priority: city/neighborhood → state → neutral fallback
  */
 

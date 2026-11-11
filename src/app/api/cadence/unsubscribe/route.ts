@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     supabase.from('cadence_send_log').update({ unsubscribed_at: new Date().toISOString() }).eq('lead_id', tokenRow.lead_id).is('unsubscribed_at', null),
   ]);
 
-  return new NextResponse(unsubscribePage('You have been unsubscribed. You will no longer receive automated emails from TRAVLR.', true), {
+  return new NextResponse(unsubscribePage('You have been unsubscribed. You will no longer receive automated emails from NAVEO Stays.', true), {
     status: 200,
     headers: { 'Content-Type': 'text/html' },
   });
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
 function unsubscribePage(message: string, success: boolean): string {
   return `<!DOCTYPE html>
 <html>
-<head><title>Unsubscribe — TRAVLR</title>
+<head><title>Unsubscribe — NAVEO Stays</title>
 <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f9fafb}
 .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:40px;max-width:400px;text-align:center}
 h2{margin:0 0 12px;font-size:20px;color:${success ? '#16a34a' : '#dc2626'}}

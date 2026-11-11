@@ -26,7 +26,7 @@ const transient = (msg: string, status?: number) => (status ? status === 429 || 
  * Resend message id so the delivery webhook can later mark it delivered, opened or bounced.
  */
 export async function sendTrackedEmail(db: Db, mail: TrackedEmail): Promise<TrackedResult> {
-  const from = getResendFrom();
+  const from = getResendFrom('NAVEO Stays');
   const resend = getResendClient();
   let attempts = 0;
   let lastError: string | null = null;

@@ -437,7 +437,7 @@ export default function HomeownerPropertiesPage() {
         <div className="bg-card border border-border rounded-xl p-12 text-center">
           <Building2 size={32} className="text-muted-foreground/20 mx-auto mb-3" />
           <p className="text-sm font-medium text-muted-foreground">No properties enrolled yet</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">Contact your TRAVLR property manager to enroll your first property</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Contact your NAVEO Stays property manager to enroll your first property</p>
         </div>
       ) : (
         <div className="space-y-4">

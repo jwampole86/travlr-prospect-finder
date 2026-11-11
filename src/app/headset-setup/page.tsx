@@ -295,7 +295,7 @@ function HeadsetSetupInner() {
             </div>
             <h2 className="text-lg font-bold text-gray-900 mb-2">Microphone Access Required</h2>
             <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
-              TRAVLR needs microphone access to power live call transcription and AI suggestions during homeowner calls.
+              AVYRO AI needs microphone access to power live call transcription and AI suggestions during homeowner calls.
             </p>
             <button
               onClick={requestPermission}

@@ -389,7 +389,7 @@ export async function POST(req: NextRequest) {
                 ${moreLeadsNote}
               </div>
               <div style="text-align: center; margin-bottom: 24px;">
-                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new'}/lead-management?assignmentStatus=assigned&ownerAgentId=${targetUserId}"
+                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai'}/lead-management?assignmentStatus=assigned&ownerAgentId=${targetUserId}"
                    style="display: inline-block; background: #1e40af; color: white; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-size: 14px; font-weight: 600; letter-spacing: 0.01em;">
                   View My Leads in AVYRO AI →
                 </a>

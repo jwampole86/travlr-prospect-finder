@@ -147,7 +147,7 @@ function buildDefaultSections(): CheckSection[] {
         {
           id: 'a2p-3',
           label: 'Twilio phone number linked to approved campaign',
-          description: 'TRAVLR Twilio number assigned to the approved A2P campaign in Twilio Console.',
+          description: 'AVYRO AI Twilio number assigned to the approved A2P campaign in Twilio Console.',
           status: 'incomplete',
           notes: '',
           required: true,
@@ -752,7 +752,7 @@ export default function PreLaunchChecklistPage() {
                 </p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   This table is for informational purposes only and does not constitute legal advice. Recording consent laws change frequently. 
-                  Consult a licensed attorney in each state where you operate before recording calls. TRAVLR recommends disclosing call recording 
+                  Consult a licensed attorney in each state where you operate before recording calls. AVYRO AI recommends disclosing call recording 
                   to all parties on every call regardless of state law as a best practice.
                 </p>
               </div>

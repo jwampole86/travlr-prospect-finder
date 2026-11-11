@@ -63,7 +63,7 @@ export async function PATCH(req: NextRequest) {
     let emailed = false;
     if (property.owner_email) {
       const { error } = await getResendClient().emails.send({
-        from: getResendFrom(), to: [property.owner_email], subject: `Your owner statement: ${property.address}, ${st.period_start} to ${st.period_end}`,
+        from: getResendFrom('NAVEO Stays'), to: [property.owner_email], subject: `Your owner statement: ${property.address}, ${st.period_start} to ${st.period_end}`,
         html: `<div style="font-family:sans-serif;max-width:560px"><p>Hi ${property.owner_name ?? 'there'},</p><p>Your statement for <strong>${property.address}</strong> (${st.period_start} to ${st.period_end}) is ready.</p><table style="border-collapse:collapse"><tr><td style="padding:4px 16px 4px 0">Gross booking revenue</td><td><strong>${usd(st.gross_revenue)}</strong></td></tr><tr><td style="padding:4px 16px 4px 0">Management fee (${st.fee_percent ?? 0}%)</td><td>-${usd(st.management_fee)}</td></tr><tr><td style="padding:4px 16px 4px 0">Expenses</td><td>-${usd(st.expenses_total)}</td></tr><tr><td style="padding:4px 16px 4px 0"><strong>Net to you</strong></td><td><strong>${usd(st.net_payout)}</strong></td></tr></table><p>Sign in to your owner portal to see every booking and expense line: <a href="${(process.env.NEXT_PUBLIC_SITE_URL || BRAND.appUrl).replace(/\/$/, '')}/homeowner/revenue">View statement</a></p></div>`,
       });
       emailed = !error;

@@ -9,7 +9,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 // a new lead tagged "Warm — Contact Confirmed".
 //
 // Base44 should POST to:
-//   https://travlrpro3047.builtwithrocket.new/api/webhooks/base44-estimate
+//   https://avyropro.ai/api/webhooks/base44-estimate
 //
 // Optional security: set WEBHOOK_SECRET env var and pass it as
 //   Authorization: Bearer <secret>   OR   X-Webhook-Secret: <secret>

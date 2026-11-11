@@ -9,7 +9,7 @@
  * - Never generate fake properties
  * - Source access unavailability must be reported, not silenced
  * - Failed access must NOT become "0 results"
- * - Listing status NEVER maps to TRAVLR pipeline stage
+ * - Listing status NEVER maps to AVYRO AI pipeline stage
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -446,7 +446,7 @@ export function validateReconciliation(counters: SyncCounters): {
 // ─── Pipeline Stage Protection ────────────────────────────────────────────────
 
 /**
- * Source sync MUST NEVER advance TRAVLR pipeline stage.
+ * Source sync MUST NEVER advance AVYRO AI pipeline stage.
  * This function validates that a proposed stage value is safe for source-sync upsert.
  *
  * Returns the safe stage to use:
@@ -464,14 +464,14 @@ export function getSafeStageForSourceSync(
 
 /**
  * Listing status values from external sources.
- * These MUST NEVER be mapped to TRAVLR pipeline stages.
+ * These MUST NEVER be mapped to AVYRO AI pipeline stages.
  */
 export const EXTERNAL_LISTING_STATUSES = [
   'Active', 'Pending', 'Off Market', 'Rented', 'Sold', 'Expired', 'Withdrawn',
 ] as const;
 
 /**
- * TRAVLR pipeline stages that source sync must NEVER set.
+ * AVYRO AI pipeline stages that source sync must NEVER set.
  * Only real outreach events may advance to these stages.
  */
 export const PROTECTED_PIPELINE_STAGES = [

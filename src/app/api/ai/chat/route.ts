@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
- * TRAVLR AI Chat Route — Role-Scoped with Human-Handoff
+ * AVYRO AI AI Chat Route — Role-Scoped with Human-Handoff
  *
  * This route wraps the underlying AI provider with:
  * 1. Human-handoff detection — sensitive queries return a support-redirect
@@ -38,7 +38,7 @@ const HANDOFF_RESPONSE = {
     index: 0,
     message: {
       role: 'assistant',
-      content: "I\'m not able to help with that directly — this type of request needs to be handled by a member of the TRAVLR team.\n\nPlease reach out to your dedicated account manager or contact us at **support@travlr.com** and we\'ll get back to you within one business day.",
+      content: "I\'m not able to help with that directly — this type of request needs to be handled by a member of the AVYRO AI team.\n\nPlease reach out to your dedicated account manager or contact us at **support@avyropro.ai** and we\'ll get back to you within one business day.",
     },
     finish_reason: 'stop',
   }],
@@ -47,11 +47,11 @@ const HANDOFF_RESPONSE = {
 
 // ─── Role-scoped system prompts ───────────────────────────────────────────────
 function buildSystemPrompt(role: string, scopeContext: string): string {
-  const base = `You are TRAVLR Assistant, an AI helper for the TRAVLR short-term rental management platform.
+  const base = `You are AVYRO AI Assistant, an AI helper for the AVYRO AI short-term rental management platform.
 You help users navigate the app, understand their data, and draft outreach.
 You NEVER invent financial figures, regulatory facts, or property data.
 You NEVER access or discuss data belonging to other users.
-If a question requires account-specific action (payouts, billing, legal, account changes, passwords), you MUST say you cannot help and direct the user to the TRAVLR support team at support@travlr.com.`;
+If a question requires account-specific action (payouts, billing, legal, account changes, passwords), you MUST say you cannot help and direct the user to the AVYRO AI support team at support@avyropro.ai.`;
 
   if (role === 'homeowner') {
     return `${base}

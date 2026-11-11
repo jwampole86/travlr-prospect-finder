@@ -11,7 +11,7 @@ import { dispatchSMS } from '@/lib/services/twilioService';
  *   - not_interested                                        → mark closed_dead, pause all enrollments
  */
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
 
 // Outcome → sequence tag mapping (stageUpdate values must match the lead_stage
 // enum exactly: 'New Lead' | 'Contacted' | 'Interested' | 'Proposal Sent' | 'Under Contract' | 'Live' | 'Not a Fit')

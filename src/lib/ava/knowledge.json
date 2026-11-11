@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-790f2a8f",
+  "version": "2026-11-11-2371be3d",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -1531,7 +1531,7 @@
         "stays",
         "owner"
       ],
-      "answer": "The campaign helps your team find out what an owner actually wants for a property, then send them one clear next step: sale, long-term rental (NAVEO Homes), short-term rental (NAVEO Stays), or both and still deciding. It starts with one short text and email asking which they want, then follows with a message matched to their answer. The goals are to separate real seller intent from curiosity or rental interest, route to the right service, confirm permission and purpose instead of assuming it, give each owner one authorized next step, and never promise a sale, a valuation or any regulated activity in a message. A STOP reply withdraws every permission at once. Every text and email names the NAVEO that matches the property: NAVEO Stays for a home for rent and NAVEO Homes for a home for sale. TRAVLR is no longer used in messages to owners.",
+      "answer": "The campaign helps your team find out what an owner actually wants for a property, then send them one clear next step: sale, long-term rental (NAVEO Homes), short-term rental (NAVEO Stays), or both and still deciding. It starts with one short text and email asking which they want, then follows with a message matched to their answer. The goals are to separate real seller intent from curiosity or rental interest, route to the right service, confirm permission and purpose instead of assuming it, give each owner one authorized next step, and never promise a sale, a valuation or any regulated activity in a message. A STOP reply withdraws every permission at once. Every text and email names the NAVEO that matches the property: NAVEO Stays for a home for rent and NAVEO Homes for a home for sale.",
       "source": "Seller & owner outreach playbook",
       "route": "/seller-pipeline",
       "kind": "guide"

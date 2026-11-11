@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
 
         const notesText = (notes || []).map((n: Record<string, string>) => `Q: ${n.question_text || 'General'}\nNote: ${n.note_text}`).join('\n\n');
 
-        const summaryPrompt = `You are an expert interview evaluator for TRAVLR Vacation Homes.
+        const summaryPrompt = `You are an expert interview evaluator for NAVEO Stays.
 Generate a post-interview summary for candidate ${candidate?.full_name || 'Unknown'}.
 
 SCORECARD:

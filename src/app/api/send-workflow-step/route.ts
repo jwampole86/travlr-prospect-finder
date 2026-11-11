@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
         }
 
         const resend = getResendClient();
-        const from = getResendFrom();
+        const from = getResendFrom('NAVEO Stays');
         const filledSubject = fill(step.subject) || 'Following up on your property';
         const filledBody = fill(step.body) || '';
 

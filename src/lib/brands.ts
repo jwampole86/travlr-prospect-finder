@@ -1,4 +1,4 @@
-// Brands that share the TRAVLR estimate engine. TRAVLR is the default and is never replaced.
+// Brands that share the NAVEO Stays estimate engine. NAVEO Stays is the default and is never replaced.
 // Naveo is prepped but inactive: its public estimate link is switched on once `enabled` is true.
 
 export type BrandKey = 'travlr' | 'naveo';
@@ -11,26 +11,26 @@ export interface Brand {
 }
 
 export const BRANDS: Record<BrandKey, Brand> = {
-  travlr: { key: 'travlr', name: 'TRAVLR Vacation Homes', siteUrl: 'https://avyropro.ai', enabled: true },
+  travlr: { key: 'travlr', name: 'NAVEO Stays', siteUrl: 'https://avyropro.ai', enabled: true },
   naveo: { key: 'naveo', name: 'NAVEO', siteUrl: 'https://staynaveo.com', enabled: false },
 };
 
 export const DEFAULT_BRAND: BrandKey = 'travlr';
 
-/** Unknown, missing or not-yet-enabled brands fall back to TRAVLR so existing links keep working. */
+/** Unknown, missing or not-yet-enabled brands fall back to NAVEO Stays so existing links keep working. */
 export function resolveBrand(value: string | null | undefined): Brand {
   const brand = BRANDS[String(value ?? '').toLowerCase() as BrandKey];
   return brand?.enabled ? brand : BRANDS[DEFAULT_BRAND];
 }
 
-/** Estimate link for a brand. The engine stays on the TRAVLR app; `brand` tags the lead's origin. */
+/** Estimate link for a brand. The engine stays on the NAVEO Stays app; `brand` tags the lead's origin. */
 export function estimateLinkFor(brand: BrandKey, address: string, engineUrl: string = BRANDS.travlr.siteUrl): string {
   const url = `${engineUrl.replace(/\/$/, '')}/estimate?address=${encodeURIComponent(address).replace(/%20/g, '+').replace(/%2C/g, ',')}`;
   return brand === DEFAULT_BRAND ? url : `${url}&brand=${brand}`;
 }
 
 // ─── What homeowners and sellers are told we are called ──────────────────────────────────────────────────────────────────────────────
-// Every text and email to an owner names NAVEO, never TRAVLR. Which NAVEO depends on the property: a home for rent is a NAVEO Stays
+// Every text and email to an owner names NAVEO, never NAVEO Stays. Which NAVEO depends on the property: a home for rent is a NAVEO Stays
 // conversation (vacation / short-term rental management), a home for sale is a NAVEO Homes conversation (seller solutions, long-term
 // rental, and an options chat). Change the names or the rule here and every message follows.
 

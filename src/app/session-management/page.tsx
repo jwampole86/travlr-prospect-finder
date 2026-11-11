@@ -253,7 +253,7 @@ function TwoFactorTab() {
   const [codes] = useState<RecoveryCode[]>(mockRecoveryCodes);
   const [disableConfirm, setDisableConfirm] = useState(false);
 
-  const qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=otpauth://totp/TRAVLR:admin@travlr.com?secret=JBSWY3DPEHPK3PXP&issuer=TRAVLR';
+  const qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=otpauth://totp/AVYRO AI:admin@avyropro.ai?secret=JBSWY3DPEHPK3PXP&issuer=AVYRO AI';
 
   const handleVerify = async () => {
     if (verifyCode.length !== 6) { setVerifyError('Enter a 6-digit code'); return; }
@@ -351,7 +351,7 @@ function TwoFactorTab() {
                   {copiedCode === 'JBSWY3DPEHPK3PXP' ? <CheckCircle size={13} className="text-green-500" /> : <Copy size={13} />}
                 </button>
               </div>
-              <p className="text-[10px] text-slate-400 mt-2">Account: admin@travlr.com · Issuer: TRAVLR</p>
+              <p className="text-[10px] text-slate-400 mt-2">Account: admin@avyropro.ai · Issuer: AVYRO AI</p>
             </div>
           </div>
           <div className="flex justify-end mt-5">

@@ -186,7 +186,7 @@ const QA_FLAG_CONFIG: Record<NonNullable<QAFlag>, { label: string; color: string
 // ─── Platform Message Modal ───────────────────────────────────────────────────
 
 function PlatformMessageModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
   const estimateUrl = `${siteUrl}/estimate?address=${encodeURIComponent(lead.address)}`;
   const [copied, setCopied] = useState(false);
 

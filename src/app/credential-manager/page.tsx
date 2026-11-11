@@ -75,12 +75,12 @@ const SERVICES: ServiceConfig[] = [
     sandboxFields: [
       { key: 'RESEND_API_KEY', label: 'Sandbox API Key', placeholder: 're_test_••••••••••••••••••••••••••••••', isSecret: true, hint: 'Create a test key in Resend Dashboard → API Keys' },
       { key: 'RESEND_FROM_EMAIL', label: 'Verified Sender Email', placeholder: 'onboarding@resend.dev', hint: 'Must be verified in Resend before production sending' },
-      { key: 'RESEND_FROM_NAME', label: 'Sender Name', placeholder: 'TRAVLR Vacation Homes' },
+      { key: 'RESEND_FROM_NAME', label: 'Sender Name', placeholder: 'AVYRO AI' },
     ],
     productionFields: [
       { key: 'RESEND_API_KEY', label: 'Production API Key', placeholder: 're_live_••••••••••••••••••••••••••••••', isSecret: true, hint: 'Use a production key with your verified sending domain' },
       { key: 'RESEND_FROM_EMAIL', label: 'Verified Sender Email', placeholder: 'outreach@staytrvlr.com', hint: 'Use an address on a verified Resend domain' },
-      { key: 'RESEND_FROM_NAME', label: 'Sender Name', placeholder: 'TRAVLR Vacation Homes' },
+      { key: 'RESEND_FROM_NAME', label: 'Sender Name', placeholder: 'AVYRO AI' },
     ],
   },
   {

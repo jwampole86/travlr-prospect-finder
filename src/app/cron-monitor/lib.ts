@@ -111,7 +111,7 @@ export function getCronProxySecret() {
 
 export function getScheduledCronJobs() {
   return (vercelConfig.crons || []).map((entry) => {
-    const parsed = new URL(entry.path, 'https://travlr.local');
+    const parsed = new URL(entry.path, 'https://avyropro.local');
     const slug = parsed.pathname.split('/').filter(Boolean).pop() || parsed.pathname;
     const details = JOB_DETAILS[slug] || { name: titleize(slug), description: `Runs ${humanizeCron(entry.schedule).toLowerCase()}.` };
     const routePath = path.join(process.cwd(), 'src', 'app', 'api', 'cron', slug, 'route.ts');

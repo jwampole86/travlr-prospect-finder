@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     const report = await buildHomeownerReport(address);
     const buffer = await renderToBuffer(React.createElement(HomeownerReportPdf, { report, equipment }) as React.ReactElement<any>);
     const place = [report.street, report.city, report.state].filter(Boolean).join(', ') || 'Your Home';
-    const fileName = `TRAVLR - Property Revenue Report ${place}`.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140) + '.pdf';
+    const fileName = `NAVEO Stays - Property Revenue Report ${place}`.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140) + '.pdf';
     const asciiName = fileName.replace(/[^\x20-\x7e]/g, '').replace(/"/g, "'");
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,

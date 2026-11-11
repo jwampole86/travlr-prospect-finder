@@ -705,7 +705,7 @@ function ContextSectionBlock({ section }: { section: InterviewSection }) {
           {(section.questions || []).map((q, i) => (
             <div key={q.id || i} className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-amber-100 dark:border-amber-900/30">
               <p className="text-sm font-medium text-amber-900 dark:text-amber-200 leading-relaxed">{q.questionText}</p>
-              {q.resumeBasis && q.resumeBasis !== 'Standard TRAVLR question' && (
+              {q.resumeBasis && !/^Standard .* question$/.test(q.resumeBasis) && (
                 <p className="text-[10px] text-amber-600 dark:text-amber-500 mt-1.5 italic">Source: {q.resumeBasis}</p>
               )}
               {q.interviewerNote && (
@@ -988,7 +988,7 @@ function InterviewTeleprompter({
           <div className="max-w-2xl mx-auto">
             <div className="flex items-center gap-2 mb-4">
               <Award className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">TRAVLR Candidate Scorecard</h3>
+              <h3 className="text-base font-bold text-gray-900 dark:text-white">NAVEO Stays Candidate Scorecard</h3>
               <span className="text-xs text-gray-400 ml-auto">{candidate.full_name}</span>
             </div>
 
@@ -1180,7 +1180,7 @@ function InterviewTeleprompter({
                         <p className="text-lg font-semibold leading-relaxed text-white dark:text-gray-900">
                           {currentQuestion.questionText}
                         </p>
-                        {currentQuestion.resumeBasis && currentQuestion.resumeBasis !== 'Standard TRAVLR question' && (
+                        {currentQuestion.resumeBasis && !/^Standard .* question$/.test(currentQuestion.resumeBasis) && (
                           <p className="text-xs mt-2 italic text-gray-300 dark:text-gray-600">
                             Resume basis: {currentQuestion.resumeBasis}
                           </p>
@@ -1515,7 +1515,7 @@ export default function InterviewModePage() {
           </div>
           <div>
             <h1 className="text-base font-bold text-gray-900 dark:text-white">Interview Mode</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400">TRAVLR Personalized Interview Teleprompter · 70% Standard / 30% Personalized</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">NAVEO Stays Personalized Interview Teleprompter · 70% Standard / 30% Personalized</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <button

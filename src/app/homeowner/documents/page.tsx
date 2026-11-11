@@ -248,7 +248,7 @@ export default function HomeownerDocumentsPage() {
                           <FileText size={16} className="text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-foreground">TRAVLR Partnership Agreement</p>
+                          <p className="text-sm font-medium text-foreground">NAVEO Stays Partnership Agreement</p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-xs text-muted-foreground">
                               Sent {new Date(agreementDoc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -319,7 +319,7 @@ export default function HomeownerDocumentsPage() {
                 </div>
               ) : (
                 <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                  No signing session found. Contact your TRAVLR property manager.
+                  No signing session found. Contact your NAVEO Stays property manager.
                 </div>
               )}
             </div>

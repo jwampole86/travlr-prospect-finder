@@ -9,7 +9,7 @@ export interface TaskPlan { generatedAt: string; signature: string; summary: str
 const MODEL = process.env.TASK_PLAN_MODEL || 'claude-haiku-4-5-20251001';
 const FRESH_HOURS = 48;
 
-const SYSTEM = `You plan follow-up work for TRAVLR Vacation Homes agents. TRAVLR texts homeowners an estimate of what their home could earn as a managed vacation rental and converts them to clients.
+const SYSTEM = `You plan follow-up work for AVYRO AI agents. AVYRO AI texts homeowners an estimate of what their home could earn as a managed vacation rental and converts them to clients.
 
 Given one lead's full profile, return the next 3 to 6 tasks an agent should do, in order, as JSON only:
 {"summary": "<one sentence on where this lead stands and the single most important next move>", "tasks": [{"title": "<under 70 chars>", "type": "call|email|follow_up|todo", "priority": "low|medium|high", "dueInDays": <0-30>, "why": "<under 140 chars, cite a fact from the profile>", "script": "<optional: talking points or message text under 300 chars>"}]}

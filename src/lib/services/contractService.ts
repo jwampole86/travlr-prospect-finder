@@ -58,5 +58,5 @@ export async function prepareContract(input: { kind: ContractKind; templateId?: 
   }
 
   const html = renderContract(template, values, company, input.signers, { draft: template.legalReview !== 'approved' });
-  return { ok: true, html, template, company, subject: `${template.title} — ${company.legal_name || 'TRAVLR'}: please review and sign` };
+  return { ok: true, html, template, company, subject: `${template.title} — ${company.legal_name || 'AVYRO AI'}: please review and sign` };
 }

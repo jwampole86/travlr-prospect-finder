@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Invalid email format: ${email}` }, { status: 400 });
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
     const inviteLink = `${siteUrl}/login?invite=1&email=${encodeURIComponent(email)}`;
     const roleLabel = { agent: 'Agent', manager: 'Manager', admin: 'Admin', viewer: 'Viewer' }[role as string] || 'Team Member';
 

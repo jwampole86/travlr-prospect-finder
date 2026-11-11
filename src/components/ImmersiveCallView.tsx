@@ -273,7 +273,7 @@ export default function ImmersiveCallView({
       setTranscript([{
         id: 'demo-1',
         speaker: 'Agent',
-        text: 'Hi, may I speak with the homeowner? This is [Agent Name] calling from TRAVLR.',
+        text: 'Hi, may I speak with the homeowner? This is [Agent Name] calling from NAVEO Stays.',
         timestamp: new Date().toISOString(),
       }]);
     }, 3000);

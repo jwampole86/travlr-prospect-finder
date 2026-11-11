@@ -590,7 +590,7 @@ export default function CSVExportPage() {
         // No data found — export empty file with headers only, do NOT inject mock rows
         const cols = Array.from(selectedColumns);
         const dateStr = new Date().toISOString().split('T')[0];
-        const filename = `travlr_${selectedType}_export_${dateStr}.csv`;
+        const filename = `avyro_${selectedType}_export_${dateStr}.csv`;
         downloadCSV([], cols, filename);
         setRowCount(0);
         toast.info('No data found for the selected filters — exported empty file');
@@ -606,7 +606,7 @@ export default function CSVExportPage() {
       });
 
       const dateStr = new Date().toISOString().split('T')[0];
-      const filename = `travlr_${selectedType}_export_${dateStr}.csv`;
+      const filename = `avyro_${selectedType}_export_${dateStr}.csv`;
       downloadCSV(filtered, cols, filename);
       setRowCount(filtered.length);
       toast.success(`Exported ${filtered.length} rows as CSV`);

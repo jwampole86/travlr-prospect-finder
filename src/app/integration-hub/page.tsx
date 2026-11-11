@@ -62,7 +62,7 @@ const initialIntegrations: Integration[] = [
       { id: 'twilio-key-1', label: 'Production Account SID', key: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', createdAt: '2026-07-01', lastUsed: '2026-08-17', active: true },
       { id: 'twilio-key-2', label: 'Auth Token', key: '••••••••••••••••••••••••••••••••', createdAt: '2026-07-01', lastUsed: '2026-08-17', active: true },
     ],
-    webhookUrl: 'https://travlrpro3047.builtwithrocket.new/api/sms/status',
+    webhookUrl: 'https://avyropro.ai/api/sms/status',
     lastSync: '2026-08-17T22:00:00Z',
     errorMessage: null,
   },
@@ -100,7 +100,7 @@ const initialIntegrations: Integration[] = [
     apiKeys: [
       { id: 'docusign-key-1', label: 'Integration Key', key: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', createdAt: '2026-07-10', lastUsed: '2026-08-10', active: true },
     ],
-    webhookUrl: 'https://travlrpro3047.builtwithrocket.new/api/docusign/webhook',
+    webhookUrl: 'https://avyropro.ai/api/docusign/webhook',
     lastSync: '2026-08-10T09:00:00Z',
     errorMessage: 'OAuth token expired. Re-authenticate to restore access.',
   },

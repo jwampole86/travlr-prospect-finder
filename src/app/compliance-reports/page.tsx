@@ -52,20 +52,20 @@ const SCHEDULES: ReportSchedule[] = [
     id: 'sch-001', name: 'Weekly Audit Digest', type: 'audit_log', cadence: 'weekly',
     nextRun: new Date(Date.now() + 3 * 86400000).toISOString(),
     lastRun: new Date(Date.now() - 4 * 86400000).toISOString(),
-    recipients: ['admin@travlr.com', 'compliance@travlr.com'],
+    recipients: ['admin@avyropro.ai', 'compliance@avyropro.ai'],
     enabled: true, includeAuditLog: true, includeGdpr: false, includeSoc2: false,
   },
   {
     id: 'sch-002', name: 'Monthly GDPR/SOC2 Report', type: 'combined', cadence: 'monthly',
     nextRun: new Date(Date.now() + 12 * 86400000).toISOString(),
     lastRun: new Date(Date.now() - 18 * 86400000).toISOString(),
-    recipients: ['admin@travlr.com', 'legal@travlr.com', 'cto@travlr.com'],
+    recipients: ['admin@avyropro.ai', 'legal@avyropro.ai', 'cto@avyropro.ai'],
     enabled: true, includeAuditLog: true, includeGdpr: true, includeSoc2: true,
   },
   {
     id: 'sch-003', name: 'Quarterly SOC2 Evidence Pack', type: 'soc2', cadence: 'quarterly',
     nextRun: new Date(Date.now() + 45 * 86400000).toISOString(),
-    recipients: ['auditor@external.com', 'admin@travlr.com'],
+    recipients: ['auditor@external.com', 'admin@avyropro.ai'],
     enabled: false, includeAuditLog: false, includeGdpr: false, includeSoc2: true,
   },
 ];
@@ -75,21 +75,21 @@ const REPORTS: GeneratedReport[] = [
     id: 'rpt-001', name: 'Weekly Audit Digest — Aug 11–17', type: 'audit_log',
     generatedAt: new Date(Date.now() - 1 * 86400000).toISOString(),
     period: 'Aug 11–17, 2026', size: '284 KB', status: 'sent',
-    sentTo: ['admin@travlr.com', 'compliance@travlr.com'],
+    sentTo: ['admin@avyropro.ai', 'compliance@avyropro.ai'],
     controls: { pass: 0, warn: 0, fail: 0 },
   },
   {
     id: 'rpt-002', name: 'Monthly GDPR/SOC2 Report — July 2026', type: 'combined',
     generatedAt: new Date(Date.now() - 18 * 86400000).toISOString(),
     period: 'July 2026', size: '1.2 MB', status: 'sent',
-    sentTo: ['admin@travlr.com', 'legal@travlr.com', 'cto@travlr.com'],
+    sentTo: ['admin@avyropro.ai', 'legal@avyropro.ai', 'cto@avyropro.ai'],
     controls: { pass: 11, warn: 2, fail: 1 },
   },
   {
     id: 'rpt-003', name: 'Monthly GDPR/SOC2 Report — June 2026', type: 'combined',
     generatedAt: new Date(Date.now() - 49 * 86400000).toISOString(),
     period: 'June 2026', size: '1.1 MB', status: 'sent',
-    sentTo: ['admin@travlr.com', 'legal@travlr.com'],
+    sentTo: ['admin@avyropro.ai', 'legal@avyropro.ai'],
     controls: { pass: 12, warn: 1, fail: 1 },
   },
 ];
@@ -142,7 +142,7 @@ function controlStatusBadge(s: ComplianceControl['status']) {
 function GenerateModal({ onClose, onGenerate }: { onClose: () => void; onGenerate: (name: string) => void }) {
   const [type, setType] = useState<ReportType>('combined');
   const [period, setPeriod] = useState('monthly');
-  const [recipients, setRecipients] = useState('admin@travlr.com');
+  const [recipients, setRecipients] = useState('admin@avyropro.ai');
   const [sending, setSending] = useState(false);
 
   function handleGenerate() {
@@ -221,7 +221,7 @@ export default function ComplianceReportsPage() {
       id: `rpt-${Date.now()}`, name, type: 'combined',
       generatedAt: new Date().toISOString(), period: 'Current month',
       size: '1.3 MB', status: 'sent',
-      sentTo: ['admin@travlr.com'],
+      sentTo: ['admin@avyropro.ai'],
       controls: { pass: passCount, warn: warnCount, fail: failCount },
     };
     setReports(prev => [newReport, ...prev]);

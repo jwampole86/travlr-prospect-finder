@@ -113,7 +113,7 @@ export default function LeadTableHeader({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `travlr-leads-${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `avyro-leads-${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success(`Exported ${leads.length.toLocaleString()} leads`, { id: 'lm-export' });

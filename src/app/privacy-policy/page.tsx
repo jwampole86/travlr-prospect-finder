@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
 
 const EFFECTIVE_DATE = 'August 18, 2026';
 const COMPANY = 'AVYRO AI Inc.';
-const CONTACT_EMAIL = 'privacy@travlr.com';
+const CONTACT_EMAIL = 'privacy@avyropro.ai';
 
 interface Section {
   id: string;
@@ -141,7 +141,7 @@ const SECTIONS: Section[] = [
           <li>Regular security audits and penetration testing</li>
           <li>Multi-factor authentication support</li>
         </ul>
-        <p>No system is completely secure. If you discover a security vulnerability, please report it to <a href="mailto:security@travlr.com" className="text-blue-400 hover:text-blue-300 underline">security@travlr.com</a>.</p>
+        <p>No system is completely secure. If you discover a security vulnerability, please report it to <a href="mailto:security@avyropro.ai" className="text-blue-400 hover:text-blue-300 underline">security@avyropro.ai</a>.</p>
       </div>
     ),
   },
@@ -160,7 +160,7 @@ const SECTIONS: Section[] = [
           <li><strong className="text-gray-300">Objection</strong> — object to processing based on legitimate interests</li>
           <li><strong className="text-gray-300">Opt-out of sale</strong> — California residents may opt out of the sale of personal information (we do not sell data)</li>
         </ul>
-        <p>To exercise these rights, contact <a href="mailto:privacy@travlr.com" className="text-blue-400 hover:text-blue-300 underline">privacy@travlr.com</a>. We will respond within 30 days.</p>
+        <p>To exercise these rights, contact <a href="mailto:privacy@avyropro.ai" className="text-blue-400 hover:text-blue-300 underline">privacy@avyropro.ai</a>. We will respond within 30 days.</p>
       </div>
     ),
   },
@@ -198,7 +198,7 @@ const SECTIONS: Section[] = [
       <p>
         For privacy-related questions, data subject requests, or to reach our Data Protection Officer, contact us at{' '}
         <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-400 hover:text-blue-300 underline">{CONTACT_EMAIL}</a>{' '}
-        or write to {COMPANY}, Attn: Privacy, 123 TRAVLR Way, Suite 100, Austin, TX 78701.
+        or write to {COMPANY}, Attn: Privacy, 123 AVYRO AI Way, Suite 100, Austin, TX 78701.
       </p>
     ),
   },

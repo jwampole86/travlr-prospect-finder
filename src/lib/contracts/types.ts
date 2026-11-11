@@ -15,7 +15,7 @@ export interface ContractTemplateDef {
   kind: ContractKind;
   title: string;
   description: string;
-  /** Who signs opposite TRAVLR. */
+  /** Who signs opposite AVYRO AI. */
   signerLabel: string;
   maxSigners: number;
   fields: ContractField[];

@@ -383,7 +383,7 @@ export default function SupportPage() {
                   Browse guides, FAQs, and how-to articles for AVYRO AI.
                 </p>
                 <a
-                  href="https://docs.travlr.com"
+                  href="https://avyropro.ai/help-center"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-muted/40 hover:bg-muted text-foreground transition-colors"
@@ -401,10 +401,10 @@ export default function SupportPage() {
                   For urgent issues or account-level questions, reach our support team directly.
                 </p>
                 <a
-                  href="mailto:support@travlr.com"
+                  href="mailto:support@avyropro.ai"
                   className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-muted/40 hover:bg-muted text-foreground transition-colors"
                 >
-                  <Mail size={12} /> support@travlr.com
+                  <Mail size={12} /> support@avyropro.ai
                 </a>
               </div>
 

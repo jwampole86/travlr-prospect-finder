@@ -46,7 +46,7 @@ function makeWeeklyVelocity(baseVelocity: number, baseConversions: number) {
 
 const MOCK_AGENTS: AgentConversionMetrics[] = [
   {
-    id: 'a1', name: 'Priya Nair', email: 'priya@travlr.com', avatar: 'PN',
+    id: 'a1', name: 'Priya Nair', email: 'priya@avyropro.ai', avatar: 'PN',
     conversionRate: 34.2, conversionTrend: 'up',
     avgResponseTimeHours: 9.1, responseTrend: 'up',
     assignmentVolume: 134, volumeTrend: 'up',
@@ -60,7 +60,7 @@ const MOCK_AGENTS: AgentConversionMetrics[] = [
     weeklyVelocity: makeWeeklyVelocity(11.4, 6),
   },
   {
-    id: 'a2', name: 'Sarah Mitchell', email: 'sarah@travlr.com', avatar: 'SM',
+    id: 'a2', name: 'Sarah Mitchell', email: 'sarah@avyropro.ai', avatar: 'SM',
     conversionRate: 28.7, conversionTrend: 'up',
     avgResponseTimeHours: 14.3, responseTrend: 'flat',
     assignmentVolume: 118, volumeTrend: 'flat',
@@ -74,7 +74,7 @@ const MOCK_AGENTS: AgentConversionMetrics[] = [
     weeklyVelocity: makeWeeklyVelocity(14.1, 4),
   },
   {
-    id: 'a3', name: 'Marcus Webb', email: 'marcus@travlr.com', avatar: 'MW',
+    id: 'a3', name: 'Marcus Webb', email: 'marcus@avyropro.ai', avatar: 'MW',
     conversionRate: 22.1, conversionTrend: 'flat',
     avgResponseTimeHours: 18.7, responseTrend: 'down',
     assignmentVolume: 95, volumeTrend: 'down',
@@ -88,7 +88,7 @@ const MOCK_AGENTS: AgentConversionMetrics[] = [
     weeklyVelocity: makeWeeklyVelocity(18.3, 3),
   },
   {
-    id: 'a4', name: 'James Torres', email: 'james@travlr.com', avatar: 'JT',
+    id: 'a4', name: 'James Torres', email: 'james@avyropro.ai', avatar: 'JT',
     conversionRate: 16.8, conversionTrend: 'down',
     avgResponseTimeHours: 22.4, responseTrend: 'down',
     assignmentVolume: 107, volumeTrend: 'up',
@@ -102,7 +102,7 @@ const MOCK_AGENTS: AgentConversionMetrics[] = [
     weeklyVelocity: makeWeeklyVelocity(22.7, 2),
   },
   {
-    id: 'a5', name: 'Aisha Okafor', email: 'aisha@travlr.com', avatar: 'AO',
+    id: 'a5', name: 'Aisha Okafor', email: 'aisha@avyropro.ai', avatar: 'AO',
     conversionRate: 13.4, conversionTrend: 'down',
     avgResponseTimeHours: 27.2, responseTrend: 'down',
     assignmentVolume: 82, volumeTrend: 'flat',

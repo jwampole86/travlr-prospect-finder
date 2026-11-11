@@ -69,11 +69,11 @@ const AI_FEATURES: AIFeature[] = [
   {
     id: 'homeowner-chatbot',
     title: 'Homeowner Portal Chatbot',
-    description: 'Homeowner-facing chatbot embedded in the Homeowner Dashboard. Answers questions about revenue statements, payout status, and general TRAVLR policy. Escalates to human agent for account-specific issues.',
+    description: 'Homeowner-facing chatbot embedded in the Homeowner Dashboard. Answers questions about revenue statements, payout status, and general AVYRO AI policy. Escalates to human agent for account-specific issues.',
     icon: <Bot size={20} />,
     category: 'chatbot',
     status: 'placeholder',
-    inputs: ['Homeowner\'s properties', 'Revenue & payout data', 'Booking history', 'TRAVLR policy docs'],
+    inputs: ['Homeowner\'s properties', 'Revenue & payout data', 'Booking history', 'AVYRO AI policy docs'],
     outputs: ['Revenue explanations', 'Payout status', 'Policy answers', 'Human escalation triggers'],
   },
 ];

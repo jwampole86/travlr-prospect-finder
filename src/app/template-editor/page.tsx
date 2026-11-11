@@ -29,7 +29,7 @@ export default function TemplateEditorPage() {
   const { user } = useAuth();
   const senderName = useMemo(() => {
     const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
-    return String(meta.first_name ?? meta.full_name ?? user?.email ?? 'TRAVLR team').trim() || 'TRAVLR team';
+    return String(meta.first_name ?? meta.full_name ?? user?.email ?? 'AVYRO AI team').trim() || 'AVYRO AI team';
   }, [user]);
 
   const [channel, setChannel] = useState<TemplateChannel>('email');

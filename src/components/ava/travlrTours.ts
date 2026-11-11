@@ -5,7 +5,7 @@ const STAFF = ['admin', 'owner', 'agent'] as const;
 const ADMINS = ['admin', 'owner'] as const;
 
 /**
- * Guided tours of real TRAVLR/AVYRO screens. Each step points at an element marked `data-ava-anchor="..."` in the page
+ * Guided tours of real AVYRO AI/AVYRO screens. Each step points at an element marked `data-ava-anchor="..."` in the page
  * source (a test checks every anchor still exists). Routes in /pipeline and the dashboard are admin-only in the app, so
  * those tours are only offered to admins and owners.
  */

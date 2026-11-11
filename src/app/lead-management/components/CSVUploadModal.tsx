@@ -394,7 +394,7 @@ export default function CSVUploadModal({ open, onClose, onImport }: CSVUploadMod
         <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20 text-xs text-blue-700 dark:text-blue-400">
           <p className="font-semibold mb-1 flex items-center gap-1.5">
             <FileText size={12} />
-            Expected CSV columns (TRAVLR Verified Import):
+            Expected CSV columns (AVYRO AI Verified Import):
           </p>
           <p className="font-mono text-[11px] bg-blue-500/10 px-2 py-1 rounded mt-1">
             Address, Contact, Phone, City, State, Zip, Beds, Baths, Price, Notes, Link, Source, Stage

@@ -24,7 +24,7 @@ function buildCSV(rows: LeadRow[], columns: string[]): string {
 
 function buildCallAnalyticsCSV(analyticsData: Record<string, unknown>): string {
   const lines: string[] = [];
-  lines.push('TRAVLR Call Analytics Export');
+  lines.push('AVYRO AI Call Analytics Export');
   lines.push(`Generated: ${new Date().toISOString()}`);
   lines.push('');
 
@@ -63,7 +63,7 @@ function buildCallAnalyticsCSV(analyticsData: Record<string, unknown>): string {
 
 function buildSystemHealthCSV(healthData: Record<string, unknown>): string {
   const lines: string[] = [];
-  lines.push('TRAVLR System Health SLA Export');
+  lines.push('AVYRO AI System Health SLA Export');
   lines.push(`Generated: ${new Date().toISOString()}`);
   lines.push('');
 
@@ -106,16 +106,16 @@ export async function POST(req: NextRequest) {
 
     if (reportType === 'call_analytics' && analyticsData) {
       content = buildCallAnalyticsCSV(analyticsData as Record<string, unknown>);
-      fileName = `travlr-call-analytics-${dateStr}.csv`;
+      fileName = `avyro-call-analytics-${dateStr}.csv`;
       subjectLabel = scheduleName ?? 'Call Analytics Report';
     } else if (reportType === 'system_health' && healthData) {
       content = buildSystemHealthCSV(healthData as Record<string, unknown>);
-      fileName = `travlr-system-health-sla-${dateStr}.csv`;
+      fileName = `avyro-system-health-sla-${dateStr}.csv`;
       subjectLabel = scheduleName ?? 'System Health SLA Report';
     } else if (leads && columns) {
       content = buildCSV(leads as LeadRow[], columns as string[]);
       const ext = fileFormat === 'xlsx' ? 'tsv' : 'csv';
-      fileName = `travlr-leads-${dateStr}.${ext}`;
+      fileName = `avyro-leads-${dateStr}.${ext}`;
       subjectLabel = scheduleName ?? 'Lead Export';
     } else {
       return NextResponse.json({ success: false, error: 'Missing export data' }, { status: 400 });

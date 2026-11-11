@@ -1,6 +1,6 @@
 /**
  * Centralized AVYRO AI product brand configuration.
- * AVYRO AI is the SaaS platform; TRAVLR Vacation Homes is a customer organization using it.
+ * AVYRO AI is the SaaS platform; NAVEO Stays is a customer organization using it.
  * Import from here instead of hard-coding brand strings across components.
  */
 
@@ -15,7 +15,7 @@ export const BRAND = {
   logoMark: '/brand/avyro-icon.png',
   favicon: '/favicon.ico',
   appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://avyropro.ai',
-  supportEmail: 'support@travlr.com',
+  supportEmail: 'support@avyropro.ai',
 } as const;
 
 export const BRAND_COLORS = {

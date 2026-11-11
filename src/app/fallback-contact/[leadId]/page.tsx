@@ -64,7 +64,7 @@ function buildOutreachMessage(address: string, city: string, state: string, sour
   const brandName = outreachBrandFor(priceType).name; // NAVEO Stays for a home for rent, NAVEO Homes for one for sale
   const fullAddress = [address, city, state].filter(Boolean).join(', ');
   if (outreachBrandFor(priceType).key === 'homes') return forSaleListingMessage(fullAddress);
-  return `Hi! I came across your listing at ${fullAddress} and wanted to reach out — I'm with ${brandName}, a property management company. If you're ever curious what ${address} could earn as a managed vacation rental, here's a free instant estimate, no strings attached:\n\nhttps://travlrpro3047.builtwithrocket.new/estimate`;
+  return `Hi! I came across your listing at ${fullAddress} and wanted to reach out — I'm with ${brandName}, a property management company. If you're ever curious what ${address} could earn as a managed vacation rental, here's a free instant estimate, no strings attached:\n\nhttps://avyropro.ai/estimate`;
 }
 
 export default function FallbackContactPage() {

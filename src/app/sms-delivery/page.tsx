@@ -103,7 +103,7 @@ function generateMockRecords(): SMSRecord[] {
       error_code: errorCode || undefined,
       error_message: errorCode ? TWILIO_ERROR_CODES[errorCode] : undefined,
       retry_count: hasError ? Math.floor(Math.random() * 3) : 0,
-      body_preview: `Hi there, this is your TRAVLR agent. We help homeowners earn more through short-term rentals…`,
+      body_preview: `Hi there, this is your NAVEO Stays agent. We help homeowners earn more through short-term rentals…`,
       channel: 'sms',
     };
   });

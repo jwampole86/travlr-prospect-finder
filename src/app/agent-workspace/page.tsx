@@ -447,7 +447,7 @@ export default function AgentWorkspacePage() {
         <div className="flex items-center justify-between p-4 bg-muted/30 border border-border rounded-xl">
           <div className="flex items-center gap-2">
             <HelpCircle size={14} className="text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">Need a refresher on how to use TRAVLR?</p>
+            <p className="text-xs text-muted-foreground">Need a refresher on how to use AVYRO AI?</p>
           </div>
           <button
             onClick={() => setShowTour(true)}

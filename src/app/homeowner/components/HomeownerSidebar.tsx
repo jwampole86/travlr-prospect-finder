@@ -86,7 +86,7 @@ export default function HomeownerSidebar() {
         <AppLogo size={28} />
         {(!collapsed || isMobile) && (
           <div className="flex flex-col leading-none min-w-0">
-            <span className="text-sm font-semibold text-foreground truncate">TRAVLR</span>
+            <span className="text-sm font-semibold text-foreground truncate">NAVEO Stays</span>
             <span className="text-xs text-muted-foreground truncate">Owner Portal</span>
           </div>
         )}

@@ -1,4 +1,4 @@
-// ─── TRAVLR Interview Scripts ─────────────────────────────────────────────────
+// ─── NAVEO Stays Interview Scripts ─────────────────────────────────────────────────
 // Structured interview scripts for Jen Wampole to use during Zoom interviews
 
 import { AI_INTERVIEW_CONFIG } from '@/lib/interviewConfig';
@@ -47,7 +47,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
       {
         id: 'intro', title: 'Introduction & Overview', duration: '5 min',
         questions: [
-          { id: 'intro-1', category: 'Opening', question: "Thanks for joining today — I'm Jen, and I lead the team here at TRAVLR. Can you start by walking me through your background and what drew you to this role?", followUps: ['What specifically about TRAVLR caught your attention?', 'How did you hear about us?'] },
+          { id: 'intro-1', category: 'Opening', question: "Thanks for joining today — I'm Jen, and I lead the team here at NAVEO Stays. Can you start by walking me through your background and what drew you to this role?", followUps: ['What specifically about NAVEO Stays caught your attention?', 'How did you hear about us?'] },
           { id: 'intro-2', category: 'Opening', question: 'What does a typical day look like for you in your current or most recent role?' },
         ],
       },
@@ -56,7 +56,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
         questions: [
           { id: 'out-1', category: 'Cold Outreach', question: 'Walk me through how you approach a cold outreach campaign from scratch — how do you build your list, craft your message, and track results.', followUps: ['What open rates or response rates have you achieved?', 'How do you personalize at scale?'] },
           { id: 'out-2', category: 'Objection Handling', question: 'Tell me about a time a prospect pushed back hard on your pitch. What was the objection and how did you handle it?', followUps: ['Did you ultimately convert them?', 'What would you do differently now?'] },
-          { id: 'out-3', category: 'Phone Skills', question: "How comfortable are you with high-volume phone outreach? Describe your approach to a cold call to a homeowner who has never heard of TRAVLR.", notes: 'Look for: confidence, warmth, ability to handle rejection, natural conversational style' },
+          { id: 'out-3', category: 'Phone Skills', question: "How comfortable are you with high-volume phone outreach? Describe your approach to a cold call to a homeowner who has never heard of NAVEO Stays.", notes: 'Look for: confidence, warmth, ability to handle rejection, natural conversational style' },
           { id: 'out-4', category: 'Follow-Up', question: "How do you manage follow-up cadence without being annoying? What's your rule of thumb for when to persist vs. move on?" },
         ],
       },
@@ -64,7 +64,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
         id: 'real-estate', title: 'Real Estate & STR Knowledge', duration: '10 min',
         questions: [
           { id: 're-1', category: 'Industry Knowledge', question: "What do you know about the short-term rental market and how it differs from traditional long-term rentals from a homeowner's perspective?" },
-          { id: 're-2', category: 'Value Proposition', question: 'If a homeowner asked you "Why should I partner with TRAVLR instead of just listing on Airbnb myself?" — what would you say?', notes: 'Look for: understanding of management value, revenue optimization, guest experience, hands-off ownership' },
+          { id: 're-2', category: 'Value Proposition', question: 'If a homeowner asked you "Why should I partner with NAVEO Stays instead of just listing on Airbnb myself?" — what would you say?', notes: 'Look for: understanding of management value, revenue optimization, guest experience, hands-off ownership' },
           { id: 're-3', category: 'Market Awareness', question: 'Are you familiar with any STR regulations or compliance requirements in markets like Colorado, Maryland, or Florida?' },
         ],
       },
@@ -86,7 +86,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
       {
         id: 'close', title: 'Closing Questions', duration: '5 min',
         questions: [
-          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about the role, the team, or TRAVLR?' },
+          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about the role, the team, or NAVEO Stays?' },
           { id: 'close-2', category: 'Next Steps', question: "We're moving quickly on this. What does your timeline look like and when could you start if things move forward?" },
         ],
       },
@@ -141,7 +141,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
       {
         id: 'close', title: 'Closing', duration: '5 min',
         questions: [
-          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about TRAVLR or this role?' },
+          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about NAVEO Stays or this role?' },
           { id: 'close-2', category: 'Next Steps', question: "What's your availability and timeline if we move forward?" },
         ],
       },
@@ -196,7 +196,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
       {
         id: 'close', title: 'Closing', duration: '5 min',
         questions: [
-          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about the role or TRAVLR?' },
+          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about the role or NAVEO Stays?' },
           { id: 'close-2', category: 'Next Steps', question: "What's your timeline and when could you start if things move forward?" },
         ],
       },
@@ -245,14 +245,14 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
       {
         id: 'strategy', title: 'Strategy & Vision', duration: '10 min',
         questions: [
-          { id: 'strat-1', category: 'Vision', question: 'If you joined TRAVLR as Head of Property Operations, what would your first 90 days look like?' },
+          { id: 'strat-1', category: 'Vision', question: 'If you joined NAVEO Stays as Head of Property Operations, what would your first 90 days look like?' },
           { id: 'strat-2', category: 'Growth', question: 'What do you see as the biggest operational challenges for a fast-growing STR company expanding into new markets?' },
         ],
       },
       {
         id: 'close', title: 'Closing', duration: '5 min',
         questions: [
-          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about TRAVLR, the team, or this role?' },
+          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about NAVEO Stays, the team, or this role?' },
           { id: 'close-2', category: 'Next Steps', question: "What's your timeline and compensation expectations if we move forward?" },
         ],
       },
@@ -297,7 +297,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
         id: 'close', title: 'Closing', duration: '10 min',
         questions: [
           { id: 'culture-1', category: 'Culture', question: 'What kind of work environment do you thrive in? How do you handle fast-paced, sometimes unpredictable days?' },
-          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about TRAVLR or this role?' },
+          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about NAVEO Stays or this role?' },
         ],
       },
     ],
@@ -343,7 +343,7 @@ export const INTERVIEW_SCRIPTS: Record<string, InterviewScript> = {
       {
         id: 'close', title: 'Closing', duration: '5 min',
         questions: [
-          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about TRAVLR or this role?' },
+          { id: 'close-1', category: 'Candidate Questions', question: 'What questions do you have for me about NAVEO Stays or this role?' },
           { id: 'close-2', category: 'Next Steps', question: "What's your timeline and when could you start if things move forward?" },
         ],
       },

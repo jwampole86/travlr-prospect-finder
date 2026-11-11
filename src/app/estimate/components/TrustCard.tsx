@@ -8,7 +8,7 @@ export default function TrustCard({ className = '' }: { className?: string }) {
   const a = 'font-semibold text-indigo-700 hover:underline';
   return (
     <aside className={`rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 break-inside-avoid ${className}`}>
-      <p className="flex items-center gap-2 text-sm font-bold"><BadgeCheck size={16} className="text-emerald-600" /> Why homeowners trust TRAVLR</p>
+      <p className="flex items-center gap-2 text-sm font-bold"><BadgeCheck size={16} className="text-emerald-600" /> Why homeowners trust NAVEO Stays</p>
       <p className="mt-1.5 text-[13px] leading-relaxed text-slate-600">{TRUST_STORY} Don&rsquo;t take our word for it. Every item below links to its public source.</p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2 print:grid-cols-2">
         {TRUST_ITEMS.map(i => (

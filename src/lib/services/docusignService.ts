@@ -18,7 +18,7 @@ const DS_PRIVATE_KEY = (process.env.DOCUSIGN_PRIVATE_KEY ?? '').replace(/\\n/g, 
 // Unfilled env vars (still a "your-...-here" template) or the UI's "..." PEM hint are not real values.
 const hasPlaceholderValue = (value: string) => !value || /your-|here|xxxxxxxx|\.\.\./.test(value);
 
-/** Counter-signer for TRAVLR: set TRAVLR_COUNTERSIGNER_EMAIL/NAME, otherwise the DocuSign integration user signs. */
+/** Counter-signer for AVYRO AI: set TRAVLR_COUNTERSIGNER_EMAIL/NAME, otherwise the DocuSign integration user signs. */
 const COUNTERSIGNER = {
   name: process.env.TRAVLR_COUNTERSIGNER_NAME?.trim() || '',
   email: process.env.TRAVLR_COUNTERSIGNER_EMAIL?.trim() || '',
@@ -43,7 +43,7 @@ export type PrefillData = Record<string, string | undefined>;
 export interface CreateEnvelopeResult {
   envelopeId: string;
   status: string;
-  /** Who TRAVLR's counter-signature goes to. */
+  /** Who AVYRO AI's counter-signature goes to. */
   counterSigner: { name: string; email: string };
 }
 
@@ -149,7 +149,7 @@ export async function getDocuSignAccessToken(): Promise<string> {
   return cachedToken.accessToken;
 }
 
-/** TRAVLR's counter-signer: the configured address, otherwise the DocuSign integration user. Never a guessed mailbox. */
+/** AVYRO AI's counter-signer: the configured address, otherwise the DocuSign integration user. Never a guessed mailbox. */
 async function getCounterSigner(): Promise<{ name: string; email: string }> {
   if (COUNTERSIGNER.email) return { email: COUNTERSIGNER.email, name: COUNTERSIGNER.name || 'Authorized Representative' };
   await getDocuSignAccessToken();
@@ -267,7 +267,7 @@ export async function createSigningEnvelope(
 export async function createOfferLetterEnvelope(
   signers: OfferLetterSigner[],
   letterHtml: string,
-  emailSubject = 'TRAVLR Offer Letter — Please Review & Sign'
+  emailSubject = 'AVYRO AI Offer Letter — Please Review & Sign'
 ): Promise<CreateEnvelopeResult> {
   if (!signers.length) throw new Error('At least one offer signer is required');
   if (!letterHtml.trim()) throw new Error('Offer letter HTML is required');

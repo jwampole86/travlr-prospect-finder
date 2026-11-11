@@ -122,7 +122,7 @@ export default function HomeownerRequestsPage() {
         <div className="bg-card border border-border rounded-xl p-8 text-center">
           <MessageSquare size={28} className="mx-auto mb-3 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">No property is linked to your homeowner account yet.</p>
-          <p className="text-xs text-muted-foreground mt-1">Contact your TRAVLR property manager to connect your property.</p>
+          <p className="text-xs text-muted-foreground mt-1">Contact your NAVEO Stays property manager to connect your property.</p>
         </div>
       ) : showNewRequest ? (
         <div className="bg-card border border-border rounded-xl p-5 space-y-4">

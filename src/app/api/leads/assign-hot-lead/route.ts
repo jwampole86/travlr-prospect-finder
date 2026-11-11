@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
                 <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Assigned By</td><td style="padding: 6px 0; font-weight: 600; color: #111827; font-size: 13px;">${assignedBy || 'System'}</td></tr>
               </table>
             </div>
-            <p style="color: #6b7280; font-size: 12px; margin: 0;">This lead has been marked as <strong>Contacted</strong> in the pipeline. Log in to TRAVLR to follow up.</p>
+            <p style="color: #6b7280; font-size: 12px; margin: 0;">This lead has been marked as <strong>Contacted</strong> in the pipeline. Log in to AVYRO AI to follow up.</p>
           </div>
         `,
       });

@@ -30,7 +30,7 @@ export function phonesFor(owner: Row | null | undefined): HostPhone[] {
 /** The text always identifies NAVEO Stays and carries an opt-out line, whatever the sender edited. */
 export function prepareBody(raw: string): string {
   let b = toGsm(raw).trim();
-  if (!/travlr/i.test(b)) b = `NAVEO Stays: ${b}`;
+  if (!/naveo/i.test(b)) b = `NAVEO Stays: ${b}`;
   if (!/\bstop\b/i.test(b)) b = `${b}\nReply STOP to opt out`;
   return b;
 }

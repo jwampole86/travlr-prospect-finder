@@ -228,7 +228,7 @@ export default function SigningStatusPanel({
                   <FileText size={14} className="text-muted-foreground" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">TRAVLR Partnership Agreement</p>
+                  <p className="text-sm font-medium text-foreground">NAVEO Stays Partnership Agreement</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {new Date(session.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     {session.resend_count ? ` · Resent ${session.resend_count}×` : ''}
@@ -261,7 +261,7 @@ export default function SigningStatusPanel({
                         <div className="flex items-center gap-2 min-w-0">
                           <User size={12} className="text-muted-foreground shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-xs font-medium text-foreground truncate">{signer.signer_name}{signer.signer_role === 'counter_signer' ? ' (TRAVLR counter-signature)' : ''}</p>
+                            <p className="text-xs font-medium text-foreground truncate">{signer.signer_name}{signer.signer_role === 'counter_signer' ? ' (NAVEO Stays counter-signature)' : ''}</p>
                             <p className="text-xs text-muted-foreground truncate">{signer.signer_email}</p>
                           </div>
                         </div>

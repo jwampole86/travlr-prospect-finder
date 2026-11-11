@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, ArrowLeft, Globe, Lock, FileText, Users } from 
 
 const EFFECTIVE_DATE = 'August 18, 2026';
 const COMPANY = 'AVYRO AI Inc.';
-const CONTACT_EMAIL = 'dpo@travlr.com';
+const CONTACT_EMAIL = 'dpo@avyropro.ai';
 
 interface Section {
   id: string;

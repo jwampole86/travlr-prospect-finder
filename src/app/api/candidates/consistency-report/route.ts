@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
       latestScorecard as Record<string, unknown> | null
     );
 
-    const systemPrompt = `You are an expert interview analyst for TRAVLR Vacation Homes, a boutique luxury vacation-rental brand.
+    const systemPrompt = `You are an expert interview analyst for NAVEO Stays, a boutique luxury vacation-rental brand.
 Your task is to generate a RESUME VS. INTERVIEW CONSISTENCY REPORT.
 
 CRITICAL RULES:

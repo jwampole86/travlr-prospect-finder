@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
     qualificationProbability: Math.round(score) / 100,
     confidence: clamp(Number(llm?.confidence ?? (engaged ? 0.8 : 0.5)), 0, 1),
     priorityTier: tierOf(score),
-    reasoning: [...adjustments, llm?.reasoning || `Scored ${score}/100 from the TRAVLR rules: ${baseline.factors.slice().sort((x, y) => y.weightedPoints - x.weightedPoints).slice(0, 2).map((f) => f.label).join(' and ')} are the strongest factors.`].filter(Boolean).join(' '),
+    reasoning: [...adjustments, llm?.reasoning || `Scored ${score}/100 from the AVYRO AI rules: ${baseline.factors.slice().sort((x, y) => y.weightedPoints - x.weightedPoints).slice(0, 2).map((f) => f.label).join(' and ')} are the strongest factors.`].filter(Boolean).join(' '),
     keySignals: { positive, negative: [...clean(llm?.keySignals?.negative), ...(blocked ? [baseline.blockers[0]] : [])], neutral: clean(llm?.keySignals?.neutral) },
     scoreBreakdown: {
       ownerTenureSignal: clamp(Number(b?.ownerTenureSignal ?? 12), 0, 25),
@@ -223,20 +223,20 @@ export async function POST(req: NextRequest) {
       : llm?.recommendedAction || 'Continue the text campaign and call when they respond.',
     outreachPriority: declined || blocked ? 'deprioritize' : engaged ? 'immediate' : priorityOf(score),
     qualifiedAt: new Date().toISOString(),
-    model: llm ? 'claude-sonnet-4-6 + TRAVLR rules' : 'TRAVLR rules',
+    model: llm ? 'claude-sonnet-4-6 + AVYRO AI rules' : 'AVYRO AI rules',
   };
   return NextResponse.json(result);
 }
 
 export async function GET() {
-  return NextResponse.json({ description: 'Lead qualification: TRAVLR rules refined by Claude', usage: 'POST /api/ai/lead-qualification with { leadId }' });
+  return NextResponse.json({ description: 'Lead qualification: AVYRO AI rules refined by Claude', usage: 'POST /api/ai/lead-qualification with { leadId }' });
 }
 
 // ─── Prompts ──────────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are a senior outreach qualification analyst for TRAVLR Vacation Homes, a short-term rental (STR) management company.
+const SYSTEM_PROMPT = `You are a senior outreach qualification analyst for AVYRO AI, a short-term rental (STR) management company.
 
-HOW TRAVLR FINDS LEADS: we text and call owners whose homes are listed on Zillow, Trulia and similar sites, either FOR SALE or FOR RENT, and offer to manage the home as a vacation rental. A listing, sale or rent, is why the owner is a lead. It is NEVER a negative.
+HOW AVYRO AI FINDS LEADS: we text and call owners whose homes are listed on Zillow, Trulia and similar sites, either FOR SALE or FOR RENT, and offer to manage the home as a vacation rental. A listing, sale or rent, is why the owner is a lead. It is NEVER a negative.
 - For-sale listings are normal prospects. An owner whose home is not selling, or who is open to income while waiting, is often a strong fit. The listing price is a purchase price, not rent or income: never compare it to rent and never treat a high price as a weakness. Judge revenue from the short-term-rental estimates only.
 - Owner tenure is usually unknown. Unknown is neutral and must not lower the score.
 
@@ -252,7 +252,7 @@ Without any response, use the rule-based score as your anchor and move it by at 
 Respond with valid JSON only, no markdown.`;
 
 function buildQualificationPrompt(facts: Record<string, unknown>): string {
-  return `Assess this lead for TRAVLR STR management.
+  return `Assess this lead for AVYRO AI STR management.
 
 FACTS (from our database, accurate):
 ${JSON.stringify(facts, null, 2)}

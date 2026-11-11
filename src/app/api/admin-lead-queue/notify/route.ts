@@ -10,14 +10,14 @@ export async function POST(req: NextRequest) {
     }
 
     const body = [
-      `🎯 TRAVLR: New lead assigned to you!`,
+      `🎯 AVYRO AI: New lead assigned to you!`,
       ``,
       `Prospect: ${leadName}`,
       `Address: ${leadAddress}`,
       leadPhone ? `Phone: ${leadPhone}` : null,
       `Priority: ${priority || 'Standard'}`,
       ``,
-      `Open your dashboard to view and call: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://travlrpro3047.builtwithrocket.new'}/teleprompter`,
+      `Open your dashboard to view and call: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai'}/teleprompter`,
     ].filter(Boolean).join('\n');
 
     const result = await dispatchSMS({
