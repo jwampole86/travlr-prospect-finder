@@ -30,6 +30,10 @@
       "schedule": "5 * * * *"
     },
     {
+      "path": "/api/cron/notifications-pulse",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/system-health",
       "schedule": "*/5 * * * *"
     },
