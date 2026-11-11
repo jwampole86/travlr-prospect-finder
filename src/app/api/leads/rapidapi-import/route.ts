@@ -154,10 +154,11 @@ function toImportRow(listing: NormalizedRentalListing): ImportRow | null {
  *   // padmapper: 20 listings per slug (no pagination). Pass ONE of: location ("austin-tx" or "austin-tx/78704"),
  *   //   locations[] of such slugs, city+state (+ optional zips[]), or state alone (uses the active PadMapper
  *   //   cities in sync_source_coverage). Per-ZIP slugs surface individual houses; city slugs mostly buildings.
- *   location?: string,   // Trulia/zillow-real-estate/us-property-data: city/state or ZIP, e.g. "Austin, TX"
- *   region?: string,      // Zillow (ToolzerHub): region slug, e.g. "austin-tx"
+ *   location?: string,   // Trulia/us-property-data: city/state or ZIP, e.g. "Austin, TX"
+ *   region?: string,      // Zillow (ToolzerHub, zillow-search and zillow-real-estate): region slug, e.g. "austin-tx"
+ *   startPage?: number,   // first page to fetch (default 1); maxPages pages are read from there
  *   city?, state?: string, // rent-com
- *   status?: 'for_sale' | 'for_rent' | 'sold', // zillow-real-estate / us-property-data
+ *   status?: 'for_sale' | 'for_rent' | 'sold', // us-property-data; zillow-real-estate takes for_sale | sold
  *   urls?: string[],      // zillow-detail: up to 20 Zillow URLs, ZPIDs, or street addresses
  *   maxPages?: number,    // default 1, capped at 5
  *   priceMin?, priceMax?, bedsMin?, bathsMin?: number, // Trulia/zillow-real-estate only
@@ -309,7 +310,9 @@ async function runImport(req: NextRequest) {
       return NextResponse.json({ error: lastError || 'Craigslist request failed' }, { status: lastStatus || 503 });
     }
   } else {
-  for (let page = 1; page <= maxPages; page++) {
+  // Deeper pages can be pulled on their own (startPage) so a second provider covers what the first one's page 1 never reaches.
+  const firstPage = Math.min(20, Math.max(1, Number(body?.startPage) || 1));
+  for (let page = firstPage; page < firstPage + maxPages; page++) {
     if (provider === 'trulia') {
       const location = body?.location as string;
       if (!location) {
@@ -321,7 +324,7 @@ async function runImport(req: NextRequest) {
         bedsMin: body?.bedsMin, bathsMin: body?.bathsMin,
       });
       if (!result.ok) {
-        if (page === 1) return NextResponse.json({ error: result.error || 'Trulia request failed' }, { status: result.status || 503 });
+        if (page === firstPage) return NextResponse.json({ error: result.error || 'Trulia request failed' }, { status: result.status || 503 });
         break; // later page failed — stop paginating, keep what we have
       }
       if (result.listings.length === 0) break;
@@ -333,22 +336,21 @@ async function runImport(req: NextRequest) {
       }
       const result = await searchZillowProperties({ region, status: body?.status === 'sold' ? 'sold' : 'for_sale', page });
       if (!result.ok) {
-        if (page === 1) return NextResponse.json({ error: result.error || 'Zillow Scraper API request failed' }, { status: result.status || 503 });
+        if (page === firstPage) return NextResponse.json({ error: result.error || 'Zillow Scraper API request failed' }, { status: result.status || 503 });
         break;
       }
       if (result.listings.length === 0) break;
       allListings.push(...result.listings);
     } else if (provider === 'zillow-real-estate') {
-      const location = body?.location as string;
-      if (!location) {
-        return NextResponse.json({ error: 'location is required for provider=zillow-real-estate' }, { status: 400 });
+      // A region slug ("austin-tx", or a state code), or "City, ST" which is turned into one.
+      const raw = String(body?.region || body?.location || '').trim();
+      const region = /^[A-Za-z .'-]+,\s*[A-Za-z]{2}$/.test(raw) ? raw.replace(/\s*,\s*/g, '-').replace(/\s+/g, '-').toLowerCase() : raw.toLowerCase();
+      if (!region) {
+        return NextResponse.json({ error: 'region (or location) is required for provider=zillow-real-estate' }, { status: 400 });
       }
-      const result = await searchZillowRealEstate({
-        location, page, status: body?.status, sort: body?.sort,
-        priceMin: body?.priceMin, priceMax: body?.priceMax, bedsMin: body?.bedsMin,
-      });
+      const result = await searchZillowRealEstate({ region, status: body?.status === 'sold' ? 'sold' : 'for_sale', page });
       if (!result.ok) {
-        if (page === 1) return NextResponse.json({ error: result.error || 'Zillow Real Estate API request failed' }, { status: result.status || 503 });
+        if (page === firstPage) return NextResponse.json({ error: result.error || 'Zillow Real Estate API request failed' }, { status: result.status || 503 });
         break;
       }
       if (result.listings.length === 0) break;
@@ -359,9 +361,9 @@ async function runImport(req: NextRequest) {
       if (!city || !state) {
         return NextResponse.json({ error: 'city and state are required for provider=rent-com' }, { status: 400 });
       }
-      const result = await searchRentCom({ city, state, locationSlug: body?.locationSlug, page, sort: body?.sort });
+      const result = await searchRentCom({ city, state, locationSlug: body?.locationSlug, page });
       if (!result.ok) {
-        if (page === 1) return NextResponse.json({ error: result.error || 'Rent.com API request failed' }, { status: result.status || 503 });
+        if (page === firstPage) return NextResponse.json({ error: result.error || 'Rent.com API request failed' }, { status: result.status || 503 });
         break;
       }
       if (result.listings.length === 0) break;
@@ -374,7 +376,7 @@ async function runImport(req: NextRequest) {
       }
       const result = await searchUsPropertyData({ location, page, listingStatus: body?.status });
       if (!result.ok) {
-        if (page === 1) return NextResponse.json({ error: result.error || 'US Property Data request failed' }, { status: result.status || 503 });
+        if (page === firstPage) return NextResponse.json({ error: result.error || 'US Property Data request failed' }, { status: result.status || 503 });
         break;
       }
       if (result.listings.length === 0) break;

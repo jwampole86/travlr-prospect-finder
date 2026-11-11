@@ -35,6 +35,14 @@ const PROVIDERS: Record<string, (state: string, truliaPages: number) => Provider
   padmapper: (state) => ({ provider: 'padmapper', state }),
   hotpads: (state) => ({ provider: 'hotpads', state }),
   'zillow-search': (state) => ({ provider: 'zillow-search', region: state.toLowerCase(), maxPages: 1 }),
+  // The second Zillow subscription reads the pages after the first one's page 1, so each run reaches listings the other cannot.
+  'zillow-real-estate': (state) => ({ provider: 'zillow-real-estate', region: state.toLowerCase(), startPage: 2, maxPages: 2 }),
+};
+
+/** Providers that search one city at a time (they have no state-wide search), fed from the state's busiest cities. */
+const CITY_PROVIDERS: Record<string, (city: string, state: string) => ProviderBody> = {
+  'rent-com': (city, state) => ({ provider: 'rent-com', city, state, quietFailures: true }),
+  'us-property-data': (city, state) => ({ provider: 'us-property-data', location: `${city}, ${state}`, status: 'for_rent', quietFailures: true }),
 };
 
 /** Provider errors can be strings or objects ({code, message}); never show "[object Object]". */
@@ -79,10 +87,10 @@ export async function GET(req: NextRequest) {
   const truliaPages = Math.min(5, Math.max(1, Number(params.get('trulia_pages')) || DEFAULT_TRULIA_PAGES));
   const citiesParam = params.get('cities');
   const citiesPerState = Math.min(MAX_CITIES_PER_STATE, Math.max(0, citiesParam === null || citiesParam === '' ? DEFAULT_CITIES_PER_STATE : Number(citiesParam) || 0));
-  const sources = (params.get('sources') || Object.keys(PROVIDERS).join(','))
+  const sources = (params.get('sources') || [...Object.keys(PROVIDERS), ...Object.keys(CITY_PROVIDERS)].join(','))
     .split(',')
     .map((source) => source.trim())
-    .filter((source): source is keyof typeof PROVIDERS => source in PROVIDERS);
+    .filter((source) => source in PROVIDERS || source in CITY_PROVIDERS);
   const only = new Set((params.get('only') || '').split(',').map((state) => state.trim().toUpperCase()).filter(Boolean));
 
   const run = await startCronRun('source-sync', {
@@ -153,7 +161,7 @@ export async function GET(req: NextRequest) {
       ok: event.status === 'success',
       at: String(event.created_at),
     }));
-    const sourceNames: Record<string, string> = { trulia: 'Trulia', padmapper: 'PadMapper', hotpads: 'HotPads', 'zillow-search': 'Zillow' };
+    const sourceNames: Record<string, string> = { trulia: 'Trulia', padmapper: 'PadMapper', hotpads: 'HotPads', 'zillow-search': 'Zillow', 'zillow-real-estate': 'Zillow Real Estate', 'rent-com': 'Rent.com', 'us-property-data': 'US Property Data' };
     const paused: Record<string, { failures: number; lastFailureAt: string | null; probing: boolean }> = {};
     for (const source of sources) {
       const circuit = circuitFor(pullEvents, sourceNames[source] ?? source, Date.now());
@@ -234,7 +242,7 @@ export async function GET(req: NextRequest) {
           }
       };
       const pulls = await Promise.all(
-        sources.filter((source) => {
+        sources.filter((source) => source in PROVIDERS).filter((source) => {
           const p = paused[source];
           if (!p) return true;
           // Paused: skip, except for a single probe (once the pause is old enough) to see whether the provider has recovered.
@@ -243,6 +251,7 @@ export async function GET(req: NextRequest) {
         }).map(async (source, i): Promise<PullResult> => {
           // Zillow's scraper is the most rate-limited, so it starts a moment after the other providers.
           if (source === 'zillow-search') await sleep(1500);
+          if (source === 'zillow-real-estate') await sleep(2500);
           let result = await pullOnce(source, state);
           for (let retry = 1; retry <= 3 && !result.ok && RATE_LIMITED.test(result.error ?? '') && Date.now() - startedAt < TIME_BUDGET_MS - 40_000; retry++) {
             await sleep(3000 * retry + Math.floor(Math.random() * 1000) + i * 250);
@@ -254,18 +263,22 @@ export async function GET(req: NextRequest) {
 
       results.push(...pulls);
 
-      // The state-wide search only ever shows one fixed window of listings, so also search the state's busiest cities.
-      if (citiesPerState > 0 && sources.includes('trulia') && Date.now() - startedAt < TIME_BUDGET_MS - 60_000) {
+      // The state-wide search only ever shows one fixed window of listings, so also search the state's busiest cities. Rent.com and
+      // US Property Data have no state-wide search at all, so the cities are their only way in.
+      const citySources = sources.filter((source) => (source === 'trulia' || source in CITY_PROVIDERS) && !(source in paused && !(paused[source].probing && probed.has(source))));
+      if (citiesPerState > 0 && citySources.length > 0 && Date.now() - startedAt < TIME_BUDGET_MS - 60_000) {
         const pool = await topCities(db, state);
         const start = (Math.floor(Date.now() / 1_800_000) * citiesPerState) % Math.max(pool.length, 1);
         const picked = Array.from({ length: Math.min(citiesPerState, pool.length) }, (_, i) => pool[(start + i) % pool.length]);
-        const cityPulls = await Promise.all(picked.map(async (city, i) => {
-          await sleep(i * 900);
-          const body = { provider: 'trulia', location: `${city}, ${state}`, maxPages: truliaPages, quietFailures: true };
-          let r = await pullOnce('trulia', state, body);
-          if (!r.ok && RATE_LIMITED.test(r.error ?? '')) { await sleep(3000); r = await pullOnce('trulia', state, body); }
-          return { ...r, source: `trulia:${city}` };
-        }));
+        const cityPulls = await Promise.all(picked.flatMap((city, i) => citySources.map(async (source, j) => {
+          await sleep(i * 900 + j * 600);
+          const body = source === 'trulia'
+            ? { provider: 'trulia', location: `${city}, ${state}`, maxPages: truliaPages, quietFailures: true }
+            : CITY_PROVIDERS[source](city, state);
+          let r = await pullOnce(source, state, body);
+          if (!r.ok && RATE_LIMITED.test(r.error ?? '')) { await sleep(3000); r = await pullOnce(source, state, body); }
+          return { ...r, source: `${source}:${city}` };
+        })));
         cityResults.push(...cityPulls);
       }
     }
@@ -290,7 +303,7 @@ export async function GET(req: NextRequest) {
         truliaPages,
         statesPerRun,
         newLeads: totalNewLeads,
-        cities: cityResults.map((r) => `${r.source.slice(7)}, ${r.state}: ${r.ok ? `${r.newLeads} new of ${r.fetched}` : 'failed'}`),
+        cities: cityResults.map((r) => `${r.source.replace(':', ' · ')}, ${r.state}: ${r.ok ? `${r.newLeads} new of ${r.fetched}` : `failed${r.error ? ` (${r.error.slice(0, 60)})` : ''}`}`),
         durationMs,
         failureCount: failures.length,
         pausedSources: Object.entries(paused).map(([source, p]) => `${source}: paused after ${p.failures} failed pulls${p.probing ? ' (probing for recovery)' : ''}`),

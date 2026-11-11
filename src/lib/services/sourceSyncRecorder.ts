@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 const PROVIDER_SOURCE_NAMES: Record<string, string> = {
   trulia: 'Trulia',
   'zillow-search': 'Zillow',
-  'zillow-real-estate': 'Zillow',
+  'zillow-real-estate': 'Zillow Real Estate',
   'zillow-detail': 'Zillow',
   'rent-com': 'Rent.com',
   'us-property-data': 'US Property Data',
