@@ -1,4 +1,4 @@
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 import { createInterviewIcs, type InterviewCalendarEvent } from '@/lib/interviewCalendar';
 
 export interface InterviewNotificationInput extends InterviewCalendarEvent {
@@ -58,7 +58,7 @@ export async function sendInterviewNotification(input: InterviewNotificationInpu
     </div>`;
 
   const { error } = await getResendClient().emails.send({
-    from: getResendFrom(),
+    from: getSystemFrom(),
     to: recipients,
     subject: `${heading}: ${input.candidateName} - ${date} at ${time}`,
     html,

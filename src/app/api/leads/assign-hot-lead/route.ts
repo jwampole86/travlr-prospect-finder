@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { advancePipeline } from '@/lib/services/leadPipeline';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     // Send Resend notification if agent email provided
     if (agentEmail) {
       await getResendClient().emails.send({
-        from: getResendFrom(),
+        from: getSystemFrom(),
         to: [agentEmail],
         subject: `🔥 Hot Lead Assigned: ${leadAddress}`,
         html: `

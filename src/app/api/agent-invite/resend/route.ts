@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     const roleLabel = invite.role === 'team_lead' ? 'Team Lead' : invite.role === 'analyst' ? 'Analyst' : invite.role === 'owner' ? 'Owner' : 'Agent';
 
     const { error: emailError } = await getResendClient().emails.send({
-      from: getResendFrom(),
+      from: getSystemFrom(),
       to: invite.email,
       subject: 'Your TRAVLR Pro invite has been refreshed',
       html: `

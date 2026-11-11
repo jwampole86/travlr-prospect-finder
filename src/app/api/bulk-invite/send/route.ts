@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     const roleLabel = { agent: 'Agent', manager: 'Manager', admin: 'Admin', viewer: 'Viewer' }[role as string] || 'Team Member';
 
     const { data, error } = await getResendClient().emails.send({
-      from: getResendFrom(),
+      from: getSystemFrom(),
       to: email,
       subject: `You've been invited to TRAVLR Pro as ${roleLabel}`,
       html: `

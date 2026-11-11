@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
       `;
 
       const { error: emailErr } = await getResendClient().emails.send({
-        from: getResendFrom(),
+        from: getSystemFrom(),
         to: [agentEmail],
         subject: `🔥 Warm Lead Ready: ${leadName} — ${propertyAddress}`,
         html: emailHtml,

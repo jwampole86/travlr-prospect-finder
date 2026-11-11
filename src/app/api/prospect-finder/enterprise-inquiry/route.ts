@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 import { allowRequest, clientIp } from '@/lib/publicRateLimit';
 
 interface EnterpriseInquiryBody {
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     `;
 
     const { error } = await getResendClient().emails.send({
-      from: getResendFrom(),
+      from: getSystemFrom(),
       to: [salesEmail],
       replyTo: body.workEmail,
       subject: `${isDemo ? '📅 Demo Request' : '🏢 Enterprise Inquiry'}: ${body.company}`,

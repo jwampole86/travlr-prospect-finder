@@ -1,6 +1,6 @@
 import 'server-only';
 import { dispatchSMS } from '@/lib/services/twilioService';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 import { toE164 } from '@/lib/services/smsConsent';
 
 // Where a person is told that a prospect wrote back. Override with REPLY_ALERT_PHONE and REPLY_ALERT_EMAIL.
@@ -36,7 +36,7 @@ export async function sendTeamAlert(a: { key: string; text: string; url?: string
     if (ALERT_PHONE) tasks.push(dispatchSMS({ to: ALERT_PHONE, leadId: 'internal-reply-alert', body }).then(r => { if (!r.success) console.warn('[teamAlert] text not sent:', r.error); }));
     if (a.email && ALERT_EMAIL) {
       tasks.push(getResendClient().emails.send({
-        from: getResendFrom(), to: [ALERT_EMAIL], subject: `NAVEO: ${a.text.slice(0, 90)}`,
+        from: getSystemFrom(), to: [ALERT_EMAIL], subject: `NAVEO: ${a.text.slice(0, 90)}`,
         text: `${a.text}${a.url ? `\n\nOpen: ${a.url}` : ''}`,
         html: `<p>${esc(a.text)}</p>${a.url ? `<p><a href="${esc(a.url)}">Open it</a></p>` : ''}`,
       }));
@@ -58,7 +58,7 @@ export async function sendReplyAlert(a: ReplyAlert): Promise<void> {
   if (ALERT_EMAIL) {
     tasks.push((async () => {
       await getResendClient().emails.send({
-        from: getResendFrom(), to: [ALERT_EMAIL], subject: `NAVEO text reply: ${who} ${label}`,
+        from: getSystemFrom(), to: [ALERT_EMAIL], subject: `NAVEO text reply: ${who} ${label}`,
         text: `${who} ${label} to a NAVEO text.\n\nThey wrote: "${quote.slice(0, 500)}"\nTheir number: ${a.from}\n\nOpen: ${a.url}`,
         html: `<p><strong>${esc(who)}</strong> ${label} to a NAVEO text.</p><p>They wrote: &ldquo;${esc(quote.slice(0, 500))}&rdquo;<br>Their number: ${esc(a.from)}</p><p><a href="${esc(a.url)}">Open it</a></p>`,
       });

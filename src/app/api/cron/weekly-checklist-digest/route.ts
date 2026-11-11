@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 import { verifyJobRequest } from '@/lib/jobAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const resend = getResendClient();
-    const from = getResendFrom();
+    const from = getSystemFrom();
 
     // Load all homeowner-property links with user email
     const { data: links, error: linksErr } = await supabase

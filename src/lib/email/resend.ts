@@ -12,9 +12,10 @@ export function getResendClient(): Resend {
   return new Resend(apiKey);
 }
 
-/** Each NAVEO brand sends from its own domain: RESEND_FROM_EMAIL_STAYS and RESEND_FROM_EMAIL_HOMES. Until one is set, that brand uses RESEND_FROM_EMAIL. */
+/** Each brand sends from its own domain: RESEND_FROM_EMAIL_STAYS, RESEND_FROM_EMAIL_HOMES and RESEND_FROM_EMAIL_AVYRO (the platform's own team emails). Until one is set, that brand uses RESEND_FROM_EMAIL. */
 function senderEmailFor(brandName?: string): string | undefined {
-  const brand = /homes/i.test(brandName ?? '') ? process.env.RESEND_FROM_EMAIL_HOMES : /stays/i.test(brandName ?? '') ? process.env.RESEND_FROM_EMAIL_STAYS : undefined;
+  const b = brandName ?? '';
+  const brand = /homes/i.test(b) ? process.env.RESEND_FROM_EMAIL_HOMES : /stays/i.test(b) ? process.env.RESEND_FROM_EMAIL_STAYS : /avyro/i.test(b) ? process.env.RESEND_FROM_EMAIL_AVYRO : undefined;
   return isConfigured(brand?.trim()) ? brand!.trim() : process.env.RESEND_FROM_EMAIL;
 }
 
@@ -27,6 +28,9 @@ export function getResendFrom(brandName?: string): string {
   }
   return `${name} <${email}>`;
 }
+
+/** The sender for AVYRO's own emails to its team and users (invites, alerts, digests). Never for owner-facing messages, which use a NAVEO brand. */
+export const getSystemFrom = () => getResendFrom('AVYRO AI');
 
 export function getResendConfigStatus() {
   const senderEmail = process.env.RESEND_FROM_EMAIL;

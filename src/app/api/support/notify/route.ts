@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 
 interface NotifyPayload {
   ticketNumber: string;
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       : `[${payload.ticketNumber}] Status update: ${STATUS_LABELS[payload.status] || payload.status}`;
 
     const { data, error } = await getResendClient().emails.send({
-      from: getResendFrom(),
+      from: getSystemFrom(),
       to: [payload.userEmail],
       subject: emailSubject,
       html: buildEmailHtml(payload),

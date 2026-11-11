@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getResendFrom } from './email/resend';
+import { getResendFrom, getSystemFrom } from './email/resend';
 
-const KEYS = ['RESEND_FROM_EMAIL', 'RESEND_FROM_EMAIL_STAYS', 'RESEND_FROM_EMAIL_HOMES', 'RESEND_FROM_NAME'] as const;
+const KEYS = ['RESEND_FROM_EMAIL', 'RESEND_FROM_EMAIL_STAYS', 'RESEND_FROM_EMAIL_HOMES', 'RESEND_FROM_EMAIL_AVYRO', 'RESEND_FROM_NAME'] as const;
 const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
 afterEach(() => { for (const k of KEYS) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; } });
 
@@ -15,5 +15,13 @@ describe('sender address per NAVEO brand', () => {
     expect(getResendFrom()).toMatch(/<outreach@default.test>$/);
     process.env.RESEND_FROM_EMAIL_HOMES = 'hello@naveohomes.com';
     expect(getResendFrom('NAVEO Homes')).toBe('NAVEO Homes <hello@naveohomes.com>');
+  });
+
+  it('sends the platform\'s own team emails as AVYRO AI from its own address', () => {
+    process.env.RESEND_FROM_EMAIL = 'outreach@default.test';
+    process.env.RESEND_FROM_NAME = 'TRAVLR Vacation Homes';
+    expect(getSystemFrom()).toBe('AVYRO AI <outreach@default.test>');
+    process.env.RESEND_FROM_EMAIL_AVYRO = 'notifications@avyropro.ai';
+    expect(getSystemFrom()).toBe('AVYRO AI <notifications@avyropro.ai>');
   });
 });

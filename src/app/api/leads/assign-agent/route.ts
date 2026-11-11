@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getResendClient, getResendFrom } from '@/lib/email/resend';
+import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 
 type LeadRow = {
@@ -355,7 +355,7 @@ export async function POST(req: NextRequest) {
           : '';
 
         await getResendClient().emails.send({
-          from: getResendFrom(),
+          from: getSystemFrom(),
           to: [resolvedAgentEmail],
           subject: leadCount === 1
             ? `🎯 New Lead Assigned: ${firstLead?.contact_name || firstLead?.address || 'Property'}`

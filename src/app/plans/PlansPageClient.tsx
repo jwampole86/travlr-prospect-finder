@@ -15,6 +15,7 @@ import {
   PROSPECT_FINDER_PLANS,
   FEATURE_CATEGORIES,
   LEAD_SUPPLY_FACTS,
+  LEAD_FUNNEL,
   BREAK_EVEN_ASSUMPTIONS,
   conservativeAnnualFeePerProperty,
   monthsCoveredByOneProperty,
@@ -630,15 +631,48 @@ export default function PlansPageClient() {
       <section id="lead-supply" className="max-w-5xl mx-auto px-6 pb-16 scroll-mt-20">
         <div className="rounded-3xl border border-border bg-card p-6 sm:p-8">
           <p className="text-xs font-bold tracking-[0.16em] text-primary uppercase mb-3">Honest lead numbers</p>
-          <h2 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">Why Monthly Lead Allowances Are Smaller Than You Might Expect</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">Researched Leads, Not Bulk Lists</h2>
           <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-3xl">
-            An AVYRO AI lead is a researched homeowner opportunity, not a row from a bulk list. Finding the right owner, getting a working mobile number, and confirming the address and the listing takes real data work, and the best opportunities are rare. We size every plan to what we can supply at quality, and we fill your allowance with the highest-scoring leads available in your markets.
+            That is why our monthly allowances are smaller than a list vendor&apos;s. Finding the right owner, getting a working mobile number and confirming the address and the listing takes real data work, and the best opportunities are rare. We size every plan to what we can supply at quality, and we fill your allowance with the highest-scoring leads available in your markets.
           </p>
-          <div className="mt-6 grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {LEAD_SUPPLY_FACTS.map((fact) => (
-              <div key={fact.label} className="rounded-2xl bg-muted/40 border border-border p-4">
-                <p className="text-xl font-bold text-foreground">{fact.stat}</p>
-                <p className="mt-1 text-xs text-muted-foreground leading-snug">{fact.label}</p>
+
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <div className="lg:col-span-3 rounded-2xl bg-muted/40 border border-border p-5">
+              <p className="text-sm font-bold text-foreground">Out of every 100 owner lookups</p>
+              <div className="mt-4 space-y-3">
+                {LEAD_FUNNEL.map((row) => (
+                  <div key={row.label}>
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">{row.label}</span>
+                      <span className="font-bold text-foreground">{row.count}</span>
+                    </div>
+                    <div className="mt-1 h-2.5 rounded-full bg-border overflow-hidden" role="presentation">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${row.count}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground leading-snug">Phone numbers are only the first filter. The stricter ones come next.</p>
+            </div>
+            <div className="lg:col-span-2 grid grid-cols-1 gap-3">
+              {LEAD_SUPPLY_FACTS.slice(2).map((fact) => (
+                <div key={fact.label} className="rounded-2xl bg-muted/40 border border-border p-4 flex items-center gap-4">
+                  <p className="text-xl font-bold text-foreground shrink-0 min-w-[5.5rem]">{fact.stat}</p>
+                  <p className="text-xs text-muted-foreground leading-snug">{fact.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { title: 'Best first', body: 'Your allowance is filled with the highest-scoring leads in your markets, not the first rows we find.' },
+              { title: 'Nothing padded', body: 'We would rather give you fewer leads you can act on than a long list that wastes your texts and calls.' },
+              { title: 'More when you need it', body: `Extra leads cost ${['starter', 'pro', 'business'].map((id) => PROSPECT_FINDER_PLANS[id as 'starter' | 'pro' | 'business'].limits.overage.match(/Extra leads (\$[\d.]+)/)?.[1]).filter(Boolean).join(' / ')} each on Starter / Pro / Business. The more you use, the less each costs.` },
+            ].map((item) => (
+              <div key={item.title} className="rounded-2xl border border-border p-4">
+                <p className="text-sm font-bold text-foreground">{item.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground leading-snug">{item.body}</p>
               </div>
             ))}
           </div>

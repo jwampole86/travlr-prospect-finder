@@ -280,6 +280,13 @@ export const LEAD_SUPPLY_FACTS: Array<{ stat: string; label: string }> = [
   { stat: '1 in 1,000', label: 'Airbnb and Vrbo listings match to a verified owner' },
 ];
 
+/** The first two facts above as a funnel out of 100 owner lookups: 70 return a phone, and 8 in 10 of those (56) are live mobiles we can text. */
+export const LEAD_FUNNEL: Array<{ count: number; label: string }> = [
+  { count: 100, label: 'owner lookups' },
+  { count: 70, label: 'return a phone number' },
+  { count: 56, label: 'are live mobiles we can text' },
+];
+
 /** Reusable upgrade-gate messaging for logged-in users who hit a feature outside their plan. */
 export function getFeatureGateMessage(featureLabel: string, minimumPlan: PlanId): { title: string; body: string } {
   if (minimumPlan === 'enterprise') {
