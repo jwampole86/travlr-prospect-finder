@@ -24,7 +24,7 @@ describe('owner inquiry intake', () => {
 
   it('opts an owner in only when they asked for the analysis themselves', async () => {
     await call({ email: 'a@b.co', property_location: 'Las Vegas, NV' });
-    expect(inserted[0]).toMatchObject({ price_type: 'rent', email_opt_in: true, lead_source_type: 'self_submitted' });
+    expect(inserted[0]).toMatchObject({ price_type: 'rent', email_opt_in: true, lead_source_type: 'self_submitted', owner_email: 'a@b.co' });
     expect(recordSellerSignal.mock.calls[0][1].intent.level).toBe('explicit');
   });
 
@@ -32,6 +32,7 @@ describe('owner inquiry intake', () => {
     await call({ email: 'a@b.co', referred: true, property_location: 'Las Vegas, NV' });
     expect(inserted[0]).toMatchObject({ email_opt_in: false, lead_source_type: 'sync_imported', lead_status_tag: 'Referred — Permission Needed', opt_in_source: 'naveo_stays_owner_referral' });
     expect(inserted[0].email_opt_in_at).toBeUndefined();
+    expect(inserted[0].owner_email).toBeNull();
     expect(recordSellerSignal.mock.calls[0][1].intent.level).toBe('possible');
   });
 });

@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       id: newId, organization_id: access.organizationId, price_type: 'rent',
       address: inq.address ?? `Street address not provided${inq.location ? ` — ${inq.location}` : ''}`,
       city: inq.address ? null : inq.location, property_type: inq.propertyType,
-      contact_name: inq.name, contact_phone: inq.phone,
+      contact_name: inq.name, contact_phone: inq.phone, owner_email: inq.referred ? null : inq.email,
       source: 'Direct', cadence_step: 0, sms_opt_in: false,
       ...(inq.referred
         ? { lead_source_type: 'sync_imported', lead_status_tag: 'Referred — Permission Needed', email_opt_in: false, opt_in_source: 'naveo_stays_owner_referral', contact_info_source: 'referral' }

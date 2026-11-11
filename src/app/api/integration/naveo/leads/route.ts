@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await db.from('leads').insert({
       id: newId, organization_id: access.organizationId, price_type: 'sale',
       address: lead.address, city: lead.city, state: lead.state, property_type: lead.propertyType, beds: lead.beds, baths: lead.baths,
-      contact_name: lead.name, contact_phone: lead.phone,
+      contact_name: lead.name, contact_phone: lead.phone, owner_email: lead.email,
       source: 'Direct', lead_source_type: 'self_submitted', lead_status_tag: 'Warm — Contact Confirmed', stage: 'nurturing', cadence_step: 0,
       email_opt_in: true, email_opt_in_at: now, sms_opt_in: false, opt_in_source: 'naveo_sell_form', contact_info_source: 'self_submitted',
       notes: `Submitted the NAVEO sell form${lead.submissionId ? ` (submission ${lead.submissionId})` : ''}. Email: ${lead.email}`, created_at: now, updated_at: now,

@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-a0407126",
+  "version": "2026-11-11-7397d8d9",
   "generatedFrom": [
     "src/app/help-center/page.tsx",
     "src/components/OnboardingTourEngine.tsx",
@@ -1301,6 +1301,24 @@
         "30 days"
       ],
       "answer": "Prove two loops with real data before scaling. Homes: a real homeowner submits, the lead appears in AVYRO with its Lead ID, a licensed partner is assigned only after the owner authorizes the introduction, and the partner moves it to Contacted, with status history in AVYRO. Stays: a real home is imported or created in AVYRO, marked active and quality-approved with the correct price and photos, shows on staynaveo.com, its dates check against the calendar, and a booking is written back to AVYRO. Then sign one or two licensed partners in the strongest market, assign the first real leads the day the first partner signs, and watch assigned, contacted, listed, bookings and expected fees weekly. Add a second partner in a market only after the first reports reliably, and open a new market only with a signed partner and live Stays inventory.",
+      "source": "NAVEO sites and AVYRO",
+      "kind": "guide"
+    },
+    {
+      "id": "owner-email-access",
+      "title": "How do owners see only their own homes and submissions on NAVEO Homes and NAVEO Stays?",
+      "keywords": [
+        "owner email",
+        "owner_email",
+        "owner access",
+        "owner portal",
+        "my homes",
+        "my submission",
+        "signed-in owner",
+        "owner view",
+        "authorized emails"
+      ],
+      "answer": "Owner access is decided in AVYRO by matching the email an owner signs in with to the owner_email stored on the home or submission, always lowercase and exact (no partial or domain matching). If owner_email is empty, no owner can open it. On NAVEO Stays, owner_email is on each listing, so a signed-in owner sees only their own homes and can hold dates, see bookings and revenue, and pause or resume bookings; someone else's home, or one that does not exist, looks the same (not found). On NAVEO Homes, owner_email is set when a homeowner submits their own property, and their submission page shows only the property, where it stands, the recommendation they were shown and the name of the partner introduced. It never shows the internal intent score, fee terms, or partner and broker notes. A repeat submission for a property AVYRO already holds does not gain access to the existing entry. The check runs on every request, not just at sign-in. To change an owner, update owner_email in AVYRO; the old email loses access at once. Co-owner or manager access is not built yet.",
       "source": "NAVEO sites and AVYRO",
       "kind": "guide"
     },
