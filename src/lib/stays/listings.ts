@@ -30,13 +30,13 @@ export function publicBlocks(blocks: Block[]) {
 const DAY = 86_400_000;
 const isDate = (v: string | null): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
 
-/** Parses the availability window: defaults to today through a year, and never longer than 400 days. */
+/** Parses the availability window: defaults to today through a year, and never longer than 800 days (the booking horizon). */
 export function availabilityWindow(from: string | null, to: string | null, today = new Date()): { from: string; to: string } | { error: string } {
   const start = isDate(from) ? from : today.toISOString().slice(0, 10);
   const end = isDate(to) ? to : new Date(Date.parse(start) + 365 * DAY).toISOString().slice(0, 10);
   if ((from && !isDate(from)) || (to && !isDate(to))) return { error: 'from and to must be YYYY-MM-DD' };
   const span = (Date.parse(end) - Date.parse(start)) / DAY;
-  if (span <= 0 || span > 400) return { error: 'the window must be between 1 and 400 days' };
+  if (span <= 0 || span > 800) return { error: 'the window must be between 1 and 800 days' };
   return { from: start, to: end };
 }
 

@@ -21,7 +21,7 @@ describe('availabilityWindow', () => {
   it('rejects bad or oversized windows', () => {
     expect(availabilityWindow('nope', null, today)).toHaveProperty('error');
     expect(availabilityWindow('2027-01-05', '2027-01-01', today)).toHaveProperty('error');
-    expect(availabilityWindow('2027-01-01', '2029-01-01', today)).toHaveProperty('error');
+    expect(availabilityWindow('2027-01-01', '2030-01-01', today)).toHaveProperty('error');
   });
 });
 
