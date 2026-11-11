@@ -11,7 +11,7 @@ const serviceId = (key: string) => `skiptrace:${key.slice(-6)}`;
  */
 export const PROBE_MINUTES = Number(process.env.SKIPTRACE_PROBE_MINUTES ?? 180);
 /** The allowance is meant to be used over this many days, not stretched across the whole month, so queued leads are traced promptly. */
-export const SPREAD_DAYS = Number(process.env.SKIPTRACE_SPREAD_DAYS ?? 7);
+export const SPREAD_DAYS = Number(process.env.SKIPTRACE_SPREAD_DAYS ?? 3);
 
 // Not supabaseAdmin: a client page reaches this module through the provider, and that file is server-only.
 function db() {

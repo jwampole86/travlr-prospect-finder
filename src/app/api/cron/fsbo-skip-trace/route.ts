@@ -14,7 +14,7 @@ export const maxDuration = 300;
  * Drains the skip-trace queue that csv-import fills for new owner-listed leads.
  *
  * Query params:
- *   limit          leads to process this run (default 15, max 50)
+ *   limit          leads to process this run (default 15, max 50; the schedule passes 50 and the quota pace decides how many are used)
  *   leadId         run one specific lead regardless of its queue status
  *   enqueueBacklog number of existing eligible FSBO leads to queue (default 0). Opt-in
  *                  because each lead costs up to 4 Skip Tracing API calls.
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   const db = getSupabaseAdmin();
 
   // The monthly allowance is spread over the days until it resets, so a large queue cannot use it all up and block new leads. 600 calls are held for the co-host queue.
-  const paced = leadId ? 1 : await skipTracePace(process.env.RAPIDAPI_KEY_1, Math.min(50, limit), { held: 600 });
+  const paced = leadId ? 1 : await skipTracePace(process.env.RAPIDAPI_KEY_1, Math.min(50, limit), { held: 600, runMinutes: 5 });
   if (paced === 0) return NextResponse.json({ ok: true, paused: 'skip-trace allowance is at its reserve' });
   // Unless told otherwise, keep a few runs of work queued: luxury homes first, then owner-listed and for-sale listings.
   let feed = 0;
