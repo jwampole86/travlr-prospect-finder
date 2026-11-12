@@ -11,7 +11,7 @@ import type { PartnerCandidate } from '@/lib/seller/partnerDiscovery';
 type Referral = { id: string; partner_id: string; status: ReferralStatus; sent_at: string; status_at: string; fee_percent: number | null; protection_ends_at: string | null; payee_name_snapshot: string | null; payment_method_snapshot: string | null; fee_status: string };
 type Listing = { forSale: boolean; brokerage: string | null; agent: string | null; phone: string | null; mls: string | null; mlsSource: string | null; ownerListed: boolean };
 type InState = { id: string; name: string; brokerage: string | null; phone: string | null; email: string | null; licenseVerified: boolean; acceptsReferrals: string; agreementOnFile: boolean };
-type Match = { partnersInState?: InState[]; listing?: Listing | null; alreadyListed?: { label: string; reason: string | null; explanation: string }; state: string | null; stateBlockers: string[]; suggestions: Array<{ id: string; name: string; score: number; reasons: string[] }>; rejected: Array<{ id: string; name: string; why: string[] }>; needsPartner: boolean };
+type Match = { property?: { price: number | null; beds: number | null }; partnersInState?: InState[]; listing?: Listing | null; alreadyListed?: { label: string; reason: string | null; explanation: string }; state: string | null; stateBlockers: string[]; suggestions: Array<{ id: string; name: string; score: number; reasons: string[] }>; rejected: Array<{ id: string; name: string; why: string[] }>; needsPartner: boolean };
 type Partner = { id: string; name: string };
 
 async function call<T>(url: string, init?: { method?: string; body?: unknown }): Promise<T> {
@@ -63,7 +63,7 @@ export default function PartnerMatchPanel({ leadId, city }: { leadId: string; ci
   const send = (partnerId: string) => run(partnerId, () => call('/api/seller/referrals', { method: 'POST', body: { partner_id: partnerId, lead_id: leadId } }));
   // Searches the public web for brokerages in the lead's state; only reads, and nothing about the lead or owner is sent.
   const findBrokers = (state: string, focus: 'listing' | 'buyer' = 'listing') => run('find', async () => {
-    const r = await call<{ candidates: PartnerCandidate[] }>('/api/seller/partners/discover', { method: 'POST', body: { state, city: city || undefined, focus } });
+    const r = await call<{ candidates: PartnerCandidate[] }>('/api/seller/partners/discover', { method: 'POST', body: { state, city: focus === 'buyer' ? undefined : city || undefined, focus, price: match?.property?.price ?? undefined, beds: match?.property?.beds ?? undefined, excludeBrokerage: match?.listing?.brokerage ?? undefined } });
     setFound(r.candidates); setFoundFocus(focus);
   });
   // Saves a result on the Partners tab as someone to recruit. It is not a partner until the agreement, license and state clearance are done.
@@ -81,7 +81,7 @@ export default function PartnerMatchPanel({ leadId, city }: { leadId: string; ci
   const renderFound = (state: string) => found && (
     found.length === 0 ? <p className="mt-2 text-muted-foreground">No brokers with a checkable web page came back. Try again, or recruit from the Partners tab.</p> : (
                   <div className="mt-3">
-                    <p className="text-muted-foreground">Ranked by AVA, best match first, from public web pages. Confirm the contact details and the license before reaching out.</p>
+                    <p className="text-muted-foreground">{foundFocus === 'buyer' ? 'Buyer sources from anywhere in the US (investor groups, buying companies and buyer\u2019s agents), ranked by AVA, best match first, from public web pages. Introduce any buyer through a licensed buyer\u2019s agent. Confirm the contact details before reaching out.' : 'Ranked by AVA, best match first, from public web pages. Confirm the contact details and the license before reaching out.'}</p>
                     <ul className="mt-2 space-y-3">
                       {found.map((c, i) => (
                         <li key={candidateKey(c)} className="rounded-lg border border-border p-3">
@@ -91,7 +91,7 @@ export default function PartnerMatchPanel({ leadId, city }: { leadId: string; ci
                             </span>
                             <p className="min-w-0 break-words text-sm font-medium">{c.name}{c.brokerage && c.brokerage !== c.name ? <span className="font-normal text-muted-foreground"> · {c.brokerage}</span> : null}</p>
                           </div>
-                          {c.city && <p className="mt-1 text-muted-foreground">{c.city}, {state}</p>}
+                          {c.city && <p className="mt-1 text-muted-foreground">{foundFocus === 'buyer' ? c.city : `${c.city}, ${state}`}</p>}
                           {c.why && <p className="mt-1 break-words">{c.why}</p>}
                           <p className="mt-2 flex flex-wrap gap-1.5">
                             <span className={`rounded-full px-2 py-0.5 ${c.acceptsReferrals === 'yes' ? 'bg-emerald-100 text-emerald-800' : c.acceptsReferrals === 'no' ? 'bg-red-100 text-red-800' : 'bg-muted text-muted-foreground'}`}>
@@ -111,7 +111,7 @@ export default function PartnerMatchPanel({ leadId, city }: { leadId: string; ci
                           <div className="mt-3 border-t border-border pt-3">
                             {added.has(candidateKey(c))
                               ? <span className="text-xs text-emerald-700">Added to Partners</span>
-                              : <button disabled={busy !== null} onClick={() => addProspect(c, state!)} className="h-8 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">{busy === `add-${candidateKey(c)}` ? 'Adding…' : 'Add to recruiting'}</button>}
+                              : <button disabled={busy !== null} onClick={() => addProspect(c, state!)} className="h-8 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">{busy === `add-${candidateKey(c)}` ? 'Adding…' : foundFocus === 'buyer' ? 'Save as buyer source' : 'Add to recruiting'}</button>}
                           </div>
                         </li>
                       ))}
@@ -179,7 +179,7 @@ export default function PartnerMatchPanel({ leadId, city }: { leadId: string; ci
           {match.alreadyListed.reason && <p className="mt-0.5">{match.alreadyListed.reason}</p>}
           <p className="mt-1">{match.alreadyListed.explanation}</p>
           <p className="mt-2 font-medium">Alternative: match them with a buyer</p>
-          <p className="mt-0.5">When you have an interested buyer, introduce them to a licensed buyer&rsquo;s agent in {match.state ?? 'this state'}. Find candidates below, then add the best fit to your recruiting list.</p>
+          <p className="mt-0.5">We cannot go around the listing broker. Find buyers for this property from anywhere in the country, ranked by AVA; any buyer is introduced to a buyer&rsquo;s agent licensed in {match.state ?? 'the property\'s state'}, never to the owner or the listing broker.</p>
           {(match.partnersInState?.length ?? 0) > 0 && (
             <div className="mt-2 rounded-md border border-amber-200 bg-white p-2 text-amber-950">
               <p className="font-medium">Your partners licensed in {match.state}</p>
@@ -197,7 +197,7 @@ export default function PartnerMatchPanel({ leadId, city }: { leadId: string; ci
           )}
           {match.state && (
             <button disabled={busy !== null} onClick={() => findBrokers(match.state!, 'buyer')} className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50">
-              {busy === 'find' ? <Loader2 className="animate-spin" size={13} /> : <Search size={13} />} {found && foundFocus === 'buyer' ? 'Search again' : `Find buyer's agents in ${city ? `${city}, ` : ''}${match.state}`}
+              {busy === 'find' ? <Loader2 className="animate-spin" size={13} /> : <Search size={13} />} {found && foundFocus === 'buyer' ? 'Search again' : 'Find buyers'}
             </button>
           )}
           {foundFocus === 'buyer' && match.state && renderFound(match.state)}

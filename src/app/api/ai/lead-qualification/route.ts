@@ -5,6 +5,8 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { calculateProspectScore, leadRowToScoringInput, SCORING_LEAD_COLUMNS } from '@/lib/scoring/prospectScoring';
 import { loadScoreSignals } from '@/lib/services/leadScoreSignals';
 import { analyzeSale, type SaleAnalysis } from '@/lib/seller/saleAnalysis';
+import { outreachBrandFor } from '@/lib/brands';
+import { withoutTravlr } from '@/lib/services/aiTaskPlan';
 
 /**
  * POST /api/ai/lead-qualification
@@ -248,6 +250,13 @@ export async function POST(req: NextRequest) {
     qualifiedAt: new Date().toISOString(),
     model: llm ? 'claude-sonnet-4-6 + AVYRO AI rules' : 'AVYRO AI rules',
   };
+  // The retired TRAVLR name never reaches the screen: it becomes the brand that fits the listing (NAVEO Homes for a sale, NAVEO Stays for a rental).
+  const brandName = outreachBrandFor(row.price_type).name;
+  const wb = (t: string) => withoutTravlr(t, brandName);
+  result.reasoning = wb(result.reasoning);
+  result.recommendedAction = wb(result.recommendedAction);
+  result.keySignals = { positive: result.keySignals.positive.map(wb), negative: result.keySignals.negative.map(wb), neutral: result.keySignals.neutral.map(wb) };
+  result.saleAnalysis = { ...result.saleAnalysis, summary: wb(result.saleAnalysis.summary), talkingPoints: result.saleAnalysis.talkingPoints.map(wb) };
   return NextResponse.json(result);
 }
 
@@ -257,7 +266,7 @@ export async function GET() {
 
 // ─── Prompts ──────────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are a senior outreach qualification analyst for AVYRO AI, a short-term rental (STR) management company.
+const SYSTEM_PROMPT = `You are a senior outreach qualification analyst for AVYRO AI. AVYRO AI is the platform; owners hear from NAVEO Homes (homes listed for sale: an introduction to a licensed local broker, never listing or selling the home itself) or NAVEO Stays (homes listed for rent: short-term rental management). Never use any other brand name, and never write "TRAVLR". Match the recommended action to the listing type: a for-sale lead gets a sale-or-rental-in-the-meantime conversation (and only rental management when the home is already listed with a broker), a for-rent lead gets a rental-management conversation.
 
 HOW AVYRO AI FINDS LEADS: we text and call owners whose homes are listed on Zillow, Trulia and similar sites, either FOR SALE or FOR RENT, and offer to manage the home as a vacation rental. A listing, sale or rent, is why the owner is a lead. It is NEVER a negative.
 - For-sale listings are normal prospects. An owner whose home is not selling, or who is open to income while waiting, is often a strong fit. The listing price is a purchase price, not rent or income: never compare it to rent and never treat a high price as a weakness. Judge revenue from the short-term-rental estimates only.

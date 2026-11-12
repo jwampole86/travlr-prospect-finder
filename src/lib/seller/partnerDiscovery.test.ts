@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseCandidates } from './partnerDiscovery';
+import { dropListingBroker, parseCandidates } from './partnerDiscovery';
 
 const url = 'https://example-realty.com/agents/jo';
 const refUrl = 'https://example-realty.com/referrals';
@@ -37,5 +37,15 @@ describe('parseCandidates', () => {
       { name: 'Maybe', sourceUrl: url, matchScore: 50 },
     ] });
     expect(parseCandidates(raw, [url]).map((c) => c.name)).toEqual(['Maybe', 'No']);
+  });
+
+  it('drops buyer sources that belong to the listing brokerage', () => {
+    const raw = JSON.stringify({ candidates: [
+      { name: 'Wendy Fusselman', brokerage: 'Collier & Associates', sourceUrl: url },
+      { name: 'Taylor Team', brokerage: 'Keller Williams Market Pro Realty', sourceUrl: url },
+    ] });
+    const all = parseCandidates(raw, [url]);
+    expect(dropListingBroker(all, 'Collier & Associates- Rogers Branch').map((c) => c.name)).toEqual(['Taylor Team']);
+    expect(dropListingBroker(all, null)).toHaveLength(2);
   });
 });

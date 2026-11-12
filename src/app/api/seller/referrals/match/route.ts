@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   if ('error' in ctx) return ctx.error;
   const leadId = req.nextUrl.searchParams.get('lead_id');
   if (!leadId) return fail('lead_id is required');
-  const { data: lead } = await ctx.db.from('leads').select(`state,city,county,property_type,price,price_type,${LISTING_COLUMNS}`).eq('id', leadId).maybeSingle();
+  const { data: lead } = await ctx.db.from('leads').select(`state,city,county,property_type,price,beds,price_type,${LISTING_COLUMNS}`).eq('id', leadId).maybeSingle();
   if (!lead) return fail('Lead not found', 404);
   const state = typeof lead.state === 'string' ? lead.state.toUpperCase() : null;
 
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     ? (partners ?? []).filter((p) => p.relationship_status !== 'paused' && !p.do_not_assign && partnerCoversState(p as never, state)).slice(0, 6)
         .map((p) => ({ id: p.id, name: p.name, brokerage: p.brokerage ?? null, phone: p.contact_phone ?? null, email: p.contact_email ?? null, licenseVerified: p.license_status === 'verified', acceptsReferrals: p.accepts_referrals ?? 'unknown', agreementOnFile: !!p.agreement_on_file }))
     : [];
-  if (listed.flag) return NextResponse.json({ state, listing, partnersInState: inState, stateBlockers: [], suggestions: [], rejected: [], needsPartner: false, alreadyListed: { label: listed.label, reason: listed.reason, explanation: ALREADY_LISTED_EXPLANATION } });
+  if (listed.flag) return NextResponse.json({ state, listing, property: { price: Number(lead.price) > 0 ? Number(lead.price) : null, beds: Number(lead.beds) > 0 ? Number(lead.beds) : null }, partnersInState: inState, stateBlockers: [], suggestions: [], rejected: [], needsPartner: false, alreadyListed: { label: listed.label, reason: listed.reason, explanation: ALREADY_LISTED_EXPLANATION } });
   return NextResponse.json({
     state, listing, stateBlockers: stateBlockers(activation, state),
     suggestions: result.suggestions.map((s) => ({ id: s.partner.id, name: s.partner.name, score: s.score, reasons: s.reasons })),

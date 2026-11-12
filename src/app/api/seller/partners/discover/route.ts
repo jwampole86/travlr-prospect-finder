@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { fail, sellerContext } from '@/lib/seller/api';
-import { buildDiscoveryPrompt, parseCandidates } from '@/lib/seller/partnerDiscovery';
+import { buildDiscoveryPrompt, dropListingBroker, parseCandidates } from '@/lib/seller/partnerDiscovery';
 
 export const maxDuration = 180;
 
@@ -16,9 +16,10 @@ const MODEL = process.env.PARTNER_DISCOVERY_MODEL || process.env.REGULATION_RESE
 export async function POST(req: NextRequest) {
   const ctx = await sellerContext(req);
   if ('error' in ctx) return ctx.error;
-  const body = (await req.json().catch(() => ({}))) as { state?: unknown; city?: unknown; focus?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { state?: unknown; city?: unknown; focus?: unknown; price?: unknown; beds?: unknown; excludeBrokerage?: unknown };
   const state = typeof body.state === 'string' ? body.state.trim().toUpperCase() : '';
   const city = typeof body.city === 'string' && body.city.trim() ? body.city.trim().slice(0, 80) : null;
+  const excludeBrokerage = typeof body.excludeBrokerage === 'string' && body.excludeBrokerage.trim() ? body.excludeBrokerage.trim().slice(0, 120) : null;
   const focus = body.focus === 'buyer' ? 'buyer' : 'listing';
   if (!/^[A-Z]{2}$/.test(state)) return fail('A two-letter state is required.');
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
       max_tokens: 4000,
       temperature: 0,
       tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 8 }],
-      messages: [{ role: 'user', content: buildDiscoveryPrompt(state, city, focus) }],
+      messages: [{ role: 'user', content: buildDiscoveryPrompt(state, city, focus, { price: Number(body.price) > 0 ? Number(body.price) : null, beds: Number(body.beds) > 0 ? Number(body.beds) : null, excludeBrokerage }) }],
     } as never) as unknown as { content: Array<{ type: string; text?: string; content?: unknown }> };
 
     const raw = response.content.filter((b) => b.type === 'text').map((b) => b.text ?? '').join('\n');
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
       .flatMap((b) => b.content as Array<{ type?: string; url?: string }>)
       .filter((item) => item.type === 'web_search_result' && item.url)
       .map((item) => String(item.url));
-    return NextResponse.json({ state, city, focus, candidates: parseCandidates(raw, foundUrls, city), searchedAt: new Date().toISOString() });
+    return NextResponse.json({ state, city, focus, candidates: dropListingBroker(parseCandidates(raw, foundUrls, city), excludeBrokerage), searchedAt: new Date().toISOString() });
   } catch (error) {
     return fail(error instanceof Error ? error.message : 'The search failed.', 502);
   }
