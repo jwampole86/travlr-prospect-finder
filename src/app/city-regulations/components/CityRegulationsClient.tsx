@@ -150,7 +150,7 @@ export default function CityRegulationsClient({ initialData }: { initialData: Ci
       <PageHeader
         icon={Shield}
         title="City Regulations"
-        description="Live canonical regulation records plus market coverage from get_regulation_coverage and get_regulation_markets."
+        description="Rules by state and city, how well each is sourced and reviewed, and which markets with leads still have no rule."
         actions={
           <>
             <Link href="/regulation-trace" className={buttonSecondary}>
@@ -172,13 +172,17 @@ export default function CityRegulationsClient({ initialData }: { initialData: Ci
       <StatGrid
         columns={5}
         stats={[
-          { label: 'Canonical rules', value: initialData.counts.totalRules.toLocaleString(), hint: 'Exact rows in city_regulations', icon: Shield, tone: 'primary' },
-          { label: 'Markets with leads', value: initialData.counts.marketsWithLeads.toLocaleString(), hint: 'Rows returned by get_regulation_markets with leads > 0', icon: Database, tone: 'default' },
-          { label: 'Uncovered markets', value: initialData.counts.uncoveredMarkets.toLocaleString(), hint: 'Markets with live leads and no canonical rule', icon: AlertTriangle, tone: 'danger' },
-          { label: 'Evaluated leads', value: initialData.coverage.regulationEvaluated.toLocaleString(), hint: `${initialData.coverage.totalApplicable.toLocaleString()} total applicable leads`, icon: Sparkles, tone: 'success' },
-          { label: 'AI researched rules', value: initialData.counts.aiResearched.toLocaleString(), hint: 'Rows with source_type = AI_RESEARCHED', icon: Sparkles, tone: 'warning' },
+          { label: 'Canonical rules', value: initialData.counts.totalRules.toLocaleString(), hint: `${initialData.counts.verifiedOfficial.toLocaleString()} verified from an official source`, icon: Shield, tone: 'primary' },
+          { label: 'Awaiting human review', value: initialData.counts.awaitingReview.toLocaleString(), hint: `AI-researched. ${initialData.counts.lowConfidence.toLocaleString()} low confidence, ${initialData.counts.missingSource.toLocaleString()} with no source link`, icon: Sparkles, tone: 'warning' },
+          { label: 'Uncovered markets', value: initialData.counts.uncoveredMarkets.toLocaleString(), hint: `${initialData.counts.leadsInUncoveredMarkets.toLocaleString()} leads sit in markets with no rule yet`, icon: AlertTriangle, tone: 'danger' },
+          { label: 'Leads with a city rule', value: initialData.coverage.cityRulesFound.toLocaleString(), hint: `${initialData.coverage.totalApplicable ? Math.round((initialData.coverage.cityRulesFound / initialData.coverage.totalApplicable) * 100) : 0}% of ${initialData.coverage.totalApplicable.toLocaleString()} leads`, icon: Database, tone: 'default' },
+          { label: 'Leads evaluated', value: initialData.coverage.regulationEvaluated.toLocaleString(), hint: 'Evaluated against a rule so far', icon: Sparkles, tone: 'success' },
         ]}
       />
+
+      <div role="note" className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
+        Rules marked AI-researched were gathered from web sources and have not been confirmed by a person. Treat them as a starting point, check the linked source before telling an owner a rule applies, and confirm anything important with the city.
+      </div>
 
       {creating ? (
         <RegulationEditor

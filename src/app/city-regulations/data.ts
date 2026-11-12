@@ -171,9 +171,13 @@ function toMarket(row: MarketRow): RegulationMarket {
 export async function getCityRegulationsPageData(): Promise<CityRegulationsPageData> {
   const db = getSupabaseAdmin();
 
-  const [countResult, aiCountResult, coverageResult, regulationsResult, marketsResult] = await Promise.all([
+  const [countResult, aiCountResult, awaitingResult, lowResult, noSourceResult, verifiedResult, coverageResult, regulationsResult, marketsResult] = await Promise.all([
     db.from('city_regulations').select('id', { count: 'exact', head: true }),
     db.from('city_regulations').select('id', { count: 'exact', head: true }).eq('source_type', 'AI_RESEARCHED'),
+    db.from('city_regulations').select('id', { count: 'exact', head: true }).eq('review_status', 'REVIEW_REQUIRED'),
+    db.from('city_regulations').select('id', { count: 'exact', head: true }).eq('confidence', 'LOW'),
+    db.from('city_regulations').select('id', { count: 'exact', head: true }).or('source_url.is.null,source_url.eq.'),
+    db.from('city_regulations').select('id', { count: 'exact', head: true }).eq('review_status', 'CURRENT').neq('source_type', 'AI_RESEARCHED'),
     db.rpc('get_regulation_coverage', { p_state: 'all' }),
     db
       .from('city_regulations')
@@ -196,6 +200,11 @@ export async function getCityRegulationsPageData(): Promise<CityRegulationsPageD
       aiResearched: aiCountResult.count ?? regulations.filter((row) => row.sourceType === 'AI_RESEARCHED').length,
       marketsWithLeads: markets.filter((market) => market.leads > 0).length,
       uncoveredMarkets: markets.filter((market) => market.leads > 0 && !market.ruleId).length,
+      awaitingReview: awaitingResult.count ?? 0,
+      lowConfidence: lowResult.count ?? 0,
+      missingSource: noSourceResult.count ?? 0,
+      verifiedOfficial: verifiedResult.count ?? 0,
+      leadsInUncoveredMarkets: markets.filter((market) => market.leads > 0 && !market.ruleId).reduce((sum, market) => sum + market.leads, 0),
     },
     coverage: toCoverage((coverageResult.data ?? null) as CoverageRow | null),
     regulations,

@@ -93,6 +93,11 @@ export interface CityRegulationsPageData {
     aiResearched: number;
     marketsWithLeads: number;
     uncoveredMarkets: number;
+    awaitingReview: number;
+    lowConfidence: number;
+    missingSource: number;
+    verifiedOfficial: number;
+    leadsInUncoveredMarkets: number;
   };
   coverage: RegulationCoverage;
   regulations: RegulationRecord[];
