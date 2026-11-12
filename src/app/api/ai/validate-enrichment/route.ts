@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { completion } from '@rocketnew/llm-sdk';
 
@@ -122,6 +123,7 @@ Return ONLY valid JSON in this exact format:
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const { type, data } = body as {

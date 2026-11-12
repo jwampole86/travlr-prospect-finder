@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
@@ -5,7 +6,8 @@ import { createClient } from '@/lib/supabase/server';
  * GET /api/enrichment/economics
  * Returns enrichment economics: monthly spend, cost per outcome, coverage metrics.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
 

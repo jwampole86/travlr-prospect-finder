@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { lookupPhoneNumber } from '@/lib/services/twilioService';
 
@@ -8,6 +9,7 @@ import { lookupPhoneNumber } from '@/lib/services/twilioService';
  * to avoid wasting outreach on dead/VoIP/landline numbers.
  */
 export async function GET(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   const phone = req.nextUrl.searchParams.get('phone');
   if (!phone) {
     return NextResponse.json({ error: 'phone query param is required' }, { status: 400 });

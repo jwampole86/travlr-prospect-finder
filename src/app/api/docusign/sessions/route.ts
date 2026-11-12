@@ -1,3 +1,4 @@
+import { guardUser } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { authorizeSigning } from '@/lib/auth/signingAccess';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -6,6 +7,7 @@ import { syncEnvelope } from '@/lib/services/signingSync';
 // GET /api/docusign/sessions?leadId=xxx[&sync=1]
 // sync=1 asks DocuSign for the latest state of open agreements first, so the screen never waits on a callback.
 export async function GET(req: NextRequest) {
+  { const denied = await guardUser(req); if (denied) return denied; }
   try {
     const { searchParams } = new URL(req.url);
     const leadId = searchParams.get('leadId');

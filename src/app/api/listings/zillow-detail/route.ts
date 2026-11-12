@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getZillowPropertyDetails } from '@/lib/services/rapidApiRealEstateService';
 
@@ -9,6 +10,7 @@ import { getZillowPropertyDetails } from '@/lib/services/rapidApiRealEstateServi
  * Body: { homes: string[] } — up to 20 Zillow URLs, ZPIDs, or street addresses.
  */
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   const body = await req.json().catch(() => ({}));
   const homes = Array.isArray(body?.homes) ? body.homes.filter((h: unknown) => typeof h === 'string') : [];
 

@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
@@ -102,6 +103,7 @@ async function callBatchDataAPI(address: string): Promise<BatchDataOwnerResult |
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   let logId: string | null = null;
 
   try {

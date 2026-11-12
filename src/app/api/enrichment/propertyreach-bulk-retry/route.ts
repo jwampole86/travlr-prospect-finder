@@ -1,3 +1,4 @@
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -18,6 +19,7 @@ const MAX_POLL_MS = 25000;
  * Body: { state: string }
  */
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   const body = await req.json().catch(() => ({}));
   const state = body?.state as string;
   if (!state) {

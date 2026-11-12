@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createConnectAccount, createAccountLink, getAccountStatus } from '@/lib/services/stripeConnectService';
 
@@ -8,6 +9,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://avyropro.ai';
  * Actions: create_account | create_link | get_status
  */
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const body = await req.json() as {
       action: 'create_account' | 'create_link' | 'get_status';

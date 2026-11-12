@@ -1,3 +1,4 @@
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerChatCompletion } from '@/lib/ai/serverChatCompletion';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -74,6 +75,7 @@ function generateDeterministicListingUrl(
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const { limit = 50, dryRun = false, useClaudeForAmbiguous = false } = body;

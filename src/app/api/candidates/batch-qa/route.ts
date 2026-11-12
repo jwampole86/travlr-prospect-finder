@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
@@ -295,6 +296,7 @@ async function runQAForCandidate(
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const { candidateIds } = await req.json().catch(() => ({}));
@@ -404,6 +406,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);

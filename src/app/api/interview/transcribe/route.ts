@@ -1,8 +1,10 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const formData = await req.formData();
     const audioFile = formData.get('file') as File | null;
@@ -25,6 +27,7 @@ export async function POST(req: NextRequest) {
 
     const sttRes = await fetch(`${req.nextUrl.origin}/api/ai/speech-to-text`, {
       method: 'POST',
+      headers: { cookie: req.headers.get('cookie') || '', authorization: req.headers.get('authorization') || '' },
       body: sttFormData,
     });
 

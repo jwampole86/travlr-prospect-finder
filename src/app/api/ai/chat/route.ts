@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -84,6 +85,7 @@ When discussing enrichment data, remind users to comply with PDL ToS and applica
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const { messages, model, provider, parameters, userRole, userId } = body;

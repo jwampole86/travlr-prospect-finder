@@ -1,3 +1,4 @@
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { dispatchSMS } from '@/lib/services/twilioService';
@@ -28,6 +29,7 @@ const OUTCOME_SEQUENCE_MAP: Record<string, { tag: string; stageUpdate: string; l
 };
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   let body: { leadId?: string; callOutcome?: string; agentName?: string; notes?: string } = {};
 
   try {

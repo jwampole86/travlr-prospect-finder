@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { randomUUID } from 'crypto';
@@ -27,6 +28,7 @@ import { randomUUID } from 'crypto';
  *   liveRevenue = 0  → legitimate result (no won deals) → show "$0" *   HTTP 4xx/5xx     → server error → show"—" / "Unable to load"
  */
 export async function GET(request: NextRequest) {
+  { const denied = await guardStaff(request); if (denied) return denied; }
   const routeStart = performance.now();
   const requestId = randomUUID();
   const { searchParams } = new URL(request.url);

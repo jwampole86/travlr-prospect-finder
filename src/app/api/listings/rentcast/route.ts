@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { searchRentalListings } from '@/lib/services/rentcastService';
 
@@ -11,6 +12,7 @@ import { searchRentalListings } from '@/lib/services/rentcastService';
  * At least one of city, state, zipCode, or address is required.
  */
 export async function GET(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   const { searchParams } = new URL(req.url);
   const city = searchParams.get('city') || undefined;
   const state = searchParams.get('state') || undefined;

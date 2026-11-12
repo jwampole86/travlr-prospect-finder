@@ -43,7 +43,8 @@ export async function getApiActor(request: NextRequest): Promise<ApiActor | null
     .maybeSingle();
 
   const role = profile?.app_role || profile?.role || user.user_metadata?.role || '';
-  if (!role || profile?.is_active === false) return null;
+  // A new self-signup is 'pending' until an admin grants a role; it gets no API access.
+  if (!role || role === 'pending' || profile?.is_active === false) return null;
 
   const { data: membership } = await client.from('organization_members').select('organization_id').eq('user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle();
 

@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
@@ -131,6 +132,7 @@ async function findExistingCandidate(
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const formData = await req.formData();

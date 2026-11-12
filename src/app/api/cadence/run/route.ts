@@ -1,4 +1,5 @@
 import { alreadyListed } from '@/lib/seller/alreadyListed';
+import { inSendWindow } from '@/lib/services/estimateOutreachSms';
 import { NextRequest, NextResponse } from 'next/server';
 import { HOMES_CADENCE_EMAIL, HOMES_CADENCE_SMS } from '@/lib/forSaleOutreach';
 import { outreachBrandFor } from '@/lib/brands';
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
     enrollmentsChecked: 0,
     sendsDispatched: 0,
     skippedOptOut: 0,
+    deferredQuietHours: 0,
     escalations: 0,
     closedDead: 0,
     errors: [] as string[],
@@ -106,7 +108,7 @@ export async function POST(req: NextRequest) {
         // Load lead for opt-in check and personalization
         const { data: lead } = await supabase
           .from('leads')
-          .select('id, first_name, last_name, address, email, phone, sms_opt_in, email_opt_in, do_not_contact, stage, price_type, is_fsbo, listing_agent_name, listing_broker_name, mls_number, listing_status')
+          .select('id, first_name, last_name, address, email, phone, sms_opt_in, sms_opted_out_at, state, email_opt_in, do_not_contact, stage, price_type, is_fsbo, listing_agent_name, listing_broker_name, mls_number, listing_status')
           .eq('id', enrollment.lead_id)
           .single();
 
@@ -125,7 +127,7 @@ export async function POST(req: NextRequest) {
         const channel = currentStep.channel;
 
         // Opt-in compliance check
-        if (channel === 'sms' && !lead.sms_opt_in) {
+        if (channel === 'sms' && (!lead.sms_opt_in || lead.sms_opted_out_at)) {
           results.skippedOptOut++;
           await logSend(supabase, { enrollment_id: enrollment.id, lead_id: lead.id, sequence_id: enrollment.sequence_id, step_number: enrollment.current_step, channel: 'sms', status: 'skipped_opt_out' });
           await advanceEnrollment(supabase, enrollment, steps);
@@ -135,6 +137,12 @@ export async function POST(req: NextRequest) {
           results.skippedOptOut++;
           await logSend(supabase, { enrollment_id: enrollment.id, lead_id: lead.id, sequence_id: enrollment.sequence_id, step_number: enrollment.current_step, channel: 'email', status: 'skipped_opt_out' });
           await advanceEnrollment(supabase, enrollment, steps);
+          continue;
+        }
+
+        // Texts go only between 9am and 8pm in the owner's time zone. The step stays due and is picked up on a later run.
+        if (channel === 'sms' && !inSendWindow(lead.state)) {
+          results.deferredQuietHours++;
           continue;
         }
 

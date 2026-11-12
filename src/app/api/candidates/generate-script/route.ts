@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Anthropic from '@anthropic-ai/sdk';
@@ -237,6 +238,7 @@ ${candidate.resume_raw_text ? `RAW RESUME TEXT (first 3000 chars):\n${String(can
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const anthropic = createAnthropicClient();

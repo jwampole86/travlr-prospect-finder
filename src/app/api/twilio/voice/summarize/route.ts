@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { completion } from '@rocketnew/llm-sdk';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -25,6 +26,7 @@ Rules:
 - summary_text: concise narrative summary an agent can read at a glance`;
 
 export async function POST(request: NextRequest) {
+  { const denied = await guardStaff(request); if (denied) return denied; }
   try {
     const { sessionId, transcript, leadId } = await request.json();
 

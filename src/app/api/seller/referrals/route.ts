@@ -90,7 +90,8 @@ export async function POST(req: NextRequest) {
     partner_id: partnerId, lead_id: leadId, opportunity_id: opp?.id ?? null, property_label: text(body.property_label, 200), notes: text(body.notes, 1000),
     status: 'sent' as const, sent_at: sentAt, created_by: ctx.actor.user.id,
     fee_percent: partner.referral_fee_percent, protection_days: partner.protection_days, protection_ends_at: protectionEnds(sentAt, partner.protection_days),
-    payment_method_snapshot: partner.payment_method, payee_name_snapshot: partner.payee_name, payment_due_days_snapshot: partner.payment_due_days
+    payment_method_snapshot: partner.payment_method, payee_name_snapshot: partner.payee_name, payment_due_days_snapshot: partner.payment_due_days,
+    agreement_signed_on_snapshot: partner.agreement_signed_on ?? null, responsible_broker_snapshot: partner.responsible_broker ?? null, license_number_snapshot: partner.license_number ?? null, license_state_snapshot: partner.license_state ?? null
   };
   const { data, error } = await ctx.db.from('partner_referrals').insert(row).select('*').single();
   if (error) return fail(error.code === '23505' ? 'This lead already has an open referral.' : error.message, error.code === '23505' ? 409 : 422);

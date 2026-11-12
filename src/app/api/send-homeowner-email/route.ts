@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 import { outreachBrandFor } from '@/lib/brands';
 import { createClient } from '@supabase/supabase-js';
 import { getResendClient, getResendFrom } from '@/lib/email/resend';
@@ -20,6 +21,9 @@ export async function POST(req: NextRequest) {
     if (!to || !message || !leadId) {
       return NextResponse.json({ error: 'Missing required fields: to, message, leadId' }, { status: 400 });
     }
+
+    const authorization = await requireLeadAccess(req, String(leadId));
+    if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';

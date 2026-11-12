@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
 // Admin-only route prefixes — agents will be redirected to /agent-workspace
 const ADMIN_ONLY_ROUTES = [
@@ -170,7 +171,43 @@ const ADMIN_ONLY_API_ROUTES = [
   '/api/agent-invite/resend',
 ];
 
-export function middleware(req: NextRequest) {
+// Inside an admin-only prefix but opened by people who are not signed in (an unsubscribe link, a signing-provider callback).
+const PUBLIC_API_EXCEPTIONS = ['/api/cadence/unsubscribe', '/api/docusign/webhook'];
+
+const REAL_SECRET = (s: string | undefined): s is string => Boolean(s) && !/your-|placeholder|changeme|example/i.test(s!);
+
+function sameSecret(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function carriesJobSecret(req: NextRequest): boolean {
+  const secrets = [process.env.CRON_SECRET, process.env.SEQUENCE_JOB_SECRET].filter(REAL_SECRET);
+  const header = req.headers.get('x-job-secret');
+  const auth = req.headers.get('authorization');
+  const bearer = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
+  return secrets.some((s) => (header !== null && sameSecret(header, s)) || (bearer !== null && sameSecret(bearer, s)));
+}
+
+/** A real check with Supabase, not the presence of a cookie. Role checks stay in each route. */
+async function hasValidSession(req: NextRequest): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) return false;
+  const auth = req.headers.get('authorization');
+  const bearer = auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
+  try {
+    const supabase = createServerClient(url, anon, { cookies: { getAll: () => req.cookies.getAll(), setAll: () => {} } });
+    const { data } = await supabase.auth.getUser(bearer);
+    return Boolean(data.user);
+  } catch {
+    return false;
+  }
+}
+
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const requestStart = Date.now();
 
@@ -183,8 +220,9 @@ export function middleware(req: NextRequest) {
   // For API routes: check if agent is trying to access admin-only APIs
   if (pathname.startsWith('/api/')) {
     const isAdminOnlyApi = ADMIN_ONLY_API_ROUTES.some(route => pathname.startsWith(route));
-    if (isAdminOnlyApi) {
-      return NextResponse.next();
+    if (isAdminOnlyApi && !PUBLIC_API_EXCEPTIONS.some((route) => pathname.startsWith(route))) {
+      if (carriesJobSecret(req) || (await hasValidSession(req))) return NextResponse.next();
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Pass through with timing header for slow-API detection

@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -132,6 +133,7 @@ export interface ImportPreview {
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const { rows, importBatchId } = body as { rows: CsvRow[]; importBatchId: string };

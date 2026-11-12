@@ -1,5 +1,6 @@
 'use server';
 
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 
 const HUBSPOT_API_KEY = process.env.NEXT_PUBLIC_HUBSPOT_API_KEY;
@@ -172,6 +173,7 @@ async function pullContactHistory(email: string): Promise<{
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   if (!HUBSPOT_API_KEY || HUBSPOT_API_KEY === 'your-hubspot-api-key-here') {
     return NextResponse.json({ error: 'HubSpot API key not configured', skipped: true }, { status: 200 });
   }

@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { searchTruliaRentals } from '@/lib/services/rapidApiRealEstateService';
 
@@ -11,6 +12,7 @@ import { searchTruliaRentals } from '@/lib/services/rapidApiRealEstateService';
  * bedsMin, bathsMin.
  */
 export async function GET(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   const { searchParams } = new URL(req.url);
   const location = searchParams.get('location');
   if (!location) {

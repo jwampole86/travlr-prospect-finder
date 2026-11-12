@@ -1,7 +1,9 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextResponse } from 'next/server';
 import { getTwilioConfigStatus } from '@/lib/services/twilioService';
 
-export async function GET() {
+export async function GET(req: Request) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   const status = getTwilioConfigStatus();
 
   let providerReachable = false;

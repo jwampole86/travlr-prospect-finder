@@ -49,7 +49,9 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "ava:kb": "node scripts/build-ava-kb.mjs",
-    "ava:eval": "node scripts/ava-live-eval.mjs"
+    "ava:eval": "node scripts/ava-live-eval.mjs",
+    "verify:rls": "node scripts/verify-rls.mjs",
+    "verify:naveo": "node scripts/naveo-smoke.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

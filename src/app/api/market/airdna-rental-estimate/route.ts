@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getRentalEstimate, searchShortTermRentals } from '@/lib/services/airdnaService';
 
@@ -13,6 +14,7 @@ import { getRentalEstimate, searchShortTermRentals } from '@/lib/services/airdna
  *   bedroomsMin/Max, bathroomsMin/Max, accommodatesMin/Max, pageSize — search filters
  */
 export async function GET(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   const { searchParams } = new URL(req.url);
   const address = searchParams.get('address') || undefined;
   const location = searchParams.get('location') || undefined;

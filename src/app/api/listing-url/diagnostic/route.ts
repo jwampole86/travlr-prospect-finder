@@ -1,3 +1,4 @@
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -86,6 +87,7 @@ function classifyUrl(url: string | null | undefined, source: string): 'correct_d
 }
 
 export async function GET(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   try {
     const supabase = getSupabaseAdmin();
     const report: Record<string, any> = {};
@@ -184,6 +186,7 @@ export async function GET(req: NextRequest) {
 // address-specific search URL and label it clearly in the UI.
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const { sources, dryRun = true } = body;

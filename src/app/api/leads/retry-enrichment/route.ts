@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -10,6 +11,7 @@ const TRANSIENT_ERROR_CODES = [
 ];
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const { leadIds, force } = body as { leadIds: string[]; force?: boolean };

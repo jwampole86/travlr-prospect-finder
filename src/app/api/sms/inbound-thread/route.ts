@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -11,6 +12,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 const supabase = () => getSupabaseAdmin();
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const { phone, message_body, lead_id, campaign_id, twilio_message_sid } = body;
@@ -74,6 +76,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   const { searchParams } = new URL(req.url);
   const campaignId = searchParams.get('campaign_id');
   const status = searchParams.get('status');
@@ -94,6 +97,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const { thread_id, conversation_status, notes } = await req.json();
     if (!thread_id) return NextResponse.json({ error: 'thread_id required' }, { status: 400 });

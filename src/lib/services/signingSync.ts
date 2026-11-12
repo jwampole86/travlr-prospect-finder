@@ -209,7 +209,7 @@ async function provisionHomeowner(db: SupabaseClient, session: Session, email: s
   const userId = created.data?.user?.id ?? link.data.user?.id;
 
   if (isNew && userId) {
-    await db.from('user_profiles').upsert({ id: userId, email, full_name: name, role: 'homeowner', lead_id: session.lead_id }, { onConflict: 'id' });
+    await db.from('user_profiles').upsert({ id: userId, email, full_name: name, app_role: 'homeowner', role: 'homeowner', lead_id: session.lead_id }, { onConflict: 'id' });
   } else if (userId) {
     // An existing login that is not a homeowner (e.g. a team member's own email) must never get a homeowner link.
     const { data: profile } = await db.from('user_profiles').select('role').eq('id', userId).maybeSingle();

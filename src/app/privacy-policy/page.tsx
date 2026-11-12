@@ -132,15 +132,14 @@ const SECTIONS: Section[] = [
     title: '7. Security',
     content: (
       <div className="space-y-3">
-        <p>We implement industry-standard security measures including:</p>
+        <p>We use the following safeguards:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-400 ml-2">
-          <li>TLS encryption for all data in transit</li>
-          <li>AES-256 encryption for sensitive data at rest</li>
+          <li>HTTPS for the site and its APIs, so data is encrypted in transit</li>
           <li>Row-level security (RLS) policies enforced at the database layer</li>
-          <li>Role-based access controls (RBAC) with least-privilege principles</li>
-          <li>Regular security audits and penetration testing</li>
-          <li>Multi-factor authentication support</li>
+          <li>Role-based access controls (RBAC) so people see only what their role allows</li>
+          <li>Sign-in and storage provided by Supabase, and hosting provided by Vercel, each of which applies its own platform-level protections</li>
         </ul>
+        <p>See our <a href="/security" className="text-blue-400 hover:text-blue-300 underline">Security page</a> for more detail.</p>
         <p>No system is completely secure. If you discover a security vulnerability, please report it to <a href="mailto:security@avyropro.ai" className="text-blue-400 hover:text-blue-300 underline">security@avyropro.ai</a>.</p>
       </div>
     ),

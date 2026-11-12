@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -15,6 +16,7 @@ import { skipTracingProvider } from '@/lib/services/skipTracingProvider';
  * Scope: MISSING_PHONE | MISSING_OWNER | MISSING_OWNER_AND_PHONE | FULL
  */
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const body = await req.json();
@@ -108,6 +110,7 @@ export async function POST(req: NextRequest) {
  * Returns current enrichment status and results for a lead.
  */
 export async function GET(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);

@@ -1,7 +1,9 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const { email, name, role, portfolioIds } = await req.json();
 

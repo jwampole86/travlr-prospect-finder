@@ -1,3 +1,4 @@
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { runFsboSkipTrace } from '@/lib/services/fsboSkipTraceService';
@@ -451,6 +452,7 @@ async function runImport(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   const body = await req.clone().json().catch(() => ({}));
   const response = await runImport(req);
 

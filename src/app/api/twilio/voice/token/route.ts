@@ -1,5 +1,6 @@
 'use server';
 
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getTwilioConfigStatus } from '@/lib/services/twilioService';
 
@@ -19,6 +20,7 @@ import { getTwilioConfigStatus } from '@/lib/services/twilioService';
  */
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const body = await req.json().catch(() => ({}));
     const identity: string = (body as Record<string, string>).identity || 'agent';

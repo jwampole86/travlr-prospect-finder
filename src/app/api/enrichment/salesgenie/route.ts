@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -38,6 +39,7 @@ interface SalesgenieSearchResult {
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   const apiUser = process.env.SALESGENIE_API_USER;
   const apiSecret = process.env.SALESGENIE_API_SECRET;
 

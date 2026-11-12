@@ -1,3 +1,4 @@
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerChatCompletion } from '@/lib/ai/serverChatCompletion';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -70,6 +71,7 @@ function getSourceDomain(source: string): string {
 // Claude fallback: extract individual listing URL from scraped page content.
 // Only called when standard extraction fails or returns a search URL.
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const { address, source, currentUrl, pageContent, leadId } = body;
@@ -202,6 +204,7 @@ Respond with JSON only: {"listing_url": "https://..." or null, "confidence": "hi
 // ─── PUT /api/listing-url/extract — Verification step ────────────────────────
 // Before saving a listing_url, verify it actually matches the lead's address.
 export async function PUT(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const { address, listing_url, source, leadId } = body;

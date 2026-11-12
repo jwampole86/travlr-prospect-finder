@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeAddress } from '@/lib/services/ownerEnrichmentService';
@@ -21,6 +22,7 @@ import {
  * This route is the ONLY path from browser to PropertyReach.
  */
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const body = await req.json();
@@ -138,6 +140,7 @@ export async function POST(req: NextRequest) {
  * Returns current PropertyReach enrichment status and results.
  */
 export async function GET(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);

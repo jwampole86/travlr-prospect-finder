@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 
@@ -87,6 +88,7 @@ function buildSystemHealthCSV(healthData: Record<string, unknown>): string {
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const {

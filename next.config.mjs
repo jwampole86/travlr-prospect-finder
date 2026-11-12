@@ -35,6 +35,8 @@ const nextConfig = {
     return [
       { source: '/privacy', destination: '/privacy-policy', permanent: true },
       { source: '/terms', destination: '/terms-of-service', permanent: true },
+      { source: '/status', destination: '/system-health', permanent: false },
+      { source: '/system-status', destination: '/system-health', permanent: false },
       {
         source: '/prospect-finder/pricing',
         destination: '/plans',

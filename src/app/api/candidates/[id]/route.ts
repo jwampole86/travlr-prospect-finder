@@ -1,7 +1,9 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const { id } = await params;
@@ -21,6 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const { id } = await params;
@@ -42,6 +45,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const { id } = await params;

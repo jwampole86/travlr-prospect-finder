@@ -7,12 +7,24 @@ export const metadata: Metadata = {
   description: 'How AVYRO AI protects homeowner contact data, limits access, and handles texting, opt-outs and AI.',
 };
 
-const VENDORS: [string, string][] = [
-  ['Supabase', 'Database and sign-in'],
+const PROCESSORS: [string, string][] = [
+  ['Supabase', 'Database, file storage and sign-in'],
   ['Vercel', 'Hosting and deployment'],
-  ['Twilio', 'Texting and calling'],
-  ['Resend', 'Email'],
-  ['Anthropic', 'AI assistance (AVA) and analysis'],
+  ['Twilio', 'Texting, calling and phone lookups'],
+  ['Resend', 'Email delivery'],
+  ['Anthropic', 'AI assistance (AVA), message drafting and analysis'],
+  ['OpenAI', 'Speech-to-text and some AI features'],
+  ['Stripe', 'Payments and payouts'],
+  ['DocuSign', 'Electronic signatures'],
+  ['HubSpot', 'CRM sync, where an account turns it on'],
+  ['Vapi', 'AI voice interviews'],
+  ['Mixpanel', 'Product usage analytics'],
+];
+
+const DATA_PROVIDERS: [string, string][] = [
+  ['RapidAPI providers (Trulia, Zillow, Rent.com and others)', 'Property listings'],
+  ['RentCast, AirDNA', 'Rent and short-term-rental market data'],
+  ['PropertyReach, BatchData, People Data Labs, SalesGenie', 'Property, owner and contact enrichment'],
 ];
 
 const SECTIONS: { title: string; points: string[] }[] = [
@@ -68,10 +80,20 @@ export default function SecurityPage() {
         ))}
 
         <section className="mt-8">
-          <h2 className="text-lg font-semibold">Services we rely on</h2>
+          <h2 className="text-lg font-semibold">Subprocessors</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            These companies process customer or homeowner data for us. Each one keeps data under its own terms and retention rules. We have not published zero-retention commitments for the AI providers; ask us if you need to know how a specific provider handles data.
+          </p>
           <ul className="mt-2 divide-y divide-border rounded-lg border border-border text-sm">
-            {VENDORS.map(([name, use]) => (
-              <li key={name} className="flex justify-between gap-4 px-4 py-2"><span className="font-medium">{name}</span><span className="text-muted-foreground">{use}</span></li>
+            {PROCESSORS.map(([name, use]) => (
+              <li key={name} className="flex justify-between gap-4 px-4 py-2"><span className="font-medium">{name}</span><span className="text-right text-muted-foreground">{use}</span></li>
+            ))}
+          </ul>
+          <h3 className="mt-5 text-sm font-semibold">Data providers we query</h3>
+          <p className="mt-1 text-sm text-muted-foreground">We send them addresses or names to look up property and contact details. They are not given access to your account.</p>
+          <ul className="mt-2 divide-y divide-border rounded-lg border border-border text-sm">
+            {DATA_PROVIDERS.map(([name, use]) => (
+              <li key={name} className="flex justify-between gap-4 px-4 py-2"><span className="font-medium">{name}</span><span className="text-right text-muted-foreground">{use}</span></li>
             ))}
           </ul>
         </section>

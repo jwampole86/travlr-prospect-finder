@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@supabase/supabase-js';
 
@@ -22,7 +23,8 @@ import { createClient as createServerClient } from '@supabase/supabase-js';
  *   STR Eligible      — regulation_status IN ('Allowed','Restricted')
  *   Active Pipeline   — stage IN ('Contacted','Interested','Proposal Sent','Under Contract')
  */
-export async function GET() {
+export async function GET(req: Request) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -1,3 +1,4 @@
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -10,6 +11,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
  * - Records the action in cadence_send_log for audit trail
  */
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   const supabase = getSupabaseAdmin();
 
   let body: {

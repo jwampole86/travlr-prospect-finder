@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Anthropic from '@anthropic-ai/sdk';
@@ -224,6 +225,7 @@ async function loadCandidateContext(supabase: Awaited<ReturnType<typeof createCl
 }
 
 export async function GET(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);
@@ -256,6 +258,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const anthropic = createAnthropicClient();
@@ -452,6 +455,7 @@ For secondInterviewQuestions: generate questions that derive from resume evidenc
 }
 
 export async function PATCH(req: NextRequest) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const { reportId, adminEdits } = await req.json();

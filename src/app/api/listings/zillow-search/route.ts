@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { searchZillowProperties } from '@/lib/services/rapidApiRealEstateService';
 
@@ -11,6 +12,7 @@ import { searchZillowProperties } from '@/lib/services/rapidApiRealEstateService
  * status ('for_sale' | 'sold', default 'for_sale'), page (1-20).
  */
 export async function GET(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   const { searchParams } = new URL(req.url);
   const region = searchParams.get('region');
   if (!region) {

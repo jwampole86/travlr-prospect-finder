@@ -1,3 +1,4 @@
+import { guardUser } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getResendClient, getSystemFrom } from '@/lib/email/resend';
 
@@ -90,6 +91,7 @@ function buildEmailHtml(payload: NotifyPayload): string {
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardUser(req); if (denied) return denied; }
   try {
     const payload: NotifyPayload = await req.json();
 

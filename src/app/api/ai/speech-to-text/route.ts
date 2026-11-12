@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { transcription } from '@rocketnew/llm-sdk';
 
@@ -17,6 +18,7 @@ function formatErrorResponse(error: unknown, provider?: string) {
 }
 
 export async function POST(request: NextRequest) {
+  { const denied = await guardStaff(request); if (denied) return denied; }
   let provider: string | undefined;
 
   try {

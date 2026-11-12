@@ -1,3 +1,4 @@
+import { guardUser } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { authorizeSigning } from '@/lib/auth/signingAccess';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -5,6 +6,7 @@ import { downloadEnvelopeDocument } from '@/lib/services/docusignService';
 
 // GET /api/docusign/documents?sessionId=&kind=signed|certificate — the finished PDF straight from DocuSign.
 export async function GET(req: NextRequest) {
+  { const denied = await guardUser(req); if (denied) return denied; }
   try {
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('sessionId');

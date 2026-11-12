@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireAdminActor } from '@/lib/auth/apiAuthorization';
@@ -6,6 +7,7 @@ import { requireAdminActor } from '@/lib/auth/apiAuthorization';
 // a human follow-up call with a candidate: contact info, the AI interview summary,
 // and the overall scorecard assessment from their most recent interview.
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  { const denied = await guardAdmin(request); if (denied) return denied; }
   const { id } = await params;
   const authorization = await requireAdminActor(request);
   if (!authorization.actor) return NextResponse.json({ error: authorization.error }, { status: authorization.status });

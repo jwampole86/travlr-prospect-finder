@@ -1,7 +1,9 @@
+import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextResponse } from 'next/server';
 import { getResendConfigStatus, getResendFrom } from '@/lib/email/resend';
 
-export async function GET() {
+export async function GET(req: Request) {
+  { const denied = await guardAdmin(req); if (denied) return denied; }
   const status = getResendConfigStatus();
 
   if (!status.apiKeyConfigured || !status.senderConfigured) {

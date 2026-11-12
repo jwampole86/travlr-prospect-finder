@@ -1,3 +1,4 @@
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getResendClient, getSystemFrom } from '@/lib/email/resend';
@@ -12,6 +13,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://avyropro.ai';
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   const supabase = getSupabaseAdmin();
 
   let body: {

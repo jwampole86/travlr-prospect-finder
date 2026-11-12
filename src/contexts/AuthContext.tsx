@@ -145,7 +145,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         data: {
           full_name: metadata?.fullName || '',
           avatar_url: metadata?.avatarUrl || '',
-          role: metadata?.role || 'admin',
         }
       }
     });

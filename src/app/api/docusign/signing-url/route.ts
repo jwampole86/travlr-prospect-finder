@@ -1,3 +1,4 @@
+import { guardUser } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { authorizeSigning } from '@/lib/auth/signingAccess';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -9,6 +10,7 @@ const originOf = (value: string | null | undefined) => { try { return value ? ne
 // A fresh single-use signing link for someone signing on this device. The signer comes from our record,
 // never from the request, and the caller must have access to the lead.
 export async function POST(req: NextRequest) {
+  { const denied = await guardUser(req); if (denied) return denied; }
   try {
     const { sessionId, recipientId, returnUrl } = await req.json() as { sessionId?: string; recipientId?: string; returnUrl?: string };
     if (!sessionId || !recipientId) return NextResponse.json({ error: 'sessionId and recipientId are required' }, { status: 400 });

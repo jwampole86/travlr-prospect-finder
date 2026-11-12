@@ -1,3 +1,4 @@
+import { inSendWindow } from '@/lib/services/estimateOutreachSms';
 import { NextRequest, NextResponse } from 'next/server';
 import { isProtectedContact } from '@/lib/protectedContacts';
 import { createClient } from '@supabase/supabase-js';
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     // it silently fails and returns null, which previously made this guard a no-op.
     const { data: leadRow } = await supabase
       .from('leads')
-      .select('address, sms_opt_in, sms_opted_out_at, owner_name, contact_name')
+      .select('address, state, sms_opt_in, sms_opted_out_at, owner_name, contact_name')
       .eq('id', leadId)
       .single();
 
@@ -47,6 +48,18 @@ export async function POST(req: NextRequest) {
         .eq('lead_id', leadId)
         .not('last_inbound_at', 'is', null);
       blockedNotOptedIn = !count;
+    }
+
+    // Texts go only between 9am and 8pm in the owner's time zone. A reply inside a conversation the owner started is not held back here.
+    if (!explicitOptOut && !blockedNotOptedIn && !inSendWindow(leadRow?.state ?? null)) {
+      const { count: ownerTexted } = await admin
+        .from('sms_conversation_threads')
+        .select('id', { count: 'exact', head: true })
+        .eq('lead_id', leadId)
+        .not('last_inbound_at', 'is', null);
+      if (!ownerTexted) {
+        return NextResponse.json({ error: `Outside texting hours: texts go out 9am to 8pm in the owner's time zone${leadRow?.state ? ` (${leadRow.state})` : ' (no state on record for this lead)'}. Try again during those hours.`, code: 'quiet_hours' }, { status: 422 });
+      }
     }
 
     if (explicitOptOut || blockedNotOptedIn) {

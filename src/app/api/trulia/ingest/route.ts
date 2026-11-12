@@ -12,6 +12,7 @@
  * 7. SUCCESS requires ALL pipeline stages to have completed
  */
 
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { recordSourcePull } from '@/lib/services/sourceSyncRecorder';
@@ -71,6 +72,7 @@ function safeInt(val: unknown, defaultVal = -1): number {
 // ─── POST /api/trulia/ingest ──────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   const startTime = Date.now();
 
   try {
@@ -482,6 +484,7 @@ export async function POST(req: NextRequest) {
 // ─── GET /api/trulia/ingest — source config validation report ─────────────────
 
 export async function GET(req: NextRequest) {
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   try {
     const supabase = await createClient();
     const url = new URL(req.url);

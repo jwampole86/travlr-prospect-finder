@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { getPropertyReport } from '@/lib/services/propertyReportProvider';
 
@@ -11,6 +12,7 @@ import { getPropertyReport } from '@/lib/services/propertyReportProvider';
  * Body: { addr1, city, stateProv, postalCode, ownerFirstName?, ownerLastName? }
  */
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   const body = await req.json().catch(() => ({}));
   const addr1 = typeof body?.addr1 === 'string' ? body.addr1 : undefined;
   const city = typeof body?.city === 'string' ? body.city : undefined;
