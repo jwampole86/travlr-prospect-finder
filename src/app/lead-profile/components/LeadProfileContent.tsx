@@ -23,6 +23,7 @@ import PhotoRightsPanel from './PhotoRightsPanel';
 import { outreachBrandFor } from '@/lib/brands';
 import PropertyRecordPanel from './PropertyRecordPanel';
 import PartnerMatchPanel from './PartnerMatchPanel';
+import EarnWhileYouWaitPanel from './EarnWhileYouWaitPanel';
 import LeadPicker from './LeadPicker';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -2310,6 +2311,9 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
               {/* Admins decide which captured photos may be published */}
               {(role === 'admin' || role === 'owner') && <PhotoRightsPanel leadId={lead.id} />}
               {(role === 'admin' || role === 'owner') && <PartnerMatchPanel leadId={lead.id} city={lead.city} />}
+              {listedWithBroker && (
+                <EarnWhileYouWaitPanel vars={{ ownerName: lead.contactName || lead.ownerName, propertyAddress, brokerName: extra.listing_agent_name, senderName: agentFirstName }} />
+              )}
               {(role === 'admin' || role === 'owner') && <PropertyRecordPanel leadId={lead.id} address={[lead.address, lead.city, lead.state].filter(Boolean).join(', ')} />}
 
               {/* Enrichment Timeline */}
