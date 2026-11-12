@@ -1,3 +1,4 @@
+import { forwardAuth } from '@/lib/auth/forwardAuth';
 import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
   for (const lead of leads) {
     const res = await fetch(`${origin}/api/enrichment/propertyreach`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader, ...forwardAuth(req) },
       body: JSON.stringify({
         leadId: lead.id, address: lead.address, city: lead.city, state: lead.state, zip: lead.zip, apn: lead.apn,
       }),

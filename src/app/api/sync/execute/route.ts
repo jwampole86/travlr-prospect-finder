@@ -1,3 +1,4 @@
+import { forwardAuth } from '@/lib/auth/forwardAuth';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { cityRegulations } from '@/data/regulations';
@@ -265,7 +266,7 @@ export async function POST(req: NextRequest) {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              cookie: req.headers.get('cookie') || '',
+              ...forwardAuth(req),
             },
             body: JSON.stringify({
               stateCode,

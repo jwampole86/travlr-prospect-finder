@@ -1,3 +1,4 @@
+import { forwardAuth } from '@/lib/auth/forwardAuth';
 import { guardAdmin } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
         const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
         fetch(`${baseUrl}/api/candidates/consistency-report`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...forwardAuth(req) },
           body: JSON.stringify({ candidateId, scorecardId: scorecard.id }),
         }).catch(e => console.error('[scorecard] Auto consistency report error:', e));
       } catch {

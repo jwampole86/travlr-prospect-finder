@@ -1,3 +1,4 @@
+import { forwardAuth } from '@/lib/auth/forwardAuth';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJobRequest } from '@/lib/jobAuth';
 import { finishCronRun, startCronRun } from '@/lib/recordCronRun';
@@ -209,7 +210,7 @@ export async function GET(req: NextRequest) {
               try {
                 response = await fetch(`${origins[tried]}/api/leads/rapidapi-import`, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 'Content-Type': 'application/json', ...forwardAuth(req) },
                   body: JSON.stringify(body),
                   signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
                 });

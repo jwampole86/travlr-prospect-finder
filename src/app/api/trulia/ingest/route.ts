@@ -12,6 +12,7 @@
  * 7. SUCCESS requires ALL pipeline stages to have completed
  */
 
+import { forwardAuth } from '@/lib/auth/forwardAuth';
 import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
@@ -309,7 +310,7 @@ export async function POST(req: NextRequest) {
         records || [],
         syncRunDbId,
         dryRun,
-        { origin, cookie }
+        { origin, cookie, auth: forwardAuth(req) }
       );
 
       const { counters: validatedCounters } = validateSyncCounters(pipelineResult.counters);
@@ -730,6 +731,7 @@ interface PipelineResult {
 interface ImportContext {
   origin: string;
   cookie: string;
+  auth: Record<string, string>;
 }
 
 interface ImportRow {
@@ -877,7 +879,7 @@ async function runIngestionPipeline(
       try {
         const res = await fetch(`${ctx.origin}/api/leads/csv-import`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', cookie: ctx.cookie },
+          headers: { 'Content-Type': 'application/json', cookie: ctx.cookie, ...ctx.auth },
           body: JSON.stringify({
             rows: chunk,
             importFilename: `trulia-source-sync-${sourceId}.json`,

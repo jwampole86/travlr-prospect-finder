@@ -1,3 +1,4 @@
+import { forwardAuth } from '@/lib/auth/forwardAuth';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Run benchmark asynchronously — do NOT block response
-    runBenchmarkAsync(benchmarkRun.id, sampleLeads, supabase).catch(err =>
+    runBenchmarkAsync(benchmarkRun.id, sampleLeads, supabase, forwardAuth(req)).catch(err =>
       console.error('[Benchmark] Async runner error:', err)
     );
 
@@ -120,7 +121,8 @@ async function runBenchmarkAsync(
     apn?: string; contact_name?: string; contact_phone?: string;
     prospect_score?: number;
   }>,
-  supabase: Awaited<ReturnType<typeof createClient>>
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  auth: Record<string, string> = {}
 ) {
   const apiKey = process.env.PROPERTYREACH_API_KEY;
   const isConfigured = apiKey && apiKey !== 'your-propertyreach-api-key-here' && apiKey.trim() !== '';
@@ -173,7 +175,7 @@ async function runBenchmarkAsync(
         // Call PropertyReach in benchmark mode — hide known answer
         const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/enrichment/propertyreach`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...auth },
           body: JSON.stringify({
             leadId: lead.id,
             address: lead.address,

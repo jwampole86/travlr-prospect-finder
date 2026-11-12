@@ -1,3 +1,4 @@
+import { forwardAuth } from '@/lib/auth/forwardAuth';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
     try {
       const res = await fetch(`${origin}/api/leads/rapidapi-import`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...forwardAuth(request) },
         body: JSON.stringify({ provider: 'zillow-detail', urls: chunk }),
       });
       const data = await res.json().catch(() => ({}));

@@ -1,4 +1,4 @@
-import { guardAdmin } from '@/lib/auth/routeGuards';
+import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { estimateStrRevenue, STR_MODEL_VERSION } from '@/lib/strEstimate';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -209,7 +209,7 @@ interface RowResult {
 
 // ─── Main import handler ──────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  { const denied = await guardAdmin(req); if (denied) return denied; }
+  { const denied = await guardAdminOrJob(req); if (denied) return denied; }
   try {
     const body = await req.json();
     const { rows, importFilename, importedBy, importBatchId } = body as {

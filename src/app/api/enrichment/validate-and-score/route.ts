@@ -1,3 +1,4 @@
+import { forwardAuth } from '@/lib/auth/forwardAuth';
 import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
@@ -45,10 +46,10 @@ function throwIfError(error: { message: string } | null, label: string) {
   }
 }
 
-async function fetchValidation(baseUrl: string, payload: Record<string, unknown>) {
+async function fetchValidation(baseUrl: string, payload: Record<string, unknown>, auth: Record<string, string> = {}) {
   const response = await fetch(`${baseUrl}/api/ai/validate-enrichment`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...auth },
     body: JSON.stringify(payload),
   });
 
@@ -171,7 +172,7 @@ export async function POST(req: NextRequest) {
           ownerMailingCity: enrichment?.owner_mailing_city,
           ownerMailingState: enrichment?.owner_mailing_state,
         },
-      }),
+      }, forwardAuth(req)),
       fetchValidation(baseUrl, {
         type: 'market_comp',
         data: {
@@ -187,7 +188,7 @@ export async function POST(req: NextRequest) {
           source: lead.source,
           enrichedAt: enrichment?.last_enriched_at,
         },
-      }),
+      }, forwardAuth(req)),
     ]);
 
     const ownershipResult =

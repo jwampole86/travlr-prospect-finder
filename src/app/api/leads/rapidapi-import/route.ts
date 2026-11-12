@@ -1,3 +1,4 @@
+import { forwardAuth } from '@/lib/auth/forwardAuth';
 import { guardAdminOrJob } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -414,7 +415,7 @@ async function runImport(req: NextRequest) {
     const chunkBatchId = rows.length > CHUNK_SIZE ? `${importBatchId}-c${Math.floor(i / CHUNK_SIZE) + 1}` : importBatchId;
     const res = await fetch(`${origin}/api/leads/csv-import`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...forwardAuth(req) },
       body: JSON.stringify({
         rows: chunk,
         importFilename: `rapidapi-${provider}-live-import.json`,
