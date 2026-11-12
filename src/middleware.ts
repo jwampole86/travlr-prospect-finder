@@ -191,19 +191,33 @@ function carriesJobSecret(req: NextRequest): boolean {
   return secrets.some((s) => (header !== null && sameSecret(header, s)) || (bearer !== null && sameSecret(bearer, s)));
 }
 
-/** A real check with Supabase, not the presence of a cookie. Role checks stay in each route. */
-async function hasValidSession(req: NextRequest): Promise<boolean> {
+/**
+ * A real check with Supabase, not the presence of a cookie. If the access token had expired, Supabase refreshes it here; the new cookies must go
+ * on both the request (so the route behind us sees them) and the response (so the browser keeps them), or the refresh token is spent and the
+ * next refresh fails. Role checks stay in each route.
+ */
+async function checkSession(req: NextRequest): Promise<{ ok: boolean; response: NextResponse }> {
+  let response = NextResponse.next({ request: req });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) return false;
+  if (!url || !anon) return { ok: false, response };
   const auth = req.headers.get('authorization');
   const bearer = auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
   try {
-    const supabase = createServerClient(url, anon, { cookies: { getAll: () => req.cookies.getAll(), setAll: () => {} } });
+    const supabase = createServerClient(url, anon, {
+      cookies: {
+        getAll: () => req.cookies.getAll(),
+        setAll: (list) => {
+          list.forEach(({ name, value }) => req.cookies.set(name, value));
+          response = NextResponse.next({ request: req });
+          list.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        },
+      },
+    });
     const { data } = await supabase.auth.getUser(bearer);
-    return Boolean(data.user);
+    return { ok: Boolean(data.user), response };
   } catch {
-    return false;
+    return { ok: false, response };
   }
 }
 
@@ -221,7 +235,9 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith('/api/')) {
     const isAdminOnlyApi = ADMIN_ONLY_API_ROUTES.some(route => pathname.startsWith(route));
     if (isAdminOnlyApi && !PUBLIC_API_EXCEPTIONS.some((route) => pathname.startsWith(route))) {
-      if (carriesJobSecret(req) || (await hasValidSession(req))) return NextResponse.next();
+      if (carriesJobSecret(req)) return NextResponse.next();
+      const session = await checkSession(req);
+      if (session.ok) return session.response;
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
