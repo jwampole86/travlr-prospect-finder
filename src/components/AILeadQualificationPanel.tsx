@@ -377,6 +377,57 @@ export default function AILeadQualificationPanel({
             </div>
           )}
 
+          {/* Sale view: for-sale listings get seller motivation and proceeds; rentals get the rental-management angle */}
+          {result.saleAnalysis && (() => {
+            const sa = result.saleAnalysis;
+            const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
+            const tone = sa.motivationLabel === 'High' ? 'bg-emerald-100 text-emerald-800' : sa.motivationLabel === 'Medium' ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground';
+            return (
+              <div className="space-y-2.5 rounded-lg border border-border p-3" aria-label="Sale view">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-foreground">Sale view</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone}`}>
+                    {sa.motivationScore != null ? `${sa.motivationLabel} sale motivation · ${sa.motivationScore}/100` : sa.motivationLabel}
+                  </span>
+                </div>
+                <p className="text-xs leading-relaxed text-foreground">{sa.summary}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {sa.proceeds && (
+                    <div className="rounded-md bg-muted/40 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Seller would net (est.)</p>
+                      <p className="text-sm font-semibold text-foreground">{money(sa.proceeds.low)} – {money(sa.proceeds.high)}</p>
+                      <p className="text-[10px] text-muted-foreground">after {sa.proceeds.costPct}% selling costs; not a valuation</p>
+                    </div>
+                  )}
+                  {sa.history && (
+                    <div className="rounded-md bg-muted/40 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Last sale</p>
+                      <p className="text-sm font-semibold text-foreground">{money(sa.history.lastSoldPrice)} <span className="text-[11px] font-normal text-muted-foreground">on {sa.history.lastSoldDate}</span></p>
+                      <p className="text-[10px] text-muted-foreground">asking is {sa.history.changePct >= 0 ? '+' : ''}{sa.history.changePct}% from that{sa.priceCuts ? `, ${sa.priceCuts} price cut${sa.priceCuts === 1 ? '' : 's'}` : ''}</p>
+                    </div>
+                  )}
+                  <div className="rounded-md bg-muted/40 p-2 sm:col-span-2">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Best path</p>
+                    <p className="text-sm font-semibold text-foreground">{sa.path.label}</p>
+                    {sa.path.reasons.slice(0, 2).map((r, i) => <p key={i} className="text-[11px] text-muted-foreground">{r}</p>)}
+                    {sa.path.cautions.slice(0, 1).map((r, i) => <p key={`c${i}`} className="text-[11px] text-amber-700">{r}</p>)}
+                  </div>
+                </div>
+                {sa.motivationReasons.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {sa.motivationReasons.map((r, i) => <span key={i} className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{r}</span>)}
+                  </div>
+                )}
+                {sa.talkingPoints.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-semibold text-foreground">On the call</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">{sa.talkingPoints.map((t, i) => <li key={i}>{t}</li>)}</ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Footer */}
           <p className="text-[10px] text-muted-foreground/60 text-right">
             Powered by Claude · {new Date(result.qualifiedAt).toLocaleString()} · For agent context only

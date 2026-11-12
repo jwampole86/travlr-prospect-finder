@@ -4,6 +4,7 @@ import { requireLeadAccess } from '@/lib/auth/apiAuthorization';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { calculateProspectScore, leadRowToScoringInput, SCORING_LEAD_COLUMNS } from '@/lib/scoring/prospectScoring';
 import { loadScoreSignals } from '@/lib/services/leadScoreSignals';
+import { analyzeSale, type SaleAnalysis } from '@/lib/seller/saleAnalysis';
 
 /**
  * POST /api/ai/lead-qualification
@@ -93,6 +94,8 @@ export interface LeadQualificationResult {
   };
   recommendedAction: string;
   outreachPriority: 'immediate' | 'this_week' | 'next_cycle' | 'deprioritize';
+  /** The sale side of the lead: seller motivation, proceeds, price history and the best path (sale referral, short-term rental or both). */
+  saleAnalysis: SaleAnalysis;
   qualifiedAt: string;
   model: string;
 }
@@ -113,7 +116,7 @@ export async function POST(req: NextRequest) {
   if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const db = getSupabaseAdmin();
-  const { data: row } = await db.from('leads').select(`${SCORING_LEAD_COLUMNS},id,address,city,state,owner_name,sms_opt_in`).eq('id', body.leadId).maybeSingle();
+  const { data: row } = await db.from('leads').select(`${SCORING_LEAD_COLUMNS},id,address,city,state,owner_name,sms_opt_in,price_cut_count,last_sold_price,last_sold_date,listing_agent_name,listing_broker_name`).eq('id', body.leadId).maybeSingle();
   if (!row) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
 
   const [{ data: engRows }, signalMap] = await Promise.all([
@@ -164,7 +167,20 @@ export async function POST(req: NextRequest) {
     ruleBasedScore: baseline.score,
   };
 
-  let llm: Partial<LeadQualificationResult> & { qualificationScore?: number } | null = null;
+  const sale = analyzeSale({
+    priceType: forSale ? 'sale' : row.price_type === 'rent' ? 'rent' : 'unknown',
+    price: Number(row.price) || null, daysOnMarket: input.daysOnMarket ?? null,
+    priceCuts: row.price_cut_count != null ? Number(row.price_cut_count) : null,
+    lastSoldPrice: row.last_sold_price != null ? Number(row.last_sold_price) : null, lastSoldDate: row.last_sold_date ?? null,
+    ownerListed: row.is_fsbo ?? (row.listing_agent_name || row.listing_broker_name ? false : null),
+    regulation, estimatedNetMonthly: Number(row.estimated_net_monthly) || null, repliedYes: saidYes, declined,
+  });
+  (facts as Record<string, unknown>).saleView = {
+    motivationScore: sale.motivationScore, motivationLabel: sale.motivationLabel, reasons: sale.motivationReasons, proceeds: sale.proceeds,
+    priceHistory: sale.history, priceCuts: sale.priceCuts, bestPath: sale.path.label,
+  };
+
+  let llm: Partial<LeadQualificationResult> & { qualificationScore?: number; saleView?: { summary?: string; talkingPoints?: string[] } } | null = null;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (apiKey) {
     try {
@@ -172,7 +188,7 @@ export async function POST(req: NextRequest) {
         completion({
           model: 'claude-sonnet-4-6',
           messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: buildQualificationPrompt(facts) }],
-          stream: false, api_key: apiKey, temperature: 0.15, max_tokens: 900,
+          stream: false, api_key: apiKey, temperature: 0.15, max_tokens: 1300,
         } as any),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 25_000)),
       ]);
@@ -222,6 +238,13 @@ export async function POST(req: NextRequest) {
       : declined ? 'Do not contact. Leave them alone unless they reach out.'
       : llm?.recommendedAction || 'Continue the text campaign and call when they respond.',
     outreachPriority: declined || blocked ? 'deprioritize' : engaged ? 'immediate' : priorityOf(score),
+    saleAnalysis: {
+      ...sale,
+      // Claude's wording replaces the plain summary and talking points when it gave usable ones; every figure stays the computed one.
+      summary: declined ? sale.summary : typeof llm?.saleView?.summary === 'string' && llm.saleView.summary.trim() ? llm.saleView.summary.trim().slice(0, 420) : sale.summary,
+      talkingPoints: declined ? [] : Array.isArray(llm?.saleView?.talkingPoints) && llm!.saleView!.talkingPoints!.some((t) => typeof t === 'string' && t.trim())
+        ? llm!.saleView!.talkingPoints!.filter((t) => typeof t === 'string' && t.trim()).slice(0, 3).map((t) => t.slice(0, 240)) : sale.talkingPoints,
+    },
     qualifiedAt: new Date().toISOString(),
     model: llm ? 'claude-sonnet-4-6 + AVYRO AI rules' : 'AVYRO AI rules',
   };
@@ -247,6 +270,8 @@ WHAT MAKES A LEAD QUALIFIED, in order of importance:
 4. Contact information is verified and reachable.
 5. The home has usable revenue potential.
 
+SALE VIEW: the same owners are often selling, so also give a sale-facing view. AVYRO does not list or sell homes. It introduces an owner who wants to sell to a licensed partner broker, and it can also manage the home as a short-term rental. For a for-sale listing, use saleView facts (motivation, price cuts, days on market, price history, proceeds) to say whether the owner looks ready to sell, and which path fits: a sale referral, short-term rental, or both. For a for-rent listing, the main conversation is rental management and a sale is a longer-term angle. If saleView.bestPath is "Already Listed – Buyer Side Only" the home is listed with an agent: the sale stays with the listing broker, so never suggest asking to list it, replacing their broker, or a seller referral; only short-term rental management, and a buyer introduction if a real buyer exists. Never state or imply a sale price, valuation, or that a sale will happen; proceeds are an estimate after selling costs. Never give legal, tax or financial advice.
+
 Without any response, use the rule-based score as your anchor and move it by at most 15 points based on the facts.
 
 Respond with valid JSON only, no markdown.`;
@@ -264,7 +289,8 @@ Return exactly:
   "reasoning": "<2-3 sentences citing specific facts, including any reply from the owner>",
   "keySignals": { "positive": ["..."], "negative": ["..."], "neutral": ["..."] },
   "scoreBreakdown": { "ownerTenureSignal": <0-25>, "propertyFitSignal": <0-25>, "responseEngagementSignal": <0-25>, "regulatoryFeasibility": <0-25> },
-  "recommendedAction": "<specific next step for the agent>"
+  "recommendedAction": "<specific next step for the agent>",
+  "saleView": { "summary": "<2 sentences: how ready this owner looks to sell (or why not), and the best path>", "talkingPoints": ["<up to 3 short things to say or ask on the call, from the facts>"] }
 }
 
 Rules: never mention the listing being for sale as a weakness; if the owner replied YES or asked for contact, the score is at least 85; if the data is thin say so in confidence rather than lowering the score; do not invent facts.`;
