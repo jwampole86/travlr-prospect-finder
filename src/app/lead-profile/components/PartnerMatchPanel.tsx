@@ -10,7 +10,8 @@ import type { PartnerCandidate } from '@/lib/seller/partnerDiscovery';
 
 type Referral = { id: string; partner_id: string; status: ReferralStatus; sent_at: string; status_at: string; fee_percent: number | null; protection_ends_at: string | null; payee_name_snapshot: string | null; payment_method_snapshot: string | null; fee_status: string };
 type Listing = { forSale: boolean; brokerage: string | null; agent: string | null; phone: string | null; mls: string | null; mlsSource: string | null; ownerListed: boolean };
-type Match = { listing?: Listing | null; alreadyListed?: { label: string; reason: string | null; explanation: string }; state: string | null; stateBlockers: string[]; suggestions: Array<{ id: string; name: string; score: number; reasons: string[] }>; rejected: Array<{ id: string; name: string; why: string[] }>; needsPartner: boolean };
+type InState = { id: string; name: string; brokerage: string | null; phone: string | null; email: string | null; licenseVerified: boolean; acceptsReferrals: string; agreementOnFile: boolean };
+type Match = { partnersInState?: InState[]; listing?: Listing | null; alreadyListed?: { label: string; reason: string | null; explanation: string }; state: string | null; stateBlockers: string[]; suggestions: Array<{ id: string; name: string; score: number; reasons: string[] }>; rejected: Array<{ id: string; name: string; why: string[] }>; needsPartner: boolean };
 type Partner = { id: string; name: string };
 
 async function call<T>(url: string, init?: { method?: string; body?: unknown }): Promise<T> {
@@ -179,6 +180,21 @@ export default function PartnerMatchPanel({ leadId, city }: { leadId: string; ci
           <p className="mt-1">{match.alreadyListed.explanation}</p>
           <p className="mt-2 font-medium">Alternative: match them with a buyer</p>
           <p className="mt-0.5">When you have an interested buyer, introduce them to a licensed buyer&rsquo;s agent in {match.state ?? 'this state'}. Find candidates below, then add the best fit to your recruiting list.</p>
+          {(match.partnersInState?.length ?? 0) > 0 && (
+            <div className="mt-2 rounded-md border border-amber-200 bg-white p-2 text-amber-950">
+              <p className="font-medium">Your partners licensed in {match.state}</p>
+              <ul className="mt-1 space-y-1">
+                {match.partnersInState!.map((p) => (
+                  <li key={p.id} className="break-words">
+                    <span className="font-medium">{p.name}</span>{p.brokerage && p.brokerage !== p.name ? ` · ${p.brokerage}` : ''}
+                    <span className="text-amber-800"> · license {p.licenseVerified ? 'verified' : 'not verified'} · referrals {p.acceptsReferrals} · agreement {p.agreementOnFile ? 'on file' : 'not on file'}</span>
+                    {p.phone && <> · <a className="underline" href={`tel:${p.phone.replace(/[^\d+]/g, '')}`}>{p.phone}</a></>}
+                    {p.email && <> · <a className="break-all underline" href={`mailto:${p.email}`}>{p.email}</a></>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {match.state && (
             <button disabled={busy !== null} onClick={() => findBrokers(match.state!, 'buyer')} className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50">
               {busy === 'find' ? <Loader2 className="animate-spin" size={13} /> : <Search size={13} />} {found && foundFocus === 'buyer' ? 'Search again' : `Find buyer's agents in ${city ? `${city}, ` : ''}${match.state}`}

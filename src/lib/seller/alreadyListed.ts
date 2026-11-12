@@ -22,22 +22,30 @@ export interface ListingFacts {
   mls_source_name?: string | null;
   listing_active?: boolean | null;
   listing_status?: string | null;
+  notes?: string | null;
 }
 
 const OFF_MARKET = /sold|off.?market|removed|expired|withdrawn|cancel|closed/i;
+
+/** Zillow imports keep the listing brokerage in the lead notes ("... | Broker: Collier & Associates- Rogers Branch") when it was not saved as a field. */
+export function brokerFromNotes(notes: string | null | undefined): string | null {
+  const m = /(?:^|\|)\s*Broker:\s*([^|\n]+)/i.exec(String(notes ?? ''));
+  const name = m?.[1]?.trim();
+  return name && name.length >= 2 ? name : null;
+}
 
 export function alreadyListed(lead: ListingFacts | null | undefined): { flag: boolean; label: string; reason: string | null } {
   const none = { flag: false, label: ALREADY_LISTED_LABEL, reason: null };
   if (!lead || String(lead.price_type ?? '').toLowerCase() !== 'sale') return none;
   if (lead.is_fsbo === true) return none;
-  if (lead.listing_active === false || OFF_MARKET.test(String(lead.listing_status ?? ''))) return none;
-  const who = [lead.listing_agent_name, lead.listing_broker_name].find((v) => typeof v === 'string' && v.trim());
+  if (OFF_MARKET.test(String(lead.listing_status ?? ''))) return none;
+  const who = [lead.listing_agent_name, lead.listing_broker_name, brokerFromNotes(lead.notes)].find((v) => typeof v === 'string' && v.trim());
   if (who) return { flag: true, label: ALREADY_LISTED_LABEL, reason: `Listed with ${String(who).trim()}.` };
   if (typeof lead.mls_number === 'string' && lead.mls_number.trim()) return { flag: true, label: ALREADY_LISTED_LABEL, reason: `On the MLS (${lead.mls_number.trim()}).` };
   return none;
 }
 
-export const LISTING_COLUMNS = 'price_type,is_fsbo,listing_agent_name,listing_agent_phone,listing_broker_name,listing_broker_phone,mls_number,mls_source_name,listing_active,listing_status';
+export const LISTING_COLUMNS = 'price_type,is_fsbo,listing_agent_name,listing_agent_phone,listing_broker_name,listing_broker_phone,mls_number,mls_source_name,listing_active,listing_status,notes';
 
 export interface CurrentListing {
   /** True for a for-sale home that is on the market. */
@@ -56,8 +64,8 @@ const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : nul
 export function currentListing(lead: ListingFacts | null | undefined): CurrentListing | null {
   if (!lead || String(lead.price_type ?? '').toLowerCase() !== 'sale') return null;
   return {
-    forSale: lead.listing_active !== false && !OFF_MARKET.test(String(lead.listing_status ?? '')),
-    brokerage: text(lead.listing_broker_name), agent: text(lead.listing_agent_name),
+    forSale: !OFF_MARKET.test(String(lead.listing_status ?? '')),
+    brokerage: text(lead.listing_broker_name) ?? brokerFromNotes(lead.notes), agent: text(lead.listing_agent_name),
     phone: text(lead.listing_broker_phone) ?? text(lead.listing_agent_phone),
     mls: text(lead.mls_number), mlsSource: text(lead.mls_source_name), ownerListed: lead.is_fsbo === true,
   };

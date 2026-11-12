@@ -3,7 +3,7 @@ import { fail, sellerContext } from '@/lib/seller/api';
 import { ALREADY_LISTED_EXPLANATION, alreadyListed, currentListing, LISTING_COLUMNS } from '@/lib/seller/alreadyListed';
 import { matchPartners, type MatchPartner, type MatchStats } from '@/lib/seller/partnerMatch';
 import { isFinal, scorePartner, type ReferralStatus } from '@/lib/seller/partnerReferrals';
-import { stateBlockers } from '@/lib/seller/stateActivation';
+import { partnerCoversState, stateBlockers } from '@/lib/seller/stateActivation';
 
 /** GET ?lead_id= ranks the signed partners who can take this lead, and says why each of the others cannot. */
 export async function GET(req: NextRequest) {
@@ -36,7 +36,12 @@ export async function GET(req: NextRequest) {
   const { data: activation } = state ? await aq.maybeSingle() : { data: null };
   const listed = alreadyListed(lead);
   const listing = currentListing(lead);
-  if (listed.flag) return NextResponse.json({ state, listing, stateBlockers: [], suggestions: [], rejected: [], needsPartner: false, alreadyListed: { label: listed.label, reason: listed.reason, explanation: ALREADY_LISTED_EXPLANATION } });
+  // For a listed property the sale stays with the listing broker, so the options are the partners already licensed in this state who could represent a buyer.
+  const inState = listed.flag && state
+    ? (partners ?? []).filter((p) => p.relationship_status !== 'paused' && !p.do_not_assign && partnerCoversState(p as never, state)).slice(0, 6)
+        .map((p) => ({ id: p.id, name: p.name, brokerage: p.brokerage ?? null, phone: p.contact_phone ?? null, email: p.contact_email ?? null, licenseVerified: p.license_status === 'verified', acceptsReferrals: p.accepts_referrals ?? 'unknown', agreementOnFile: !!p.agreement_on_file }))
+    : [];
+  if (listed.flag) return NextResponse.json({ state, listing, partnersInState: inState, stateBlockers: [], suggestions: [], rejected: [], needsPartner: false, alreadyListed: { label: listed.label, reason: listed.reason, explanation: ALREADY_LISTED_EXPLANATION } });
   return NextResponse.json({
     state, listing, stateBlockers: stateBlockers(activation, state),
     suggestions: result.suggestions.map((s) => ({ id: s.partner.id, name: s.partner.name, score: s.score, reasons: s.reasons })),

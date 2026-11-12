@@ -525,6 +525,7 @@ function normalizeZillowSearchResult(raw: ZillowSearchResultRaw, queriedStatus?:
     listingStatus: isSold ? 'sold' : 'for_sale',
     sqftText: raw.living_area ? `${raw.living_area} sqft` : undefined,
     listingUrl: raw.url,
+    listingBrokerName: raw.broker_name || undefined,
     notes: [raw.status_text, raw.broker_name ? `Broker: ${raw.broker_name}` : null].filter(Boolean).join(' | '),
   };
 }
