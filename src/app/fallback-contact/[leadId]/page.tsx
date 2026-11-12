@@ -1,6 +1,7 @@
 'use client';
 
-import { forSaleListingMessage } from '@/lib/forSaleOutreach';
+import { alreadyListedOutreachMessage, forSaleListingMessage } from '@/lib/forSaleOutreach';
+import { alreadyListed } from '@/lib/seller/alreadyListed';
 import { outreachBrandFor } from '@/lib/brands';
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -60,10 +61,11 @@ function getSourceDisplayName(source: string): string {
   return source;
 }
 
-function buildOutreachMessage(address: string, city: string, state: string, sourceName: string, priceType?: string | null): string {
+function buildOutreachMessage(address: string, city: string, state: string, sourceName: string, priceType?: string | null, listed = false): string {
   const brandName = outreachBrandFor(priceType).name; // NAVEO Stays for a home for rent, NAVEO Homes for one for sale
   const fullAddress = [address, city, state].filter(Boolean).join(', ');
-  if (outreachBrandFor(priceType).key === 'homes') return forSaleListingMessage(fullAddress);
+  // A for-sale home listed with a broker gets the rental-only message: the sale stays with the listing broker.
+  if (outreachBrandFor(priceType).key === 'homes') return listed ? alreadyListedOutreachMessage({ address: fullAddress }) : forSaleListingMessage(fullAddress);
   return `Hi! I came across your listing at ${fullAddress} and wanted to reach out — I'm with ${brandName}, a property management company. If you're ever curious what ${address} could earn as a managed vacation rental, here's a free instant estimate, no strings attached:\n\nhttps://avyropro.ai/estimate`;
 }
 
@@ -87,7 +89,7 @@ export default function FallbackContactPage() {
       try {
         const { data, error } = await supabase
           .from('leads')
-          .select('id, address, city, state, zip, source, listing_url, beds, baths, price, price_type')
+          .select('id, address, city, state, zip, source, listing_url, beds, baths, price, price_type, is_fsbo, listing_agent_name, listing_broker_name, mls_number, notes')
           .eq('id', leadId)
           .single();
         if (error || !data) throw error;
@@ -152,7 +154,7 @@ export default function FallbackContactPage() {
 
   const handleCopyMessage = async () => {
     if (!lead) return;
-    const msg = buildOutreachMessage(lead.address, lead.city, lead.state, lead.source, (lead as { price_type?: string | null }).price_type);
+    const msg = buildOutreachMessage(lead.address, lead.city, lead.state, lead.source, (lead as { price_type?: string | null }).price_type, alreadyListed(lead as never).flag);
     try {
       await navigator.clipboard.writeText(msg);
       setCopiedMessage(true);
@@ -201,7 +203,7 @@ export default function FallbackContactPage() {
 
   const fullAddress = [lead.address, lead.city, lead.state, lead.zip].filter(Boolean).join(', ');
   const sourceName = getSourceDisplayName(lead.source);
-  const outreachMessage = buildOutreachMessage(lead.address, lead.city, lead.state, lead.source, (lead as { price_type?: string | null }).price_type);
+  const outreachMessage = buildOutreachMessage(lead.address, lead.city, lead.state, lead.source, (lead as { price_type?: string | null }).price_type, alreadyListed(lead as never).flag);
   const searchUrl = getPropertyListingUrl(null, lead.address, lead.city, lead.state, lead.zip, lead.source);
 
   return (

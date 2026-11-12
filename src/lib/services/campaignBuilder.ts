@@ -87,7 +87,7 @@ export async function audienceCandidates(db: Db, audience: string, orgId: string
   const recent = await recentlyTexted(db, orgId);
   const blocked = new Set<string>();
   for (let i = 0; i < out.length; i += 100) {
-    const { data, error } = await db.from('leads').select('id, organization_id, contact_phone, owner_name, contact_name, verified_owner, price_type, listing_agent_name, listing_broker_name').in('id', out.slice(i, i + 100).map(c => c.id));
+    const { data, error } = await db.from('leads').select('id, organization_id, contact_phone, owner_name, contact_name, verified_owner, price_type, listing_agent_name, listing_broker_name, is_fsbo, mls_number, listing_status').in('id', out.slice(i, i + 100).map(c => c.id));
     if (error) throw error;
     for (const l of data ?? []) {
       const ph = phoneKey(l.contact_phone); const ok = ownerKey(l.owner_name);

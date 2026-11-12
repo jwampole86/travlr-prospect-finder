@@ -28,6 +28,15 @@ export function forSaleOutreachMessage(opts: { address: string; agentFirstName?:
   return `Hi — ${who}. Reaching out about ${opts.address}. ${FOR_SALE_PITCH}\n${FOR_SALE_ASK}\n— ${opts.agentFirstName || 'NAVEO Homes'}`;
 }
 
+/**
+ * The one-to-one message for a for-sale home that is already listed with a broker. The sale stays with the listing broker, so nothing here offers to
+ * sell, list or refer the sale; it only offers the rental side (NAVEO Stays) while the home is on the market, and ends on one simple ask.
+ */
+export function alreadyListedOutreachMessage(opts: { address: string; agentFirstName?: string }): string {
+  const who = opts.agentFirstName ? `This is ${opts.agentFirstName} with NAVEO Stays` : 'NAVEO Stays here';
+  return `Hi — ${who}. Reaching out about ${opts.address}. If the home will sit empty while it's listed, we may be able to run it as a short-term rental in the meantime.\n${FOR_SALE_ASK}\n— ${opts.agentFirstName || 'NAVEO Stays'}`;
+}
+
 /** Short opener used in the lead panel and the fallback page, which already say which listing they came across. */
 export function forSaleListingMessage(address: string, agentFirstName?: string): string {
   return forSaleOutreachMessage({ address, agentFirstName });

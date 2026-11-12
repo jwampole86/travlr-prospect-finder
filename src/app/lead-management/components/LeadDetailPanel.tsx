@@ -1,6 +1,7 @@
 'use client';
 
-import { forSaleListingMessage } from '@/lib/forSaleOutreach';
+import { alreadyListedOutreachMessage, forSaleListingMessage } from '@/lib/forSaleOutreach';
+import { alreadyListed } from '@/lib/seller/alreadyListed';
 import { outreachBrandFor } from '@/lib/brands';
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Lead, LeadStage } from '@/data/mockLeads';
@@ -192,7 +193,10 @@ function PlatformMessageModal({ lead, onClose }: { lead: Lead; onClose: () => vo
 
   const brandName = outreachBrandFor(lead.priceType).name;
   // For a home for sale the message is about selling through NAVEO Homes (no estimate link, no management pitch).
-  const messageTemplate = lead.priceType === 'sale'
+  // A home listed with a broker (named in the lead notes) gets the rental-only message: the sale stays with the listing broker.
+  const messageTemplate = lead.priceType === 'sale' && alreadyListed({ price_type: lead.priceType, notes: lead.notes }).flag
+    ? alreadyListedOutreachMessage({ address: lead.address })
+    : lead.priceType === 'sale'
     ? forSaleListingMessage(lead.address)
     : `Hi! I came across your listing at ${lead.address} and wanted to reach out — I'm with ${brandName}, a property management company. If you're ever curious what ${lead.address} could earn as a managed vacation rental, here's a free instant estimate, no strings attached: ${estimateUrl}`;
 

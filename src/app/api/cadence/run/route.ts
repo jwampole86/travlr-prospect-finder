@@ -1,3 +1,4 @@
+import { alreadyListed } from '@/lib/seller/alreadyListed';
 import { NextRequest, NextResponse } from 'next/server';
 import { HOMES_CADENCE_EMAIL, HOMES_CADENCE_SMS } from '@/lib/forSaleOutreach';
 import { outreachBrandFor } from '@/lib/brands';
@@ -105,12 +106,19 @@ export async function POST(req: NextRequest) {
         // Load lead for opt-in check and personalization
         const { data: lead } = await supabase
           .from('leads')
-          .select('id, first_name, last_name, address, email, phone, sms_opt_in, email_opt_in, do_not_contact, stage, price_type')
+          .select('id, first_name, last_name, address, email, phone, sms_opt_in, email_opt_in, do_not_contact, stage, price_type, is_fsbo, listing_agent_name, listing_broker_name, mls_number, listing_status')
           .eq('id', enrollment.lead_id)
           .single();
 
         if (!lead || lead.do_not_contact) {
           await supabase.from('cadence_enrollments').update({ status: 'paused' }).eq('id', enrollment.id);
+          continue;
+        }
+
+        // A for-sale home listed with a broker is not sent the sale sequence: the sale stays with the listing broker.
+        if (alreadyListed(lead).flag) {
+          await supabase.from('cadence_enrollments').update({ status: 'paused' }).eq('id', enrollment.id);
+          await logSend(supabase, { enrollment_id: enrollment.id, lead_id: lead.id, sequence_id: enrollment.sequence_id, step_number: enrollment.current_step, channel: currentStep.channel, status: 'skipped_already_listed' });
           continue;
         }
 

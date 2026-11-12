@@ -1,3 +1,4 @@
+import { alreadyListed } from '@/lib/seller/alreadyListed';
 import 'server-only';
 import { outreachBrandFor } from '@/lib/brands';
 import { isProtectedContact } from '@/lib/protectedContacts';
@@ -35,7 +36,7 @@ export const STATE_TZ: Record<string, string> = {
   WY: 'America/Denver',
 };
 
-export const LEAD_COLUMNS = 'id,address,city,state,zip,owner_name,contact_name,contact_phone,verified_owner,verified_number,source,sms_opt_in,sms_opted_out_at,program,listing_url,price_type,listing_agent_name,listing_broker_name';
+export const LEAD_COLUMNS = 'id,address,city,state,zip,owner_name,contact_name,contact_phone,verified_owner,verified_number,source,sms_opt_in,sms_opted_out_at,program,listing_url,price_type,listing_agent_name,listing_broker_name,is_fsbo,mls_number,listing_status';
 
 export interface OutreachLead {
   id: string; address: string | null; city: string | null; state: string | null; zip: string | null;
@@ -44,6 +45,7 @@ export interface OutreachLead {
   sms_opted_out_at: string | null;
   program?: string | null;
   price_type?: string | null; listing_agent_name?: string | null; listing_broker_name?: string | null;
+  is_fsbo?: boolean | null; mls_number?: string | null; listing_status?: string | null;
 }
 
 export type Blocker =
@@ -127,8 +129,9 @@ function footer(url: string): string {
  * The greeting uses a name only for a verified owner; skip-traced names may belong to a tenant, so those leads get "Hi there".
  * Returns why a lead is out, or null when they fit.
  */
-export function campaignFitReason(lead: OutreachLead): 'for_sale' | 'not_a_rental' | 'agent_listed' | null {
-  if (lead.price_type === 'sale') return 'for_sale';
+export function campaignFitReason(lead: OutreachLead): 'for_sale' | 'already_listed' | 'not_a_rental' | 'agent_listed' | null {
+  // A for-sale home listed with a broker is never texted the sale pitch, even in a campaign opened to for-sale homes: the sale stays with the listing broker.
+  if (lead.price_type === 'sale') return alreadyListed(lead).flag ? 'already_listed' : 'for_sale';
   if (lead.price_type !== 'rent') return 'not_a_rental';
   if (lead.listing_agent_name?.trim() || lead.listing_broker_name?.trim()) return 'agent_listed';
   return null;

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { forSaleListingMessage, forSaleOutreachMessage, HOMES_CADENCE_SMS } from './forSaleOutreach';
+import { alreadyListedOutreachMessage, forSaleListingMessage, forSaleOutreachMessage, HOMES_CADENCE_SMS } from './forSaleOutreach';
+
+describe('the message for a home that is already listed with a broker', () => {
+  it('offers only the rental side and never the sale', () => {
+    const m = alreadyListedOutreachMessage({ address: '12412 Wildwood Dr, Rogers, AR 72756', agentFirstName: 'Jen' });
+    expect(m).toBe("Hi — This is Jen with NAVEO Stays. Reaching out about 12412 Wildwood Dr, Rogers, AR 72756. If the home will sit empty while it's listed, we may be able to run it as a short-term rental in the meantime.\nWorth a short conversation?\n— Jen");
+    expect(m).not.toMatch(/sale is on the table|licensed local broker|NAVEO Homes/);
+  });
+});
 
 describe('the one-to-one message for a home for sale', () => {
   const m = forSaleOutreachMessage({ address: '4105 E Bujia Segunda, Tucson, AZ 85718', agentFirstName: 'Jen' });

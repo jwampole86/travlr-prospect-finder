@@ -1,6 +1,7 @@
 'use client';
 
-import { forSaleOutreachMessage } from '@/lib/forSaleOutreach';
+import { alreadyListedOutreachMessage, forSaleOutreachMessage } from '@/lib/forSaleOutreach';
+import { alreadyListed } from '@/lib/seller/alreadyListed';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useRouter } from 'next/navigation';
@@ -1030,7 +1031,11 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
   const variant = msgVariants[variantIdx];
   // The message is from the NAVEO that matches the property: Stays for a home for rent, Homes for one for sale (not pitched rental income).
   const outreachBrand = outreachBrandFor(lead.priceType);
-  const outreachMessage = outreachBrand.key === 'homes'
+  // A for-sale home listed with a broker gets the rental-only message: the sale stays with the listing broker.
+  const listedWithBroker = outreachBrand.key === 'homes' && alreadyListed({ price_type: lead.priceType, is_fsbo: extra.is_fsbo, listing_agent_name: extra.listing_agent_name, listing_broker_name: extra.listing_broker_name, mls_number: extra.mls_number, listing_status: extra.listing_status, notes: lead.notes }).flag;
+  const outreachMessage = listedWithBroker
+    ? alreadyListedOutreachMessage({ address: propertyAddress, agentFirstName })
+    : outreachBrand.key === 'homes'
     ? forSaleOutreachMessage({ address: propertyAddress, agentFirstName })
     : `${variant.opening} I'm with ${outreachBrand.name}, a property management company. ${variant.cta}\navyropro.ai/estimate\nYou can also learn more about us at avyropro.ai. Happy to answer any questions!\n— ${agentFirstName}, ${outreachBrand.name}`;
 
