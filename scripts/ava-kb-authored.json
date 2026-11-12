@@ -955,6 +955,25 @@
       "answer": "The Co-Host pipeline tracks owners who already list a short-term rental, in these stages: Identified, Reviewed, Contacted, Replied, Audit sent, Meeting, Agreed and Onboarded, plus Declined and Not a fit. Sending the first email or text to an Identified or Reviewed owner moves them to Contacted, and an owner who answers moves from Identified, Reviewed or Contacted to Replied. An owner marked Declined or Not a fit is blocked: no email or text can be sent to them. A person moves an owner between the other stages from the stage menu on the Co-Host screen. This pipeline is separate from the seller opportunity stages and from the partner referral statuses.",
       "source": "NAVEO sites and AVYRO",
       "kind": "guide"
+    },
+    {
+      "id": "already-listed-buyer-side",
+      "title": "What does Already Listed – Buyer Side Only mean, and can I send an agent-listed property to a partner broker?",
+      "keywords": [
+        "already listed",
+        "buyer side only",
+        "agent listed",
+        "listed with an agent",
+        "listing agreement",
+        "seller referral",
+        "replace their broker",
+        "buyer introduction",
+        "buyer's agent"
+      ],
+      "answer": "A property that is for sale and listed with an agent or broker is marked Already Listed – Buyer Side Only. Its sale stays with the listing broker, so AVYRO does not suggest a partner for it and will not send it to a partner as a seller referral: the Partner broker panel shows the label instead and the Send step is blocked. Do not contact the owner to list the property or to replace their broker. What you can do: offer short-term rental management through NAVEO Stays if the property is eligible, which runs on its own; and only when you have an identified, interested buyer, introduce that buyer to a licensed buyer's agent in the property's state under a written referral agreement, with the partner paying a referral fee only after they collect their own commission. Homes the owner is selling without an agent are not covered by this rule, and a referral to a licensed partner broker is still the normal path there. This is an operating rule, not legal advice: counsel should confirm it for each state.",
+      "source": "Seller & owner services",
+      "route": "/seller-pipeline",
+      "kind": "guide"
     }
   ]
 }

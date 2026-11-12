@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ALREADY_LISTED_LABEL, alreadyListed, LISTING_COLUMNS } from '@/lib/seller/alreadyListed';
 import { fail, sellerContext } from '@/lib/seller/api';
 import { REFERRAL_STATUSES, canMoveTo, commercialBlockers, referralBlockers, scorePartner, type ReferralStatus } from '@/lib/seller/partnerReferrals';
 import { partnerCoversState, stateBlockers } from '@/lib/seller/stateActivation';
@@ -64,7 +65,9 @@ export async function POST(req: NextRequest) {
   else if ((await authorizationFor(ctx.db, leadId, 'partner_sharing')).status !== 'authorized') blockers.push("The owner's permission to share their details with a partner is not recorded.");
 
   // The property's state must be cleared by counsel, and the partner must be licensed there.
-  const { data: lead } = await ctx.db.from('leads').select('state').eq('id', leadId).maybeSingle();
+  const { data: lead } = await ctx.db.from('leads').select(`state,${LISTING_COLUMNS}`).eq('id', leadId).maybeSingle();
+  const listed = alreadyListed(lead);
+  if (listed.flag) blockers.push(`${ALREADY_LISTED_LABEL}: ${listed.reason ?? 'the home is listed with an agent.'} Seller-side referrals are not used on a home that is already listed.`);
   const state = typeof lead?.state === 'string' ? lead.state.toUpperCase() : null;
   let sq = ctx.db.from('state_activation').select('*').eq('state', state ?? '');
   if (ctx.orgId) sq = sq.eq('organization_id', ctx.orgId);
