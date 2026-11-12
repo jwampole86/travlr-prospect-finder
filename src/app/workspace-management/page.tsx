@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, Building2, CheckCircle2, Clock3, MapPin, Shield, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import PendingApprovals from './PendingApprovals';
 import AppLayout from '@/components/AppLayout';
 import { ErrorBanner, LoadingState, PageHeader, SegmentedTabs, StatGrid } from '@/components/ops';
 import { useAuth } from '@/contexts/AuthContext';
@@ -282,6 +283,8 @@ export default function WorkspaceManagementPage() {
           title="Workspace Management"
           description="Modernized member administration backed by real user, invite, activity, and portfolio data."
         />
+
+        <PendingApprovals />
 
         {error && <ErrorBanner message={error} onRetry={loadData} />}
 

@@ -1,3 +1,4 @@
+import { guardStaff } from '@/lib/auth/routeGuards';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSMSStatus, isTwilioConfigured } from '@/lib/services/twilioService';
@@ -9,6 +10,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
  * Body: { messageSid: string, outreachHistoryId?: string }
  */
 export async function POST(req: NextRequest) {
+  { const denied = await guardStaff(req); if (denied) return denied; }
   try {
     const { messageSid, outreachHistoryId } = await req.json();
 

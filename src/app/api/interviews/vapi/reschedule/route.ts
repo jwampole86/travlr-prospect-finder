@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { displayLocalDateTime, localDateTimeParts, localDateTimeToUtc, resolveInterviewTimezone } from '@/lib/interviewScheduling';
@@ -9,8 +10,8 @@ function extractCallId(body: any) {
 function authorized(request: NextRequest) {
   const configured = process.env.VAPI_TOOL_SECRET || process.env.VAPI_WEBHOOK_SECRET;
   if (!configured) return false;
-  const supplied = request.headers.get('x-vapi-secret') || request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  return supplied === configured;
+  const supplied = request.headers.get('x-vapi-secret') || request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || '';
+  return supplied.length > 0 && supplied.length === configured.length && timingSafeEqual(Buffer.from(supplied), Buffer.from(configured));
 }
 
 export async function POST(request: NextRequest) {

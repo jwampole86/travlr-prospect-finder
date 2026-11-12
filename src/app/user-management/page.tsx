@@ -638,6 +638,9 @@ export default function UserManagementPage() {
   return (
     <AppLayout>
       <div className="flex flex-col h-full">
+        <div role="note" className="shrink-0 border-b border-amber-300 bg-amber-50 px-6 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
+          <strong>Sample data.</strong> The people listed here are examples, not your team. Manage real members, invites and approvals in Workspace Management.
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0">
           <div className="flex items-center gap-3">

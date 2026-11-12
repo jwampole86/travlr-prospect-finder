@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireApiActor } from '@/lib/auth/apiAuthorization';
 
 
 // ─── GET /api/agent/commission-payout ────────────────────────────────────────
@@ -11,22 +12,11 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
 
-    // Verify session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
-
-    // Load role from user_profiles (authoritative source)
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('app_role')
-      .eq('id', userId)
-      .single();
-
-    const role = profile?.app_role ?? session.user.user_metadata?.role ?? 'agent';
+    const auth = await requireApiActor(req);
+    if (!auth.actor) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    const userId = auth.actor.user.id;
+    const role = auth.actor.role;
+    if (role !== 'agent' && !auth.actor.isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     if (role === 'agent') {
       // ── Agent: return only their own commission payout data ──────────────
@@ -54,10 +44,9 @@ export async function GET(req: NextRequest) {
     }
 
     // ── Admin/Owner: return full financial data ───────────────────────────
-    const { data: portfolioRevenue } = await supabase
-      .from('leads')
-      .select('estimated_net_monthly, stage')
-      .eq('stage', 'Live');
+    let liveQuery = supabase.from('leads').select('estimated_net_monthly, stage').eq('stage', 'Live');
+    if (auth.actor.organizationId) liveQuery = liveQuery.eq('organization_id', auth.actor.organizationId);
+    const { data: portfolioRevenue } = await liveQuery;
 
     const liveRevenue = (portfolioRevenue ?? []).reduce(
       (sum: number, l: any) => sum + (l.estimated_net_monthly ?? 0),

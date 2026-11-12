@@ -90,6 +90,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // New sign-ups waiting for a role.
+    const { count: waiting } = await db.from('user_profiles').select('id', { count: 'exact', head: true }).eq('app_role', 'pending').neq('is_active', false);
+    if ((waiting ?? 0) > 0) {
+      await emit({ key: `pending-approval:${mountainDay()}:${waiting}`, type: 'warning', severity: 'warning', title: `${waiting} account${waiting === 1 ? '' : 's'} waiting for approval`, message: 'Open Workspace Management to approve or decline.', metadata: { href: '/workspace-management' } }, 24 * HOUR);
+    }
+
     // Scheduled jobs that failed in the last half hour.
     const { data: failed } = await db.from('cron_job_runs').select('job_name,errors,started_at').eq('status', 'failed').gte('started_at', new Date(now - 30 * 60_000).toISOString()).limit(20);
     for (const f of failed ?? []) {

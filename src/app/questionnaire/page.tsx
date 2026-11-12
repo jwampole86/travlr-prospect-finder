@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { useSearchParams } from 'next/navigation';
 import {
   Home, Shield, MapPin, DollarSign, Phone, CheckCircle2, ChevronRight,
@@ -104,7 +103,6 @@ function YesNoField({ label, description, value, onChange }: {
 export default function QuestionnairePublicPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
-  const supabase = createClient();
 
   const [questionnaire, setQuestionnaire] = useState<QuestionnaireData | null>(null);
   const [regulationRules, setRegulationRules] = useState<RegulationRule[]>([]);
@@ -119,30 +117,18 @@ export default function QuestionnairePublicPage() {
   useEffect(() => {
     if (!token) { setLoading(false); setNotFound(true); return; }
     const fetchQuestionnaire = async () => {
-      const { data, error } = await supabase
-        .from('homeowner_questionnaires')
-        .select('*')
-        .eq('unique_token', token)
-        .maybeSingle();
-      if (error || !data) { setNotFound(true); setLoading(false); return; }
+      const res = await fetch(`/api/questionnaire?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
+      const body = res.ok ? await res.json().catch(() => null) : null;
+      const data = body?.questionnaire;
+      if (!data) { setNotFound(true); setLoading(false); return; }
       setQuestionnaire(data);
       setFormData(data);
       if (data.submitted_at) setSubmitted(true);
-
-      // Load regulation rules for this state/city
-      if (data.prefilled_state) {
-        const { data: rules } = await supabase
-          .from('regulation_rules')
-          .select('*')
-          .eq('state', data.prefilled_state)
-          .eq('is_active', true)
-          .order('display_order');
-        if (rules) setRegulationRules(rules);
-      }
+      if (body.rules) setRegulationRules(body.rules);
       setLoading(false);
     };
     fetchQuestionnaire();
-  }, [token, supabase]);
+  }, [token]);
 
   const updateField = useCallback(<K extends keyof QuestionnaireData>(key: K, value: QuestionnaireData[K]) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -151,19 +137,12 @@ export default function QuestionnairePublicPage() {
   const handleSave = useCallback(async () => {
     if (!questionnaire?.id) return;
     setSaving(true);
-    const { error } = await supabase
-      .from('homeowner_questionnaires')
-      .update({
-        ...formData,
-        questionnaire_status: 'in_progress',
-        last_saved_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', questionnaire.id);
+    const res = await fetch('/api/questionnaire', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, answers: formData }) });
+    const error = res.ok ? null : true;
     if (error) toast.error('Failed to save progress');
     else toast.success('Progress saved');
     setSaving(false);
-  }, [questionnaire, formData, supabase]);
+  }, [questionnaire, formData, token]);
 
   const calculateQualification = useCallback((data: Partial<QuestionnaireData>) => {
     const reasons: string[] = [];
@@ -214,22 +193,12 @@ export default function QuestionnairePublicPage() {
 
     const { result, reasons } = calculateQualification(formData);
 
-    const { error } = await supabase
-      .from('homeowner_questionnaires')
-      .update({
-        ...formData,
-        questionnaire_status: result === 'qualified' ? 'qualified' : result === 'needs_review' ? 'needs_review' : 'not_a_fit',
-        qualification_result: result,
-        qualification_reasons: reasons,
-        submitted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', questionnaire.id);
-
+    const res = await fetch('/api/questionnaire', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, answers: formData, submit: { result, reasons } }) });
+    const error = res.ok ? null : true;
     if (error) { toast.error('Failed to submit'); setSubmitting(false); return; }
     setSubmitted(true);
     setSubmitting(false);
-  }, [questionnaire, formData, calculateQualification, supabase]);
+  }, [questionnaire, formData, calculateQualification, token]);
 
   if (loading) {
     return (

@@ -1,6 +1,8 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyTwilioFormRequest } from '@/lib/twilioWebhook';
+
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 function mapOutcome(answeredBy: string | null, callStatus: string | null) {
@@ -32,6 +34,7 @@ async function endMachineCall(callSid: string) {
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData().catch(() => new FormData());
+    if (verifyTwilioFormRequest(request, formData) === false) return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
     const callSid = formData.get('CallSid') as string | null;
     const callStatus = formData.get('CallStatus') as string | null;
     const answeredBy = formData.get('AnsweredBy') as string | null;

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
+import AwaitingApproval from '@/components/AwaitingApproval';
 import { ArrowLeft, Menu, Phone } from 'lucide-react';
 import NotificationDrawer, { BellButton } from './NotificationDrawer';
 import InboxButton from './InboxButton';
@@ -65,6 +66,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }
 
   if (!user || role === 'homeowner') return null;
+
+  // A new sign-up has no access until an admin approves it.
+  if (role === 'pending') return <AwaitingApproval email={user.email} />;
 
   // Landing pages have nowhere meaningful to go "back" to within the app.
   const isLandingPage = pathname === '/' || pathname === '/agent-workspace';

@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -265,11 +266,12 @@ Do not make an automatic hire or reject decision.`,
 
 export async function POST(request: NextRequest) {
   const configuredSecret = process.env.VAPI_WEBHOOK_SECRET;
-  const customSecret = request.headers.get('x-vapi-secret');
   const authorization = request.headers.get('authorization');
-  const bearerSecret = authorization?.replace(/^Bearer\s+/i, '');
-  const webhookAuthorized = customSecret === configuredSecret || bearerSecret === configuredSecret;
-  if (configuredSecret && !webhookAuthorized) {
+  const supplied = request.headers.get('x-vapi-secret') || authorization?.replace(/^Bearer\s+/i, '') || '';
+  // Without a configured secret nothing can be verified, so nothing is accepted.
+  const a = Buffer.from(supplied);
+  const b = Buffer.from(configuredSecret ?? '');
+  if (!configuredSecret || a.length !== b.length || !timingSafeEqual(a, b)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

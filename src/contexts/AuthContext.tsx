@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '../lib/supabase/client';
 import { identifyUser, resetMixpanel } from '../lib/mixpanel';
 
-export type UserRole = 'admin' | 'owner' | 'agent' | 'homeowner';
+export type UserRole = 'admin' | 'owner' | 'agent' | 'homeowner' | 'pending';
 
 interface AuthContextType {
   user: any;
@@ -64,6 +64,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (data?.app_role === 'admin') return 'admin';
       if (data?.app_role === 'owner') return 'owner';
       if (data?.app_role === 'homeowner') return 'homeowner';
+      if (data?.app_role === 'pending') return 'pending';
     } catch { /* silent */ }
     return null;
   };

@@ -1,6 +1,8 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyTwilioFormRequest } from '@/lib/twilioWebhook';
+
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 
@@ -13,6 +15,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData().catch(() => new FormData());
+    if (verifyTwilioFormRequest(req, formData) === false) return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
     const recordingUrl = formData.get('RecordingUrl') as string | null;
     const callSid = formData.get('CallSid') as string | null;
     const recordingSid = formData.get('RecordingSid') as string | null;

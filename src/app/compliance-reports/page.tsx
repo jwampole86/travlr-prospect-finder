@@ -251,6 +251,9 @@ export default function ComplianceReportsPage() {
   return (
     <AppLayout>
       <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+        <div role="note" className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
+          <strong>Sample data.</strong> The reports, schedules and control results on this page are illustrative. They are not produced by live checks, so do not use them as evidence of compliance or share them as audit results.
+        </div>
 
         {/* Header */}
         <div className="flex items-start justify-between flex-wrap gap-4">
