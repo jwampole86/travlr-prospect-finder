@@ -21,6 +21,7 @@ const ALLOWED: Array<{ methods: string[]; path: RegExp }> = [
   { methods: ['GET'], path: /^\/api\/integration\/naveo\/stays\/owner\/listings$/ },
   { methods: ['PATCH'], path: /^\/api\/integration\/naveo\/stays\/owner\/listings\/[A-Za-z0-9_-]{1,64}$/ },
   { methods: ['GET', 'POST'], path: /^\/api\/integration\/naveo\/stays\/owner\/listings\/[A-Za-z0-9_-]{1,64}\/calendar$/ },
+  { methods: ['POST'], path: /^\/api\/integration\/naveo\/stays\/owner\/listings\/[A-Za-z0-9_-]{1,64}\/calendar\/ical$/ },
   { methods: ['DELETE'], path: /^\/api\/integration\/naveo\/stays\/owner\/listings\/[A-Za-z0-9_-]{1,64}\/calendar\/[A-Za-z0-9_-]{1,64}$/ },
   { methods: ['GET'], path: /^\/api\/integration\/naveo\/stays\/owner\/listings\/[A-Za-z0-9_-]{1,64}\/performance$/ },
   { methods: ['GET'], path: /^\/api\/seller\/opportunities$/ },

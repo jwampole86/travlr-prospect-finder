@@ -87,6 +87,16 @@ export const SMS_TEMPLATE_SEEDS: SMSTemplateSeed[] = [
     requiredVars: ['{{senderName}}', '{{contactName}}', '{{address}}', '{{localBlurb}}'],
     blockingVars: ['{{senderName}}', '{{address}}'],
   },
+
+  // ── 6. Manager co-listing (to professional hosts, not property owners; no address) ──
+  {
+    name: 'SMS — Manager Co-List',
+    tag: 'outreach',
+    category: 'Manager Outreach',
+    body: `Hi {{contactName}}, this is {{senderName}} with NAVEO Stays. We're adding a no-guest-fee channel for hosts in your market — you keep Airbnb/Vrbo, we just co-list. First partners with 5+ homes get 60 days at 0% channel fee. Open to a quick chat? Reply YES. Reply STOP to opt out.`,
+    requiredVars: ['{{senderName}}', '{{contactName}}'],
+    blockingVars: ['{{senderName}}'],
+  },
 ];
 
 // ─── Variable Resolution ──────────────────────────────────────────────────────

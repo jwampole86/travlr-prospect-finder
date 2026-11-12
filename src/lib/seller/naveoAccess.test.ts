@@ -20,6 +20,8 @@ describe('naveoSellerAccess', () => {
     expect(naveoSellerAccess('POST', '/api/integration/naveo/stays/listings/abc/launch', KEY, env)).not.toBeNull();
     expect(naveoSellerAccess('PATCH', '/api/integration/naveo/stays/bookings/NV-ABC123', KEY, env)).not.toBeNull();
     expect(naveoSellerAccess('DELETE', '/api/integration/naveo/stays/owner/listings/abc/calendar/def', KEY, env)).not.toBeNull();
+    expect(naveoSellerAccess('POST', '/api/integration/naveo/stays/owner/listings/abc/calendar/ical', KEY, env)).not.toBeNull();
+    expect(naveoSellerAccess('GET', '/api/integration/naveo/stays/owner/listings/abc/calendar/ical', KEY, env)).toBeNull();
     expect(naveoSellerAccess('GET', '/api/integration/naveo/stays/owner/listings', KEY, env)).not.toBeNull();
     expect(naveoSellerAccess('GET', '/api/integration/naveo/owner/submissions', KEY, env)).not.toBeNull();
     expect(naveoSellerAccess('PATCH', '/api/integration/naveo/stays/owner/listings/abc', KEY, env)).not.toBeNull();
