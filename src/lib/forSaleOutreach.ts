@@ -15,7 +15,7 @@ export const FOR_SALE_PITCH =
 export const FOR_SALE_ASK = 'Worth a short conversation?';
 
 /** First text to an owner of a home for sale. `{first_name}`, `{address}` and `{brand}` are filled in per recipient. */
-export const HOMES_FIRST_TEXT = `Hi {first_name} — Jennifer with {brand}. Reaching out about {address}.
+export const HOMES_FIRST_TEXT = `Hi {first_name} — This is Jennifer with {brand}. Reaching out about {address}.
 
 ${FOR_SALE_PITCH}
 ${FOR_SALE_ASK}
@@ -24,7 +24,7 @@ Reply STOP to opt out`;
 
 /** The one-to-one outreach message an agent copies from a lead for a home that is for sale. */
 export function forSaleOutreachMessage(opts: { address: string; agentFirstName?: string }): string {
-  const who = opts.agentFirstName ? `${opts.agentFirstName} with NAVEO Homes` : 'NAVEO Homes here';
+  const who = opts.agentFirstName ? `This is ${opts.agentFirstName} with NAVEO Homes` : 'NAVEO Homes here';
   return `Hi — ${who}. Reaching out about ${opts.address}. ${FOR_SALE_PITCH}\n${FOR_SALE_ASK}\n— ${opts.agentFirstName || 'NAVEO Homes'}`;
 }
 
@@ -37,7 +37,7 @@ export const HOMES_REVENUE_TEXT =
   "Hi {first_name}, I took a quick look at {address}. I'd love to share how a sale with {brand} could work, and how NAVEO Stays may be able to run the home as a short-term rental while it's listed. No commitment. Can I send it over?\n\nReply STOP to opt out.";
 
 export const HOMES_INTRO_TEXT =
-  "Hi {first_name} — Jennifer with {brand}. Reaching out about {address}. If a sale is on the table, we connect owners with a licensed local broker to guide the sale. Worth a short call?\n\nReply STOP to opt out.";
+  "Hi {first_name} — This is Jennifer with {brand}. Reaching out about {address}. If a sale is on the table, we connect owners with a licensed local broker to guide the sale. Worth a short call?\n\nReply STOP to opt out.";
 
 /** Replies the cadence and the automatic answers send for a home for sale. */
 export const HOMES_CADENCE_SMS: Record<string, string> = {

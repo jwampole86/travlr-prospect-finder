@@ -6,7 +6,7 @@ describe('the one-to-one message for a home for sale', () => {
 
   it('leads with who is writing and the property, then the licensed-broker offer and the bridge, and ends on one ask', () => {
     expect(m).toBe(
-      "Hi — Jen with NAVEO Homes. Reaching out about 4105 E Bujia Segunda, Tucson, AZ 85718. If a sale is on the table, we connect owners with a licensed local broker to guide the sale, and if the home will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental in the meantime.\nWorth a short conversation?\n— Jen"
+      "Hi — This is Jen with NAVEO Homes. Reaching out about 4105 E Bujia Segunda, Tucson, AZ 85718. If a sale is on the table, we connect owners with a licensed local broker to guide the sale, and if the home will sit empty while it's listed, NAVEO Stays may be able to run it as a short-term rental in the meantime.\nWorth a short conversation?\n— Jen"
     );
   });
 
