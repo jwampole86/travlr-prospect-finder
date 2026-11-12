@@ -33,6 +33,8 @@ const nextConfig = {
   // The original pricing page location was consolidated into the richer /plans experience.
   async redirects() {
     return [
+      { source: '/privacy', destination: '/privacy-policy', permanent: true },
+      { source: '/terms', destination: '/terms-of-service', permanent: true },
       {
         source: '/prospect-finder/pricing',
         destination: '/plans',

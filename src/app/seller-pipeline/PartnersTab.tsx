@@ -9,6 +9,7 @@ import PartnerPlaybook from './PartnerPlaybook';
 import { isAutomatic } from '@/lib/seller/licenseVerify';
 import { nextTouch } from '@/lib/seller/partnerOutreach';
 import { settlementTermsWarning } from '@/lib/seller/settlementPolicy';
+import { STANDARD_TERMS_POINTS, referralTermsWarnings } from '@/lib/seller/referralTerms';
 import { LICENSE_RECHECK_DAYS, licenseCheckAgeDays, licenseLookupFor, scorePartner, type PartnerScore, type ReferralRow } from '@/lib/seller/partnerReferrals';
 
 type LicenseCheck = { outcome: string; message: string; source: string; checkedAt: string; record?: { name: string; type: string; status: string; expires: string | null; employer: string | null; discipline: string | null; url: string | null } | null };
@@ -160,6 +161,16 @@ export default function PartnersTab() {
             <Field label="Agreement signed on"><input type="date" className={inputCls} value={form.agreement_signed_on} onChange={(e) => setForm({ ...form, agreement_signed_on: e.target.value })} /></Field>
             <Field label="Recruiting status"><select className={inputCls} value={form.recruit_status} onChange={(e) => setForm({ ...form, recruit_status: e.target.value })}>{RECRUIT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
             <Field label="Compensation terms" className="sm:col-span-3"><textarea className={`${inputCls} h-20 py-2`} value={form.compensation_terms} onChange={(e) => setForm({ ...form, compensation_terms: e.target.value })} />{settlementTermsWarning(form.compensation_terms) && <span className="mt-1 block text-xs text-amber-800">{settlementTermsWarning(form.compensation_terms)}</span>}</Field>
+            <div className="sm:col-span-3 space-y-2">
+              <details className="rounded-lg border border-border bg-background px-3 py-2 text-xs">
+                <summary className="cursor-pointer font-medium">Standard referral terms (draft, counsel to review)</summary>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">{STANDARD_TERMS_POINTS.map((t) => <li key={t}>{t}</li>)}</ul>
+              </details>
+              {(() => {
+                const w = referralTermsWarnings({ feePercent: form.referral_fee_percent, payeeName: form.payee_name, protectionDays: form.protection_days, responsibleBroker: form.responsible_broker, agreementSignedOn: form.agreement_signed_on });
+                return w.length ? <ul className="list-disc space-y-0.5 pl-4 text-xs text-amber-800">{w.map((x) => <li key={x}>{x}</li>)}</ul> : null;
+              })()}
+            </div>
             <div className="sm:col-span-3"><button disabled={busy || !form.name.trim()} onClick={add} className={primaryBtnCls}>{busy && <Loader2 size={14} className="animate-spin" />} Save partner</button></div>
           </div>
         )}
