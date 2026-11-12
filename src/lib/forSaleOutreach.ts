@@ -34,7 +34,7 @@ export function forSaleOutreachMessage(opts: { address: string; agentFirstName?:
  */
 export function alreadyListedOutreachMessage(opts: { address: string; agentFirstName?: string }): string {
   const who = opts.agentFirstName ? `This is ${opts.agentFirstName} with NAVEO Stays` : 'NAVEO Stays here';
-  return `Hi — ${who}. Reaching out about ${opts.address}. If the home will sit empty while it's listed, we may be able to run it as a short-term rental in the meantime.\n${FOR_SALE_ASK}\n— ${opts.agentFirstName || 'NAVEO Stays'}`;
+  return `Hi — ${who}. Reaching out about ${opts.address}. While it's listed, we may be able to run it as a short-term rental, where your listing agreement and local rules allow. You keep your listing broker, and we work around showings.\n${FOR_SALE_ASK}\n— ${opts.agentFirstName || 'NAVEO Stays'}`;
 }
 
 /** Short opener used in the lead panel and the fallback page, which already say which listing they came across. */
