@@ -354,6 +354,21 @@ class CityRegulationService {
     return (data as Record<string, unknown>[]).map(dbToCityRegulation);
   }
 
+  /** The rule on file for one city. Null when there is none, so a caller never shows another place's rule. */
+  async getCityRegulation(city: string, state: string): Promise<CityRegulation | null> {
+    if (!city?.trim() || !state?.trim()) return null;
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('city_regulations')
+      .select('*')
+      .eq('state', state.trim().toUpperCase())
+      .ilike('city', city.trim().replace(/[%_]/g, ' '))
+      .order('updated_at', { ascending: false })
+      .limit(1);
+    const row = (data as Record<string, unknown>[] | null)?.[0];
+    return row ? dbToCityRegulation(row) : null;
+  }
+
   // Get regulation coverage stats
   async getCoverage(stateFilter?: string): Promise<RegulationCoverage> {
     const supabase = createClient();

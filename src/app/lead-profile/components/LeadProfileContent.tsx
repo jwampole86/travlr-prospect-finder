@@ -6,13 +6,13 @@ import AppLayout from '@/components/AppLayout';
 import { useRouter } from 'next/navigation';
 import { mockLeads } from '@/data/mockLeads';
 import type { Lead } from '@/data/mockLeads';
-import { cityRegulations } from '@/data/regulations';
+import { cityRegulationService, CANONICAL_STATUS_COLORS, CANONICAL_STATUS_LABELS, formatRegDate, type CityRegulation } from '@/lib/services/cityRegulationService';
 import { createClient } from '@/lib/supabase/client';
 import { normalizeLeadStage } from '@/lib/leadStage';
 import StageBadge from '@/components/ui/StageBadge';
 import RegulationBadge from '@/components/ui/RegulationBadge';
 import ProspectScoreBar from '@/components/ui/ProspectScoreBar';
-import { Phone, Mail, MapPin, Home, DollarSign, Star, Clock, FileText, MessageSquare, User, Tag, TrendingUp, Shield, AlertCircle, RefreshCw, ExternalLink, CheckCircle, Plus, Send, Save, ChevronDown, ChevronRight, Activity, Users, Zap, BarChart2, Copy, Check, Inbox, Link2, Globe, ClipboardCopy, Handshake, Building2, XCircle } from 'lucide-react';
+import { Loader2, Phone, Mail, MapPin, Home, DollarSign, Star, Clock, FileText, MessageSquare, User, Tag, TrendingUp, Shield, AlertCircle, RefreshCw, ExternalLink, CheckCircle, Plus, Send, Save, ChevronDown, ChevronRight, Activity, Users, Zap, BarChart2, Copy, Check, Inbox, Link2, Globe, ClipboardCopy, Handshake, Building2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { showErrorWithRetry } from '@/lib/hooks/useRetryToast';
 import SMSSendModal from './SMSSendModal';
@@ -507,9 +507,15 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
       .then(undefined, () => {});
   }, [user?.id]);
 
-  const regulation = lead ? cityRegulations.find(
-    r => r.city.toLowerCase() === lead.city.toLowerCase()
-  ) : null;
+  // The rule on file for this property's city, read from the live regulations table (the old list here held a few cities and matched on city name alone).
+  const [cityRule, setCityRule] = useState<CityRegulation | null | undefined>(undefined);
+  useEffect(() => {
+    if (!lead?.city || !lead?.state) { setCityRule(null); return; }
+    let cancelled = false;
+    setCityRule(undefined);
+    cityRegulationService.getCityRegulation(lead.city, lead.state).then((r) => { if (!cancelled) setCityRule(r); }).catch(() => { if (!cancelled) setCityRule(null); });
+    return () => { cancelled = true; };
+  }, [lead?.city, lead?.state]);
 
   const propertyAddress = lead ? `${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}` : '';
   const agentFirstName = (() => {
@@ -1451,9 +1457,14 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
                     callsAnswered: (contactData?.events ?? []).filter(e => e.kind === 'call' && /answer|connect|spoke|talked/i.test(String(e.status ?? ''))).length,
                     lastContactedAt: contactData?.lastContactAt ?? null,
                   },
-                  regulatoryContext: regulation ? {
-                    cityRegulationStatus: regulation.status,
-                    jurisdictionName: regulation.city,
+                  regulatoryContext: cityRule ? {
+                    cityRegulationStatus: cityRule.status,
+                    jurisdictionName: cityRule.jurisdictionName,
+                    permitRequired: cityRule.permitRequired,
+                    primaryResidenceRequired: cityRule.primaryResidenceRequired,
+                    nightCap: cityRule.nightCap,
+                    minimumStay: cityRule.minimumStay,
+                    strAllowed: cityRule.strAllowed,
                   } : undefined,
                   currentStage: lead.stage,
                   currentScore: lead.prospectScore,
@@ -2121,41 +2132,67 @@ export default function LeadProfileContent({ leadId }: { leadId: string | null }
               </div>
 
               {/* Regulation Summary */}
-              <div className="bg-card border border-border rounded-xl p-5">
+              <div className="bg-card border border-border rounded-xl p-5" aria-label="Regulation Summary">
                 <div className="flex items-center gap-2 mb-4">
                   <Shield size={15} className="text-primary" />
                   <span className="text-sm font-semibold text-foreground">Regulation Summary</span>
                 </div>
-                {regulation ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-2">
-                      <RegulationBadge status={regulation.status} />
-                      <span className="text-xs text-muted-foreground">{regulation.city}, {regulation.state}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{regulation.summary}</p>
-                    <div className="flex flex-col gap-1.5">
-                      {regulation.keyRules.slice(0, 4).map((rule, i) => (
-                        <div key={i} className="flex items-start gap-2 text-xs">
-                          <CheckCircle size={11} className="text-primary mt-0.5 shrink-0" />
-                          <span className="text-foreground/80">{rule}</span>
+                {cityRule === undefined ? (
+                  <div className="flex items-center gap-2 py-3"><Loader2 size={14} className="animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Loading the rules for {lead.city}…</span></div>
+                ) : cityRule ? (() => {
+                  const yn = (v: boolean | null) => (v === true ? 'Yes' : v === false ? 'No' : 'Not stated');
+                  const rules = [
+                    cityRule.permitRequired ? 'A permit is required' : null,
+                    cityRule.licenseRequired ? 'A license is required' : null,
+                    cityRule.registrationRequired ? 'Registration is required' : null,
+                    cityRule.primaryResidenceRequired ? 'Primary residence only' : null,
+                    cityRule.nightCap ? `Capped at ${cityRule.nightCap} nights a year` : null,
+                    cityRule.minimumStay ? `Minimum stay ${cityRule.minimumStay} nights` : null,
+                    cityRule.occupancyLimit ? `Occupancy limit ${cityRule.occupancyLimit}` : null,
+                    cityRule.localContactRequired ? 'A local contact is required' : null,
+                    cityRule.inspectionRequired ? 'An inspection is required' : null,
+                    cityRule.zoningRestrictions,
+                    cityRule.additionalRestrictions,
+                  ].filter((r): r is string => !!r);
+                  return (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold ${CANONICAL_STATUS_COLORS[cityRule.status]}`}>{CANONICAL_STATUS_LABELS[cityRule.status]}</span>
+                        <span className="text-xs text-muted-foreground">{cityRule.jurisdictionName}</span>
+                        {cityRule.sourceType === 'AI_RESEARCHED' && <span className="text-[10px] rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">AI researched, review due</span>}
+                      </div>
+                      {(cityRule.agentSummary || cityRule.summary) && <p className="text-xs text-muted-foreground leading-relaxed">{cityRule.agentSummary || cityRule.summary}</p>}
+                      {rules.length > 0 && (
+                        <div className="flex flex-col gap-1.5">
+                          {rules.slice(0, 5).map((rule, i) => (
+                            <div key={i} className="flex items-start gap-2 text-xs">
+                              <CheckCircle size={11} className="text-primary mt-0.5 shrink-0" />
+                              <span className="text-foreground/80">{rule}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground">Permit Required</p>
-                        <p className="text-xs font-semibold text-foreground">{regulation.permitRequired ? 'Yes' : 'No'}</p>
+                      )}
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+                        <div className="text-center"><p className="text-[10px] text-muted-foreground">Permit required</p><p className="text-xs font-semibold text-foreground">{yn(cityRule.permitRequired)}</p></div>
+                        <div className="text-center"><p className="text-[10px] text-muted-foreground">Short-term rentals allowed</p><p className="text-xs font-semibold text-foreground">{yn(cityRule.strAllowed)}</p></div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground">License Fee</p>
-                        <p className="text-xs font-semibold text-foreground">{regulation.licensingFee ? `$${regulation.licensingFee}/yr` : 'N/A'}</p>
-                      </div>
+                      {cityRule.taxRequirements && <p className="text-[11px] text-muted-foreground">Taxes: {cityRule.taxRequirements}</p>}
+                      <p className="text-[10px] text-muted-foreground">
+                        {cityRule.lastVerifiedAt ? `Last verified ${formatRegDate(cityRule.lastVerifiedAt)}` : 'Not yet verified'}
+                        {cityRule.sourceUrl && <> · <a className="underline" href={cityRule.sourceUrl} target="_blank" rel="noopener noreferrer">{cityRule.sourceName || 'Source'}</a></>}
+                      </p>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <AlertCircle size={20} className="text-muted-foreground/40 mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground">No regulation data for {lead.city}</p>
+                  );
+                })() : (
+                  <div className="flex flex-col gap-2 py-2">
+                    <div className="flex items-center gap-2">
+                      <RegulationBadge status={lead.regulationStatus} />
+                      <span className="text-xs text-muted-foreground">{lead.city}, {lead.state}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <AlertCircle size={14} className="text-muted-foreground/50 mt-0.5 shrink-0" />
+                      <p className="text-xs text-muted-foreground">No rule is on file for {lead.city}, {lead.state} yet, so there is no summary to show. The status above is the market-level status on the lead. AVYRO researches missing cities automatically; check the local rules before quoting any.</p>
+                    </div>
                   </div>
                 )}
               </div>
